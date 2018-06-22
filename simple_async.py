@@ -25,8 +25,9 @@ def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
 
 async def handle_input(key, x, y):
-    """
-    interpret keycodes and do various actions.
+    """interpret keycodes and do various actions.
+
+    Right now it's just movement. Considering keys to spawn new wanderers.
     """
     await asyncio.sleep(0)  
     if key == 'a':   
@@ -40,8 +41,8 @@ async def handle_input(key, x, y):
     return x, y
 
 async def get_key(): ##
-    """
-    the closest thing I could get to non-blocking input
+    """ the closest thing I could get to non-blocking input
+
     currently contains messy map display code
     """
     old_settings = termios.tcgetattr(sys.stdin)
@@ -80,8 +81,8 @@ async def get_key(): ##
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) ##
 
 async def wanderer(start_x, start_y, speed):
-    """
-    a coroutine that creates a randomly wandering '*'
+    """ A coroutine that creates a randomly wandering '*'
+
     TODO: figure out how to not leave a trail and/or poll from a list of actors 
     instead of writing to the map dicitionary
     """
@@ -98,17 +99,14 @@ async def wanderer(start_x, start_y, speed):
 
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
-    
     loop = asyncio.new_event_loop()
 
     loop.create_task(get_key())
-    loop.create_task(wanderer(5, 5, .2))
-    loop.create_task(wanderer(0, 5, .2))
-    loop.create_task(wanderer(5, 0, .2))
-    loop.create_task(wanderer(10, 10, .2))
-
+    for i in range(100):
+        rand_x = randint(-10, 10)
+        rand_y = randint(-10, 10)
+        loop.create_task(wanderer(rand_x, rand_y, .2))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
-
     
 main()
