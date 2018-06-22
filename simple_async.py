@@ -12,6 +12,7 @@ term = Terminal()
 
 map_dict = defaultdict(lambda: [' '])
 
+#testing out writing to the map_dict
 for x in range(-5, 6):
     for y in range(-5, 6):
         #the lowest level scenery on the tile is index 0.
@@ -24,26 +25,31 @@ def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
 
 async def handle_input(key, x, y):
+    """
+    interpret keycodes and do various actions.
+    """
     await asyncio.sleep(0)  
     if key == 'a':   
         x += 1
-        #print(x,y)
     if key == 'd':  
         x -= 1
-        #print(x,y)
     if key == 'w': 
         y += 1
-        #print(x,y)
     if key == 's':
         y -= 1
     return x, y
 
 async def get_key(): ##
+    """
+    the closest thing I could get to non-blocking input
+    currently contains messy map display code
+    """
     old_settings = termios.tcgetattr(sys.stdin)
+    #TODO: figure out resizing and auto-centering of @ in terminal
     #rows, columns = os.popen('stty size', 'r').read().split()
     #middle_x = int(int(rows)/2)
     #middle_y = int(int(columns)/2)
-    middle_x = 30
+    middle_x = 30 
     middle_y = 10
     try:
         tty.setcbreak(sys.stdin.fileno())
@@ -73,16 +79,12 @@ async def get_key(): ##
     finally: ##
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) ##
 
-
-async def print_every_n(seconds):
-    print("STARTED one")
-    while(1):
-        await asyncio.sleep(seconds)
-        #print("{}!".format(seconds))
-        with term.location(5, 5):
-            print("{}!".format(seconds))
-
 async def wanderer(start_x, start_y, speed):
+    """
+    a coroutine that creates a randomly wandering '*'
+    TODO: figure out how to not leave a trail and/or poll from a list of actors 
+    instead of writing to the map dicitionary
+    """
     old_value = map_dict[(start_x, start_y)][-1]
     map_dict[(start_x, start_y)][-1] = '&'
     x = start_x
@@ -94,16 +96,11 @@ async def wanderer(start_x, start_y, speed):
         y += randint(-1,1)
         map_dict[(x, y)][-1] = '*'
 
-
-
-
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     
     loop = asyncio.new_event_loop()
 
-    loop.create_task(print_every_n(1))
-    loop.create_task(print_every_n(2))
     loop.create_task(get_key())
     loop.create_task(wanderer(5, 5, .2))
     loop.create_task(wanderer(0, 5, .2))
