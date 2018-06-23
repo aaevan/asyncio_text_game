@@ -1,0 +1,24 @@
+let's list out the different data structures we need in the game:
+
+the map
+    a defaultdict of the contents of each cell
+
+actors map
+    a defaultdict with default none (nobody is there right now)
+    polled from in a separate pass from map contents.
+    if there is an actor in a cell, whatever is there in the same cell on the map dict
+    is overridden by the contents of the actor dict
+
+actors roster dict
+    where the objects that represent the state of the actors reside
+    example:
+        an object that inherits from generic actor:
+        an actor has a position (x and y)
+        an actor has a lifetime (either immortal if None or tied to number of turns then deleted if a number).
+        an actor has a refresh speed (in seconds)
+
+map memory (written in all grey just outside the view radius of the player
+
+
+how the map and actors are displayed:
+    

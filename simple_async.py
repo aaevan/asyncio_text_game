@@ -10,6 +10,14 @@ from random import randint
 
 term = Terminal()
 
+class Map_tile:
+    """ Point class represents and manipulates x,y coords. """
+
+    def __init__(self, x=0, y=0, tile=" "):
+        """ Create a new point at x, y """
+        self.x = x
+        self.y = y
+
 map_dict = defaultdict(lambda: [' '])
 
 #testing out writing to the map_dict
@@ -31,13 +39,13 @@ async def handle_input(key, x, y):
     """
     await asyncio.sleep(0)  
     if key == 'a':   
-        x += 1
-    if key == 'd':  
         x -= 1
+    if key == 'd':  
+        x += 1
     if key == 'w': 
-        y += 1
-    if key == 's':
         y -= 1
+    if key == 's':
+        y += 1
     return x, y
 
 async def get_key(): ##
@@ -50,8 +58,8 @@ async def get_key(): ##
     #rows, columns = os.popen('stty size', 'r').read().split()
     #middle_x = int(int(rows)/2)
     #middle_y = int(int(columns)/2)
-    middle_x = 30 
-    middle_y = 10
+    middle_x = term.width 
+    middle_y = term.height
     try:
         tty.setcbreak(sys.stdin.fileno())
         x = 0
@@ -65,14 +73,16 @@ async def get_key(): ##
                 x, y = await handle_input(key, x, y)
             else:
                 await asyncio.sleep(0)
-            for x_shift in range(-10, 11):
-                for y_shift in range(-10, 11):
+            for x_shift in range(-20, 21):
+                for y_shift in range(-20, 21):
+                    if x_shift == 0 and y_shift == 0:
+                        continue
                     x_coord = middle_x + x_shift
                     y_coord = middle_y + y_shift
                     with term.location(x_coord, y_coord):
                         print(map_dict[(x + x_shift, y + y_shift)][-1])
             with term.location(middle_x, middle_y):
-                print("@")
+                print(term.red("@"))
             with term.location(0, 0):
                 print(x_coord, y_coord)
     
@@ -80,14 +90,14 @@ async def get_key(): ##
     finally: ##
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) ##
 
-async def wanderer(start_x, start_y, speed):
+async def wanderer(start_x, start_y, speed, character="*"):
     """ A coroutine that creates a randomly wandering '*'
 
     TODO: figure out how to not leave a trail and/or poll from a list of actors 
     instead of writing to the map dicitionary
     """
     old_value = map_dict[(start_x, start_y)][-1]
-    map_dict[(start_x, start_y)][-1] = '&'
+    map_dict[(start_x, start_y)][-1] = character
     x = start_x
     y = start_y
     while 1:
@@ -95,17 +105,16 @@ async def wanderer(start_x, start_y, speed):
         map_dict[(x, y)][-1] = old_value
         x += randint(-1,1)
         y += randint(-1,1)
-        map_dict[(x, y)][-1] = '*'
+        old_value = map_dict[(x, y)][-1]
+        map_dict[(x, y)][-1] = character
 
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
 
     loop.create_task(get_key())
-    for i in range(100):
-        rand_x = randint(-10, 10)
-        rand_y = randint(-10, 10)
-        loop.create_task(wanderer(rand_x, rand_y, .2))
+    loop.create_task(wanderer(5, 5, .2, character = "a"))
+    loop.create_task(wanderer(5, 5, .2, character = "b"))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
     
