@@ -21,4 +21,7 @@ map memory (written in all grey just outside the view radius of the player
 
 
 how the map and actors are displayed:
-    
+   
+use box printing characters to leave a trail on the ground ?
+
+create a growing tree ?
