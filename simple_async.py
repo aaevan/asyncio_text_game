@@ -12,24 +12,25 @@ term = Terminal()
 class Map_tile:
     """ holds the status and state of each tile. """
 
-    def __init__(self, passable = True, tile=" ", actors = {}):
+    def __init__(self, passable = True, tile=" "):
         """ create a new map tile, location is stored in map_dict"""
         self.passable = passable
         self.tile = tile
+        self.actors = defaultdict(lambda:None)
         #self.light_level = 0
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord = 0, y_coord = 0, turns_til_dead = None, tile="?"):
+    def __init__(self, x_coord = 0, y_coord = 0, speed = .2, turns_til_dead = None, tile="?"):
         """ create a new actor at position x, y """
         self.x_coord = x_coord
         self.y_coord = y_coord
+        self.speed = speed
         self.turns_til_dead = turns_til_dead
         self.tile = tile
 
-#map_dict = defaultdict(lambda: [' ']) #old one
-map_dict = defaultdict(lambda: Map_tile()) #new
-#actor_dict = defaultdict(lambda: [None]
+map_dict = defaultdict(lambda: Map_tile())
+actor_dict = defaultdict(lambda: [None])
 
 for x in range(-5, 6):
     for y in range(-5, 6):
@@ -75,10 +76,6 @@ async def get_key(): ##
     currently contains messy map display code
     """
     old_settings = termios.tcgetattr(sys.stdin)
-    #TODO: figure out resizing and auto-centering of @ in terminal
-    #rows, columns = os.popen('stty size', 'r').read().split()
-    #middle_x = int(int(rows)/2)
-    #middle_y = int(int(columns)/2)
     middle_x = term.width 
     middle_y = term.height
     try:
@@ -93,51 +90,63 @@ async def get_key(): ##
                     break
                 x, y = await handle_input(key, x, y)
             else:
-                await asyncio.sleep(0)
-            #map display code start:
+                await asyncio.sleep(.01) ###
             for x_shift in range(-20, 21):
                 for y_shift in range(-20, 21):
                     if x_shift == 0 and y_shift == 0:
                         continue
                     x_coord = middle_x + x_shift
                     y_coord = middle_y + y_shift
+                    coord_tuple = (x + x_shift, y + y_shift)
                     with term.location(x_coord, y_coord):
-                        print(map_dict[(x + x_shift, y + y_shift)].tile)
-            #map display code end
-
+                        print(map_dict[coord_tuple].tile)
+                        #if map_dict[coord_tuple].actors:
+                           #map_dict_key = next(iter(map_dict[coord_tuple].actors))
+                           #print(actor_dict[map_dict_key].tile)
+                        #else:
+                            #print(map_dict[coord_tuple].tile)
             with term.location(middle_x, middle_y):
                 print(term.red("@"))
-            with term.location(0, 0):
-                print(x_coord, y_coord)
+            #with term.location(0, 0):
+                #print(x_coord, y_coord)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
-async def wanderer(start_x, start_y, speed, character="*"):
-    """ A coroutine that creates a randomly wandering '*'
+async def tile_display(x_center_offset, y_center_offset, noisy = False):
+    """ updates and displays the contents of a map_tile near the player,
+        offset by the player's current position."""
+    pass
 
-    TODO: figure out how to not leave a trail and/or poll from a list of actors 
-    instead of writing to the map dicitionary
-    """
-    #old_value = map_dict[(start_x, start_y)][-1]
-    old_value = map_dict[(start_x, start_y)].tile
-    map_dict[(start_x, start_y)].tile = character
-    x = start_x
-    y = start_y
+
+async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
+    """ A coroutine that creates a randomly wandering '*' """
+    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
+    actor_dict[(name_key)].x_coord = start_x
+    actor_dict[(name_key)].y_coord = start_y
+    x_current = start_x
+    y_current = start_y
     while 1:
         await asyncio.sleep(speed)
-        map_dict[(x, y)].tile = old_value
-        x += randint(-1,1)
-        y += randint(-1,1)
-        old_value = map_dict[(x, y)].tile
-        map_dict[(x, y)].tile = character
+        if map_dict[(x_current, y_current)].actors[name_key]:
+            del map_dict[(x_current, y_current)].actors[name_key]
+        with term.location(0, 1):
+            print(map_dict[(x_current, y_current)].actors[name_key], x_current, y_current)
+        x_current += randint(-1,1)
+        y_current += randint(-1,1)
+        actor_dict[(name_key)].x_coord = x_current
+        actor_dict[(name_key)].y_coord = y_current
+        map_dict[(x_current, y_current)].actors[name_key] = name_key
+        map_dict[(x_current, y_current)].tile = "%"
+        with term.location(0, 2):
+            print(map_dict[(x_current, y_current)].actors[name_key], x_current, y_current)
 
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
 
     loop.create_task(get_key())
-    loop.create_task(wanderer(5, 5, .2, character = "a"))
-    loop.create_task(wanderer(5, 5, .2, character = "b"))
+    loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .2, tile = "a", name_key = "w1"))
+    #loop.create_task(wanderer(-5, -5, .2, tile = "b", name_key = "w2"))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
     
