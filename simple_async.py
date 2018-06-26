@@ -17,7 +17,6 @@ class Map_tile:
         self.passable = passable
         self.tile = tile
         self.actors = defaultdict(lambda:None)
-        #self.light_level = 0
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -34,11 +33,7 @@ actor_dict = defaultdict(lambda: [None])
 
 for x in range(-5, 6):
     for y in range(-5, 6):
-        #the lowest level scenery on the tile is index 0.
-        map_dict[(x, y)] = Map_tile(tile = "_")
-
-def show_key(key):
-    txt.set_text(repr(key))
+        map_dict[(x, y)] = Map_tile(tile = '.') 
 
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
@@ -76,8 +71,8 @@ async def get_key(): ##
     currently contains messy map display code
     """
     old_settings = termios.tcgetattr(sys.stdin)
-    middle_x = term.width 
-    middle_y = term.height
+    middle_x = int(term.width / 2)
+    middle_y = int(term.height / 2)
     try:
         tty.setcbreak(sys.stdin.fileno())
         x = 0
@@ -91,24 +86,22 @@ async def get_key(): ##
                 x, y = await handle_input(key, x, y)
             else:
                 await asyncio.sleep(.01) ###
-            for x_shift in range(-20, 21):
-                for y_shift in range(-20, 21):
+            for x_shift in range(-middle_x, middle_x):
+                for y_shift in range(-middle_y, middle_y):
                     if x_shift == 0 and y_shift == 0:
                         continue
                     x_coord = middle_x + x_shift
                     y_coord = middle_y + y_shift
                     coord_tuple = (x + x_shift, y + y_shift)
                     with term.location(x_coord, y_coord):
-                        print(map_dict[coord_tuple].tile)
-                        #if map_dict[coord_tuple].actors:
-                           #map_dict_key = next(iter(map_dict[coord_tuple].actors))
-                           #print(actor_dict[map_dict_key].tile)
-                        #else:
-                            #print(map_dict[coord_tuple].tile)
+                        #print(map_dict[coord_tuple].tile)
+                        if map_dict[coord_tuple].actors:
+                           map_dict_key = next(iter(map_dict[coord_tuple].actors))
+                           print(actor_dict[map_dict_key].tile)
+                        else:
+                            print(map_dict[coord_tuple].tile)
             with term.location(middle_x, middle_y):
                 print(term.red("@"))
-            #with term.location(0, 0):
-                #print(x_coord, y_coord)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -125,28 +118,25 @@ async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
     actor_dict[(name_key)].y_coord = start_y
     x_current = start_x
     y_current = start_y
+    coords = (x_current, y_current)
     while 1:
         await asyncio.sleep(speed)
-        if map_dict[(x_current, y_current)].actors[name_key]:
-            del map_dict[(x_current, y_current)].actors[name_key]
-        with term.location(0, 1):
-            print(map_dict[(x_current, y_current)].actors[name_key], x_current, y_current)
+        if name_key in map_dict[coords].actors:
+            del map_dict[coords].actors[name_key]
         x_current += randint(-1,1)
         y_current += randint(-1,1)
+        coords = (x_current, y_current)
         actor_dict[(name_key)].x_coord = x_current
         actor_dict[(name_key)].y_coord = y_current
-        map_dict[(x_current, y_current)].actors[name_key] = name_key
-        map_dict[(x_current, y_current)].tile = "%"
-        with term.location(0, 2):
-            print(map_dict[(x_current, y_current)].actors[name_key], x_current, y_current)
+        map_dict[coords].actors[name_key] = name_key
 
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
-
     loop.create_task(get_key())
-    loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .2, tile = "a", name_key = "w1"))
-    #loop.create_task(wanderer(-5, -5, .2, tile = "b", name_key = "w2"))
+    titles = ["A", "B", "C", "D", "E", "F"]
+    for title in titles:
+        loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .1, tile = title, name_key = "w"+title))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
     
