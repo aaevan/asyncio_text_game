@@ -33,9 +33,20 @@ actor_dict = defaultdict(lambda: [None])
 
 actor_dict['player'] = Actor(tile = "@")
 
-for x in range(-5, 6):
-    for y in range(-5, 6):
-        map_dict[(x, y)] = Map_tile(tile = '.') 
+def box_draw(top_left = (0, 0), x_size = 1, y_size = 1, filled = True, character = ".", passable = True):
+    x_tuple = (top_left[0], top_left[0] + x_size)
+    y_tuple = (top_left[1], top_left[1] + y_size)
+    for x in range(*x_tuple):
+        for y in range(*y_tuple):
+            map_dict[(x, y)] = Map_tile(tile=character, passable=passable)
+
+box_draw(top_left = (-10, -10), x_size = 5, y_size = 5, character = term.blue("#"))
+box_draw(top_left = (-5, -5), x_size = 10, y_size = 10, character = ".")
+box_draw(top_left = (5, 5), x_size = 10, y_size = 10, character = term.green("/"))
+
+#for x in range(-5, 6):
+    #for y in range(-5, 6):
+        #map_dict[(x, y)] = Map_tile(tile = '.') 
 
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
@@ -95,7 +106,7 @@ async def map_display():
     middle_x = int(term.width / 2 - 2)
     middle_y = int(term.height / 2 - 2)
     while(1):
-        await asyncio.sleep(0)  
+        await asyncio.sleep(1/30)  
         x = actor_dict['player'].x_coord
         y = actor_dict['player'].y_coord
         for x_shift in range(-middle_x, middle_x):
