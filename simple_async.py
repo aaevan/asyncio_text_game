@@ -31,6 +31,8 @@ class Actor:
 map_dict = defaultdict(lambda: Map_tile())
 actor_dict = defaultdict(lambda: [None])
 
+actor_dict['player'] = Actor(tile = "@")
+
 for x in range(-5, 6):
     for y in range(-5, 6):
         map_dict[(x, y)] = Map_tile(tile = '.') 
@@ -38,21 +40,25 @@ for x in range(-5, 6):
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
 
-async def handle_input(key, x, y):
+async def handle_input(key):
     """interpret keycodes and do various actions.
 
     Right now it's just movement. Considering keys to spawn new wanderers.
     """
     await asyncio.sleep(0)  
+    x_shift = 0
+    y_shift = 0
     if key == 'a':   
-        x -= 1
+        x_shift = -1
     if key == 'd':  
-        x += 1
+        x_shift = 1
     if key == 'w': 
-        y -= 1
+        y_shift = -1
     if key == 's':
-        y += 1
-    return x, y
+        y_shift = 1
+    actor_dict['player'].x_coord += x_shift
+    actor_dict['player'].y_coord += y_shift
+    return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
 async def fuzzy_view_tile():
     """
@@ -66,50 +72,52 @@ async def fuzzy_view_tile():
     pass
 
 async def get_key(): ##
-    """ the closest thing I could get to non-blocking input
-
-    currently contains messy map display code
-    """
+    """ the closest thing I could get to non-blocking input """
     old_settings = termios.tcgetattr(sys.stdin)
-    middle_x = int(term.width / 2)
-    middle_y = int(term.height / 2)
+    #x = 0
+    #y = 0
     try:
         tty.setcbreak(sys.stdin.fileno())
-        x = 0
-        y = 0
         while 1:
-            await asyncio.sleep(0)  
+            await asyncio.sleep(0)
             if isData():
                 key = sys.stdin.read(1)
                 if key == 'x1b':  # x1b is ESC
                     break
-                x, y = await handle_input(key, x, y)
+                x, y = await handle_input(key)
             else:
                 await asyncio.sleep(.01) ###
-            for x_shift in range(-middle_x, middle_x):
-                for y_shift in range(-middle_y, middle_y):
-                    if x_shift == 0 and y_shift == 0:
-                        continue
-                    x_coord = middle_x + x_shift
-                    y_coord = middle_y + y_shift
-                    coord_tuple = (x + x_shift, y + y_shift)
-                    with term.location(x_coord, y_coord):
-                        #print(map_dict[coord_tuple].tile)
-                        if map_dict[coord_tuple].actors:
-                           map_dict_key = next(iter(map_dict[coord_tuple].actors))
-                           print(actor_dict[map_dict_key].tile)
-                        else:
-                            print(map_dict[coord_tuple].tile)
-            with term.location(middle_x, middle_y):
-                print(term.red("@"))
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+
+async def map_display():
+    await asyncio.sleep(0.01)  
+    middle_x = int(term.width / 2 - 2)
+    middle_y = int(term.height / 2 - 2)
+    while(1):
+        await asyncio.sleep(0)  
+        x = actor_dict['player'].x_coord
+        y = actor_dict['player'].y_coord
+        for x_shift in range(-middle_x, middle_x):
+            for y_shift in range(-middle_y, middle_y):
+                if x_shift == 0 and y_shift == 0:
+                    continue
+                x_coord = middle_x + x_shift
+                y_coord = middle_y + y_shift
+                coord_tuple = (x + x_shift, y + y_shift)
+                with term.location(x_coord, y_coord):
+                    if map_dict[coord_tuple].actors:
+                       map_dict_key = next(iter(map_dict[coord_tuple].actors))
+                       print(actor_dict[map_dict_key].tile)
+                    else:
+                       print(map_dict[coord_tuple].tile)
+        with term.location(middle_x, middle_y):
+            print(term.red("@"))
 
 async def tile_display(x_center_offset, y_center_offset, noisy = False):
     """ updates and displays the contents of a map_tile near the player,
         offset by the player's current position."""
     pass
-
 
 async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
@@ -134,6 +142,7 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
+    loop.create_task(map_display())
     titles = ["A", "B", "C", "D", "E", "F"]
     for title in titles:
         loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .1, tile = title, name_key = "w"+title))
