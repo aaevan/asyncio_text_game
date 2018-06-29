@@ -66,7 +66,7 @@ async def handle_input(key):
     actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
+async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 10):
     """ handles displaying data from map_dict
     TODO: break tile or actor code from map_display out into separate function
 
@@ -75,6 +75,10 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
     probability of showing new information (rather than grey last known state)
     is based on euclidean distance from player
 
+    if it has changed print to screen.
+
+    else: continue
+
     """
     #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
     noise = "          ▖▗▘▙▚▛▜▝▞▟"
@@ -82,22 +86,25 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
     middle_x = int(term.width / 2 - 2) 
     middle_y = int(term.height / 2 - 2) 
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2)
+    actor = None
     while(1):
         await asyncio.sleep(0)
         x = actor_dict['player'].x_coord + x_offset
         y = actor_dict['player'].y_coord + y_offset
-        #use tile or actor display code here once broken out into a function
-        tile = map_dict[(x, y)].tile
+        tile_key = (x, y)
+        tile = map_dict[tile_key].tile
+        if map_dict[tile_key].actors:
+            map_dict_key = next(iter(map_dict[tile_key].actors))
+            actor = actor_dict[map_dict_key].tile
+        else:
+            actor = None
         random_noise = choice(noise)
         flicker_state = randint(0, int(distance))
         print_location = (middle_x + x_offset, middle_y + y_offset)
-        tile_key = (x + x_offset, y + y_offset)
         with term.location(*print_location):
             if flicker_state < threshhold:
-                #print(tile)
-                if map_dict[tile_key].actors:
-                   map_dict_key = next(iter(map_dict[tile_key].actors))
-                   print(actor_dict[map_dict_key].tile)
+                if actor:
+                    print(actor)
                 else:
                    print(tile)
             else:
@@ -180,7 +187,7 @@ def main():
             loop.create_task(fuzzy_view_tile(x_offset = x, y_offset = y))
     titles = ["A", "B", "C", "D", "E", "F"]
     for title in titles:
-        loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .5, tile = title, name_key = "w"+title))
+        loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .1, tile = title, name_key = "w"+title))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
