@@ -5,7 +5,8 @@ import tty
 import termios
 from blessings import Terminal
 from collections import defaultdict
-from random import randint
+from random import randint, choice, random
+from math import sqrt
 
 term = Terminal()
 
@@ -44,18 +45,12 @@ box_draw(top_left = (-10, -10), x_size = 5, y_size = 5, character = term.blue("#
 box_draw(top_left = (-5, -5), x_size = 10, y_size = 10, character = ".")
 box_draw(top_left = (5, 5), x_size = 10, y_size = 10, character = term.green("/"))
 
-#for x in range(-5, 6):
-    #for y in range(-5, 6):
-        #map_dict[(x, y)] = Map_tile(tile = '.') 
-
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
 
 async def handle_input(key):
-    """interpret keycodes and do various actions.
+    """interpret keycodes and do various actions.  """
 
-    Right now it's just movement. Considering keys to spawn new wanderers.
-    """
     await asyncio.sleep(0)  
     x_shift = 0
     y_shift = 0
@@ -71,19 +66,34 @@ async def handle_input(key):
     actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def fuzzy_view_tile():
-    """
-    handles displaying data from map_dict
+async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 10):
+    """ handles displaying data from map_dict
 
     flickers in and out depending on how distant it is from player
 
     probability of showing new information (rather than grey last known state)
     is based on euclidean distance from player
-    """
-    pass
 
-async def get_key(): ##
-    """ the closest thing I could get to non-blocking input """
+    """
+    noise = "▓▒░░░░     "
+    await asyncio.sleep(random())
+    middle_x = int(term.width / 2 - 2) 
+    middle_y = int(term.height / 2 - 2) 
+    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2)
+    while(1):
+        await asyncio.sleep(0)
+        x = actor_dict['player'].x_coord + x_offset
+        y = actor_dict['player'].y_coord + y_offset
+        tile = map_dict[(x, y)].tile
+        flicker_state = randint(0, int(distance))
+        with term.location(middle_x + x_offset, middle_y + y_offset):
+            if flicker_state < threshhold:
+                print(tile)
+            else:
+                print(choice(noise))
+
+async def get_key(): 
+    """the closest thing I could get to non-blocking input"""
     old_settings = termios.tcgetattr(sys.stdin)
     #x = 0
     #y = 0
@@ -109,8 +119,8 @@ async def map_display():
         await asyncio.sleep(1/30)  
         x = actor_dict['player'].x_coord
         y = actor_dict['player'].y_coord
-        for x_shift in range(-middle_x, middle_x):
-            for y_shift in range(-middle_y, middle_y):
+        for x_shift in range(-5, 5):
+            for y_shift in range(-5, 5):
                 if x_shift == 0 and y_shift == 0:
                     continue
                 x_coord = middle_x + x_shift
@@ -153,11 +163,16 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
-    loop.create_task(map_display())
+    #loop.create_task(map_display())
+    for x in range(-15,15):
+        for y in range(-15, 15):
+            loop.create_task(fuzzy_view_tile(x_offset = x, y_offset = y))
     titles = ["A", "B", "C", "D", "E", "F"]
     for title in titles:
         loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .1, tile = title, name_key = "w"+title))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
-    
-main()
+
+
+with term.hidden_cursor():
+    main()
