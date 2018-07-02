@@ -35,38 +35,62 @@ actor_dict = defaultdict(lambda: [None])
 actor_dict['player'] = Actor(tile = "@")
 
 def box_draw(top_left = (0, 0), x_size = 1, y_size = 1, filled = True, character = ".", passable = True):
+    """ Draws a box at the given coordinates.o
+
+    TODO: implement an unfilled box
+    """
     x_tuple = (top_left[0], top_left[0] + x_size)
     y_tuple = (top_left[1], top_left[1] + y_size)
     for x in range(*x_tuple):
         for y in range(*y_tuple):
             map_dict[(x, y)] = Map_tile(tile=character, passable=passable)
 
+def draw_line(coord_a = (0, 0), coord_b = (5, 5)):
+    """draws a line to the map_dict connecting the two given points."""
+    pass
+
+def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, passable = True):
+    """ given a root node, picks random points within a radius length and writes
+    characters from the given palette to their corresponding map_dict cell.
+    """
+    for i in range(seeds):
+        throw = radius + 1
+        while throw >= radius:
+            x_toss = randint(-radius, radius)
+            y_toss = randint(-radius, radius)
+            throw = sqrt(x_toss**2 + y_toss**2) #euclidean distance
+        toss_coord = (root_x + x_toss, root_y + y_toss)
+        random_pick = choice(palette)
+        map_dict[toss_coord].tile = random_pick
+        map_dict[toss_coord].passable = passable
+
 box_draw(top_left = (-10, -10), x_size = 5, y_size = 5, character = term.blue("#"))
 box_draw(top_left = (-5, -5), x_size = 10, y_size = 10, character = ".")
 box_draw(top_left = (5, 5), x_size = 10, y_size = 10, character = term.green("/"))
+box_draw(top_left = (-15, 0), x_size = 3, y_size = 3, character = term.yellow("!"), passable = False)
+sow_texture(10, 10, radius = 20, seeds = 200)
 
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
 
 async def handle_input(key):
-    """interpret keycodes and do various actions.  """
+    """interpret keycodes and do various actions."""
 
     await asyncio.sleep(0)  
     x_shift = 0
     y_shift = 0
-    if key == 'a':   
-        x_shift = -1
-    if key == 'd':  
-        x_shift = 1
-    if key == 'w': 
-        y_shift = -1
-    if key == 's':
-        y_shift = 1
-    actor_dict['player'].x_coord += x_shift
-    actor_dict['player'].y_coord += y_shift
+    x = actor_dict['player'].x_coord
+    y = actor_dict['player'].y_coord
+    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1)}
+    x_shift, y_shift = directions[key]
+    shifted_x = actor_dict['player'].x_coord + x_shift
+    shifted_y = actor_dict['player'].y_coord + y_shift
+    if map_dict[(shifted_x, shifted_y)].passable:
+        actor_dict['player'].x_coord += x_shift
+        actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 10):
+async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
     """ handles displaying data from map_dict
     TODO: break tile or actor code from map_display out into separate function
 
@@ -82,13 +106,14 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 10):
     """
     #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
     noise = "          ▖▗▘▙▚▛▜▝▞▟"
-    await asyncio.sleep(random())
+    await asyncio.sleep(0)
     middle_x = int(term.width / 2 - 2) 
     middle_y = int(term.height / 2 - 2) 
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2)
     actor = None
     while(1):
-        await asyncio.sleep(0)
+        await asyncio.sleep(.01)
+        #await asyncio.sleep(distance/10) #changing delay by distance creates an expanding circle
         x = actor_dict['player'].x_coord + x_offset
         y = actor_dict['player'].y_coord + y_offset
         tile_key = (x, y)
@@ -129,35 +154,6 @@ async def get_key():
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
-async def map_display():
-    await asyncio.sleep(0.01)  
-    middle_x = int(term.width / 2 - 2)
-    middle_y = int(term.height / 2 - 2)
-    while(1):
-        await asyncio.sleep(1/30)  
-        x = actor_dict['player'].x_coord
-        y = actor_dict['player'].y_coord
-        for x_shift in range(-5, 5):
-            for y_shift in range(-5, 5):
-                if x_shift == 0 and y_shift == 0:
-                    continue
-                x_coord = middle_x + x_shift
-                y_coord = middle_y + y_shift
-                coord_tuple = (x + x_shift, y + y_shift)
-                with term.location(x_coord, y_coord):
-                    if map_dict[coord_tuple].actors:
-                       map_dict_key = next(iter(map_dict[coord_tuple].actors))
-                       print(actor_dict[map_dict_key].tile)
-                    else:
-                       print(map_dict[coord_tuple].tile)
-        with term.location(middle_x, middle_y):
-            print(term.red("@"))
-
-async def tile_display(x_center_offset, y_center_offset, noisy = False):
-    """ updates and displays the contents of a map_tile near the player,
-        offset by the player's current position."""
-    pass
-
 async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
@@ -176,6 +172,10 @@ async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
         actor_dict[(name_key)].x_coord = x_current
         actor_dict[(name_key)].y_coord = y_current
         map_dict[coords].actors[name_key] = name_key
+
+async def tracker(actor_key = None):
+    """follows the position of an actor and writes their presence to the map."""
+    pass
 
 def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
