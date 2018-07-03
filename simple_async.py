@@ -12,7 +12,6 @@ term = Terminal()
 
 class Map_tile:
     """ holds the status and state of each tile. """
-
     def __init__(self, passable = True, tile=" "):
         """ create a new map tile, location is stored in map_dict"""
         self.passable = passable
@@ -45,9 +44,17 @@ def box_draw(top_left = (0, 0), x_size = 1, y_size = 1, filled = True, character
         for y in range(*y_tuple):
             map_dict[(x, y)] = Map_tile(tile=character, passable=passable)
 
-def draw_line(coord_a = (0, 0), coord_b = (5, 5)):
-    """draws a line to the map_dict connecting the two given points."""
-    pass
+def draw_line(coord_a = (0, 0), coord_b = (5, 5), palette = "%", passable = True):
+    """draws a line to the map_dict connecting the two given points.
+    """
+    x1, y1 = coord_a
+    x2, y2 = coord_b
+    dx = x2 - x1
+    dy = y2 - y1
+    for x in range(x1, x2):
+        y = y1 + dy * (x - x1) / dx
+        map_dict[(int(x), int(y))].tile = choice(palette)
+        map_dict[(int(x), int(y))].passable = passable
 
 def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, passable = True):
     """ given a root node, picks random points within a radius length and writes
@@ -69,6 +76,8 @@ box_draw(top_left = (-5, -5), x_size = 10, y_size = 10, character = ".")
 box_draw(top_left = (5, 5), x_size = 10, y_size = 10, character = term.green("/"))
 box_draw(top_left = (-15, 0), x_size = 3, y_size = 3, character = term.yellow("!"), passable = False)
 sow_texture(10, 10, radius = 20, seeds = 200)
+draw_line()
+draw_line((-10, 15), (5, 3), palette = "111223", passable = False)
 
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
@@ -153,6 +162,18 @@ async def get_key():
                 await asyncio.sleep(.01) ###
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+
+"""
+I need to figure out a way to have multiple behaviors and structures that can be inherited by
+different actor coroutines.
+
+a wanderer uses an actor to store their x and y coordinates,
+    randomly wanders around
+
+A seeker would move in a line towards the player.
+
+a listener would display the status of an actor to the map_dict.
+"""
 
 async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
