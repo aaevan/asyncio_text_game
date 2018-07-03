@@ -108,10 +108,6 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
     probability of showing new information (rather than grey last known state)
     is based on euclidean distance from player
 
-    if it has changed print to screen.
-
-    else: continue
-
     """
     #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
     noise = "          ▖▗▘▙▚▛▜▝▞▟"
@@ -147,8 +143,6 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
 async def get_key(): 
     """the closest thing I could get to non-blocking input"""
     old_settings = termios.tcgetattr(sys.stdin)
-    #x = 0
-    #y = 0
     try:
         tty.setcbreak(sys.stdin.fileno())
         while 1:
@@ -175,23 +169,50 @@ A seeker would move in a line towards the player.
 a listener would display the status of an actor to the map_dict.
 """
 
-async def wanderer(start_x, start_y, speed, tile="*", name_key = "test"):
+async def wander(x_current, y_current, name_key):
+    """ 
+    randomly increments or decrements x_current and y_current
+    if square to be moved to is passable
+   
+    TODO:implement movements to be made as a palette to be pulled from, using 0-9
+    """
+    await asyncio.sleep(0)
+    x_move = randint(-1, 1)
+    y_move = randint(-1, 1)
+    next_move = (x_current + x_move, y_current + y_move)
+    if map_dict[next_move].passable:
+        x_current += randint(-1, 1)
+        y_current += randint(-1, 1)
+        actor_dict[(name_key)].x_coord = x_current
+        actor_dict[(name_key)].y_coord = y_current
+    return (x_current, y_current)
+
+async def seek(name_key, seek_key):
+    """TODO: pass as movement function just like wander
+    Standardize format to pass movement function.
+    """
+    target_x = actor_dict[seek_key].x_coord
+    target_y = actor_dict[seek_key].y_coord
+    seek_coord = (target_x, target_y)
+
+async def get_actor_coords(name_key):
+    actor_x = actor_dict[name_key].x_coord
+    actor_y = actor_dict[name_key].y_coord
+    actor_coords = (actor_x, actor_y)
+    return actor_coords
+
+async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*", 
+        movement_function = wander, name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
     actor_dict[(name_key)].x_coord = start_x
     actor_dict[(name_key)].y_coord = start_y
-    x_current = start_x
-    y_current = start_y
-    coords = (x_current, y_current)
+    coords = await get_actor_coords(name_key)
     while 1:
         await asyncio.sleep(speed)
         if name_key in map_dict[coords].actors:
             del map_dict[coords].actors[name_key]
-        x_current += randint(-1,1)
-        y_current += randint(-1,1)
-        coords = (x_current, y_current)
-        actor_dict[(name_key)].x_coord = x_current
-        actor_dict[(name_key)].y_coord = y_current
+        coords = await movement_function(*coords, name_key)
         map_dict[coords].actors[name_key] = name_key
 
 async def tracker(actor_key = None):
@@ -202,13 +223,13 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
-    #loop.create_task(map_display())
     for x in range(-15,15):
         for y in range(-15, 15):
             loop.create_task(fuzzy_view_tile(x_offset = x, y_offset = y))
     titles = ["A", "B", "C", "D", "E", "F"]
     for title in titles:
-        loop.create_task(wanderer(start_x = 5, start_y = 5, speed = .1, tile = title, name_key = "w"+title))
+        loop.create_task(basic_actor(start_x = 5, start_y = 5, speed = .2, movement_function = wander, tile = title, name_key = "w"+title))
+    loop.create_task(basic_actor(start_x = 0, start_y = 5))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
