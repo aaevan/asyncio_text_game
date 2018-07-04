@@ -7,6 +7,8 @@ from blessings import Terminal
 from collections import defaultdict
 from random import randint, choice, random
 from math import sqrt
+from subprocess import call
+import os
 
 term = Terminal()
 
@@ -76,6 +78,7 @@ box_draw(top_left = (-5, -5), x_size = 10, y_size = 10, character = ".")
 box_draw(top_left = (5, 5), x_size = 10, y_size = 10, character = term.green("/"))
 box_draw(top_left = (-15, 0), x_size = 3, y_size = 3, character = term.yellow("!"), passable = False)
 sow_texture(10, 10, radius = 20, seeds = 200)
+sow_texture(30, 30, radius = 20, seeds = 200)
 draw_line()
 draw_line((-10, 15), (5, 3), palette = "111223", passable = False)
 
@@ -90,8 +93,10 @@ async def handle_input(key):
     y_shift = 0
     x = actor_dict['player'].x_coord
     y = actor_dict['player'].y_coord
-    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1)}
-    x_shift, y_shift = directions[key]
+    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
+            'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
+    if key in directions:
+        x_shift, y_shift = directions[key]
     shifted_x = actor_dict['player'].x_coord + x_shift
     shifted_y = actor_dict['player'].y_coord + y_shift
     if map_dict[(shifted_x, shifted_y)].passable:
@@ -99,26 +104,19 @@ async def handle_input(key):
         actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
+async def view_tile(x_offset = 1, y_offset = 1, threshhold = 10):
     """ handles displaying data from map_dict
     TODO: break tile or actor code from map_display out into separate function
 
-    flickers in and out depending on how distant it is from player
-
-    probability of showing new information (rather than grey last known state)
-    is based on euclidean distance from player
-
     """
-    #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
-    noise = "          ▖▗▘▙▚▛▜▝▞▟"
     await asyncio.sleep(0)
     middle_x = int(term.width / 2 - 2) 
     middle_y = int(term.height / 2 - 2) 
-    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2)
+    previous_actor = None
+    previous_tile = None
     actor = None
     while(1):
-        await asyncio.sleep(.01)
-        #await asyncio.sleep(distance/10) #changing delay by distance creates an expanding circle
+        await asyncio.sleep(1/1000)
         x = actor_dict['player'].x_coord + x_offset
         y = actor_dict['player'].y_coord + y_offset
         tile_key = (x, y)
@@ -128,17 +126,36 @@ async def fuzzy_view_tile(x_offset = 1, y_offset = 1, threshhold = 100):
             actor = actor_dict[map_dict_key].tile
         else:
             actor = None
-        random_noise = choice(noise)
-        flicker_state = randint(0, int(distance))
+        if actor == previous_actor and tile == previous_tile:
+            continue
         print_location = (middle_x + x_offset, middle_y + y_offset)
         with term.location(*print_location):
-            if flicker_state < threshhold:
-                if actor:
-                    print(actor)
-                else:
-                   print(tile)
+            if actor:
+                print(actor)
             else:
-                print(random_noise)
+               print(tile)
+        previous_tile = tile
+        previous_actor = actor
+
+async def noise_tile():
+    """ breaks out noisy tile code into a separate routine 
+
+    flickers in and out depending on how distant it is from player
+
+    probability of showing new information (rather than grey last known state)
+    is based on euclidean distance from player
+    """
+
+    pass
+    #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
+    #noise = "          ▖▗▘▙▚▛▜▝▞▟"
+    #distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
+    #await asyncio.sleep(distance/10) #changing delay by distance creates an expanding circle
+    #random_noise = choice(noise)
+    #flicker_state = randint(0, int(distance))
+    #if flicker_state < threshhold:
+    #else:
+    #print(random_noise)
 
 async def get_key(): 
     """the closest thing I could get to non-blocking input"""
@@ -215,20 +232,37 @@ async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*",
         coords = await movement_function(*coords, name_key)
         map_dict[coords].actors[name_key] = name_key
 
+async def constant_update_tile(x_offset = 0, y_offset = 0, tile = term.red('@')):
+    await asyncio.sleep(1/30)
+    middle_x = int(term.width / 2 - 2) 
+    middle_y = int(term.height / 2 - 2) 
+    while(1):
+        await asyncio.sleep(1/30)
+        with term.location(middle_x, middle_y):
+            print(tile)
+    
+
 async def tracker(actor_key = None):
     """follows the position of an actor and writes their presence to the map."""
     pass
 
+def clear():
+    # check and make call for specific operating system
+    _ = call('clear' if os.name =='posix' else 'cls')
+
 def main():
+    clear()
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
-    for x in range(-15,15):
+    for x in range(-30,30):
         for y in range(-15, 15):
-            loop.create_task(fuzzy_view_tile(x_offset = x, y_offset = y))
+            loop.create_task(view_tile(x_offset = x, y_offset = y))
     titles = ["A", "B", "C", "D", "E", "F"]
     for title in titles:
-        loop.create_task(basic_actor(start_x = 5, start_y = 5, speed = .2, movement_function = wander, tile = title, name_key = "w"+title))
+        start_coord = (5, 5)
+        loop.create_task(basic_actor(*start_coord, speed = .05, movement_function = wander, tile = title, name_key = "w"+title))
+    loop.create_task(constant_update_tile())
     loop.create_task(basic_actor(start_x = 0, start_y = 5))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
