@@ -248,6 +248,57 @@ async def get_actor_coords(name_key):
     actor_coords = (actor_x, actor_y)
     return actor_coords
 
+async def snake(start_x = 0, start_y = 0, speed = .2, head = "0", length = 5, name_key = "snake"):
+    """
+    the head is always index 0, followed by the rest of the list for each segment.
+    when the head moves to a new cell, the next segment in line takes it's coordinates.
+    """
+    await asyncio.sleep(0)
+    segment_locations = [(start_x, start_y)] * length
+    rand_direction = randint(1, 4)
+    snake_segments = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
+            (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
+    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
+    segment_names = []
+    movement_history = [1] * 10
+    for number, segment_coord in enumerate(segment_locations):
+        #print(number, segment_coord)
+        segment_names.append("{}_seg_{}".format(name_key, number))
+        actor_dict[(segment_names[-1])] = Actor(x_coord = segment_coord[0], y_coord = segment_coord[1])
+    while 1:
+        await asyncio.sleep(speed)
+
+        #deleting all traces of the snake segments from the map_dict's actor list:
+        for name_key, coord in zip(segment_names, segment_locations):
+            if name_key in map_dict[coord].actors:
+                del map_dict[coord].actors[name_key]
+        segment_locations.pop()
+
+        #creating a new head location:
+        rand_direction = randint(1, 4)
+        movement_history.pop()
+        movement_history.insert(0, rand_direction)
+        rand_direction_tuple = movement_tuples[rand_direction]
+        new_x = segment_locations[0][0] + rand_direction_tuple[0]
+        new_y = segment_locations[0][1] + rand_direction_tuple[1]
+        new_head_coord = (new_x, new_y)
+        segment_locations.insert(0, new_head_coord)
+        
+        #write the new locations of each segment to the map_dict's tiles' actor lists
+        for name_key, coord in zip(segment_names, segment_locations):
+            actor_dict[(name_key)].x_coord = coord[0]
+            actor_dict[(name_key)].y_coord = coord[1]
+            segment_tile_key = (int(name_key[-1]) + 1, int(name_key[-1]))
+            if segment_tile_key in snake_segments:
+                actor_dict[(name_key)].tile = snake_segments[segment_tile_key]
+            else:
+                actor_dict[(name_key)].tile = '.'
+            map_dict[coord].actors[name_key] = name_key
+        with term.location(0, 0):
+            print(segment_locations)
+        with term.location(0, 1):
+            print(movement_history)
+
 async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*", 
         movement_function = wander, name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
@@ -271,16 +322,17 @@ async def constant_update_tile(x_offset = 0, y_offset = 0, tile = term.red('@'))
         with term.location(middle_x, middle_y):
             print(tile)
 
-async def tracker(actor_key = None):
-    """follows the position of an actor and writes their tile to the map."""
-    pass
-
-async def vine_grow(start_x = -10, start_y = -10, actor_key = "vine", rate = .01, death_clock = 100):
-    """grows a vine starting at a particular tile. Doesn't know about anything else."""
+async def vine_grow(start_x = -10, start_y = -10, actor_key = "vine", rate = .01, death_clock = 100, rounded = True):
+    """grows a vine starting at a particular tile. Doesn't know about anything else.
+    make a snake that moves around the map using the same tiles?"""
     await asyncio.sleep(rate)
     current_coord = (start_x, start_y)
-    vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
-            (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
+    if not rounded:
+        vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
+                (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
+    else:
+        vine_picks = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
+                (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
     prev_dir = randint(1, 4)
     next_dir = randint(1, 4)
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
@@ -300,7 +352,7 @@ async def vine_grow(start_x = -10, start_y = -10, actor_key = "vine", rate = .01
         prev_dir = next_dir
         death_clock -= 1
         if death_clock <= 0:
-            break
+            return
 
 def main():
     map_init()
@@ -310,7 +362,7 @@ def main():
     for x in range(-15,15):
         for y in range(-15, 15):
             loop.create_task(view_tile(x_offset = x, y_offset = y))
-    titles = ["A", "B", "C", "D", "E", "F"]
+    titles = [term.blue(str(i)) for i in range(9)]
     for title in titles:
         start_coord = (5, 5)
         loop.create_task(basic_actor(*start_coord, speed = .05, movement_function = wander,
@@ -318,6 +370,7 @@ def main():
     loop.create_task(constant_update_tile())
     loop.create_task(basic_actor(start_x = 0, start_y = 5))
     loop.create_task(vine_grow())
+    loop.create_task(snake())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
