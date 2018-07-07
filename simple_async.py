@@ -6,38 +6,41 @@ import termios
 from blessings import Terminal
 from collections import defaultdict
 from random import randint, choice, random, shuffle
-from math import sqrt
+from math import sqrt, sin, pi
+from itertools import cycle
 from subprocess import call
 import os
-
-term = Terminal()
 
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable = True, tile = " "):
         """ create a new map tile, location is stored in map_dict"""
-        self.passable, self.tile, self.actors = (passable,
-                                                 tile,
-                                                 defaultdict(lambda:None))
+        self.passable, self.tile = (passable, tile)
+        self.actors = defaultdict(lambda:None)
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, x_coord = 0, y_coord = 0, speed = .2, tile="?"):
         """ create a new actor at position x, y """
-        self.x_coord, self.y_coord, self.speed, self.tile = (x_coord,
-                                                             y_coord,
-                                                             speed, 
-                                                             tile,)
+        self.x_coord, self.y_coord, = (x_coord, y_coord)
+        self.speed, self.tile = (speed, tile)
+
     def update(x, y):
         self.x_coord, self.y_coord = x, y
 
+    def coords():
+        return (self.x_coord, self.y_coord)
+
 map_dict = defaultdict(lambda: Map_tile())
 actor_dict = defaultdict(lambda: [None])
+state_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile = "@")
+term = Terminal()
 
 #Drawing functions---------------------------------------------------------------------------------
 
-def draw_box(top_left = (0, 0), x_size = 1, y_size = 1, filled = True, tile = ".", passable = True):
+def draw_box(top_left = (0, 0), x_size = 1, y_size = 1, filled = True, 
+             tile = ".", passable = True):
     """ Draws a box at the given coordinates."""
 
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -72,7 +75,8 @@ def draw_line(coord_a = (0, 0), coord_b = (5, 5), palette = "%", passable = True
         map_dict[(round(x), round(y))].tile = choice(palette)
         map_dict[(round(x), round(y))].passable = passable
 
-def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, passable = True):
+def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, 
+                passable = True):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -87,7 +91,8 @@ def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, pass
         map_dict[toss_coord].tile = random_tile
         map_dict[toss_coord].passable = passable
 
-async def flood_fill(coord = (0, 0), target = '/', replacement = ' ', depth = 0, max_depth = 10, random = False):
+async def flood_fill(coord = (0, 0), target = '/', replacement = ' ', depth = 0,
+                     max_depth = 10, random = False):
     """ Algorithm from wikipedia 
     figure out how to still allow player movement after it has started.
     figure out how to end a coroutine.
@@ -142,8 +147,6 @@ async def handle_input(key):
         x_shift, y_shift = directions[key]
     shifted_x, shifted_y = (actor_dict['player'].x_coord + x_shift,
                             actor_dict['player'].y_coord + y_shift,)
-    #if key == 'Ff':
-        #await flood_fill((x, y), target = map_dict[(x, y)].tile, replacement = '*', random = True)
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x = x, start_y = y)),
     if map_dict[(shifted_x, shifted_y)].passable:
@@ -188,7 +191,6 @@ async def noise_tile(x_offset, y_offset, threshhold = 10):
     """
     pass
     #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
-    #noise = "          ▖▗▘▙▚▛▜▝▞▟"
     #distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     #await asyncio.sleep(distance/10) #changing delay by distance creates an expanding circle
     #random_noise = choice(noise)
@@ -197,8 +199,30 @@ async def noise_tile(x_offset, y_offset, threshhold = 10):
     #else:
     #print(random_noise)
 
+async def timer(x_pos = 0, y_pos = 10, time_minutes = 0, time_seconds = 5, resolution = 1):
+    await asyncio.sleep(0)
+    timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+    while(1):
+        await asyncio.sleep(resolution)
+        with term.location(x_pos, y_pos):
+            print(term.red(timer_text))
+        if time_seconds >= 1:
+            time_seconds -= resolution
+        elif time_seconds == 0 and time_minutes >= 1:
+            time_seconds = 59
+            time_minutes -= 1
+        elif time_seconds == 0 and time_minutes == 0:
+            x, y = (actor_dict['player'].x_coord,
+                    actor_dict['player'].y_coord,)
+            await vine_grow(start_x = x,  start_y = y)
+            with term.location(x_pos, y_pos):
+                print(" " * 5)
+            break
+        timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+
 async def get_key(): 
     """the closest thing I could get to non-blocking input"""
+    await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
@@ -303,7 +327,7 @@ async def snake(start_x = 0, start_y = 0, speed = .1, head = "0", length = 5, na
             print(movement_history)
 
 async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*", 
-        movement_function = wander, name_key = "test"):
+                      movement_function = wander, name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
     actor_dict[(name_key)].x_coord = start_x
@@ -325,9 +349,9 @@ async def constant_update_tile(x_offset = 0, y_offset = 0, tile = term.red('@'))
         with term.location(middle_x, middle_y):
             print(tile)
 
-async def vine_grow(start_x = -10, start_y = -10, actor_key = "vine", rate = .01, death_clock = 100, rounded = True):
-    """grows a vine starting at a particular tile. Doesn't know about anything else.
-    make a snake that moves around the map using the same tiles?"""
+async def vine_grow(start_x = 0, start_y = 0, actor_key = "vine", 
+                    rate = .001, death_clock = 100, rounded = True):
+    """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else."""
     await asyncio.sleep(rate)
     current_coord = (start_x, start_y)
     if not rounded:
@@ -357,6 +381,37 @@ async def vine_grow(start_x = -10, start_y = -10, actor_key = "vine", rate = .01
         if death_clock <= 0:
             return
 
+async def run_every_n(sec_interval = 3, repeating_function = vine_grow, args = () ):
+    while(1):
+        await asyncio.sleep(sec_interval)
+        x, y = (actor_dict['player'].x_coord,
+                actor_dict['player'].y_coord,)
+        asyncio.ensure_future(repeating_function(*args))
+
+async def sin_loop(state_dict_key = "testsin", update_speed = .1, length = 10):
+    await asyncio.sleep(0)
+    sins = [sin((pi/length) * i) for i in range(length * 2)]
+    for num in cycle(sins):
+        await asyncio.sleep(update_speed)
+        state_dict[state_dict_key] = num
+
+async def readout(x_coord = 0, y_coord = 7, listen_to_key = None, update_rate = .1, float_len = 3, title = None):
+    """listen to a specific key of state_dict
+    state dict changes over time according to things happening in other loops """
+    await asyncio.sleep(0)
+    while(1):
+        await asyncio.sleep(0)
+        key_value = state_dict[listen_to_key]
+        if type(key_value) is float:
+            if title:
+                with term.location(x_coord, y_coord):
+                    print("{}:{:6.3f}".format(title, key_value))
+            else:
+                with term.location(x_coord, y_coord):
+                    print("{:6.3f}".format(key_value))
+        else:
+            pass
+
 def main():
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) ##
@@ -374,9 +429,12 @@ def main():
     loop.create_task(basic_actor(start_x = 0, start_y = 5))
     loop.create_task(vine_grow())
     loop.create_task(snake())
+    loop.create_task(timer())
+    loop.create_task(run_every_n())
+    loop.create_task(sin_loop(state_dict_key = "sin_loop"))
+    loop.create_task(readout(x_coord = 0, y_coord = 5, listen_to_key = "sin_loop", title = "sin_val"))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
-
 
 with term.hidden_cursor():
     main()
