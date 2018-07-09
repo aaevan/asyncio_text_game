@@ -31,7 +31,7 @@ class Actor:
     def coords():
         return (self.x_coord, self.y_coord)
 
-map_dict = defaultdict(lambda: Map_tile())
+map_dict = defaultdict(lambda: Map_tile(passable = False))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile = "@")
@@ -64,7 +64,7 @@ def draw_box(top_left = (0, 0), x_size = 1, y_size = 1, filled = True,
             x = top_left[0] + x_size
             map_dict[(x, y)].tile = tile
 
-def draw_line(coord_a = (0, 0), coord_b = (5, 5), palette = "%", passable = True):
+def draw_line(coord_a = (0, 0), coord_b = (5, 5), palette = "░", passable = True):
     """draws a line to the map_dict connecting the two given points."""
     x1, y1, x2, y2 = (*coord_a,
                       *coord_b,)
@@ -74,6 +74,34 @@ def draw_line(coord_a = (0, 0), coord_b = (5, 5), palette = "%", passable = True
         y = y1 + dy * (x - x1) / dx
         map_dict[(round(x), round(y))].tile = choice(palette)
         map_dict[(round(x), round(y))].passable = passable
+
+def connect_with_passage(x1, y1, x2, y2, segments = 2, palette = "░"):
+    """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
+    if segments == 2:
+        if abs(x2-x1) > abs(y2-y1):
+            for x_coord in range(x1, x2+1):
+                map_dict[(x_coord, y1)].tile = choice(palette)
+                map_dict[(x_coord, y1)].passable = True
+            for y_coord in range(y1, y2+1):
+                map_dict[(x2, y_coord)].tile = choice(palette)
+                map_dict[(x2, y_coord)].passable = True
+        else:
+            for y_coord in range(y1, y2+1):
+                map_dict[(x1, y_coord)].tile = choice(palette)
+                map_dict[(x1, y_coord)].passable = True
+            for x_coord in range(x1, x2+1):
+                map_dict[(x_coord, y2)].tile = choice(palette)
+                map_dict[(x_coord, y2)].passable = True
+
+def center_of_box(x_top_left, y_top_left, width_x, height_y):
+    x_middle = round(x_top_left + width_x/2)
+    y_middle = round(y_top_left + height_y/2)
+    return (x_middle, y_middle)
+
+def pick_point_in_cone(cone_left_edge, cone_right_edge):
+    """returns a point at a given distance range in a clockwise propagating cone
+    to be used for map creation"""
+    pass
 
 def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, 
                 passable = True):
@@ -123,14 +151,23 @@ def clear():
 
 def map_init():
     clear()
-    draw_box(top_left = (-10, -10), x_size = 5, y_size = 5, tile = term.blue("#"), filled = False)
-    draw_box(top_left = (-5, -5), x_size = 10, y_size = 10, tile = ".", filled = False)
-    draw_box(top_left = (5, 5), x_size = 10, y_size = 10, tile = term.green("/"))
-    draw_box(top_left = (-15, 0), x_size = 3, y_size = 3, tile = term.yellow("!"), passable = False)
-    sow_texture(10, 10, radius = 20, seeds = 200)
-    sow_texture(30, 30, radius = 20, seeds = 200)
-    draw_line()
-    draw_line((-10, 15), (5, 3), palette = "111223", passable = False)
+    #sow_texture(10, 10, radius = 20, seeds = 200)
+    #sow_texture(30, 30, radius = 20, seeds = 200)
+    #draw_box(top_left = (-10, -10), x_size = 5, y_size = 5, tile = term.blue("#"), filled = False)
+    #draw_box(top_left = (-5, -5), x_size = 10, y_size = 10, tile = ".", filled = False)
+    draw_box(top_left = (-5, -5), x_size = 10, y_size = 10, tile = "░")
+    draw_box(top_left = (5, 5), x_size = 10, y_size = 10, tile = "░")
+    draw_box(top_left = (15, 15), x_size = 10, y_size = 10, tile = "░")
+    draw_box(top_left = (30, 15), x_size = 10, y_size = 10, tile = "░")
+    connect_with_passage(7, 7, 17, 17)
+    connect_with_passage(17, 17, 25, 10)
+    connect_with_passage(20, 20, 35, 20)
+    connect_with_passage(0, 0, 17, 17)
+
+    #draw_line(coord_a = (x1, y1), coord_b = (x1, y2), palette = palette)
+    #draw_line(coord_a = (x1, y2), coord_b = (x2, y2), palette = palette)
+    #draw_box(top_left = (-15, 0), x_size = 3, y_size = 3, tile = term.yellow("!"), passable = False)
+    #draw_line()
 
 def isData(): ##
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
@@ -395,6 +432,16 @@ async def sin_loop(state_dict_key = "testsin", update_speed = .1, length = 10):
         await asyncio.sleep(update_speed)
         state_dict[state_dict_key] = num
 
+async def track_actor_location(state_dict_key = "player", actor_dict_key = "player", update_speed = .1, length = 10):
+    await asyncio.sleep(0)
+    actor_coords = None
+    while(1):
+        with term.location(5, 5):
+            print("{:8}".format(str(actor_coords)))
+        await asyncio.sleep(update_speed)
+        actor_coords = (actor_dict['player'].x_coord, actor_dict['player'].y_coord)
+        state_dict[state_dict_key] = actor_coords
+
 async def readout(x_coord = 0, y_coord = 7, listen_to_key = None, update_rate = .1, float_len = 3, title = None):
     """listen to a specific key of state_dict
     state dict changes over time according to things happening in other loops """
@@ -427,12 +474,13 @@ def main():
                 tile = title, name_key = "w"+title))
     loop.create_task(constant_update_tile())
     loop.create_task(basic_actor(start_x = 0, start_y = 5))
-    loop.create_task(vine_grow())
-    loop.create_task(snake())
-    loop.create_task(timer())
-    loop.create_task(run_every_n())
-    loop.create_task(sin_loop(state_dict_key = "sin_loop"))
-    loop.create_task(readout(x_coord = 0, y_coord = 5, listen_to_key = "sin_loop", title = "sin_val"))
+    #loop.create_task(vine_grow())
+    #loop.create_task(snake())
+    #loop.create_task(timer())
+    #loop.create_task(run_every_n())
+    #loop.create_task(sin_loop(state_dict_key = "sin_loop"))
+    loop.create_task(track_actor_location())
+    #loop.create_task(readout(x_coord = 0, y_coord = 5, listen_to_key = "player", title = "player_coords:"))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
