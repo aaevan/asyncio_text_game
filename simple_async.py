@@ -104,7 +104,7 @@ def pick_point_in_cone(cone_left_edge, cone_right_edge):
     pass
 
 def sow_texture(root_x, root_y, palette = ",.'\"`", radius = 5, seeds = 20, 
-                passable = True):
+                passable = False):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -151,7 +151,7 @@ def clear():
 
 def map_init():
     clear()
-    #sow_texture(10, 10, radius = 20, seeds = 200)
+    sow_texture(20, 20, radius = 50, seeds = 500)
     #sow_texture(30, 30, radius = 20, seeds = 200)
     #draw_box(top_left = (-10, -10), x_size = 5, y_size = 5, tile = term.blue("#"), filled = False)
     #draw_box(top_left = (-5, -5), x_size = 10, y_size = 10, tile = ".", filled = False)
@@ -286,21 +286,40 @@ async def wander(x_current, y_current, name_key):
     x_move, y_move = randint(-1, 1), randint(-1, 1)
     next_move = (x_current + x_move, y_current + y_move)
     if map_dict[next_move].passable:
-        x_current += randint(-1, 1)
-        y_current += randint(-1, 1)
+        x_current += x_move
+        y_current += y_move
         actor_dict[(name_key)].x_coord = x_current
         actor_dict[(name_key)].y_coord = y_current
     return (x_current, y_current)
 
-async def seek(name_key, seek_key):
+async def seek(x_current, y_current, name_key, seek_key = 'player'):
     """TODO: pass as movement function just like wander
     Standardize format to pass movement function.
     """
-    target_x = actor_dict[seek_key].x_coord
-    target_y = actor_dict[seek_key].y_coord
-    seek_coord = (target_x, target_y)
-
+    await asyncio.sleep(0)
+    target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
+    active_x, active_y = x_current, y_current
+    diff_x, diff_y = (active_x - target_x), (active_y - target_y)
+    with term.location(0, 10):
+        print("seeking:{}".format(seek_key))
+        print("active:{}".format(name_key))
+        print("{},{}      ".format(target_x, target_y))
+        print("{},{}      ".format(active_x, active_y))
+        print("{},{}      ".format(diff_x, diff_y))
+    if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
+        active_x -= 1
+    if diff_x < 0 and map_dict[(active_x + 1, active_y)].passable:
+        active_x += 1
+    if diff_y > 0 and map_dict[(active_x, active_y - 1)].passable:
+        active_y -= 1
+    if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
+        active_y += 1
+    actor_dict[(name_key)].x_coord = active_x
+    actor_dict[(name_key)].y_coord = active_y
+    return (active_x, active_y)
+    
 async def get_actor_coords(name_key):
+    await asyncio.sleep(0)
     actor_x = actor_dict[name_key].x_coord
     actor_y = actor_dict[name_key].y_coord
     actor_coords = (actor_x, actor_y)
@@ -363,8 +382,7 @@ async def snake(start_x = 0, start_y = 0, speed = .1, head = "0", length = 5, na
         with term.location(0, 1):
             print(movement_history)
 
-async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*", 
-                      movement_function = wander, name_key = "test"):
+async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*", movement_function = wander, name_key = "test"):
     """ A coroutine that creates a randomly wandering '*' """
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
     actor_dict[(name_key)].x_coord = start_x
@@ -374,7 +392,7 @@ async def basic_actor(start_x = 0, start_y = 0, speed = .2, tile="*",
         await asyncio.sleep(speed)
         if name_key in map_dict[coords].actors:
             del map_dict[coords].actors[name_key]
-        coords = await movement_function(*coords, name_key)
+        coords = await movement_function(x_current = coords[0], y_current = coords[1], name_key = name_key)
         map_dict[coords].actors[name_key] = name_key
 
 async def constant_update_tile(x_offset = 0, y_offset = 0, tile = term.red('@')):
@@ -460,6 +478,7 @@ async def readout(x_coord = 0, y_coord = 7, listen_to_key = None, update_rate = 
             pass
 
 def main():
+    #TODO: fix wanderers so they don't get stuck in walls.
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) ##
     loop = asyncio.new_event_loop()
@@ -467,14 +486,8 @@ def main():
     for x in range(-15,15):
         for y in range(-15, 15):
             loop.create_task(view_tile(x_offset = x, y_offset = y))
-    titles = [term.blue(str(i)) for i in range(9)]
-    for title in titles:
-        start_coord = (5, 5)
-        loop.create_task(basic_actor(*start_coord, speed = .05, movement_function = wander,
-                tile = title, name_key = "w"+title))
+    loop.create_task(basic_actor(*(10, 10), speed = .5, movement_function = seek, tile = "%", name_key = "test_seeker"))
     loop.create_task(constant_update_tile())
-    loop.create_task(basic_actor(start_x = 0, start_y = 5))
-    #loop.create_task(vine_grow())
     #loop.create_task(snake())
     #loop.create_task(timer())
     #loop.create_task(run_every_n())
