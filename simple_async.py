@@ -1,15 +1,15 @@
 import asyncio
-import sys
-import select 
-import tty 
-import termios
 from blessings import Terminal
 from collections import defaultdict
-from random import randint, choice, random, shuffle
-from math import sqrt, sin, pi
 from itertools import cycle
+from math import sqrt, sin, pi
+from os import name
+from random import randint, choice, random, shuffle
+from select import select
 from subprocess import call
-import os
+from sys import stdin
+from termios import TCSADRAIN, tcgetattr, tcsetattr
+from tty import setcbreak
 
 # Variables:
 
@@ -147,7 +147,7 @@ async def flood_fill(coord=(0, 0), target='/', replacement=' ', depth=0,
 
 def clear():
     # check and make call for specific operating system
-    _ = call('clear' if os.name =='posix' else 'cls')
+    _ = call('clear' if name =='posix' else 'cls')
 
 def map_init():
     clear()
@@ -170,7 +170,7 @@ def map_init():
     #draw_line()
 
 def isData(): ##
-    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) ##
+    return select([stdin], [], [], 0) == ([stdin], [], []) ##
 
 async def handle_input(key):
     """interpret keycodes and do various actions."""
@@ -273,20 +273,20 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
 async def get_key(): 
     """the closest thing I could get to non-blocking input"""
     await asyncio.sleep(0)
-    old_settings = termios.tcgetattr(sys.stdin)
+    old_settings = tcgetattr(stdin)
     try:
-        tty.setcbreak(sys.stdin.fileno())
+        setcbreak(stdin.fileno())
         while 1:
             await asyncio.sleep(0)
             if isData():
-                key = sys.stdin.read(1)
+                key = stdin.read(1)
                 if key == 'x1b':  # x1b is ESC
                     break
                 x, y = await handle_input(key)
             else:
                 await asyncio.sleep(.01) ###
     finally: 
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+        tcsetattr(stdin, TCSADRAIN, old_settings) 
 
 async def wander(x_current, y_current, name_key):
     """ 
@@ -487,7 +487,7 @@ async def readout(x_coord=0, y_coord=7, listen_to_key=None, update_rate=.1, floa
 
 def main():
     map_init()
-    old_settings = termios.tcgetattr(sys.stdin) ##
+    old_settings = tcgetattr(stdin) ##
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     for x in range(-size, size):
