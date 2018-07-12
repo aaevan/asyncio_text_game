@@ -191,33 +191,44 @@ async def handle_input(key):
         actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def view_tile(x_offset=1, y_offset=1):
+async def view_tile(x_offset=1, y_offset=1, distance_effects = False):
     """ handles displaying data from map_dict """
     #await asyncio.sleep(random()/10)
+    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     await asyncio.sleep(random()/5)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     previous_actor, previous_tile, actor = None, None, None
+    distance_pause = distance 
+    print_location = (middle_x + x_offset, middle_y + y_offset)
     while(1):
-        await asyncio.sleep(.01)
-        x, y = (actor_dict['player'].x_coord + x_offset,
-                actor_dict['player'].y_coord + y_offset,)
-        tile_key = (x, y)
-        tile = map_dict[tile_key].tile
-        if map_dict[tile_key].actors:
-            map_dict_key = next(iter(map_dict[tile_key].actors))
-            actor = actor_dict[map_dict_key].tile
+        if distance_effects:
+            if distance >= 5:
+                with term.location(*print_location):
+                    print(" ")
+            await asyncio.sleep(distance_pause * random())
         else:
-            actor = None
-        if actor == previous_actor and tile == previous_tile:
-            continue
-        print_location = (middle_x + x_offset, middle_y + y_offset)
-        with term.location(*print_location):
-            if actor:
-                print(actor)
+            await asyncio.sleep(.01)
+            distance_pause = 1
+        for repeat in range(int(distance_pause)):
+            await asyncio.sleep(random()/distance_pause)
+            x, y = (actor_dict['player'].x_coord + x_offset,
+                    actor_dict['player'].y_coord + y_offset,)
+            tile_key = (x, y)
+            tile = map_dict[tile_key].tile
+            if map_dict[tile_key].actors:
+                map_dict_key = next(iter(map_dict[tile_key].actors))
+                actor = actor_dict[map_dict_key].tile
             else:
-               print(tile)
-        previous_tile, previous_actor = tile, actor
+                actor = None
+            if actor == previous_actor and tile == previous_tile:
+                continue
+            with term.location(*print_location):
+                if actor:
+                    print(actor)
+                else:
+                   print(tile)
+            previous_tile, previous_actor = tile, actor
 
 async def noise_tile(x_offset, y_offset, threshhold=10):
     """ breaks out noisy tile code into a separate routine 
