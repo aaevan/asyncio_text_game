@@ -11,10 +11,6 @@ from sys import stdin
 from termios import TCSADRAIN, tcgetattr, tcsetattr
 from tty import setcbreak
 
-# Variables:
-
-size = 15 #width and height of tiles to be displayed
-
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile=" "):
@@ -191,14 +187,25 @@ async def handle_input(key):
         actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-async def view_tile(x_offset=1, y_offset=1):
+"""
+Would there be a way to implement amnesia? a history of tiles that always
+display (in say, red) that decay over time.
+"""
+
+async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold = 10):
     """ handles displaying data from map_dict """
+    #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
+    noise = "░" * 1 + " " * 5
     #await asyncio.sleep(random()/10)
+    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     await asyncio.sleep(random()/5)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     previous_actor, previous_tile, actor = None, None, None
+    print_location = (middle_x + x_offset, middle_y + y_offset)
+    last_noise = ' '
     while(1):
+        #await asyncio.sleep(0)
         await asyncio.sleep(.01)
         x, y = (actor_dict['player'].x_coord + x_offset,
                 actor_dict['player'].y_coord + y_offset,)
@@ -209,14 +216,27 @@ async def view_tile(x_offset=1, y_offset=1):
             actor = actor_dict[map_dict_key].tile
         else:
             actor = None
-        if actor == previous_actor and tile == previous_tile:
-            continue
-        print_location = (middle_x + x_offset, middle_y + y_offset)
         with term.location(*print_location):
-            if actor:
-                print(actor)
+            if distance_effects:
+                if randint(0, round(distance)) < threshold:
+                    if actor == previous_actor and tile == previous_tile:
+                        continue
+                    elif actor:
+                        print(actor)
+                    else:
+                        print(tile)
+                else:
+                    noise_choice = choice(noise)
+                    if noise_choice == last_noise:
+                        continue
+                    print(choice(noise))
+                    last_noise = noise_choice
+                    await asyncio.sleep(distance * .01)
             else:
-               print(tile)
+                if actor:
+                    print(actor)
+                else:
+                   print(tile)
         previous_tile, previous_actor = tile, actor
 
 async def noise_tile(x_offset, y_offset, threshhold=10):
@@ -284,7 +304,7 @@ async def get_key():
                     break
                 x, y = await handle_input(key)
             else:
-                await asyncio.sleep(.01) ###
+                await asyncio.sleep(.01) 
     finally: 
         tcsetattr(stdin, TCSADRAIN, old_settings) 
 
@@ -311,12 +331,6 @@ async def seek(x_current, y_current, name_key, seek_key='player'):
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
     active_x, active_y = x_current, y_current
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
-    with term.location(0, 10):
-        print("seeking:{}".format(seek_key))
-        print("active:{}".format(name_key))
-        print("{},{}      ".format(target_x, target_y))
-        print("{},{}      ".format(active_x, active_y))
-        print("{},{}      ".format(diff_x, diff_y))
     if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
         active_x -= 1
     if diff_x < 0 and map_dict[(active_x + 1, active_y)].passable:
@@ -486,19 +500,25 @@ async def readout(x_coord=0, y_coord=7, listen_to_key=None, update_rate=.1, floa
             pass
 
 def main():
+    term_x_radius = 20
+    term_y_radius = 20
     map_init()
+
     old_settings = tcgetattr(stdin) ##
+
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
-    for x in range(-size, size):
-        for y in range(-size, size):
-            loop.create_task(view_tile(x_offset=x, y_offset=y))
-    loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="%", name_key="test_seeker"))
+    for x in range(-term_x_radius, term_x_radius):
+        for y in range(-term_y_radius, term_y_radius):
+            distance = sqrt(x**2 + y**2)
+            #cull view_tile instances that are beyond a certain radius
+            if distance < 18:
+                loop.create_task(view_tile(x_offset=x, y_offset=y))
+    loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker"))
     loop.create_task(constant_update_tile())
-    #for i in range(1,100):
-        #loop.create_task(shaded_tile(x=i + 1, on_percent=(i/10)))
+    loop.create_task(constant_update_tile())
     loop.create_task(snake())
-    #loop.create_task(timer())
+    loop.create_task(timer())
     #loop.create_task(run_every_n())
     #loop.create_task(sin_loop(state_dict_key="sin_loop"))
     #loop.create_task(track_actor_location())
