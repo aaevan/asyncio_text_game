@@ -50,6 +50,7 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
             for y in range(*y_tuple):
                 map_dict[(x, y)].tile = tile
                 map_dict[(x, y)].passable = passable
+                map_dict[(x, y)].blocking = False
     else:
         map_dict[top_left].tile = tile
         map_dict[(x_tuple[1], y_tuple[1])].tile = tile
@@ -64,43 +65,82 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
             x = top_left[0] + x_size
             map_dict[(x, y)].tile = tile
 
-async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="░", passable=True):
+async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*", passable=True):
     """draws a line to the map_dict connecting the two given points."""
     #TODO: fix problems with gaps in sharp up and down lines, i.e., 0,0 to 0, -5
     await asyncio.sleep(0)
-    x1, y1, x2, y2 = (*coord_a,
-                      *coord_b,)
-    dx, dy = (x2 - x1,
-              y2 - y1,)
-    for x in range(x1, x2):
-        y = y1 + dy * (x - x1) / dx
-        map_dict[(round(x), round(y))].tile = choice(palette)
-        map_dict[(round(x), round(y))].passable = passable
+    points = await get_line(coord_a, coord_b)
+    for point in points:
+        if len(palette) > 1:
+            map_dict[point].tile = choice(palette)
+        else:
+            map_dict[point].tile = palette
+        map_dict[point].passable = passable
+        map_dict[point].blocking = False
+
+async def get_line(start, end):
+    """Bresenham's Line Algorithm
+    Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
+    Produces a list of tuples from start and end
+ 
+    >>> points1 = get_line((0, 0), (3, 4))
+    >>> points2 = get_line((3, 4), (0, 0))
+    >>> assert(set(points1) == set(points2))
+    >>> print(points1)
+    [(0, 0), (1, 1), (1, 2), (2, 3), (3, 4)]
+    >>> print(points2)
+    [(3, 4), (2, 3), (1, 2), (1, 1), (0, 0)]
+    """
+    await asyncio.sleep(0)
+    x1, y1 = start
+    # Setup initial conditions
+    x2, y2 = end
+    dx = x2 - x1
+    dy = y2 - y1
+    # Determine how steep the line is
+    is_steep = abs(dy) > abs(dx)
+    # Rotate line
+    if is_steep:
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+    # Swap start and end points if necessary and store swap state
+    swapped = False
+    if x1 > x2:
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
+        swapped = True
+    # Recalculate differentials
+    dx = x2 - x1
+    dy = y2 - y1
+    # Calculate error
+    error = int(dx / 2.0)
+    ystep = 1 if y1 < y2 else -1
+    # Iterate over bounding box generating points between start and end
+    y = y1
+    points = []
+    for x in range(x1, x2 + 1):
+        coord = (y, x) if is_steep else (x, y)
+        points.append(coord)
+        error -= abs(dy)
+        if error < 0:
+            y += ystep
+            error += dx
+    # Reverse the list if the coordinates were swapped
+    if swapped:
+        points.reverse()
+    return points
 
 async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
     """
-    intended to be used for occlusion, line drawing algorithm is wrong right now.
-    TODO: doesn't work, needs fixing.
+    intended to be used for occlusion.
     """
-    await asyncio.sleep(0)
-    x1, y1, x2, y2 = (*coord_a,
-                      *coord_b,)
-    dx, dy = (x2 - x1,
-              y2 - y1,)
-    for x in range(x1, x2):
-        y = y1 + dy * (x - x1) / dx
-        print(x, round(y))
-        if map_dict[(round(x), int(round(y)))].blocking == True:
-            x, y = (actor_dict['player'].x_coord,
-                    actor_dict['player'].y_coord,)
-            map_dict[(x, y)].tile = 'X'
+    await asyncio.sleep(0.01)
+    points = await get_line(coord_a, coord_b)
+    for point in points[:-1]: #all except for the last one.
+        if map_dict[point].blocking == True:
             return False
         else:
-            print(x, round(y))
             continue
-    x, y = (actor_dict['player'].x_coord,
-            actor_dict['player'].y_coord,)
-    map_dict[(x, y)].tile = '☺'
     return True
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
@@ -110,16 +150,20 @@ def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
             for x_coord in range(x1, x2+1):
                 map_dict[(x_coord, y1)].tile = choice(palette)
                 map_dict[(x_coord, y1)].passable = True
+                map_dict[(x_coord, y1)].blocking = False
             for y_coord in range(y1, y2+1):
                 map_dict[(x2, y_coord)].tile = choice(palette)
                 map_dict[(x2, y_coord)].passable = True
+                map_dict[(x2, y_coord)].blocking = False
         else:
             for y_coord in range(y1, y2+1):
                 map_dict[(x1, y_coord)].tile = choice(palette)
                 map_dict[(x1, y_coord)].passable = True
+                map_dict[(x1, y_coord)].blocking = False
             for x_coord in range(x1, x2+1):
                 map_dict[(x_coord, y2)].tile = choice(palette)
                 map_dict[(x_coord, y2)].passable = True
+                map_dict[(x_coord, y2)].blocking = False
 
 def center_of_box(x_top_left, y_top_left, width_x, height_y):
     x_middle = round(x_top_left + width_x/2)
@@ -176,11 +220,12 @@ def clear():
 
 def draw_door(x, y, closed = True):
     if closed:
-        tile, passable = '+', False
+        tile, passable, blocking = '+', False, True
     else:
-        tile, passable = '_', True
-    map_dict[(x, y)].tile = '+'
-    map_dict[(x, y)].passable = False
+        tile, passable, blocking = '_', True, False
+    map_dict[(x, y)].tile = tile
+    map_dict[(x, y)].passable = passable
+    map_dict[(x, y)].blocking = blocking
 
 def map_init():
     clear()
@@ -225,6 +270,10 @@ async def handle_input(key):
                             actor_dict['player'].y_coord + y_shift,)
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
+    if key in 'Ee':
+        asyncio.ensure_future(draw_line((0, 0), (x, y))),
+    if key in 'Pp':
+        asyncio.ensure_future(debug_grid())
     if key in ' ':
         asyncio.ensure_future(toggle_doors()),
     if map_dict[(shifted_x, shifted_y)].passable:
@@ -236,6 +285,24 @@ async def handle_input(key):
 Would there be a way to implement amnesia? a history of tiles that always
 display (in say, red) that decay over time.
 """
+
+async def debug_grid(x_print_coord=0, y_print_coord=6):
+    """
+    print a grid of ones and zeroes running is_clear_between on the area surrounding player location.
+    TODO: make this work??.
+    """
+    await asyncio.sleep(0)
+    player_x, player_y = (actor_dict['player'].x_coord,
+                          actor_dict['player'].y_coord)
+    output_array = [[0 for i in range(10)] for j in range(10)]
+    for y_coord, i in enumerate(range(-5, 5)):
+        for x_coord, j in enumerate(range(-5, 5)):
+            output_array[i][j] = int(await is_clear_between((player_x, player_y), (player_x + x_coord, player_y + y_coord)))
+    with term.location(x_print_coord, y_print_coord):
+        for row in output_array:
+            print(''.join([str(i) for i in row]))
+        print(output_array)
+
 
 async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold = 12):
     """ handles displaying data from map_dict """
@@ -249,6 +316,8 @@ async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold =
     last_noise = ' '
     while(1):
         await asyncio.sleep(.01)
+        player_x, player_y = (actor_dict['player'].x_coord + x_offset,
+                              actor_dict['player'].y_coord + y_offset)
         x, y = (actor_dict['player'].x_coord + x_offset,
                 actor_dict['player'].y_coord + y_offset,)
         tile_key = (x, y)
@@ -258,27 +327,36 @@ async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold =
             actor = actor_dict[map_dict_key].tile
         else:
             actor = None
-        with term.location(*print_location):
-            if distance_effects:
-                if randint(0, round(distance)) < threshold:
+        #with term.location(*print_location):
+        if distance_effects:
+            if randint(0, round(distance)) < threshold:
+                if await is_clear_between((player_x, player_y), tile_key):
                     if actor == previous_actor and tile == previous_tile:
                         continue
                     elif actor:
-                        print(actor)
+                        with term.location(*print_location):
+                            print(actor)
                     else:
-                        print(tile)
+                        with term.location(*print_location):
+                            print(tile)
                 else:
-                    noise_choice = choice(noise)
-                    if noise_choice == last_noise:
-                        continue
-                    print(choice(noise))
-                    last_noise = noise_choice
-                    await asyncio.sleep(distance * .01)
+                    with term.location(*print_location):
+                        print(' ')
             else:
-                if actor:
+                noise_choice = choice(noise)
+                if noise_choice == last_noise:
+                    continue
+                with term.location(*print_location):
+                    print(choice(noise))
+                last_noise = noise_choice
+                await asyncio.sleep(distance * .01)
+        else:
+            if actor:
+                with term.location(*print_location):
                     print(actor)
-                else:
-                   print(tile)
+            else:
+                with term.location(*print_location):
+                    print(tile)
         previous_tile, previous_actor = tile, actor
 
 async def noise_tile(x_offset, y_offset, threshhold=10):
@@ -474,9 +552,11 @@ async def toggle_doors():
         if door_state == "+":
             map_dict[door_coord_tuple].tile = '_'
             map_dict[door_coord_tuple].passable = True
+            map_dict[door_coord_tuple].blocking = False
         elif door_state == '_':
             map_dict[door_coord_tuple].tile = '+'
             map_dict[door_coord_tuple].passable = False
+            map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.001, death_clock=100, rounded=True):
