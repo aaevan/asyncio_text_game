@@ -185,9 +185,6 @@ def draw_door(x, y, closed = True):
 def map_init():
     clear()
     sow_texture(20, 20, radius=50, seeds=500, color_num=7)
-    #sow_texture(30, 30, radius=20, seeds=200)
-    #draw_box(top_left=(-10, -10), x_size=5, y_size=5, tile=term.blue("#"), filled=False)
-    #draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile=".", filled=False)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
     map_dict[(3, 3)].passable = False
@@ -242,9 +239,7 @@ display (in say, red) that decay over time.
 
 async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold = 12):
     """ handles displaying data from map_dict """
-    #noise = "▓▒░░░░▖▗▘▙▚▛▜▝▞▟"
     noise = "░" * 1 + " " * 5
-    #await asyncio.sleep(random()/10)
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     await asyncio.sleep(random()/5 * distance)
     middle_x, middle_y = (int(term.width / 2 - 2), 
@@ -253,7 +248,6 @@ async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold =
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_noise = ' '
     while(1):
-        #await asyncio.sleep(0)
         await asyncio.sleep(.01)
         x, y = (actor_dict['player'].x_coord + x_offset,
                 actor_dict['player'].y_coord + y_offset,)
@@ -300,10 +294,6 @@ async def noise_tile(x_offset, y_offset, threshhold=10):
     #distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     #await asyncio.sleep(distance/10) #changing delay by distance creates an expanding circle
     #random_noise = choice(noise)
-    #flicker_state = randint(0, int(distance))
-    #if flicker_state < threshhold:
-    #else:
-    #print(random_noise)
 
 async def shaded_tile(x=15, y=15, on_percent=.5, rate=.01, tile="#"):
     await asyncio.sleep(0)
@@ -572,6 +562,9 @@ async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radiu
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
+async def ui_tasks(loop):
+    await asyncio.sleep(0)
+
 def main():
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) 
@@ -580,11 +573,6 @@ def main():
     loop.create_task(view_init(loop))
     loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker"))
     loop.create_task(constant_update_tile())
-    loop.create_task(constant_update_tile())
-    #loop.create_task(snake())
-    #loop.create_task(timer()) #spawns a random vine after 5 seconds
-    #loop.create_task(run_every_n())
-    #loop.create_task(sin_loop(state_dict_key="sin_loop"))
     loop.create_task(track_actor_location())
     loop.create_task(readout(x_coord=0, y_coord=5, listen_to_key="player", title="player_coords:"))
     asyncio.set_event_loop(loop)
