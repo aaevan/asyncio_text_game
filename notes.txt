@@ -1,27 +1,43 @@
-let's list out the different data structures we need in the game:
+implement box pushing, heaviness is how many turns it takes to move the object. 2x2 boxes?
 
-the map
-    a defaultdict of the contents of each cell
+add tracking of last direction of movement
+on a keypress, throw object in right hand.
 
-actors map
-    a defaultdict with default none (nobody is there right now)
-    polled from in a separate pass from map contents.
-    if there is an actor in a cell, whatever is there in the same cell on the map dict
-    is overridden by the contents of the actor dict
+pick up something with left hand with 'q'
+right hand with 'e' 
 
-actors roster dict
-    where the objects that represent the state of the actors reside
-    example:
-        an object that inherits from generic actor:
-        an actor has a position (x and y)
-        an actor has a lifetime (either immortal if None or tied to number of turns then deleted if a number).
-        an actor has a refresh speed (in seconds)
+press buttons or toggle doors with spacebar, 
 
-map memory (written in all grey just outside the view radius of the player
+traps that trigger on floor tile
 
+░     ░░░░░░░░░░  `    
+      ░░░░░░░░░░  '  '░
+      ░░░░░░░░░░       
+      ░░░░░░░░░░      ░
+   ░░░░░░░░@=░░░      
+░     ░░░░░░░░░░  .    
+░     ░░░░░░░░░░       
+  ░   ░░░░░░░░░░       
+  ░   ░░░░░░░░░░       
 
-how the map and actors are displayed:
-   
-use box printing characters to leave a trail on the ground ?
+          |
+          |
+          V
 
-create a growing tree ?
+░     ░░░|░░░░░░  `    
+      ░░░|░░░░░░  '  '░
+      ░░░|░░░░░░       
+      ░░░|░░░░░░      ░
+   ░░░░░░|░░@░|░       
+░     ░░░░░░░░|░  .    
+░     ░░░░░░░░|░       
+  ░   ░░░░░░░░|░       
+  ░   ░░░░░░░░|░       
+                 .   ░ 
+
+item that effects area of map, makes it passable
+
+vines clog up doors and must be burned?
+
+map tiles that return different things each time
+
