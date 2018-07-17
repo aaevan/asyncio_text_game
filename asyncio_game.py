@@ -287,8 +287,12 @@ async def handle_input(key):
     if key in ' ':
         asyncio.ensure_future(toggle_doors()),
     if map_dict[(shifted_x, shifted_y)].passable:
+        map_dict[(x, y)].passable = True
         actor_dict['player'].x_coord += x_shift
         actor_dict['player'].y_coord += y_shift
+        x, y = (actor_dict['player'].x_coord,
+                actor_dict['player'].y_coord,)
+        map_dict[(x, y)].passable = False
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
@@ -466,8 +470,6 @@ async def seek(x_current, y_current, name_key, seek_key='player'):
         active_y -= 1
     if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
         active_y += 1
-    actor_dict[(name_key)].x_coord = active_x
-    actor_dict[(name_key)].y_coord = active_y
     return (active_x, active_y)
     
 async def get_actor_coords(name_key):
@@ -531,13 +533,18 @@ async def snake(start_x=0, start_y=0, speed=.1, head="0", length=5, name_key="sn
         with term.location(0, 1):
             print(movement_history)
 
-async def basic_actor(start_x=0, start_y=0, speed=.2, tile="*", movement_function=wander, name_key="test"):
+async def basic_actor(start_x=0, start_y=0, speed=.2, tile="*", 
+        movement_function=wander, name_key="test"):
     """ A coroutine that creates a randomly wandering '*' """
+    if len(tile) >= 1:
+        animated = True
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
     actor_dict[(name_key)].x_coord = start_x
     actor_dict[(name_key)].y_coord = start_y
     coords = await get_actor_coords(name_key)
     while 1:
+        #if animated:
+        #    actor_dict[(name_key)]
         await asyncio.sleep(speed)
         if name_key in map_dict[coords].actors:
             del map_dict[coords].actors[name_key]
