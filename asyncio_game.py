@@ -13,7 +13,7 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile=" ", blocking=False):
+    def __init__(self, passable=True, tile=" ", blocking=True):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking = (passable, tile, blocking)
         self.actors = defaultdict(lambda:None)
@@ -133,15 +133,25 @@ async def get_line(start, end):
 async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
     """
     intended to be used for occlusion.
+
+    show the tile that the first collision happened at but not the following tile
     """
-    await asyncio.sleep(0.01)
+    await asyncio.sleep(.01)
+    history = []
     points = await get_line(coord_a, coord_b)
-    for point in points[:-1]: #all except for the last one.
-        if map_dict[point].blocking == True:
-            return False
+    open_space = 0
+    walls = 0
+    for point in points:
+        if map_dict[point].blocking == False:
+            open_space += 1
         else:
-            continue
-    return True
+            walls += 1
+        if walls > 1:
+            return False
+    if walls == 0:
+        return True
+    if map_dict[points[-1]].blocking == True and walls == 1:
+        return True
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
@@ -281,11 +291,6 @@ async def handle_input(key):
         actor_dict['player'].y_coord += y_shift
     return actor_dict['player'].x_coord, actor_dict['player'].y_coord
 
-"""
-Would there be a way to implement amnesia? a history of tiles that always
-display (in say, red) that decay over time.
-"""
-
 async def debug_grid(x_print_coord=0, y_print_coord=6):
     """
     print a grid of ones and zeroes running is_clear_between on the area surrounding player location.
@@ -295,29 +300,34 @@ async def debug_grid(x_print_coord=0, y_print_coord=6):
     player_x, player_y = (actor_dict['player'].x_coord,
                           actor_dict['player'].y_coord)
     output_array = [[0 for i in range(10)] for j in range(10)]
-    for y_coord, i in enumerate(range(-5, 5)):
-        for x_coord, j in enumerate(range(-5, 5)):
-            output_array[i][j] = int(await is_clear_between((player_x, player_y), (player_x + x_coord, player_y + y_coord)))
+    for x_index, x_coord in enumerate(range(-5, 5)):
+        for y_index, y_coord in enumerate(range(-5, 5)):
+            if (x_coord, y_coord) == (player_x, player_y):
+                output_array[y_index][x_index] = '@'
+            else:
+                output_array[y_index][x_index] = int(await is_clear_between((player_x, player_y), (player_x + x_coord, player_y + y_coord)))
     with term.location(x_print_coord, y_print_coord):
         for row in output_array:
             print(''.join([str(i) for i in row]))
-        print(output_array)
+        #print(output_array)
 
 
-async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold = 12):
+#async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold = 12):
+async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
-    noise = "░" * 1 + " " * 5
+    #noise = "░" * 1 + " " * 5
+    noise = " " * 5
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
     await asyncio.sleep(random()/5 * distance)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     previous_actor, previous_tile, actor = None, None, None
     print_location = (middle_x + x_offset, middle_y + y_offset)
-    last_noise = ' '
+    last_printed = ' '
     while(1):
         await asyncio.sleep(.01)
-        player_x, player_y = (actor_dict['player'].x_coord + x_offset,
-                              actor_dict['player'].y_coord + y_offset)
+        player_x, player_y = (actor_dict['player'].x_coord,
+                              actor_dict['player'].y_coord)
         x, y = (actor_dict['player'].x_coord + x_offset,
                 actor_dict['player'].y_coord + y_offset,)
         tile_key = (x, y)
@@ -327,37 +337,38 @@ async def view_tile(x_offset=1, y_offset=1, distance_effects = True, threshold =
             actor = actor_dict[map_dict_key].tile
         else:
             actor = None
-        #with term.location(*print_location):
-        if distance_effects:
-            if randint(0, round(distance)) < threshold:
-                if await is_clear_between((player_x, player_y), tile_key):
-                    if actor == previous_actor and tile == previous_tile:
-                        continue
-                    elif actor:
-                        with term.location(*print_location):
-                            print(actor)
-                    else:
-                        with term.location(*print_location):
-                            print(tile)
+        if randint(0, round(distance)) < threshold:
+            if await is_clear_between((player_x, player_y), (x, y)):
+                if actor:
+                    print_choice = actor
+                    #with term.location(*print_location):
+                        #if actor != last_printed:
+                            #print(actor)
+                            #last_printed = actor
                 else:
-                    with term.location(*print_location):
-                        print(' ')
+                    print_choice = tile
+                    #with term.location(*print_location):
+                        #if tile != last_printed:
+                            #print(tile)
+                            #last_printed = tile
             else:
-                noise_choice = choice(noise)
-                if noise_choice == last_noise:
-                    continue
-                with term.location(*print_location):
-                    print(choice(noise))
-                last_noise = noise_choice
-                await asyncio.sleep(distance * .01)
+                print_choice = ' '
+                #with term.location(*print_location):
+                    #if last_printed != ' ':
+                        #print(' ')
+                        #last_printed = ' '
         else:
-            if actor:
-                with term.location(*print_location):
-                    print(actor)
-            else:
-                with term.location(*print_location):
-                    print(tile)
-        previous_tile, previous_actor = tile, actor
+            print_choice = choice(noise)
+            #with term.location(*print_location):
+                #if last_printed != noise_choice:
+                    #print(noise_choice)
+                    #last_printed = noise_choice
+        with term.location(*print_location):
+            if last_printed != print_choice:
+                print(print_choice)
+                last_printed = print_choice
+            await asyncio.sleep(distance * .015)
+        #previous_tile, previous_actor = tile, actor
 
 async def noise_tile(x_offset, y_offset, threshhold=10):
     """ breaks out noisy tile code into a separate routine 
@@ -481,7 +492,7 @@ async def snake(start_x=0, start_y=0, speed=.1, head="0", length=5, name_key="sn
     movement_history = [1] * 10
     for number, segment_coord in enumerate(segment_locations):
         segment_names.append("{}_seg_{}".format(name_key, number))
-        actor_dict[(segment_names[-1])] = Actor(x_coord=segment_coord[0], y_coord=segment_coord[1])
+        actor_dict[(segment_names)] = Actor(x_coord=segment_coord[0], y_coord=segment_coord[1])
     new_x, new_y = 0, 0 
     while 1:
         await asyncio.sleep(speed)
@@ -635,8 +646,8 @@ async def readout(x_coord=0, y_coord=7, listen_to_key=None, update_rate=.1, floa
 
 async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radius = 18):
     await asyncio.sleep(0)
-    for x in range(-term_x_radius, term_x_radius):
-       for y in range(-term_y_radius, term_y_radius):
+    for x in range(-term_x_radius, term_x_radius + 1):
+       for y in range(-term_y_radius, term_y_radius + 1):
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
