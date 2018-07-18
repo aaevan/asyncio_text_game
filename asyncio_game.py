@@ -234,8 +234,7 @@ def draw_door(x, y, closed = True):
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░")
-    """
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
@@ -257,7 +256,6 @@ def map_init():
     draw_door(29, 20)
     draw_door(41, 20)
     sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, passable=True)
-    """
 
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
