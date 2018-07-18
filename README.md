@@ -1,2 +1,4 @@
 # asyncio_text_game
-An extremely kludgey attempt to make a game using asyncio.
+An attempt to make a real-time rogue-adjacent game using ascyncio.
+
+Python 3 only.
