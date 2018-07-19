@@ -232,6 +232,30 @@ def draw_door(x, y, closed = True):
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
 
+def is_magic_door(x_pos, y_pos):
+    """
+    notes for portals/magic doors:
+    either gapless teleporting doors or gapped by darkness doors.
+    if gapped by darkness, door appears as flickering between different noise states.
+    when magic door is stepped on, location becomes an instance of darkness
+    when in darkness, the default tile is a choice from a noise palette
+    the next door appears on your screen regardless of distance,
+        blinks on edge of field of view at set radius
+    a counter begins once the player enters the darkness. 
+    a tentacle creature spawns a few screens away and approaches
+    red eyes are visible from slightly beyond the edge of noise
+    when a view_tile line of sight check passes through a tile that is magic,
+    check what direction it's coming from
+    when a tile is stepped on, a random effect happens:
+        vines of noise_tiles spawning from stepped on tile?
+        a flicker then fade of surrounding simliar tiles?
+    noise palette is based on distance from tentacle creature
+    far away, the darkness is just empty space
+    the closer it gets, glyphs start appearing?
+    when within a short distance, the entire field flickers (mostly) red to black
+    red within view distance and only you and the tentacle monster are visible
+    """
+
 def map_init():
     clear()
     #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
@@ -386,7 +410,7 @@ async def get_key():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        while 1:
+        while True:
             await asyncio.sleep(0)
             if isData():
                 key = sys.stdin.read(1)
@@ -436,10 +460,11 @@ async def get_actor_coords(name_key):
     actor_coords = (actor_x, actor_y)
     return actor_coords
 
-async def snake(start_x=0, start_y=0, speed=.1, head="0", length=5, name_key="snake"):
+async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
     """
     the head is always index 0, followed by the rest of the list for each segment.
     when the head moves to a new cell, the next segment in line takes it's coordinates.
+    still broken. perhaps not worth fixing.
     """
     await asyncio.sleep(0)
     #initialize segment locations all to starting coordinates:
@@ -450,27 +475,34 @@ async def snake(start_x=0, start_y=0, speed=.1, head="0", length=5, name_key="sn
                       (4, 2):'0', (2, 4):'0', (1, 3):'0', (3, 1):'0'}
     new_x, new_y = 0, 0 
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
-    movement_history = [1] * 10
+    movement_history = [1] * length * 2
     #initialize segment actors:
     segment_names = []
     for number, segment_coord in enumerate(segment_locations):
         segment_names.append("{}_seg_{}".format(name_key, number))
         actor_dict[(segment_names[-1])] = Actor(x_coord=segment_coord[0], y_coord=segment_coord[1])
     print(segment_names)
-    while 1:
+    while True:
         #await asyncio.sleep(speed)
-        await asyncio.sleep(.2)
+        await asyncio.sleep(speed)
         #deleting all traces of the snake segments from the map_dict's actor list:
         for name_key, coord in zip(segment_names, segment_locations):
             if name_key in map_dict[coord].actors:
                 del map_dict[coord].actors[name_key]
         segment_locations.pop()
         #creating a new head location that doesn't overlap with existing segments:
-        while (new_x, new_y) in segment_locations:
+        fail_count = 0
+        while (new_x, new_y) in segment_locations or map_dict[(new_x, new_y)].passable == False:
             rand_direction = randint(1, 4)
             rand_direction_tuple = movement_tuples[rand_direction]
             new_x, new_y = (segment_locations[0][0] + rand_direction_tuple[0],
                             segment_locations[0][1] + rand_direction_tuple[1],)
+            #an easy but ugly fix for the snake dead-ending.
+            #a better fix would be for it to switch directions
+            if map_dict[(new_x, new_y)].passable == False:
+                fail_count += 1
+            if fail_count > 5:
+                new_x, new_y = start_x, start_y
         movement_history.pop()
         movement_history.insert(0, rand_direction)
         new_head_coord = (new_x, new_y)
@@ -478,25 +510,25 @@ async def snake(start_x=0, start_y=0, speed=.1, head="0", length=5, name_key="sn
         #write the new locations of each segment to the map_dict's tiles' actor lists
         counter = 0
         for name_key, coord in zip(segment_names, segment_locations):
-            with term.location(0, 13):
-                print(movement_history)
-            with term.location(0, 15 + counter):
-                print(name_key, coord)
+            #with term.location(0, 13):
+                #print(movement_history)
+            #with term.location(0, 15 + counter):
+                #print(name_key, coord)
             actor_dict[(name_key)].x_coord = coord[0]
             actor_dict[(name_key)].y_coord = coord[1]
             #segment_tile_key = (movement_history[int(name_key[-1])], movement_history[int(name_key[-1]) + 1])
             segment_tile_key = (movement_history[counter], movement_history[counter - 1])
-            with term.location(24, 15 + counter):
-                print(movement_history[counter], movement_history[counter - 1])
+            #with term.location(24, 15 + counter):
+                #print(movement_history[counter], movement_history[counter - 1])
             if segment_tile_key == (0, -1):
                 actor_dict[(name_key)].tile = '1'
             else:
                 #assign tile:
-                with term.location(0, 30 + counter):
-                    print(segment_tile_key)
+                #with term.location(0, 30 + counter):
+                    #print(segment_tile_key)
                 actor_dict[(name_key)].tile = snake_segments[segment_tile_key]
-                with term.location(21, 15 + counter):  ###
-                    print(actor_dict[(name_key)].tile) ###
+                #with term.location(21, 15 + counter):  ###
+                    #print(actor_dict[(name_key)].tile) ###
             map_dict[coord].actors[name_key] = name_key
             counter += 1
 
@@ -509,7 +541,7 @@ async def basic_actor(start_x=0, start_y=0, speed=.2, tile="*",
     actor_dict[(name_key)].x_coord = start_x
     actor_dict[(name_key)].y_coord = start_y
     coords = await get_actor_coords(name_key)
-    while 1:
+    while True:
         #if animated:
         #    actor_dict[(name_key)]
         await asyncio.sleep(speed)
@@ -635,8 +667,8 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(snake())
-    loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker"))
+    #loop.create_task(snake())
+    loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(x_coord=0, y_coord=5, listen_to_key="player", title="player_coords:"))
