@@ -13,9 +13,9 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile=" ", blocking=True):
+    def __init__(self, passable=True, tile=" ", blocking=True, description=''):
         """ create a new map tile, location is stored in map_dict"""
-        self.passable, self.tile, self.blocking = (passable, tile, blocking)
+        self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.actors = defaultdict(lambda:None)
 
 class Actor:
@@ -36,6 +36,8 @@ actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile="@")
 term = Terminal()
+
+#TODO make actors display messages when near a door at random intervals, "you hear a scratching sound"
 
 #Drawing functions---------------------------------------------------------------------------------
 
@@ -147,6 +149,36 @@ async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
     if map_dict[points[-1]].blocking == True and walls == 1:
         return True
 
+async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30, 
+                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1):
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    y_location = term.height - 8
+    x_location = middle_x - int(len(output_text) / 2)
+    await asyncio.sleep(0)
+    numbered_chars = [(place, char) for place, char in enumerate(output_text)]
+    shuffle(numbered_chars)
+    for char in numbered_chars:
+        with term.location(char[0] + x_location, y_location):
+            print(char[1])
+        await asyncio.sleep(pause_fade_in)
+    shuffle(numbered_chars)
+    await asyncio.sleep(pause_stay_on)
+    for char in numbered_chars:
+        with term.location(char[0] + x_location, y_location):
+            print(' ')
+        await asyncio.sleep(pause_fade_out)
+
+def write_description(x_coord=0, y_coord=0, text="this is the origin."):
+    map_dict[(x_coord, y_coord)].description = text
+
+def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
+    x_tuple = (top_left[0], top_left[0] + x_size)
+    y_tuple = (top_left[1], top_left[1] + y_size)
+    for x in range(*x_tuple):
+        for y in range(*y_tuple):
+            map_dict[(x, y)].description = text
+
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
     if segments == 2:
@@ -180,7 +212,7 @@ def pick_point_in_cone(cone_left_edge, cone_right_edge):
     pass
 
 def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
-                passable=False, color_num=7):
+                passable=False, color_num=7, description=''):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -195,6 +227,8 @@ def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         map_dict[toss_coord].tile = term.color(color_num)(random_tile)
         #map_dict[toss_coord].tile = random_tile
         map_dict[toss_coord].passable = passable
+        if description:
+            map_dict[toss_coord].description = description
 
 async def flood_fill(coord=(0, 0), target='/', replacement=' ', depth=0,
                      max_depth=10, random=False):
@@ -274,12 +308,14 @@ def map_init():
     connect_with_passage(39, 20, 41, 20)
     draw_door(7, 16)
     draw_door(0, 5)
+    write_description()
     draw_door(14, 17)
     draw_door(25, 20)
     draw_door(25, 20)
     draw_door(29, 20)
     draw_door(41, 20)
-    sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, passable=True)
+    sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
+                passable=True, description="some guts on the ground")
 
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
@@ -301,9 +337,12 @@ async def handle_input(key):
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
     if key in 'Ee':
-        asyncio.ensure_future(draw_line((0, 0), (x, y))),
+        description = map_dict[(x, y)].description
+        asyncio.ensure_future(filter_print(output_text=description)),
     if key in ' ':
         asyncio.ensure_future(toggle_doors()),
+    if key in '4':
+        asyncio.ensure_future(filter_print()),
     if map_dict[(shifted_x, shifted_y)].passable:
         map_dict[(x, y)].passable = True
         actor_dict['player'].x_coord += x_shift
@@ -567,10 +606,12 @@ async def toggle_doors():
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
         if door_state == "▮":
+            asyncio.ensure_future(filter_print(output_text = "You open the door."))
             map_dict[door_coord_tuple].tile = '▯'
             map_dict[door_coord_tuple].passable = True
             map_dict[door_coord_tuple].blocking = False
         elif door_state == '▯':
+            asyncio.ensure_future(filter_print(output_text = "You close the door."))
             map_dict[door_coord_tuple].tile = '▮'
             map_dict[door_coord_tuple].passable = False
             map_dict[door_coord_tuple].blocking = True
