@@ -64,6 +64,11 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
                 map_dict[(x, y)].tile = tile
             #map_dict[(x, y)].tile = tile
 
+def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
+                  filled=True, tile=".", passable=True):
+    top_left = (middle_coord[0] - int(x_size/2), middle_coord[1] - int(y_size/2))
+    draw_box(top_left=top_left, x_size=x_size, y_size=10, filled=True, tile=tile)
+
 async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*", passable=True, blocking = False):
     """draws a line to the map_dict connecting the two given points."""
     await asyncio.sleep(0)
@@ -293,8 +298,10 @@ def is_magic_door(x_pos, y_pos):
 def map_init():
     clear()
     #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    """
     sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
+    draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
     map_dict[(3, 3)].passable = False
     draw_box(top_left=(6, 6), x_size=9, y_size=10, tile="░")
@@ -315,7 +322,23 @@ def map_init():
     draw_door(29, 20)
     draw_door(41, 20)
     sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
-                passable=True, description="some guts on the ground")
+                passable=True, description="something gross")
+    """
+    rand_map()
+
+def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
+             root_node_coords=(0, 0), rooms=100, root_room_size = (10, 10)):
+    root_room_x_size, root_room_y_size = root_room_size
+    floor_tile = choice(palette)
+    draw_centered_box(middle_coord = root_node_coords, x_size=root_room_x_size, 
+                      y_size=root_room_y_size, tile=floor_tile)
+    room_centers = [(randint(x_min, x_max), randint(y_min, y_max)) for _ in range(rooms)]
+    for room in room_centers:
+        draw_centered_box(middle_coord=(20, 20), x_size=randint(5,15), y_size=randint(5, 15), tile=floor_tile)
+        for _ in range(5):
+            connection_choice = choice(room_centers)
+            connect_with_passage(*room, *connection_choice, palette=floor_tile)
+    connect_with_passage(*root_node_coords, *choice(room_centers), palette=floor_tile)
 
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
