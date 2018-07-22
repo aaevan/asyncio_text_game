@@ -13,10 +13,11 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement=""):
+    def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
+        self.distance_trigger = distance_trigger
         self.actors = defaultdict(lambda:None)
 
 class Actor:
@@ -308,12 +309,9 @@ def map_init():
     #draw_box(top_left=(6, 6), x_size=9, y_size=10, tile="░")
     #announcement_at_coord(coord=(9,9), announcement="a room where things happen")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
-    announcement_at_coord(coord=(18, 18), announcement="things are very confusing here")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
-    announcement_at_coord(coord=(34, 20), announcement="I used to know who I was.")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    rant = "When you're an adult|there are so many more choices.|Places to go...|things to do."
-    announcement_at_coord(coord=(61, 20), announcement=rant)
+    #announcement_at_coord(coord=(61, 20), announcement=rant)
     connect_with_passage(7, 7, 17, 17)
     connect_with_passage(17, 17, 25, 10)
     connect_with_passage(20, 20, 35, 20)
@@ -329,17 +327,17 @@ def map_init():
     draw_door(41, 20)
     sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
                 passable=True, description="something gross")
-    announcement_at_coord(coord=(1, 17), announcement="...and begin to make decisions that narrow your focus.")
-    announcement_at_coord(coord=(0, 0), announcement="Sometimes you've gotta think for a while.")
-    announcement_at_coord(coord=(61, 10), announcement="... and corners to explore.")
+    announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
+    announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
     #rand_map()
 
-def announcement_at_coord(coord=(0, 0), announcement = "Testing..."):
+def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     #split announcement up into separate sequential pieces with pipes
     #pipes are parsed in view_tile
     #lines = announcement.split('|')
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
+    map_dict[coord].distance_trigger = distance_trigger
 
 async def sequential_announcement_parse():
     pass
@@ -412,6 +410,37 @@ async def debug_grid(x_print_coord=0, y_print_coord=6):
         for row in output_array:
             print(''.join([str(i) for i in row]))
 
+async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+    x_run = abs(point_a[0] - point_b[0])
+    y_run = abs(point_a[1] - point_b[1])
+    distance = round(sqrt(x_run ** 2 + y_run ** 2))
+    return distance
+
+async def parse_announcement(tile_key):
+    announcement_sequence = map_dict[tile_key].announcement.split("|")
+    for delay, line in enumerate(announcement_sequence):
+        asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
+
+async def trigger_announcement(tile_key, player_coords=(0, 0)):
+    if map_dict[tile_key].announcing == True and map_dict[tile_key].seen == False:
+        if map_dict[tile_key].distance_trigger:
+            distance = await point_to_point_distance(tile_key, player_coords)
+            if distance <= map_dict[tile_key].distance_trigger:
+                with term.location(0, 30):
+                    print("triggered tile {}".format(tile_key))
+                await parse_announcement(tile_key)
+                map_dict[tile_key].seen = True
+            else:
+                with term.location(0, 30):
+                    print("not close enough...")
+                pass
+        else:
+            await parse_announcement(tile_key)
+            map_dict[tile_key].seen = True
+    #elif not map_dict[tile_key].distance_trigger:
+    else:
+        map_dict[tile_key].seen = True
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
@@ -437,14 +466,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
             actor = None
         if randint(0, round(distance)) < threshold:
             if await is_clear_between((player_x, player_y), (x, y)):
-                #if an announcement exists at the currently viewed tile, parse and display it
-                if map_dict[tile_key].announcing == True and map_dict[tile_key].seen == False:
-                    announcement_sequence = map_dict[tile_key].announcement.split("|")
-                    for delay, line in enumerate(announcement_sequence):
-                        asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
-                    map_dict[tile_key].seen = True
-                else:
-                    map_dict[tile_key].seen = True
+                await trigger_announcement(tile_key, player_coords=(player_x, player_y))
                 if actor:
                     print_choice = actor
                 else:
@@ -758,7 +780,7 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     #loop.create_task(snake())
-    loop.create_task(basic_actor(*(10, 10), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
+    loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(x_coord=0, y_coord=5, listen_to_key="player", title="player_coords:"))
