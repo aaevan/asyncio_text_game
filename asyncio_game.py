@@ -13,9 +13,10 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile=" ", blocking=True, description=''):
+    def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement=""):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
+        self.announcing, self.seen, self.announcement = announcing, seen, announcement
         self.actors = defaultdict(lambda:None)
 
 class Actor:
@@ -155,7 +156,8 @@ async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
         return True
 
 async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30, 
-                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1):
+                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0):
+    await asyncio.sleep(delay)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     y_location = term.height - 8
@@ -298,16 +300,20 @@ def is_magic_door(x_pos, y_pos):
 def map_init():
     clear()
     #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
-    """
     sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
     map_dict[(3, 3)].passable = False
-    draw_box(top_left=(6, 6), x_size=9, y_size=10, tile="░")
+    #draw_box(top_left=(6, 6), x_size=9, y_size=10, tile="░")
+    #announcement_at_coord(coord=(9,9), announcement="a room where things happen")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
+    announcement_at_coord(coord=(18, 18), announcement="things are very confusing here")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
+    announcement_at_coord(coord=(34, 20), announcement="I used to know who I was.")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
+    rant = "When you're an adult|there are so many more choices.|Places to go...|things to do."
+    announcement_at_coord(coord=(61, 20), announcement=rant)
     connect_with_passage(7, 7, 17, 17)
     connect_with_passage(17, 17, 25, 10)
     connect_with_passage(20, 20, 35, 20)
@@ -323,11 +329,23 @@ def map_init():
     draw_door(41, 20)
     sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
                 passable=True, description="something gross")
-    """
-    rand_map()
+    announcement_at_coord(coord=(1, 17), announcement="...and begin to make decisions that narrow your focus.")
+    announcement_at_coord(coord=(0, 0), announcement="Sometimes you've gotta think for a while.")
+    announcement_at_coord(coord=(61, 10), announcement="... and corners to explore.")
+    #rand_map()
+
+def announcement_at_coord(coord=(0, 0), announcement = "Testing..."):
+    #split announcement up into separate sequential pieces with pipes
+    #pipes are parsed in view_tile
+    #lines = announcement.split('|')
+    map_dict[coord].announcement = announcement
+    map_dict[coord].announcing = True
+
+async def sequential_announcement_parse():
+    pass
 
 def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
-             root_node_coords=(0, 0), rooms=100, root_room_size = (10, 10)):
+             root_node_coords=(0, 0), rooms=10, root_room_size = (10, 10)):
     root_room_x_size, root_room_y_size = root_room_size
     floor_tile = choice(palette)
     draw_centered_box(middle_coord = root_node_coords, x_size=root_room_x_size, 
@@ -335,7 +353,7 @@ def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
     room_centers = [(randint(x_min, x_max), randint(y_min, y_max)) for _ in range(rooms)]
     for room in room_centers:
         draw_centered_box(middle_coord=(20, 20), x_size=randint(5,15), y_size=randint(5, 15), tile=floor_tile)
-        for _ in range(5):
+        for _ in range(2):
             connection_choice = choice(room_centers)
             connect_with_passage(*room, *connection_choice, palette=floor_tile)
     connect_with_passage(*root_node_coords, *choice(room_centers), palette=floor_tile)
@@ -419,6 +437,14 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
             actor = None
         if randint(0, round(distance)) < threshold:
             if await is_clear_between((player_x, player_y), (x, y)):
+                #if an announcement exists at the currently viewed tile, parse and display it
+                if map_dict[tile_key].announcing == True and map_dict[tile_key].seen == False:
+                    announcement_sequence = map_dict[tile_key].announcement.split("|")
+                    for delay, line in enumerate(announcement_sequence):
+                        asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
+                    map_dict[tile_key].seen = True
+                else:
+                    map_dict[tile_key].seen = True
                 if actor:
                     print_choice = actor
                 else:
@@ -629,12 +655,12 @@ async def toggle_doors():
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
         if door_state == "▮":
-            asyncio.ensure_future(filter_print(output_text = "You open the door."))
+            #asyncio.ensure_future(filter_print(output_text = "You open the door."))
             map_dict[door_coord_tuple].tile = '▯'
             map_dict[door_coord_tuple].passable = True
             map_dict[door_coord_tuple].blocking = False
         elif door_state == '▯':
-            asyncio.ensure_future(filter_print(output_text = "You close the door."))
+            #asyncio.ensure_future(filter_print(output_text = "You close the door."))
             map_dict[door_coord_tuple].tile = '▮'
             map_dict[door_coord_tuple].passable = False
             map_dict[door_coord_tuple].blocking = True
