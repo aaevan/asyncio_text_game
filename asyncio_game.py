@@ -13,7 +13,8 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
+    #def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
+    def __init__(self, passable=True, tile="▓", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
@@ -219,22 +220,30 @@ def pick_point_in_cone(cone_left_edge, cone_right_edge):
     to be used for map creation"""
     pass
 
-def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
-                passable=False, color_num=7, description=''):
+async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
+                passable=False, stamp=True, paint=True, color_num=1, description=''):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
+    await asyncio.sleep(0)
     for i in range(seeds):
+        await asyncio.sleep(0)
         throw_dist = radius + 1
         while throw_dist >= radius:
             x_toss, y_toss = (randint(-radius, radius),
                               randint(-radius, radius),)
             throw_dist = sqrt(x_toss**2 + y_toss**2) #euclidean distance
         toss_coord = (root_x + x_toss, root_y + y_toss)
-        random_tile = choice(palette)
-        map_dict[toss_coord].tile = term.color(color_num)(random_tile)
+        if paint:
+            if map_dict[toss_coord].tile not in "▮▯":
+                colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
+                map_dict[toss_coord].tile = colored_tile
+        else:
+            random_tile = choice(palette)
+            map_dict[toss_coord].tile = term.color(color_num)(random_tile)
         #map_dict[toss_coord].tile = random_tile
-        map_dict[toss_coord].passable = passable
+        if not stamp:
+            map_dict[toss_coord].passable = passable
         if description:
             map_dict[toss_coord].description = description
 
@@ -301,7 +310,7 @@ def is_magic_door(x_pos, y_pos):
 def map_init():
     clear()
     #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
-    sow_texture(20, 20, radius=50, seeds=500, color_num=7)
+    #sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
@@ -325,8 +334,8 @@ def map_init():
     draw_door(25, 20)
     draw_door(29, 20)
     draw_door(41, 20)
-    sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
-                passable=True, description="something gross")
+    #sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
+                #passable=True, description="something gross")
     announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
     #rand_map()
@@ -426,13 +435,13 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
         if map_dict[tile_key].distance_trigger:
             distance = await point_to_point_distance(tile_key, player_coords)
             if distance <= map_dict[tile_key].distance_trigger:
-                with term.location(0, 30):
-                    print("triggered tile {}".format(tile_key))
+                #with term.location(0, 30):
+                    #print("triggered tile {}".format(tile_key))
                 await parse_announcement(tile_key)
                 map_dict[tile_key].seen = True
             else:
-                with term.location(0, 30):
-                    print("not close enough...")
+                #with term.location(0, 30):
+                #   print("not close enough...")
                 pass
         else:
             await parse_announcement(tile_key)
@@ -480,6 +489,41 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 print(print_choice)
                 last_printed = print_choice
             await asyncio.sleep(distance * .015)
+
+async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=30, y_margin=4):
+    """
+    draws a box for UI elements
+    <--width-->
+    +---------+ ^
+    |         | | height = 1
+    +---------+ v
+    """
+    await asyncio.sleep(0)
+    top_bar = "┌" + ("─" * box_width) + "┐"
+    bottom_bar = "└" + ("─" * box_width) + "┘"
+    if position == "top left":
+        x_print, y_print= x_margin, y_margin
+    window_width, window_height = term.width, term.height
+    middle_x, middle_y = (int(window_width / 2 - 2), 
+                          int(window_height / 2 - 2),)
+    while True:
+        await asyncio.sleep(1)
+        with term.location(x_print, y_print):
+            print(top_bar)
+        with term.location(x_print, y_print + box_height + 1):
+            print(bottom_bar)
+        for row in range(y_print + 1, y_print + box_height + 1):
+            with term.location(x_print, row):
+                print("│")
+            with term.location(x_print + box_width + 1, row):
+                print("│")
+
+async def status_bar_draw(state_dict_key="health", position="top left", bar_height=1, bar_width=10,
+                          x_margin=5, y_margin=4):
+    asyncio.ensure_future(ui_box_draw(position=position, bar_height=box_height, bar_width=box_width,
+                          x_margin=x_margin, y_margin=y_margin))
+    #asyncio.ensure_future()
+
 
 async def shaded_tile(x=15, y=15, on_percent=.5, rate=.01, tile="#"):
     await asyncio.sleep(0)
@@ -553,6 +597,9 @@ async def seek(x_current, y_current, name_key, seek_key='player'):
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
     active_x, active_y = x_current, y_current
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
+    if abs(diff_x) <= 1 and abs(diff_y) <= 1 and state_dict["player_health"] >= 10:
+        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, seeds=randint(1, 9), description="blood.")
+        state_dict["player_health"] -= 10
     if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
         active_x -= 1
     if diff_x < 0 and map_dict[(active_x + 1, active_y)].passable:
@@ -676,19 +723,25 @@ async def toggle_doors():
     for door in door_dirs:
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
+        #also apply to differently colored doors:
+        #closed_doors = [term.color(i)('▮') for i in range(10)] + ['▮']
+        #open_doors = [term.color(i)('▯') for i in range(10)] + ['▯']
+
         if door_state == "▮":
+        #if door_state in closed_doors:
             #asyncio.ensure_future(filter_print(output_text = "You open the door."))
             map_dict[door_coord_tuple].tile = '▯'
             map_dict[door_coord_tuple].passable = True
             map_dict[door_coord_tuple].blocking = False
         elif door_state == '▯':
+        #elif door_state in open_doors:
             #asyncio.ensure_future(filter_print(output_text = "You close the door."))
             map_dict[door_coord_tuple].tile = '▮'
             map_dict[door_coord_tuple].passable = False
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.001, death_clock=100, rounded=True):
+                    rate=.1, death_clock=100, rounded=True):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else."""
     await asyncio.sleep(rate)
     current_coord = (start_x, start_y)
@@ -712,6 +765,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                  vine_picks[(prev_dir, next_dir)])
         if map_dict[current_coord].tile not in vines:
             map_dict[current_coord].tile = term.green(vine_tile)
+            map_dict[current_coord].passable = True
+            map_dict[current_coord].blocking = False
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
         death_clock -= 1
@@ -736,30 +791,37 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
     await asyncio.sleep(0)
     actor_coords = None
     while True:
-        with term.location(5, 5):
-            print("{:8}".format(str(actor_coords)))
+        #with term.location(5, 5):
+            #print("{:8}".format(str(actor_coords)))
         await asyncio.sleep(update_speed)
         actor_coords = (actor_dict['player'].x_coord, actor_dict['player'].y_coord)
         state_dict[state_dict_key] = actor_coords
 
-async def readout(x_coord=0, y_coord=7, listen_to_key=None, update_rate=.1, float_len=3, title=None):
-    """listen to a specific key of state_dict
-    state dict changes over time according to things happening in other loops 
-    modify to be able to display status bars, ie, 'LIFE:█████░░░░░'
-    """
+async def readout(x_coord=50, y_coord=35, listen_to_key=None, update_rate=.1, float_len=3, 
+                  title=None, bar=True, max_value=100, bar_length=20):
+    """listen to a specific key of state_dict """
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(0)
         key_value = state_dict[listen_to_key]
-        if type(key_value) is float:
-            if title:
-                with term.location(x_coord, y_coord):
-                    print("{}:{:6.3f}".format(title, key_value))
-            else:
-                with term.location(x_coord, y_coord):
-                    print("{:6.3f}".format(key_value))
+        bar_filled = round((int(key_value)/max_value) * bar_length)
+        bar_unfilled = bar_length - bar_filled
+        bar_characters = "█" * bar_filled + "░" * bar_unfilled
+        if title:
+            with term.location(x_coord, y_coord):
+                if not bar:
+                    print("{}{}".format(title, key_value))
+                else:
+                    print("{}{}".format(title, term.red(bar_characters)))
         else:
-            pass
+            with term.location(x_coord, y_coord):
+                print("{}".format(key_value))
+
+async def health_test():
+    while True:
+        await asyncio.sleep(1)
+        if state_dict["player_health"] < 100:
+            state_dict["player_health"] += 1
 
 async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radius = 18):
     await asyncio.sleep(0)
@@ -772,18 +834,22 @@ async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radiu
 
 async def ui_tasks(loop):
     await asyncio.sleep(0)
+    await ui_box_draw()
 
 def main():
     map_init()
+    state_dict["player_health"] = 100
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
+    loop.create_task(ui_tasks(loop))
     #loop.create_task(snake())
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
     loop.create_task(constant_update_tile())
-    loop.create_task(track_actor_location())
-    loop.create_task(readout(x_coord=0, y_coord=5, listen_to_key="player", title="player_coords:"))
+    #loop.create_task(track_actor_location())
+    loop.create_task(readout(listen_to_key="player_health", title="♥:"))
+    loop.create_task(health_test())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
