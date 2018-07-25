@@ -609,12 +609,80 @@ async def seek(x_current, y_current, name_key, seek_key='player'):
     if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
         active_y += 1
     return (active_x, active_y)
+
+async def random_unicode(length=1, clean=True):
+    """
+    Create a list of unicode characters within the range 0000-D7FF
+    adapted from:
+    https://stackoverflow.com/questions/37842010/how-can-i-get-a-random-unicode-string/37844413#37844413
+    """
+    await asyncio.sleep(0)
+    random_unicodes = [chr(randrange(0xD7FF)) for _ in range(0, length)] 
+    if clean:
+        while True:
+            sleep(.01)
+            a = random_unicode(1)
+            if len(repr(a)) == 3:
+                print(a)
+    return u"".join(random_unicodes)
     
 async def get_actor_coords(name_key):
     await asyncio.sleep(0)
     actor_x = actor_dict[name_key].x_coord
     actor_y = actor_dict[name_key].y_coord
     actor_coords = (actor_x, actor_y)
+    return actor_coords
+
+async def shrouded_horror(start_x=0, start_y=0, speed=2, head="0", shroud_pieces=10, name_key="shrouded_horror"):
+    """
+    a set core that moves around and an outer shroud of random moving tiles
+         ... . 
+        . . . . 
+          .O.. 
+           . . 
+    shroud pieces are made of darkness. darkness is represented by an empty square (' ')
+    shroud pieces do not stray further than a set distance, some are close, some are far
+    shroud pieces do not go through walls
+    shroud pieces start in one place and wander further or closer from the core
+    shroud pieces follow the path of the core and can trail behind
+    if a door is opened into a place with a shrouded horror, darkness should bleed into the hallway with you.
+    short tentacles should grow, seeking out the location of the player.
+    they retract when reaching a maxiumum length. fastfastfast out, slowly retract one tile at a time.
+    if they hit a player, the player is dragged a random number of tiles from 0 to the length of the tentacle
+    each key pressed that is not the same key in a row removes a tile to be dragged by .25
+    shrouded horrors can
+        open doors (slowly)
+        push boxes
+            takes speed**1.2 for each box stacked
+    """
+    await asyncio.sleep(0)
+    #initialize all shroud tiles to starting coordinates:
+    core_location = start_x, start_y
+    shroud_locations = [(start_x, start_y)] * shroud_pieces
+    rand_direction = randint(1, 4)
+    new_x, new_y = 0, 0 
+    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
+    #initialize segment actors:
+    shroud_piece_names = []
+    for number, shroud_coord in enumerate(shroud_locations):
+        shroud_piece_names.append("{}_piece_{}".format(name_key, number))
+        actor_dict[(shroud_piece_names[-1])] = Actor(x_coord=shroud_coord[0], y_coord=shroud_coord[1])
+    print(shroud_piece_names)
+    while True:
+        await asyncio.sleep(speed)
+        #deleting all instances of the shroud pieces from the map_dict's actor list:
+        for name_key, coord in zip(shroud_piece_names, shroud_locations):
+            if name_key in map_dict[coord].actors:
+                del map_dict[coord].actors[name_key]
+        #move the core
+        #use wander() to move the core
+        while map_dict[(new_x, new_y)].passable == False:
+            await asyncio.sleep(0)
+            print("This isn't complete")
+            exit()
+        #for each shroud piece, move it to a random adjacent space,
+        new_core_coord = (new_x, new_y)
+        #write the new locations of each shroud_pieces to the map_dict's tiles' actor lists
     return actor_coords
 
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
@@ -847,7 +915,6 @@ def main():
     #loop.create_task(snake())
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
     loop.create_task(constant_update_tile())
-    #loop.create_task(track_actor_location())
     loop.create_task(readout(listen_to_key="player_health", title="♥:"))
     loop.create_task(health_test())
     asyncio.set_event_loop(loop)
