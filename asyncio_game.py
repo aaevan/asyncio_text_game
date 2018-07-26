@@ -633,7 +633,7 @@ async def get_actor_coords(name_key):
     actor_coords = (actor_x, actor_y)
     return actor_coords
 
-async def shrouded_horror(start_x=0, start_y=0, speed=2, head="0", shroud_pieces=10, name_key="shrouded_horror"):
+async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     a set core that moves around and an outer shroud of random moving tiles
          ... . 
@@ -655,35 +655,33 @@ async def shrouded_horror(start_x=0, start_y=0, speed=2, head="0", shroud_pieces
         push boxes
             takes speed**1.2 for each box stacked
     """
+    #something weird is happening with an off by one index.
+    #with two shroud pieces, only one is printed, with one, zero are printed
     await asyncio.sleep(0)
     #initialize all shroud tiles to starting coordinates:
-    core_location = start_x, start_y
+    core_location = (start_x, start_y)
+    actor_dict[core_name_key] = Actor(x_coord=core_location[0], y_coord=core_location[1], tile="&")
+    map_dict[core_location].actors[core_name_key] = True
     shroud_locations = [(start_x, start_y)] * shroud_pieces
-    rand_direction = randint(1, 4)
-    new_x, new_y = 0, 0 
-    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     #initialize segment actors:
     shroud_piece_names = []
     for number, shroud_coord in enumerate(shroud_locations):
-        shroud_piece_names.append("{}_piece_{}".format(name_key, number))
-        actor_dict[(shroud_piece_names[-1])] = Actor(x_coord=shroud_coord[0], y_coord=shroud_coord[1])
-    print(shroud_piece_names)
+        shroud_piece_names.append("{}_piece_{}".format(core_name_key, number))
+    for number, name in enumerate(shroud_piece_names):
+        actor_dict[name] = Actor(x_coord=start_x, y_coord=start_y, tile=' ')
     while True:
         await asyncio.sleep(speed)
-        #deleting all instances of the shroud pieces from the map_dict's actor list:
-        for name_key, coord in zip(shroud_piece_names, shroud_locations):
-            if name_key in map_dict[coord].actors:
-                del map_dict[coord].actors[name_key]
+        for offset, shroud_name_key in enumerate(shroud_piece_names):
+            #deleting instance of the shroud pieces from the map_dict's actor list:
+            coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
+            if shroud_name_key in map_dict[coord].actors:
+                del map_dict[coord].actors[shroud_name_key]
+            new_coord = await wander(*coord, shroud_name_key)
+            map_dict[new_coord].actors[shroud_name_key] = True
         #move the core
-        #use wander() to move the core
-        while map_dict[(new_x, new_y)].passable == False:
-            await asyncio.sleep(0)
-            print("This isn't complete")
-            exit()
-        #for each shroud piece, move it to a random adjacent space,
-        new_core_coord = (new_x, new_y)
-        #write the new locations of each shroud_pieces to the map_dict's tiles' actor lists
-    return actor_coords
+        core_location = await wander(*core_location, core_name_key)
+        #TODO: figure out a way to tether the shroud pieces to the core
+        #TODO: the core does not move right now, fix.
 
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
     """
@@ -866,15 +864,16 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
         state_dict[state_dict_key] = actor_coords
 
 async def readout(x_coord=50, y_coord=35, listen_to_key=None, update_rate=.1, float_len=3, 
-                  title=None, bar=True, max_value=100, bar_length=20):
+                  title=None, bar=False, max_value=100, bar_length=20):
     """listen to a specific key of state_dict """
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(0)
         key_value = state_dict[listen_to_key]
-        bar_filled = round((int(key_value)/max_value) * bar_length)
-        bar_unfilled = bar_length - bar_filled
-        bar_characters = "█" * bar_filled + "░" * bar_unfilled
+        if bar:
+            bar_filled = round((int(key_value)/max_value) * bar_length)
+            bar_unfilled = bar_length - bar_filled
+            bar_characters = "█" * bar_filled + "░" * bar_unfilled
         if title:
             with term.location(x_coord, y_coord):
                 if not bar:
@@ -915,7 +914,11 @@ def main():
     #loop.create_task(snake())
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
     loop.create_task(constant_update_tile())
-    loop.create_task(readout(listen_to_key="player_health", title="♥:"))
+    loop.create_task(track_actor_location())
+    loop.create_task(readout(listen_to_key="player", title="coords:"))
+    loop.create_task(readout(bar=True, y_coord=36, listen_to_key="player_health", title="♥:"))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+
     loop.create_task(health_test())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
