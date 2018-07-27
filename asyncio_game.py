@@ -13,7 +13,6 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    #def __init__(self, passable=True, tile=" ", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
     def __init__(self, passable=True, tile="▓", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
@@ -591,14 +590,16 @@ async def wander(x_current, y_current, name_key):
         actor_dict[(name_key)].y_coord = y_current
     return (x_current, y_current)
 
-async def seek(x_current, y_current, name_key, seek_key='player'):
+async def seek(x_current, y_current, name_key, seek_key='player', hurtful=False):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
     active_x, active_y = x_current, y_current
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
-    if abs(diff_x) <= 1 and abs(diff_y) <= 1 and state_dict["player_health"] >= 10:
-        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, seeds=randint(1, 9), description="blood.")
+    if hurtful:
+        if abs(diff_x) <= 1 and abs(diff_y) <= 1 and state_dict["player_health"] >= 10:
+            await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
+                              seeds=randint(1, 9), description="blood.")
         state_dict["player_health"] -= 10
     if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
         active_x -= 1
@@ -608,6 +609,8 @@ async def seek(x_current, y_current, name_key, seek_key='player'):
         active_y -= 1
     if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
         active_y += 1
+    actor_dict[name_key].x_coord = active_x
+    actor_dict[name_key].y_coord = active_y
     return (active_x, active_y)
 
 async def random_unicode(length=1, clean=True):
@@ -660,7 +663,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     await asyncio.sleep(0)
     #initialize all shroud tiles to starting coordinates:
     core_location = (start_x, start_y)
-    actor_dict[core_name_key] = Actor(x_coord=core_location[0], y_coord=core_location[1], tile="&")
+    actor_dict[core_name_key] = Actor(x_coord=core_location[0], y_coord=core_location[1], tile=" ")
     map_dict[core_location].actors[core_name_key] = True
     shroud_locations = [(start_x, start_y)] * shroud_pieces
     #initialize segment actors:
@@ -676,12 +679,27 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
             if shroud_name_key in map_dict[coord].actors:
                 del map_dict[coord].actors[shroud_name_key]
-            new_coord = await wander(*coord, shroud_name_key)
+            if randint(1, 10) > 5:
+                new_coord = await wander(*coord, shroud_name_key)
+            else:
+                new_coord = await seek(x_current=coord[0], y_current=coord[1], 
+                                       name_key=shroud_name_key, seek_key=core_name_key)
             map_dict[new_coord].actors[shroud_name_key] = True
         #move the core
-        core_location = await wander(*core_location, core_name_key)
-        #TODO: figure out a way to tether the shroud pieces to the core
-        #TODO: the core does not move right now, fix.
+        #TODO: wrap actor movement and deletion of old location into a function.
+        core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
+        if core_name_key in map_dict[core_location].actors:
+            del map_dict[core_location].actors[core_name_key]
+        behavior_switch = randint(1, 100)
+        #if behavior_switch < 5:
+            #asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
+        if behavior_switch >= 15:
+            new_core_location = await wander(*core_location, core_name_key)
+        else:
+            new_core_location = await seek(x_current=core_location[0], y_current=core_location[1], 
+                                           name_key=core_name_key, seek_key="player")
+        map_dict[new_core_location].actors[core_name_key] = True
+
 
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
     """
