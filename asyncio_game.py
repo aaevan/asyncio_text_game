@@ -679,7 +679,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
             if shroud_name_key in map_dict[coord].actors:
                 del map_dict[coord].actors[shroud_name_key]
-            if randint(1, 10) > 5:
+            if random() > .5:
                 new_coord = await wander(*coord, shroud_name_key)
             else:
                 new_coord = await seek(x_current=coord[0], y_current=coord[1], 
@@ -690,10 +690,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
         if core_name_key in map_dict[core_location].actors:
             del map_dict[core_location].actors[core_name_key]
-        behavior_switch = randint(1, 100)
-        #if behavior_switch < 5:
-            #asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
-        if behavior_switch >= 15:
+        if random() > .5:
             new_core_location = await wander(*core_location, core_name_key)
         else:
             new_core_location = await seek(x_current=core_location[0], y_current=core_location[1], 
