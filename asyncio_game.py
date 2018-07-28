@@ -657,9 +657,10 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         open doors (slowly)
         push boxes
             takes speed**1.2 for each box stacked
+
+    shrouded_horror is a core and a number of shroud pieces
+    when it is first run, core is started as a coroutine (as an actor) as is each shroud_location
     """
-    #something weird is happening with an off by one index.
-    #with two shroud pieces, only one is printed, with one, zero are printed
     await asyncio.sleep(0)
     #initialize all shroud tiles to starting coordinates:
     core_location = (start_x, start_y)
@@ -679,23 +680,33 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
             if shroud_name_key in map_dict[coord].actors:
                 del map_dict[coord].actors[shroud_name_key]
-            if random() > .5:
+            #map_dict[coord].blocking = False #shroud pieces block view
+            behavior_val = random()
+            if behavior_val < .2:
+                new_coord = coord
+            elif behavior_val > .6:
                 new_coord = await wander(*coord, shroud_name_key)
             else:
                 new_coord = await seek(x_current=coord[0], y_current=coord[1], 
                                        name_key=shroud_name_key, seek_key=core_name_key)
-            map_dict[new_coord].actors[shroud_name_key] = True
+            map_dict[new_coord].actors[shroud_name_key] = True 
+            #map_dict[new_coord].blocking = True #shroud pieces block view
         #move the core
         #TODO: wrap actor movement and deletion of old location into a function.
         core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
         if core_name_key in map_dict[core_location].actors:
             del map_dict[core_location].actors[core_name_key]
-        if random() > .5:
+        map_dict[coord].blocking = False # core blocks view
+        core_behavior_val = random()
+        if core_behavior_val < .1:
+            new_core_location = core_location
+        if core_behavior_val > .4:
             new_core_location = await wander(*core_location, core_name_key)
         else:
             new_core_location = await seek(x_current=core_location[0], y_current=core_location[1], 
                                            name_key=core_name_key, seek_key="player")
         map_dict[new_core_location].actors[core_name_key] = True
+        map_dict[new_coord].blocking = True # core blocks view
 
 
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
@@ -721,7 +732,6 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
         actor_dict[(segment_names[-1])] = Actor(x_coord=segment_coord[0], y_coord=segment_coord[1])
     print(segment_names)
     while True:
-        #await asyncio.sleep(speed)
         await asyncio.sleep(speed)
         #deleting all traces of the snake segments from the map_dict's actor list:
         for name_key, coord in zip(segment_names, segment_locations):
@@ -822,10 +832,9 @@ async def toggle_doors():
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.1, death_clock=100, rounded=True):
+                    rate=.1, vine_length=100, rounded=True):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else."""
     await asyncio.sleep(rate)
-    current_coord = (start_x, start_y)
     if not rounded:
         vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
                 (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
@@ -837,6 +846,21 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     prev_dir, next_dir = randint(1, 4), randint(1, 4)
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
+    # a separate loop to extend and retract the vine
+    # the first loop generates the list of points, it branches after that
+    # and allows for different behaviors: growing and staying, forking, growing and retracting
+    vine_locations = []
+    vine_actor_names = []
+    current_coord = (start_x, start_y)
+    #for number in range(vine_length):
+        #vine_actor_name = "{}_{}".format(actor_key, number)
+        #vine_actor_names += [vine_actor_name]
+        #actor_dict[vine_actor_name].whatever
+        #next_dir = randint(1, 4)
+        #while (prev_dir, next_dir) in exclusions:
+            #next_dir = randint(1, 4)
+        #next_tuple, vine_tile = (movement_tuples[next_dir], 
+                                 #vine_picks[(prev_dir, next_dir)])
     while True:
         await asyncio.sleep(rate)
         next_dir = randint(1, 4)
@@ -850,8 +874,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
             map_dict[current_coord].blocking = False
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
-        death_clock -= 1
-        if death_clock <= 0:
+        vine_length -= 1
+        if vine_length <= 0:
             return
 
 async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
