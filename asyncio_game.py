@@ -26,6 +26,7 @@ class Actor:
         """ create a new actor at position x, y """
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
+        self.coord = (x_coord, y_coord)
 
     def update(x, y):
         self.x_coord, self.y_coord = x, y
@@ -786,8 +787,6 @@ async def basic_actor(start_x=0, start_y=0, speed=.2, tile="*",
     if len(tile) >= 1:
         animated = True
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
-    actor_dict[(name_key)].x_coord = start_x
-    actor_dict[(name_key)].y_coord = start_y
     coords = await get_actor_coords(name_key)
     while True:
         #if animated:
@@ -832,8 +831,12 @@ async def toggle_doors():
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.1, vine_length=100, rounded=True):
-    """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else."""
+                    rate=.1, vine_length=10, rounded=True,
+                    behavior="retract", speed=.05):
+    """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
+    TODO: make vines stay within walls (a toggle between clipping and tunneling)
+    TODO: make vine actor names random so they don't conflict with eachother when spawning a new vine.
+    """
     await asyncio.sleep(rate)
     if not rounded:
         vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
@@ -841,6 +844,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     else:
         vine_picks = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
                 (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
+    behaviors = ["grow", "reach retract", "bolt"]
     exclusions = {(2, 4), (4, 2), (1, 3), (3, 1), }
     vines = [term.green(i) for i in "┌┐└┘─│"]
     prev_dir, next_dir = randint(1, 4), randint(1, 4)
@@ -852,31 +856,33 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     vine_locations = []
     vine_actor_names = []
     current_coord = (start_x, start_y)
-    #for number in range(vine_length):
-        #vine_actor_name = "{}_{}".format(actor_key, number)
-        #vine_actor_names += [vine_actor_name]
-        #actor_dict[vine_actor_name].whatever
-        #next_dir = randint(1, 4)
-        #while (prev_dir, next_dir) in exclusions:
-            #next_dir = randint(1, 4)
-        #next_tuple, vine_tile = (movement_tuples[next_dir], 
-                                 #vine_picks[(prev_dir, next_dir)])
-    while True:
-        await asyncio.sleep(rate)
+    for number in range(vine_length):
+        await asyncio.sleep(0)
+        vine_actor_name = "{}_{}".format(actor_key, number)
+        vine_actor_names += [vine_actor_name]
         next_dir = randint(1, 4)
         while (prev_dir, next_dir) in exclusions:
             next_dir = randint(1, 4)
         next_tuple, vine_tile = (movement_tuples[next_dir], 
                                  vine_picks[(prev_dir, next_dir)])
-        if map_dict[current_coord].tile not in vines:
-            map_dict[current_coord].tile = term.green(vine_tile)
-            map_dict[current_coord].passable = True
-            map_dict[current_coord].blocking = False
+        actor_dict[vine_actor_name] = Actor(x_coord=current_coord[0],
+                                            y_coord=current_coord[1],
+                                            tile=term.green(vine_tile))
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
-        vine_length -= 1
-        if vine_length <= 0:
-            return
+    for vine_name in vine_actor_names:
+        await asyncio.sleep(speed)
+        map_tile = actor_dict[vine_name].tile
+        coord = actor_dict[vine_name].coord
+        if behavior == "grow":
+            map_dict[coord].tile = map_tile
+        if behavior == "retract":
+            map_dict[coord].actors[vine_name] = True
+    if behavior == "retract":
+        for vine_name in reversed(vine_actor_names):
+            coord = actor_dict[vine_name].coord
+            await asyncio.sleep(speed)
+            del map_dict[coord].actors[vine_name]
 
 async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
     while True:
