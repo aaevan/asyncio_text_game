@@ -338,7 +338,6 @@ def map_init():
                 #passable=True, description="something gross")
     announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
-    #rand_map()
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     #split announcement up into separate sequential pieces with pipes
@@ -591,7 +590,7 @@ async def wander(x_current, y_current, name_key):
         actor_dict[(name_key)].y_coord = y_current
     return (x_current, y_current)
 
-async def seek(x_current, y_current, name_key, seek_key='player', hurtful=False):
+async def seek(x_current=0, y_current=0, name_key=None, seek_key='player', hurtful=False):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
@@ -640,10 +639,6 @@ async def get_actor_coords(name_key):
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     a set core that moves around and an outer shroud of random moving tiles
-         ... . 
-        . . . . 
-          .O.. 
-           . . 
     shroud pieces are made of darkness. darkness is represented by an empty square (' ')
     shroud pieces do not stray further than a set distance, some are close, some are far
     shroud pieces do not go through walls
@@ -674,9 +669,11 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         shroud_piece_names.append("{}_piece_{}".format(core_name_key, number))
     for number, name in enumerate(shroud_piece_names):
         actor_dict[name] = Actor(x_coord=start_x, y_coord=start_y, tile=' ')
+    wait = 0
     while True:
         await asyncio.sleep(speed)
         for offset, shroud_name_key in enumerate(shroud_piece_names):
+            #actor_dict[shroud_name_key].tile = choice("O0oØø")
             #deleting instance of the shroud pieces from the map_dict's actor list:
             coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
             if shroud_name_key in map_dict[coord].actors:
@@ -697,17 +694,22 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
         if core_name_key in map_dict[core_location].actors:
             del map_dict[core_location].actors[core_name_key]
-        map_dict[coord].blocking = False # core blocks view
+        #map_dict[coord].blocking = False # core blocks view
         core_behavior_val = random()
-        if core_behavior_val < .1:
+        if wait > 0:
+            wait -= 1
+            pass 
+        elif core_behavior_val < .05:
             new_core_location = core_location
-        if core_behavior_val > .4:
+            asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
+            wait = 20
+        elif core_behavior_val > .4:
             new_core_location = await wander(*core_location, core_name_key)
         else:
             new_core_location = await seek(x_current=core_location[0], y_current=core_location[1], 
                                            name_key=core_name_key, seek_key="player")
         map_dict[new_core_location].actors[core_name_key] = True
-        map_dict[new_coord].blocking = True # core blocks view
+        #map_dict[new_coord].blocking = True # core blocks view
 
 
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
@@ -781,7 +783,7 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
             map_dict[coord].actors[name_key] = name_key
             counter += 1
 
-async def basic_actor(start_x=0, start_y=0, speed=.2, tile="*", 
+async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*", 
         movement_function=wander, name_key="test"):
     """ A coroutine that creates a randomly wandering '*' """
     if len(tile) >= 1:
@@ -831,8 +833,9 @@ async def toggle_doors():
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.1, vine_length=10, rounded=True,
-                    behavior="retract", speed=.05):
+                    rate=.1, vine_length=15, rounded=True,
+                    behavior="retract", speed=.05, 
+                    extend_wait=.025, retract_wait=.25 ):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
     TODO: make vine actor names random so they don't conflict with eachother when spawning a new vine.
@@ -850,15 +853,13 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     prev_dir, next_dir = randint(1, 4), randint(1, 4)
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
-    # a separate loop to extend and retract the vine
-    # the first loop generates the list of points, it branches after that
-    # and allows for different behaviors: growing and staying, forking, growing and retracting
     vine_locations = []
     vine_actor_names = []
     current_coord = (start_x, start_y)
+    vine_id = str(round(random(), 5))[2:]
     for number in range(vine_length):
         await asyncio.sleep(0)
-        vine_actor_name = "{}_{}".format(actor_key, number)
+        vine_actor_name = "{}_{}_{}".format(actor_key, vine_id, number)
         vine_actor_names += [vine_actor_name]
         next_dir = randint(1, 4)
         while (prev_dir, next_dir) in exclusions:
@@ -871,7 +872,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
     for vine_name in vine_actor_names:
-        await asyncio.sleep(speed)
+        await asyncio.sleep(extend_wait)
         map_tile = actor_dict[vine_name].tile
         coord = actor_dict[vine_name].coord
         if behavior == "grow":
@@ -881,7 +882,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     if behavior == "retract":
         for vine_name in reversed(vine_actor_names):
             coord = actor_dict[vine_name].coord
-            await asyncio.sleep(speed)
+            await asyncio.sleep(retract_wait)
             del map_dict[coord].actors[vine_name]
 
 async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
