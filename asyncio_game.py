@@ -13,7 +13,9 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile="▓", blocking=True, description='', announcing=False, seen=False, announcement="", distance_trigger=None):
+    def __init__(self, passable=True, tile="▓", blocking=True, 
+                 description='', announcing=False, seen=False, 
+                 announcement="", distance_trigger=None):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
@@ -22,11 +24,12 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?"):
+    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=5, health=100, hurtful=True):
         """ create a new actor at position x, y """
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
+        self.strength, self.health, self.hurtful = strength, health, hurtful
 
     def update(x, y):
         self.x_coord, self.y_coord = x, y
@@ -61,18 +64,17 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
         for x in range(top_left[0], top_left[0] + x_size):
             for y in [top_left[1], top_left[1] + y_size]:
                 map_dict[(x, y)].tile = tile
-            #map_dict[(x, y)].tile = tile
         for y in range(top_left[1], top_left[1] + y_size):
             for x in [top_left[0], top_left[0] + x_size]:
                 map_dict[(x, y)].tile = tile
-            #map_dict[(x, y)].tile = tile
 
 def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
                   filled=True, tile=".", passable=True):
     top_left = (middle_coord[0] - int(x_size/2), middle_coord[1] - int(y_size/2))
     draw_box(top_left=top_left, x_size=x_size, y_size=10, filled=True, tile=tile)
 
-async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*", passable=True, blocking = False):
+async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
+                    passable=True, blocking = False):
     """draws a line to the map_dict connecting the two given points."""
     await asyncio.sleep(0)
     points = await get_line(coord_a, coord_b)
@@ -590,17 +592,36 @@ async def wander(x_current, y_current, name_key):
         actor_dict[(name_key)].y_coord = y_current
     return (x_current, y_current)
 
-async def seek(x_current=0, y_current=0, name_key=None, seek_key='player', hurtful=False):
+async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
+    await asyncio.sleep(0)
+    attacker_strength = actor_dict[attacker_key].strength
+    target_x = actor_dict[defender_key].x_coord
+    target_y = actor_dict[defender_key].y_coord
+    if blood:
+        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
+                          seeds=randint(1, spatter_num), description="blood.")
+    if state_dict["player_health"] >= attacker_strength:
+        state_dict["player_health"] -= attacker_strength
+    else:
+        pass
+        #await filter_print()
+
+async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
     active_x, active_y = x_current, y_current
+    with term.location(10, 8):
+        print(30 * " ")
+    with term.location(10, 8):
+        print(active_x, active_y, x_current, y_current)
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
-    if hurtful:
-        if abs(diff_x) <= 1 and abs(diff_y) <= 1 and state_dict["player_health"] >= 10:
-            await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
-                              seeds=randint(1, 9), description="blood.")
-        state_dict["player_health"] -= 10
+    hurtful = actor_dict[name_key].hurtful
+    if hurtful and abs(diff_x) <= 1 and abs(diff_y) <= 1:
+        await asyncio.sleep(1)
+        with term.location(10, 10):
+            print("attacker: {} at {}, diff of ".format(name_key, (active_x, active_y), (diff_x, diff_y)))
+        await attack(attacker_key=name_key, defender_key="player")
     if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
         active_x -= 1
     if diff_x < 0 and map_dict[(active_x + 1, active_y)].passable:
@@ -761,38 +782,24 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
         #write the new locations of each segment to the map_dict's tiles' actor lists
         counter = 0
         for name_key, coord in zip(segment_names, segment_locations):
-            #with term.location(0, 13):
-                #print(movement_history)
-            #with term.location(0, 15 + counter):
-                #print(name_key, coord)
             actor_dict[(name_key)].x_coord = coord[0]
             actor_dict[(name_key)].y_coord = coord[1]
-            #segment_tile_key = (movement_history[int(name_key[-1])], movement_history[int(name_key[-1]) + 1])
             segment_tile_key = (movement_history[counter], movement_history[counter - 1])
-            #with term.location(24, 15 + counter):
-                #print(movement_history[counter], movement_history[counter - 1])
             if segment_tile_key == (0, -1):
                 actor_dict[(name_key)].tile = '1'
             else:
-                #assign tile:
-                #with term.location(0, 30 + counter):
-                    #print(segment_tile_key)
                 actor_dict[(name_key)].tile = snake_segments[segment_tile_key]
-                #with term.location(21, 15 + counter):  ###
-                    #print(actor_dict[(name_key)].tile) ###
             map_dict[coord].actors[name_key] = name_key
             counter += 1
 
 async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*", 
-        movement_function=wander, name_key="test"):
+        movement_function=wander, name_key="test", hurtful=False):
     """ A coroutine that creates a randomly wandering '*' """
     if len(tile) >= 1:
         animated = True
-    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile)
+    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile, hurtful=hurtful)
     coords = await get_actor_coords(name_key)
     while True:
-        #if animated:
-        #    actor_dict[(name_key)]
         await asyncio.sleep(speed)
         if name_key in map_dict[coords].actors:
             del map_dict[coords].actors[name_key]
@@ -834,7 +841,7 @@ async def toggle_doors():
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=15, rounded=True,
-                    behavior="retract", speed=.05, 
+                    behavior="retract", speed=.01, 
                     extend_wait=.025, retract_wait=.25 ):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
@@ -877,13 +884,18 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         coord = actor_dict[vine_name].coord
         if behavior == "grow":
             map_dict[coord].tile = map_tile
-        if behavior == "retract":
+        if behavior == "retract" or "bolt":
             map_dict[coord].actors[vine_name] = True
     if behavior == "retract":
-        for vine_name in reversed(vine_actor_names):
-            coord = actor_dict[vine_name].coord
-            await asyncio.sleep(retract_wait)
-            del map_dict[coord].actors[vine_name]
+        end_loop = reversed(vine_actor_names)
+        end_wait = retract_wait
+    if behavior == "bolt":
+        end_loop = vine_actor_names
+        end_wait = extend_wait
+    for vine_name in end_loop:
+        coord = actor_dict[vine_name].coord
+        await asyncio.sleep(end_wait)
+        del map_dict[coord].actors[vine_name]
 
 async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
     while True:
@@ -963,8 +975,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(listen_to_key="player", title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, listen_to_key="player_health", title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
