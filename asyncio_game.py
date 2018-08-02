@@ -611,14 +611,11 @@ async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
     await asyncio.sleep(0)
     target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
     active_x, active_y = x_current, y_current
-    with term.location(10, 8):
-        print(30 * " ")
-    with term.location(10, 8):
-        print(active_x, active_y, x_current, y_current)
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
     hurtful = actor_dict[name_key].hurtful
-    if hurtful and abs(diff_x) <= 1 and abs(diff_y) <= 1:
-        await asyncio.sleep(1)
+    player_x, player_y = actor_dict["player"].x_coord, actor_dict["player"].y_coord
+    player_x_diff, player_y_diff = (active_x - player_x), (active_y - player_y)
+    if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         with term.location(10, 10):
             print("attacker: {} at {}, diff of ".format(name_key, (active_x, active_y), (diff_x, diff_y)))
         await attack(attacker_key=name_key, defender_key="player")
@@ -659,13 +656,13 @@ async def get_actor_coords(name_key):
 
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
-    a set core that moves around and an outer shroud of random moving tiles
-    shroud pieces are made of darkness. darkness is represented by an empty square (' ')
+    X a set core that moves around and an outer shroud of random moving tiles
+    X shroud pieces are made of darkness. darkness is represented by an empty square (' ')
     shroud pieces do not stray further than a set distance, some are close, some are far
-    shroud pieces do not go through walls
-    shroud pieces start in one place and wander further or closer from the core
-    shroud pieces follow the path of the core and can trail behind
-    if a door is opened into a place with a shrouded horror, darkness should bleed into the hallway with you.
+    X shroud pieces do not go through walls
+    X shroud pieces start in one place and wander further or closer from the core
+    X shroud pieces follow the path of the core and can trail behind
+    X if a door is opened into a place with a shrouded horror, darkness should bleed into the hallway with you.
     short tentacles should grow, seeking out the location of the player.
     they retract when reaching a maxiumum length. fastfastfast out, slowly retract one tile at a time.
     if they hit a player, the player is dragged a random number of tiles from 0 to the length of the tentacle
@@ -854,26 +851,28 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     else:
         vine_picks = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
                 (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
-    behaviors = ["grow", "reach retract", "bolt"]
+    behaviors = ["grow", "retract", "bolt"]
     exclusions = {(2, 4), (4, 2), (1, 3), (3, 1), }
     vines = [term.green(i) for i in "┌┐└┘─│"]
     prev_dir, next_dir = randint(1, 4), randint(1, 4)
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    vine_actor_names = []
-    current_coord = (start_x, start_y)
+    #vine_actor_names = []
     vine_id = str(round(random(), 5))[2:]
-    for number in range(vine_length):
-        await asyncio.sleep(0)
-        vine_actor_name = "{}_{}_{}".format(actor_key, vine_id, number)
-        vine_actor_names += [vine_actor_name]
+    vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
+    current_coord = (start_x, start_y)
+    #for number in range(vine_length):
+        #await asyncio.sleep(0)
+        #vine_actor_name = "{}_{}_{}".format(actor_key, vine_id, number)
+        #vine_actor_names += [vine_actor_name]
+    for vine_name in vine_actor_names:
         next_dir = randint(1, 4)
         while (prev_dir, next_dir) in exclusions:
             next_dir = randint(1, 4)
         next_tuple, vine_tile = (movement_tuples[next_dir], 
                                  vine_picks[(prev_dir, next_dir)])
-        actor_dict[vine_actor_name] = Actor(x_coord=current_coord[0],
+        actor_dict[vine_name] = Actor(x_coord=current_coord[0],
                                             y_coord=current_coord[1],
                                             tile=term.green(vine_tile))
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
@@ -970,12 +969,14 @@ def main():
     loop.create_task(view_init(loop))
     loop.create_task(ui_tasks(loop))
     #loop.create_task(snake())
-    loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, tile="Ø", name_key="test_seeker1"))
+    loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
+                                 #tile="Ø", name_key="test_seeker1", hurtful=True))
+                                 tile="Ϩ", name_key="test_seeker1", hurtful=True))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(listen_to_key="player", title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, listen_to_key="player_health", title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
