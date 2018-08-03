@@ -92,6 +92,22 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
+async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*"):
+    points = await get_line(coord_a, coord_b)
+    with term.location(55, 0):
+        print(points)
+    print
+    for index, point in enumerate(points[1:]):
+        if map_dict[point].passable:
+            continue
+        else:
+            points_until_wall = points[:index]
+            break
+    for point in points_until_wall:
+        map_dict[point].tile = term.red(choice(palette))
+    with term.location(55, 10):
+        print(points_until_wall)
+
 async def get_line(start, end):
     """Bresenham's Line Algorithm
     Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
@@ -396,6 +412,8 @@ async def handle_input(key):
         asyncio.ensure_future(toggle_doors()),
     if key in '4':
         asyncio.ensure_future(filter_print()),
+    if key in 'lL':
+        asyncio.ensure_future(laser(coord_a=actor_dict['player'].coords()))
     if map_dict[(shifted_x, shifted_y)].passable:
         map_dict[(x, y)].passable = True
         actor_dict['player'].update(x + x_shift, y + y_shift)
