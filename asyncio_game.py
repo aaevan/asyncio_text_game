@@ -31,19 +31,25 @@ class Actor:
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
 
-    def update(x, y):
+    def update(self, x, y):
         self.x_coord, self.y_coord = x, y
 
-    def coords():
+    def coords(self):
         return (self.x_coord, self.y_coord)
+
+    def move_by(self, coord_move=None, x_move=None, y_move=None):
+        if x_move:
+            self.x_coord = self.x_coord + x_move
+        if y_move:
+            self.y_coord = self.y_coord + y_move
+        if coord_move:
+            self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
 
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile="@")
 term = Terminal()
-
-#TODO make actors display messages when near a door at random intervals, "you hear a scratching sound"
 
 #Drawing functions---------------------------------------------------------------------------------
 
@@ -375,14 +381,12 @@ async def handle_input(key):
     """
     await asyncio.sleep(0)  
     x_shift, y_shift = 0, 0 
-    x, y = (actor_dict['player'].x_coord,
-            actor_dict['player'].y_coord,)
+    x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
     if key in directions:
         x_shift, y_shift = directions[key]
-    shifted_x, shifted_y = (actor_dict['player'].x_coord + x_shift,
-                            actor_dict['player'].y_coord + y_shift,)
+    shifted_x, shifted_y = x + x_shift, y + y_shift
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
     if key in 'Ee':
@@ -394,20 +398,17 @@ async def handle_input(key):
         asyncio.ensure_future(filter_print()),
     if map_dict[(shifted_x, shifted_y)].passable:
         map_dict[(x, y)].passable = True
-        actor_dict['player'].x_coord += x_shift
-        actor_dict['player'].y_coord += y_shift
-        x, y = (actor_dict['player'].x_coord,
-                actor_dict['player'].y_coord,)
+        actor_dict['player'].update(x + x_shift, y + y_shift)
+        x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False
-    return actor_dict['player'].x_coord, actor_dict['player'].y_coord
+    return x, y
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
     """
     print a grid of ones and zeroes running is_clear_between on the area surrounding player location.
     """
     await asyncio.sleep(0)
-    player_x, player_y = (actor_dict['player'].x_coord,
-                          actor_dict['player'].y_coord)
+    player_x, player_y = actor_dict["player"].coords()
     output_array = [[0 for i in range(10)] for j in range(10)]
     for x_index, x_coord in enumerate(range(-5, 5)):
         for y_index, y_coord in enumerate(range(-5, 5)):
@@ -436,18 +437,13 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
         if map_dict[tile_key].distance_trigger:
             distance = await point_to_point_distance(tile_key, player_coords)
             if distance <= map_dict[tile_key].distance_trigger:
-                #with term.location(0, 30):
-                    #print("triggered tile {}".format(tile_key))
                 await parse_announcement(tile_key)
                 map_dict[tile_key].seen = True
             else:
-                #with term.location(0, 30):
-                #   print("not close enough...")
                 pass
         else:
             await parse_announcement(tile_key)
             map_dict[tile_key].seen = True
-    #elif not map_dict[tile_key].distance_trigger:
     else:
         map_dict[tile_key].seen = True
 
@@ -463,22 +459,20 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     last_printed = ' '
     while True:
         await asyncio.sleep(.01)
-        player_x, player_y = (actor_dict['player'].x_coord,
-                              actor_dict['player'].y_coord)
-        x, y = (actor_dict['player'].x_coord + x_offset,
-                actor_dict['player'].y_coord + y_offset,)
-        tile_key = (x, y)
+        player_x, player_y = actor_dict['player'].coords()
+        x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
+        tile_key = (x_display_coord, y_display_coord)
         tile = map_dict[tile_key].tile
         if map_dict[tile_key].actors:
             map_dict_key = next(iter(map_dict[tile_key].actors))
-            actor = actor_dict[map_dict_key].tile
+            actor_tile = actor_dict[map_dict_key].tile
         else:
-            actor = None
+            actor_tile = None
         if randint(0, round(distance)) < threshold:
-            if await is_clear_between((player_x, player_y), (x, y)):
+            if await is_clear_between((player_x, player_y), tile_key):
                 await trigger_announcement(tile_key, player_coords=(player_x, player_y))
-                if actor:
-                    print_choice = actor
+                if actor_tile:
+                    print_choice = actor_tile
                 else:
                     print_choice = tile
             else:
@@ -523,8 +517,6 @@ async def status_bar_draw(state_dict_key="health", position="top left", bar_heig
                           x_margin=5, y_margin=4):
     asyncio.ensure_future(ui_box_draw(position=position, bar_height=box_height, bar_width=box_width,
                           x_margin=x_margin, y_margin=y_margin))
-    #asyncio.ensure_future()
-
 
 async def shaded_tile(x=15, y=15, on_percent=.5, rate=.01, tile="#"):
     await asyncio.sleep(0)
@@ -551,8 +543,7 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             time_seconds = 59
             time_minutes -= 1
         elif time_seconds == 0 and time_minutes == 0:
-            x, y = (actor_dict['player'].x_coord,
-                    actor_dict['player'].y_coord,)
+            x, y = actor_dict['player'].coords()
             await vine_grow(start_x=x,  start_y=y)
             with term.location(x_pos, y_pos):
                 print(" " * 5)
@@ -584,19 +575,15 @@ async def wander(x_current, y_current, name_key):
     """
     await asyncio.sleep(0)
     x_move, y_move = randint(-1, 1), randint(-1, 1)
-    next_move = (x_current + x_move, y_current + y_move)
-    if map_dict[next_move].passable:
-        x_current += x_move
-        y_current += y_move
-        actor_dict[(name_key)].x_coord = x_current
-        actor_dict[(name_key)].y_coord = y_current
-    return (x_current, y_current)
+    next_position = (x_current + x_move, y_current + y_move)
+    if map_dict[next_position].passable:
+        actor_dict[name_key].move_by(coord_move=(x_move, y_move))
+    return next_position
 
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
     await asyncio.sleep(0)
     attacker_strength = actor_dict[attacker_key].strength
-    target_x = actor_dict[defender_key].x_coord
-    target_y = actor_dict[defender_key].y_coord
+    target_x, target_y = actor_dict[defender_key].coords()
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
                           seeds=randint(1, spatter_num), description="blood.")
@@ -609,11 +596,11 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
 async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
-    target_x, target_y = actor_dict[seek_key].x_coord, actor_dict[seek_key].y_coord
+    target_x, target_y = actor_dict[seek_key].coords()
     active_x, active_y = x_current, y_current
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
     hurtful = actor_dict[name_key].hurtful
-    player_x, player_y = actor_dict["player"].x_coord, actor_dict["player"].y_coord
+    player_x, player_y = actor_dict["player"].coords()
     player_x_diff, player_y_diff = (active_x - player_x), (active_y - player_y)
     if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         with term.location(10, 10):
@@ -627,8 +614,7 @@ async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
         active_y -= 1
     if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
         active_y += 1
-    actor_dict[name_key].x_coord = active_x
-    actor_dict[name_key].y_coord = active_y
+    actor_dict[name_key].update(active_x, active_y)
     return (active_x, active_y)
 
 async def random_unicode(length=1, clean=True):
@@ -647,13 +633,6 @@ async def random_unicode(length=1, clean=True):
                 print(a)
     return u"".join(random_unicodes)
     
-async def get_actor_coords(name_key):
-    await asyncio.sleep(0)
-    actor_x = actor_dict[name_key].x_coord
-    actor_y = actor_dict[name_key].y_coord
-    actor_coords = (actor_x, actor_y)
-    return actor_coords
-
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     X a set core that moves around and an outer shroud of random moving tiles
@@ -664,7 +643,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     X shroud pieces follow the path of the core and can trail behind
     X if a door is opened into a place with a shrouded horror, darkness should bleed into the hallway with you.
     short tentacles should grow, seeking out the location of the player.
-    they retract when reaching a maxiumum length. fastfastfast out, slowly retract one tile at a time.
+    X they retract when reaching a maxiumum length. fastfastfast out, slowly retract one tile at a time.
     if they hit a player, the player is dragged a random number of tiles from 0 to the length of the tentacle
     each key pressed that is not the same key in a row removes a tile to be dragged by .25
     shrouded horrors can
@@ -795,7 +774,7 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
     if len(tile) >= 1:
         animated = True
     actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile, hurtful=hurtful)
-    coords = await get_actor_coords(name_key)
+    coords = actor_dict[name_key].coords()
     while True:
         await asyncio.sleep(speed)
         if name_key in map_dict[coords].actors:
@@ -813,8 +792,7 @@ async def constant_update_tile(x_offset=0, y_offset=0, tile=term.red('@')):
             print(tile)
 
 async def toggle_doors():
-    x, y = (actor_dict['player'].x_coord,
-            actor_dict['player'].y_coord,)
+    x, y = actor_dict['player'].coords()
     door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
     for door in door_dirs:
         door_coord_tuple = (x + door[0], y + door[1])
@@ -822,23 +800,22 @@ async def toggle_doors():
         #also apply to differently colored doors:
         #closed_doors = [term.color(i)('▮') for i in range(10)] + ['▮']
         #open_doors = [term.color(i)('▯') for i in range(10)] + ['▯']
-
         if door_state == "▮":
         #if door_state in closed_doors:
-            #asyncio.ensure_future(filter_print(output_text = "You open the door."))
+            #asyncio.ensure_future(filter_print(output_text = "You open the door.", pause_stay_on=.5))
             map_dict[door_coord_tuple].tile = '▯'
             map_dict[door_coord_tuple].passable = True
             map_dict[door_coord_tuple].blocking = False
         elif door_state == '▯':
         #elif door_state in open_doors:
-            #asyncio.ensure_future(filter_print(output_text = "You close the door."))
+            #asyncio.ensure_future(filter_print(output_text = "You close the door.", pause_stay_on=.5))
             map_dict[door_coord_tuple].tile = '▮'
             map_dict[door_coord_tuple].passable = False
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=15, rounded=True,
-                    behavior="retract", speed=.01, 
+                    behavior="retract", speed=.01, damage=20,
                     extend_wait=.025, retract_wait=.25 ):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
@@ -858,14 +835,9 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    #vine_actor_names = []
     vine_id = str(round(random(), 5))[2:]
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
-    #for number in range(vine_length):
-        #await asyncio.sleep(0)
-        #vine_actor_name = "{}_{}_{}".format(actor_key, vine_id, number)
-        #vine_actor_names += [vine_actor_name]
     for vine_name in vine_actor_names:
         next_dir = randint(1, 4)
         while (prev_dir, next_dir) in exclusions:
@@ -873,8 +845,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         next_tuple, vine_tile = (movement_tuples[next_dir], 
                                  vine_picks[(prev_dir, next_dir)])
         actor_dict[vine_name] = Actor(x_coord=current_coord[0],
-                                            y_coord=current_coord[1],
-                                            tile=term.green(vine_tile))
+                                      y_coord=current_coord[1],
+                                      tile=term.green(vine_tile))
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
     for vine_name in vine_actor_names:
@@ -886,11 +858,9 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         if behavior == "retract" or "bolt":
             map_dict[coord].actors[vine_name] = True
     if behavior == "retract":
-        end_loop = reversed(vine_actor_names)
-        end_wait = retract_wait
+        end_loop, end_wait = reversed(vine_actor_names), retract_wait
     if behavior == "bolt":
-        end_loop = vine_actor_names
-        end_wait = extend_wait
+        end_loop, end_wait = vine_actor_names, extend_wait
     for vine_name in end_loop:
         coord = actor_dict[vine_name].coord
         await asyncio.sleep(end_wait)
@@ -899,8 +869,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
 async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
     while True:
         await asyncio.sleep(sec_interval)
-        x, y = (actor_dict['player'].x_coord,
-                actor_dict['player'].y_coord,)
+        x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(*args))
 
 async def sin_loop(state_dict_key="testsin", update_speed=.1, length=10):
@@ -914,8 +883,6 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
     await asyncio.sleep(0)
     actor_coords = None
     while True:
-        #with term.location(5, 5):
-            #print("{:8}".format(str(actor_coords)))
         await asyncio.sleep(update_speed)
         actor_coords = (actor_dict['player'].x_coord, actor_dict['player'].y_coord)
         state_dict[state_dict_key] = actor_coords
@@ -970,7 +937,6 @@ def main():
     loop.create_task(ui_tasks(loop))
     #loop.create_task(snake())
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
-                                 #tile="Ø", name_key="test_seeker1", hurtful=True))
                                  tile="Ϩ", name_key="test_seeker1", hurtful=True))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
@@ -981,5 +947,17 @@ def main():
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
+#TODO: add ijkl to temporarily spawn a | or a ─
+#TODO: add an actor that allows itself to be pushed around
+#TODO: add an aiming reticule and/or a bullet actor that is spawned by a keypress
+#TODO: add a function that returns the points of a path that goes until it hits the next wall.
+    #for point in points in line, if passable, continue, else, 
+    #return points up to but not including the current point
 with term.hidden_cursor():
-    main()
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        main()
+    finally: 
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+
+
