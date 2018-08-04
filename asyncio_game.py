@@ -92,21 +92,49 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*"):
+async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
         print(points)
     print
     for index, point in enumerate(points[1:]):
+        await asyncio.sleep(speed)
         if map_dict[point].passable:
             continue
         else:
-            points_until_wall = points[:index]
+            points_until_wall = points[:index+1]
             break
     for point in points_until_wall:
         map_dict[point].tile = term.red(choice(palette))
     with term.location(55, 10):
         print(points_until_wall)
+
+async def sword(direction='n', actor='player', length=30, name='sword', speed=.02):
+    """extends and retracts a line of characters
+    TODO: implement damage dealt to other actors
+    TODO: it turns out it looks more like a laser with the speed set very low (0?)
+    TODO: end the range once it hits a wall
+    """
+    await asyncio.sleep(0)
+    dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
+    player_coords = actor_dict['player'].coords()
+    chosen_dir = dir_coords[direction]
+    sword_id = str(round(random(), 5))[2:]
+    sword_coords = player_coords #starting sword position, incremented each length segment
+    sword_segments = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(length)]
+    for segment in sword_segments:
+        sword_coords = (sword_coords[0] + chosen_dir[0],
+                        sword_coords[1] + chosen_dir[1])
+        actor_dict[segment] = Actor(tile=term.red(chosen_dir[2]))
+        map_dict[sword_coords].actors[segment] = True
+        await asyncio.sleep(speed)
+    for segment in reversed(sword_segments):
+        if segment in map_dict[sword_coords].actors: 
+            del map_dict[sword_coords].actors[segment]
+        del actor_dict[segment]
+        sword_coords = (sword_coords[0] - chosen_dir[0],
+                        sword_coords[1] - chosen_dir[1])
+        await asyncio.sleep(speed)
 
 async def get_line(start, end):
     """Bresenham's Line Algorithm
@@ -412,13 +440,21 @@ async def handle_input(key):
         asyncio.ensure_future(toggle_doors()),
     if key in '4':
         asyncio.ensure_future(filter_print()),
-    if key in 'lL':
-        asyncio.ensure_future(laser(coord_a=actor_dict['player'].coords()))
+    #if key in 'lL':
+        #asyncio.ensure_future(laser(coord_a=actor_dict['player'].coords()))
     if map_dict[(shifted_x, shifted_y)].passable:
         map_dict[(x, y)].passable = True
         actor_dict['player'].update(x + x_shift, y + y_shift)
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False
+    if key in 'i':
+        await sword(direction='n')
+    if key in 'j':
+        await sword(direction='w')
+    if key in 'k':
+        await sword(direction='s')
+    if key in 'l':
+        await sword(direction='e')
     return x, y
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
@@ -837,7 +873,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                     extend_wait=.025, retract_wait=.25 ):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
-    TODO: make vine actor names random so they don't conflict with eachother when spawning a new vine.
     """
     await asyncio.sleep(rate)
     if not rounded:
