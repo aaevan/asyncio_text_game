@@ -9,6 +9,7 @@ from random import randint, choice, random, shuffle
 from math import sqrt, sin, pi
 from itertools import cycle
 from subprocess import call
+from time import sleep #hack to prevent further input/freeze screen on player death
 import os
 
 class Map_tile:
@@ -24,12 +25,14 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=5, health=100, hurtful=True):
+    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, health=10, hurtful=True):
         """ create a new actor at position x, y """
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
+        #max health is set to original value
+        self.max_health = self.health
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -48,7 +51,7 @@ class Actor:
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(tile="@")
+actor_dict['player'] = Actor(tile="@", health=100)
 term = Terminal()
 
 #Drawing functions---------------------------------------------------------------------------------
@@ -109,7 +112,7 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     with term.location(55, 10):
         print(points_until_wall)
 
-async def sword(direction='n', actor='player', length=30, name='sword', speed=.02):
+async def sword(direction='n', actor='player', length=3, name='sword', speed=.05):
     """extends and retracts a line of characters
     TODO: implement damage dealt to other actors
     TODO: it turns out it looks more like a laser with the speed set very low (0?)
@@ -117,23 +120,20 @@ async def sword(direction='n', actor='player', length=30, name='sword', speed=.0
     """
     await asyncio.sleep(0)
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
-    player_coords = actor_dict['player'].coords()
+    starting_coords = actor_dict['player'].coords()
     chosen_dir = dir_coords[direction]
     sword_id = str(round(random(), 5))[2:]
-    sword_coords = player_coords #starting sword position, incremented each length segment
-    sword_segments = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(length)]
-    for segment in sword_segments:
-        sword_coords = (sword_coords[0] + chosen_dir[0],
-                        sword_coords[1] + chosen_dir[1])
-        actor_dict[segment] = Actor(tile=term.red(chosen_dir[2]))
-        map_dict[sword_coords].actors[segment] = True
+    sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(length)]
+    segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
+                       starting_coords[1] + chosen_dir[1] * i) for i in range(length)]
+    for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
+        actor_dict[segment_name] = Actor(tile=term.red(chosen_dir[2]))
+        map_dict[segment_coord].actors[segment_name] = True
         await asyncio.sleep(speed)
-    for segment in reversed(sword_segments):
-        if segment in map_dict[sword_coords].actors: 
-            del map_dict[sword_coords].actors[segment]
-        del actor_dict[segment]
-        sword_coords = (sword_coords[0] - chosen_dir[0],
-                        sword_coords[1] - chosen_dir[1])
+    for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
+        if segment_name in map_dict[segment_coord].actors: 
+            del map_dict[segment_coord].actors[segment_name]
+        del actor_dict[segment_name]
         await asyncio.sleep(speed)
 
 async def get_line(start, end):
@@ -210,7 +210,7 @@ async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
         return True
 
 async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30, 
-                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0):
+                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0, blocking=False):
     await asyncio.sleep(delay)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
@@ -222,13 +222,19 @@ async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30,
     for char in numbered_chars:
         with term.location(char[0] + x_location, y_location):
             print(char[1])
-        await asyncio.sleep(pause_fade_in)
+        if not blocking:
+            await asyncio.sleep(pause_fade_in)
+        else:
+            asyncio.sleep(pause_fade_in)
     shuffle(numbered_chars)
     await asyncio.sleep(pause_stay_on)
     for char in numbered_chars:
         with term.location(char[0] + x_location, y_location):
             print(' ')
-        await asyncio.sleep(pause_fade_out)
+        if not blocking:
+            await asyncio.sleep(pause_fade_out)
+        else:
+            asyncio.sleep(pause_fade_out)
 
 def write_description(x_coord=0, y_coord=0, text="this is the origin."):
     map_dict[(x_coord, y_coord)].description = text
@@ -367,12 +373,9 @@ def map_init():
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     map_dict[(3, 3)].tile = '☐'
     map_dict[(3, 3)].passable = False
-    #draw_box(top_left=(6, 6), x_size=9, y_size=10, tile="░")
-    #announcement_at_coord(coord=(9,9), announcement="a room where things happen")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    #announcement_at_coord(coord=(61, 20), announcement=rant)
     connect_with_passage(7, 7, 17, 17)
     connect_with_passage(17, 17, 25, 10)
     connect_with_passage(20, 20, 35, 20)
@@ -398,9 +401,6 @@ def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trig
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
-
-async def sequential_announcement_parse():
-    pass
 
 def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
              root_node_coords=(0, 0), rooms=10, root_room_size = (10, 10)):
@@ -440,21 +440,14 @@ async def handle_input(key):
         asyncio.ensure_future(toggle_doors()),
     if key in '4':
         asyncio.ensure_future(filter_print()),
-    #if key in 'lL':
-        #asyncio.ensure_future(laser(coord_a=actor_dict['player'].coords()))
     if map_dict[(shifted_x, shifted_y)].passable:
         map_dict[(x, y)].passable = True
         actor_dict['player'].update(x + x_shift, y + y_shift)
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False
-    if key in 'i':
-        await sword(direction='n')
-    if key in 'j':
-        await sword(direction='w')
-    if key in 'k':
-        await sword(direction='s')
-    if key in 'l':
-        await sword(direction='e')
+    sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
+    if key in sword_dir_keys:
+        await sword(direction=sword_dir_keys[key])
     return x, y
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
@@ -641,11 +634,12 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
                           seeds=randint(1, spatter_num), description="blood.")
-    if state_dict["player_health"] >= attacker_strength:
-        state_dict["player_health"] -= attacker_strength
+    if actor_dict[defender_key].health >= attacker_strength:
+        actor_dict[defender_key].health -= attacker_strength
+    #if state_dict["player_health"] >= attacker_strength:
+        #state_dict["player_health"] -= attacker_strength
     else:
         pass
-        #await filter_print()
 
 async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
@@ -657,8 +651,8 @@ async def seek(x_current=0, y_current=0, name_key=None, seek_key='player'):
     player_x, player_y = actor_dict["player"].coords()
     player_x_diff, player_y_diff = (active_x - player_x), (active_y - player_y)
     if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
-        with term.location(10, 10):
-            print("attacker: {} at {}, diff of ".format(name_key, (active_x, active_y), (diff_x, diff_y)))
+        #with term.location(10, 10):
+            #print("attacker: {} at {}, diff of ".format(name_key, (active_x, active_y), (diff_x, diff_y)))
         await attack(attacker_key=name_key, defender_key="player")
     if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
         active_x -= 1
@@ -940,13 +934,18 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
         actor_coords = (actor_dict['player'].x_coord, actor_dict['player'].y_coord)
         state_dict[state_dict_key] = actor_coords
 
-async def readout(x_coord=50, y_coord=35, listen_to_key=None, update_rate=.1, float_len=3, 
-                  title=None, bar=False, max_value=100, bar_length=20):
+async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
+                  actor_name=None, attribute=None, title=None, bar=False, 
+                  bar_length=20, is_actor=True, is_state=False):
     """listen to a specific key of state_dict """
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(0)
-        key_value = state_dict[listen_to_key]
+        if attribute == 'coords':
+            key_value = str((getattr(actor_dict[actor_name], 'x_coord'), getattr(actor_dict[actor_name], 'y_coord')))
+        else:
+            key_value = getattr(actor_dict[actor_name], attribute)
+        max_value = getattr(actor_dict[actor_name], "max_health")
         if bar:
             bar_filled = round((int(key_value)/max_value) * bar_length)
             bar_unfilled = bar_length - bar_filled
@@ -980,6 +979,33 @@ async def ui_tasks(loop):
     await asyncio.sleep(0)
     await ui_box_draw()
 
+async def death_check():
+    await asyncio.sleep(0)
+    player_health = actor_dict["player"].health
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    message = "You have died."
+    while True:
+        await asyncio.sleep(0)
+        player_health = actor_dict["player"].health
+        if player_health <= 0:
+            await filter_print(output_text=message, x_coord=(middle_x - round(len(message)/2)), 
+                               y_coord=middle_y, blocking=True)
+            sleep(30000)
+            await kill_all_tasks()
+
+async def kill_all_tasks():
+    await asyncio.sleep(0)
+    pending = asyncio.Task.all_tasks()
+    for task in pending:
+        task.cancel()
+        # Now we should await task to execute it's cancellation.
+        # Cancelled task raises asyncio.CancelledError that we can suppress:
+        with suppress(asyncio.CancelledError):
+            loop.run_until_complete(task)
+    #TODO, add a function to break given a flag to quit, put this in every task?
+    #not working right now,
+
 def main():
     map_init()
     state_dict["player_health"] = 100
@@ -993,14 +1019,14 @@ def main():
                                  tile="Ϩ", name_key="test_seeker1", hurtful=True))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
-    loop.create_task(readout(listen_to_key="player", title="coords:"))
-    loop.create_task(readout(bar=True, y_coord=36, listen_to_key="player_health", title="♥:"))
+    loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
+    loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
+    loop.create_task(death_check())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
-#TODO: add ijkl to temporarily spawn a | or a ─
 #TODO: add an actor that allows itself to be pushed around
 #TODO: add an aiming reticule and/or a bullet actor that is spawned by a keypress
 #TODO: add a function that returns the points of a path that goes until it hits the next wall.
@@ -1012,5 +1038,3 @@ with term.hidden_cursor():
         main()
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
-
-
