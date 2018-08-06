@@ -31,8 +31,7 @@ class Actor:
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
-        #max health is set to original value
-        self.max_health = self.health
+        self.max_health = self.health #max health is set to original value
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -111,6 +110,26 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
         map_dict[point].tile = term.red(choice(palette))
     with term.location(55, 10):
         print(points_until_wall)
+
+async def push(direction=None, pusher=None):
+    #run if something that has moveable flag has an actor push into it.
+    await asyncio.sleep(0)
+    dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
+    chosen_dir = dir_coords[direction]
+    pusher_coords = actor_dict[pusher].coords()
+    destination_coords = (pusher_coords[0] + chosen_dir[0], pusher_coords[1] + chosen_dir[1])
+    if not map_dict[destination_coords].actors:
+        with term.location(0, 0):
+            print("nothing to push")
+        return
+    pushed_name = next(iter(map_dict[destination_coords].actors))
+    pushed_coords = actor_dict[pushed_name].coords()
+    pushed_destination = (pushed_coords[0] + chosen_dir[0], pushed_coords[1] + chosen_dir[1])
+    if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
+        del map_dict[destination_coords].actors[pushed_name]
+        actor_dict[pushed_name].update(*pushed_destination)
+        map_dict[pushed_destination].actors[pushed_name] = True
+    
 
 async def sword(direction='n', actor='player', length=3, name='sword', speed=.05):
     """extends and retracts a line of characters
@@ -371,8 +390,10 @@ def map_init():
     #sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    map_dict[(3, 3)].tile = '☐'
-    map_dict[(3, 3)].passable = False
+    #map_dict[(3, 3)].tile = '☐'
+    actor_dict['box'] = Actor(x_coord=3, y_coord=3, tile='☐')
+    map_dict[(3, 3)].actors['box'] = True
+    #map_dict[(3, 3)].passable = False
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
@@ -428,8 +449,12 @@ async def handle_input(key):
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
+    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e'}
     if key in directions:
         x_shift, y_shift = directions[key]
+        await push(pusher='player', direction=key_to_compass[key])
+        #does not play nicely with doors, player clips through pushed actor
+        #temporarily/permenantly duplicates tile of actor that moves. fix.
     shifted_x, shifted_y = x + x_shift, y + y_shift
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
@@ -440,11 +465,13 @@ async def handle_input(key):
         asyncio.ensure_future(toggle_doors()),
     if key in '4':
         asyncio.ensure_future(filter_print()),
+    if key in 'n':
+        asyncio.ensure_future(push(pusher='player', direction='n'))
     if map_dict[(shifted_x, shifted_y)].passable:
-        map_dict[(x, y)].passable = True
+        map_dict[(x, y)].passable = True #make previous space passable
         actor_dict['player'].update(x + x_shift, y + y_shift)
         x, y = actor_dict['player'].coords()
-        map_dict[(x, y)].passable = False
+        map_dict[(x, y)].passable = False #make current space impassable
     sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     if key in sword_dir_keys:
         await sword(direction=sword_dir_keys[key])
@@ -1014,14 +1041,13 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     loop.create_task(ui_tasks(loop))
-    #loop.create_task(snake())
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
                                  tile="Ϩ", name_key="test_seeker1", hurtful=True))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
@@ -1032,6 +1058,7 @@ def main():
 #TODO: add a function that returns the points of a path that goes until it hits the next wall.
     #for point in points in line, if passable, continue, else, 
     #return points up to but not including the current point
+
 with term.hidden_cursor():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
