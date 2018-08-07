@@ -6,6 +6,17 @@ on a keypress, throw object in right hand.
 pick up something with left hand with 'q'
 right hand with 'e' 
 
+icons for items made on 3x3 or 4x4 grid, display in boxes to left and right of health bar
+
+without a flashlight, your view radius is a small fuzzy circle
+
+aim flashlight/view with uio jkl m,.
+
+k aims flashlight down and greatly reduces view radius
+when flashlight changes directions, it sweeps through neutral if passing from one side to another
+
+with a flashlight (aimed with ijkl), your view radius in that quadrant goes -much- further
+
 press buttons or toggle doors with spacebar, 
 
 traps that trigger on floor tile
@@ -41,3 +52,37 @@ vines clog up doors and must be burned?
 
 map tiles that return different things each time
 
+░     ░ ░ ░ ░░░░  `    
+        0 ░  ░░░  '  '░
+      ░ ░  ░  ░░       
+      ░░░░ ░░░░░      ░
+   ░░░░ ░ ░@░░░░      
+░     ░░░░░░░░░░  .    
+░     ░░░░░░░░░░       
+  ░   ░░░░░░░░░░       
+  ░   ░░░░░░░░░░       
+
+a center core that 
+
+def random_unicode(length):
+    # Create a list of unicode characters within the range 0000-D7FF
+    random_unicodes = [chr(randrange(0xD7FF)) for _ in range(0, length)] 
+    return u"".join(random_unicodes)
+
+while True:
+    sleep(.01)
+    a = random_unicode(1)
+    if len(repr(a)) == 3:
+       print(a)
+
+if a seeker is near a door, bash the door
+do a random amount of damage to the door, when the door health reaches 0, replace the tile with a broken door (an X)o
+
+"from close by, you hear a crash"
+"from a distance, you hear a crash."
+"CRAAAACK"
+
+a way of aiming by holding a key down
+when the key is released, release a bullet actor in that direction
+
+aim with ijkl

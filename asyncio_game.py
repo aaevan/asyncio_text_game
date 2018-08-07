@@ -25,13 +25,14 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, health=10, hurtful=True):
+    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, health=50, hurtful=True):
         """ create a new actor at position x, y """
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
         self.max_health = self.health #max health is set to original value
+        self.alive = True
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -131,7 +132,7 @@ async def push(direction=None, pusher=None):
         map_dict[pushed_destination].actors[pushed_name] = True
     
 
-async def sword(direction='n', actor='player', length=3, name='sword', speed=.05):
+async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
     """extends and retracts a line of characters
     TODO: implement damage dealt to other actors
     TODO: it turns out it looks more like a laser with the speed set very low (0?)
@@ -148,6 +149,14 @@ async def sword(direction='n', actor='player', length=3, name='sword', speed=.05
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(tile=term.red(chosen_dir[2]))
         map_dict[segment_coord].actors[segment_name] = True
+        for actor in map_dict[segment_coord].actors:
+            if actor_dict[actor].health >= 0:
+                actor_dict[actor].health -= 10
+            if actor_dict[actor].health <= 0:
+                actor_dict[actor].alive = False
+                #del actor_dict[actor]
+                #del map_dict[segment_coord].actors[actor]
+                
         await asyncio.sleep(speed)
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -304,7 +313,7 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
     """
     await asyncio.sleep(0)
     for i in range(seeds):
-        await asyncio.sleep(0)
+        await asyncio.sleep(.02)
         throw_dist = radius + 1
         while throw_dist >= radius:
             x_toss, y_toss = (randint(-radius, radius),
@@ -452,7 +461,8 @@ async def handle_input(key):
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e'}
     if key in directions:
         x_shift, y_shift = directions[key]
-        await push(pusher='player', direction=key_to_compass[key])
+        if key in 'wasd':
+            await push(pusher='player', direction=key_to_compass[key])
         #does not play nicely with doors, player clips through pushed actor
         #temporarily/permenantly duplicates tile of actor that moves. fix.
     shifted_x, shifted_y = x + x_shift, y + y_shift
@@ -467,13 +477,13 @@ async def handle_input(key):
         asyncio.ensure_future(filter_print()),
     if key in 'n':
         asyncio.ensure_future(push(pusher='player', direction='n'))
-    if map_dict[(shifted_x, shifted_y)].passable:
+    if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
         map_dict[(x, y)].passable = True #make previous space passable
         actor_dict['player'].update(x + x_shift, y + y_shift)
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False #make current space impassable
-    sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     if key in sword_dir_keys:
+        sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
         await sword(direction=sword_dir_keys[key])
     return x, y
 
@@ -763,7 +773,8 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             #map_dict[new_coord].blocking = True #shroud pieces block view
         #move the core
         #TODO: wrap actor movement and deletion of old location into a function.
-        core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
+        #core_location = (actor_dict[core_name_key].x_coord, actor_dict[core_name_key].y_coord)
+        core_location = actor_dict[core_name_key].coords()
         if core_name_key in map_dict[core_location].actors:
             del map_dict[core_location].actors[core_name_key]
         #map_dict[coord].blocking = False # core blocks view
@@ -852,12 +863,34 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
     coords = actor_dict[name_key].coords()
     while True:
         await asyncio.sleep(speed)
-        if name_key in map_dict[coords].actors:
-            del map_dict[coords].actors[name_key]
-        coords = await movement_function(x_current=coords[0], y_current=coords[1], name_key=name_key)
+        current_coords = actor_dict[name_key].coords() #checked again here because actors can be pushed around
+        if name_key in map_dict[current_coords].actors:
+            del map_dict[current_coords].actors[name_key]
+        coords = await movement_function(x_current=current_coords[0], 
+                                         y_current=current_coords[1],
+                                         name_key=name_key)
         map_dict[coords].actors[name_key] = name_key
+        if not actor_dict[name_key].alive:
+            body_tile = term.red(actor_dict[name_key].tile)
+            del actor_dict[name_key]
+            del map_dict[coords].actors[name_key]
+            await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
+                              seeds=10, description="blood.")
+            map_dict[coords].tile = body_tile
+            map_dict[coords].description = "A body."
+            return
 
-async def constant_update_tile(x_offset=0, y_offset=0, tile=term.red('@')):
+async def constant_update_tile(x_offset=0, y_offset=0, 
+def kill_actor(name_key=None, blood=True, radius=3, seeds=10):
+    body_tile = term.red(actor_dict[name_key].tile)
+    del actor_dict[name_key]
+    del map_dict[coords].actors[name_key]
+    await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
+                      seeds=seeds, description="blood.")
+    map_dict[coords].tile = body_tile
+    map_dict[coords].description = "A body."
+
+tile=term.red('@')):
     await asyncio.sleep(1/30)
     middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2))
@@ -872,9 +905,6 @@ async def toggle_doors():
     for door in door_dirs:
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
-        #also apply to differently colored doors:
-        #closed_doors = [term.color(i)('▮') for i in range(10)] + ['▮']
-        #open_doors = [term.color(i)('▯') for i in range(10)] + ['▯']
         if door_state == "▮":
         #if door_state in closed_doors:
             #asyncio.ensure_future(filter_print(output_text = "You open the door.", pause_stay_on=.5))
@@ -989,7 +1019,7 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
 
 async def health_test():
     while True:
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
 
@@ -1004,7 +1034,7 @@ async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radiu
 
 async def ui_tasks(loop):
     await asyncio.sleep(0)
-    await ui_box_draw()
+    await ui_box_draw(x_margin=49, y_margin=35, box_width=23)
 
 async def death_check():
     await asyncio.sleep(0)
@@ -1043,17 +1073,18 @@ def main():
     loop.create_task(ui_tasks(loop))
     loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
                                  tile="Ϩ", name_key="test_seeker1", hurtful=True))
+    loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
+                                 tile="Ϩ", name_key="test_seeker2", hurtful=True))
     loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
-#TODO: add an actor that allows itself to be pushed around
 #TODO: add an aiming reticule and/or a bullet actor that is spawned by a keypress
 #TODO: add a function that returns the points of a path that goes until it hits the next wall.
     #for point in points in line, if passable, continue, else, 
