@@ -6,7 +6,7 @@ import termios
 from blessings import Terminal
 from collections import defaultdict
 from random import randint, choice, random, shuffle
-from math import sqrt, sin, pi
+from math import acos, degrees, pi, sin, sqrt
 from itertools import cycle
 from subprocess import call
 from time import sleep #hack to prevent further input/freeze screen on player death
@@ -459,6 +459,10 @@ async def handle_input(key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e'}
+    #315 to 360 have been set to zero as a temporary hack.
+    #TODO: the better solution is to have 8 seperate arcs that do not span 12:00/0 degrees
+    view_angles = {'n':(0, 45), 'e':(45, 135), 's':(135, 225), 'w':(225, 315)}
+    sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     if key in directions:
         x_shift, y_shift = directions[key]
         if key in 'wasd':
@@ -483,8 +487,12 @@ async def handle_input(key):
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False #make current space impassable
     if key in sword_dir_keys:
-        sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
-        await sword(direction=sword_dir_keys[key])
+        with term.location(0, 5):
+            print(view_angles[sword_dir_keys[key]])
+        state_dict['view_angles'] = view_angles[sword_dir_keys[key]]
+        with term.location(0, 6):
+            print(state_dict['view_angles'], state_dict['view_angles'][0])
+        #await sword(direction=sword_dir_keys[key])
     return x, y
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
@@ -531,6 +539,22 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
     else:
         map_dict[tile_key].seen = True
 
+
+async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
+    await asyncio.sleep(0)
+    a = (p1[0] - p0[0])**2 + (p1[1] - p0[1])**2
+    b = (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2
+    c = (p2[0] - p0[0])**2 + (p2[1] - p0[1])**2
+    divisor = sqrt(4 * a * b)
+    if divisor == 0:
+        return 0
+    else:     
+        result = acos((a+b-c) / divisor)
+        if use_degrees:
+            return degrees(result)
+        else:
+            return degrees
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
@@ -541,33 +565,44 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     previous_actor, previous_tile, actor = None, None, None
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_printed = ' '
+    if x_offset >= 0:
+        angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
+    else:
+        angle_from_twelve = 360 - (await find_angle(p2=(x_offset, y_offset)))
+    #TODO: (fix) a temporary hack to fix strange behavior between 315 and 45
+    if angle_from_twelve >= 315:
+        angle_from_twelve = 0
     while True:
         await asyncio.sleep(.01)
-        player_x, player_y = actor_dict['player'].coords()
-        x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
-        tile_key = (x_display_coord, y_display_coord)
-        tile = map_dict[tile_key].tile
-        if map_dict[tile_key].actors:
-            map_dict_key = next(iter(map_dict[tile_key].actors))
-            actor_tile = actor_dict[map_dict_key].tile
-        else:
-            actor_tile = None
-        if randint(0, round(distance)) < threshold:
-            if await is_clear_between((player_x, player_y), tile_key):
-                await trigger_announcement(tile_key, player_coords=(player_x, player_y))
-                if actor_tile:
-                    print_choice = actor_tile
-                else:
-                    print_choice = tile
+        angle_min_max = state_dict['view_angles']
+        if angle_from_twelve >= angle_min_max[0] and angle_from_twelve <= angle_min_max[1]:
+            player_x, player_y = actor_dict['player'].coords()
+            x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
+            tile_key = (x_display_coord, y_display_coord)
+            tile = map_dict[tile_key].tile
+            if map_dict[tile_key].actors:
+                map_dict_key = next(iter(map_dict[tile_key].actors))
+                actor_tile = actor_dict[map_dict_key].tile
             else:
-                print_choice = ' '
+                actor_tile = None
+            if randint(0, round(distance)) < threshold:
+                if await is_clear_between((player_x, player_y), tile_key):
+                    await trigger_announcement(tile_key, player_coords=(player_x, player_y))
+                    if actor_tile:
+                        print_choice = actor_tile
+                    else:
+                        print_choice = tile
+                else:
+                    print_choice = ' '
+            else:
+                print_choice = choice(noise_palette)
         else:
-            print_choice = choice(noise_palette)
+            print_choice = ' '
         with term.location(*print_location):
             if last_printed != print_choice:
                 print(print_choice)
                 last_printed = print_choice
-            await asyncio.sleep(distance * .015)
+        await asyncio.sleep(distance * .015)
 
 async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=30, y_margin=4):
     """
@@ -880,17 +915,16 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
             map_dict[coords].description = "A body."
             return
 
-async def constant_update_tile(x_offset=0, y_offset=0, 
-def kill_actor(name_key=None, blood=True, radius=3, seeds=10):
-    body_tile = term.red(actor_dict[name_key].tile)
-    del actor_dict[name_key]
-    del map_dict[coords].actors[name_key]
-    await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
-                      seeds=seeds, description="blood.")
-    map_dict[coords].tile = body_tile
-    map_dict[coords].description = "A body."
+#def kill_actor(name_key=None, blood=True, radius=3, seeds=10):
+    #body_tile = term.red(actor_dict[name_key].tile)
+    #del actor_dict[name_key]
+    #del map_dict[coords].actors[name_key]
+    #await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
+                      #seeds=seeds, description="blood.")
+    #map_dict[coords].tile = body_tile
+    #map_dict[coords].description = "A body."
 
-tile=term.red('@')):
+async def constant_update_tile(x_offset=0, y_offset=0, tile=term.red('@')):
     await asyncio.sleep(1/30)
     middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2))
@@ -1066,6 +1100,7 @@ async def kill_all_tasks():
 def main():
     map_init()
     state_dict["player_health"] = 100
+    state_dict['view_angles'] = (315, 45)
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
@@ -1079,7 +1114,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
