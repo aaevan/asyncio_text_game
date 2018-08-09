@@ -427,7 +427,6 @@ def map_init():
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     #split announcement up into separate sequential pieces with pipes
     #pipes are parsed in view_tile
-    #lines = announcement.split('|')
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
@@ -459,9 +458,15 @@ async def handle_input(key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e'}
-    #315 to 360 have been set to zero as a temporary hack.
-    #TODO: the better solution is to have 8 seperate arcs that do not span 12:00/0 degrees
-    view_angles = {'n':(0, 45), 'e':(45, 135), 's':(135, 225), 'w':(225, 315)}
+    #generate dual cones of view for normal viewing_range and fuzzy edges
+    #logic is split between here and view tile. it's a giant kludge.
+    compass_directions = ('n', 'e', 's', 'w')
+    fov = 120
+    fuzz = 20
+    view_tuples = [(i - fov/2, i, j, j + fov/2) for i, j in [(360, 0), (90, 90), (180, 180), (270, 270)]]
+    view_angles = dict(zip(compass_directions, view_tuples))
+    fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
+    fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
     sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     if key in directions:
         x_shift, y_shift = directions[key]
@@ -490,6 +495,7 @@ async def handle_input(key):
         with term.location(0, 5):
             print(view_angles[sword_dir_keys[key]])
         state_dict['view_angles'] = view_angles[sword_dir_keys[key]]
+        state_dict['fuzzy_view_angles'] = fuzzy_view_angles[sword_dir_keys[key]]
         with term.location(0, 6):
             print(state_dict['view_angles'], state_dict['view_angles'][0])
         #await sword(direction=sword_dir_keys[key])
@@ -541,6 +547,10 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
 
 
 async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
+    """
+    find the angle between two points around a central point,
+    as if the edges of a triangle
+    """
     await asyncio.sleep(0)
     a = (p1[0] - p0[0])**2 + (p1[1] - p0[1])**2
     b = (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2
@@ -555,27 +565,59 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
         else:
             return degrees
 
+async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
+                                      reference_point=(0, 5), distance_from_center=30):
+    """
+    returns a point that lies at distance distance_from_center from point
+    central_point. a is reference_point, b is central_point, c is returned point
+    
+        c
+       /|
+      / |?
+     /  |
+    a---b
+      ?
+    """
+    pass
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
+    #TODO:
+    #fuzzy edges flicker too erratically. find smoother way.
     noise_palette = " " * 5
-    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) #
+    #absolute distance from player
+    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
     await asyncio.sleep(random()/5 * distance)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     previous_actor, previous_tile, actor = None, None, None
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_printed = ' '
+    #view angle setup
     if x_offset >= 0:
         angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
     else:
         angle_from_twelve = 360 - (await find_angle(p2=(x_offset, y_offset)))
-    #TODO: (fix) a temporary hack to fix strange behavior between 315 and 45
-    if angle_from_twelve >= 315:
-        angle_from_twelve = 0
+    display = False
+    fuzzy = False
     while True:
         await asyncio.sleep(.01)
+        #pull up the most recent viewing angles based on recent inputs:
         angle_min_max = state_dict['view_angles']
-        if angle_from_twelve >= angle_min_max[0] and angle_from_twelve <= angle_min_max[1]:
+        fuzzy_angle_min_max = state_dict['fuzzy_view_angles']
+        #check if view_tile is in main cone of view:
+        if (angle_min_max[0] <= angle_from_twelve <= angle_min_max[1] or
+                angle_min_max[2] <= angle_from_twelve <= angle_min_max[3]):
+            display = True
+        else:
+            display = False
+        #check if view_tile is in fuzzy edges of view:
+        if (fuzzy_angle_min_max[0] <= angle_from_twelve <= fuzzy_angle_min_max[1] or
+            fuzzy_angle_min_max[2] <= angle_from_twelve <= fuzzy_angle_min_max[3]):
+            fuzzy = True
+        else:
+            fuzzy = False
+        if display or fuzzy:
             player_x, player_y = actor_dict['player'].coords()
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
             tile_key = (x_display_coord, y_display_coord)
@@ -598,6 +640,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 print_choice = choice(noise_palette)
         else:
             print_choice = ' '
+        if fuzzy and random() < .3:
+            print_choice = ' ' 
         with term.location(*print_location):
             if last_printed != print_choice:
                 print(print_choice)
@@ -958,6 +1002,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                     extend_wait=.025, retract_wait=.25 ):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
+    TODO: vines can be pushed right now. Add immoveable property to actors. make vines immovable
     """
     await asyncio.sleep(rate)
     if not rounded:
@@ -1100,7 +1145,8 @@ async def kill_all_tasks():
 def main():
     map_init()
     state_dict["player_health"] = 100
-    state_dict['view_angles'] = (315, 45)
+    state_dict['view_angles'] = (315, 360, 0, 45)
+    state_dict['fuzzy_view_angles'] = (315, 360, 0, 45)
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
@@ -1114,7 +1160,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
