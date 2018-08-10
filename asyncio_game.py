@@ -95,6 +95,17 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
+async def draw_circle(center_coord=(0, 0), radius=10, palette="░",
+                passable=True, blocking=False):
+    await asyncio.sleep(0)
+    for x in range(center_coord[0] - radius, center_coord[0] + radius):
+        for y in range(center_coord[1] - radius, center_coord[1] + radius):
+            distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
+            if distance_to_center <= radius:
+                map_dict[(x, y)].tile = choice(palette)
+                map_dict[(x, y)].passable = passable
+                map_dict[(x, y)].blocking = blocking
+
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
@@ -419,6 +430,9 @@ def map_init():
     draw_door(25, 20)
     draw_door(29, 20)
     draw_door(41, 20)
+    draw_circle(center_coord=(-30, -30))
+    #connect_with_passage(0, 0, -30, -30)
+    connect_with_passage(-30, -30, 0, 0)
     #sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
                 #passable=True, description="something gross")
     announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
@@ -457,23 +471,20 @@ async def handle_input(key):
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
-    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e'}
+    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     #generate dual cones of view for normal viewing_range and fuzzy edges
     #logic is split between here and view tile. it's a giant kludge.
     compass_directions = ('n', 'e', 's', 'w')
-    fov = 120
+    fov = 100
     fuzz = 20
     view_tuples = [(i - fov/2, i, j, j + fov/2) for i, j in [(360, 0), (90, 90), (180, 180), (270, 270)]]
     view_angles = dict(zip(compass_directions, view_tuples))
     fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
     fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
-    sword_dir_keys = {'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     if key in directions:
         x_shift, y_shift = directions[key]
         if key in 'wasd':
             await push(pusher='player', direction=key_to_compass[key])
-        #does not play nicely with doors, player clips through pushed actor
-        #temporarily/permenantly duplicates tile of actor that moves. fix.
     shifted_x, shifted_y = x + x_shift, y + y_shift
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
@@ -484,6 +495,8 @@ async def handle_input(key):
         asyncio.ensure_future(toggle_doors()),
     if key in '4':
         asyncio.ensure_future(filter_print()),
+    if key in '7':
+        asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
     if key in 'n':
         asyncio.ensure_future(push(pusher='player', direction='n'))
     if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
@@ -491,14 +504,14 @@ async def handle_input(key):
         actor_dict['player'].update(x + x_shift, y + y_shift)
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False #make current space impassable
-    if key in sword_dir_keys:
+    if key in "ijkl":
         with term.location(0, 5):
-            print(view_angles[sword_dir_keys[key]])
-        state_dict['view_angles'] = view_angles[sword_dir_keys[key]]
-        state_dict['fuzzy_view_angles'] = fuzzy_view_angles[sword_dir_keys[key]]
+            print(view_angles[key_to_compass[key]])
+        state_dict['view_angles'] = view_angles[key_to_compass[key]]
+        state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
         with term.location(0, 6):
             print(state_dict['view_angles'], state_dict['view_angles'][0])
-        #await sword(direction=sword_dir_keys[key])
+        #await sword(direction=key_to_compass[key])
     return x, y
 
 async def debug_grid(x_print_coord=0, y_print_coord=6):
@@ -520,9 +533,12 @@ async def debug_grid(x_print_coord=0, y_print_coord=6):
             print(''.join([str(i) for i in row]))
 
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+    await asyncio.sleep(0)
     x_run = abs(point_a[0] - point_b[0])
     y_run = abs(point_a[1] - point_b[1])
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
+    with term.location(0, 20):
+        print("point!")
     return distance
 
 async def parse_announcement(tile_key):
@@ -566,21 +582,44 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
             return degrees
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
-                                      reference_point=(0, 5), distance_from_center=30):
+                                      reference_point=(0, 5), distance_from_center=30,
+                                      rounded=True):
     """
     returns a point that lies at distance distance_from_center from point
     central_point. a is reference_point, b is central_point, c is returned point
     
         c
        /|
-      / |?
+     r/ |y
      /  |
     a---b
-      ?
+      x
     """
-    pass
+    angle = 90 - angle_from_twelve
+    print(angle)
+    x = cos(angle) * distance_from_center
+    y = sin(angle) * distance_from_center
+    if rounded:
+        return (round(central_point[0] + x), round(central_point[1] + y))
 
-async def view_tile(x_offset=1, y_offset=1, threshold = 12):
+async def angle_checker(angle_from_twelve):
+    angle_min_max = state_dict['view_angles']
+    fuzzy_angle_min_max = state_dict['fuzzy_view_angles']
+    #check if view_tile is in main cone of view:
+    if (angle_min_max[0] <= angle_from_twelve <= angle_min_max[1] or
+            angle_min_max[2] <= angle_from_twelve <= angle_min_max[3]):
+        display = True
+    else:
+        display = False
+    #check if view_tile is in fuzzy edges of view:
+    if (fuzzy_angle_min_max[0] <= angle_from_twelve <= fuzzy_angle_min_max[1] or
+        fuzzy_angle_min_max[2] <= angle_from_twelve <= fuzzy_angle_min_max[3]):
+        fuzzy = True
+    else:
+        fuzzy = False
+    return fuzzy, display
+
+async def view_tile(x_offset=1, y_offset=1, threshold = 18):
     """ handles displaying data from map_dict """
     #TODO:
     #fuzzy edges flicker too erratically. find smoother way.
@@ -603,20 +642,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     while True:
         await asyncio.sleep(.01)
         #pull up the most recent viewing angles based on recent inputs:
-        angle_min_max = state_dict['view_angles']
-        fuzzy_angle_min_max = state_dict['fuzzy_view_angles']
-        #check if view_tile is in main cone of view:
-        if (angle_min_max[0] <= angle_from_twelve <= angle_min_max[1] or
-                angle_min_max[2] <= angle_from_twelve <= angle_min_max[3]):
-            display = True
-        else:
-            display = False
-        #check if view_tile is in fuzzy edges of view:
-        if (fuzzy_angle_min_max[0] <= angle_from_twelve <= fuzzy_angle_min_max[1] or
-            fuzzy_angle_min_max[2] <= angle_from_twelve <= fuzzy_angle_min_max[3]):
-            fuzzy = True
-        else:
-            fuzzy = False
+        fuzzy, display = await angle_checker(angle_from_twelve)
         if display or fuzzy:
             player_x, player_y = actor_dict['player'].coords()
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
@@ -1102,7 +1128,7 @@ async def health_test():
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
 
-async def view_init(loop, term_x_radius = 20, term_y_radius = 20, max_view_radius = 18):
+async def view_init(loop, term_x_radius = 23, term_y_radius = 23, max_view_radius = 22):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -1160,7 +1186,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
