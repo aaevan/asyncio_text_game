@@ -5,6 +5,7 @@ import tty
 import termios
 from blessings import Terminal
 from collections import defaultdict
+from datetime import datetime
 from random import randint, choice, random, shuffle
 from math import acos, degrees, pi, sin, sqrt
 from itertools import cycle
@@ -16,12 +17,19 @@ class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile="▓", blocking=True, 
                  description='', announcing=False, seen=False, 
-                 announcement="", distance_trigger=None):
+                 announcement="", distance_trigger=None, is_animated=False,
+                 animation="", actors=None):
         """ create a new map tile, location is stored in map_dict"""
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
         self.distance_trigger = distance_trigger
-        self.actors = defaultdict(lambda:None)
+        if not actors:
+            self.actors = defaultdict(lambda:None)
+        #allows for new map_tiles to be initialized with an existing actor list
+        else:
+            self.actors = actors
+        self.is_animated = is_animated
+        self.animation = animation
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -48,6 +56,28 @@ class Actor:
             self.y_coord = self.y_coord + y_move
         if coord_move:
             self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
+
+
+class Animation:
+    def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
+        presets = {"fire":{"animation":".:*", "behavior":"random", "color_choices":"333221"},
+                   "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
+                   "grass":{"animation":("▒"*20 + "▓"), "behavior":"random", "color_choices":("2")}
+                  }
+        if preset:
+            preset_kwargs = presets[preset]
+            #self.preset = None
+            self.__init__(**preset_kwargs, preset=None)
+        else:
+            self.animation = animation
+            self.behavior = behavior
+            self.color_choices = color_choices
+    
+    def __next__(self):
+        if self.behavior == "random":
+            color_choice = int(choice(self.color_choices))
+            return term.color(color_choice)(choice(self.animation))
+
 
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
@@ -96,17 +126,23 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-async def draw_circle(center_coord=(0, 0), radius=10, palette="░",
+async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                 passable=True, blocking=False):
+    """
+    draws a circle in real time. eats actors right now
+    """
     await asyncio.sleep(0)
     for x in range(center_coord[0] - radius, center_coord[0] + radius):
         for y in range(center_coord[1] - radius, center_coord[1] + radius):
             distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
             if distance_to_center <= radius:
-                map_dict[(x, y)].tile = choice(palette)
-                map_dict[(x, y)].passable = passable
-                map_dict[(x, y)].blocking = blocking
-
+                actors = map_dict[(x, y)].actors
+                #map_dict[(x, y)].tile = choice(palette)
+                #map_dict[(x, y)].passable = passable
+                #map_dict[(x, y)].blocking = blocking
+                map_dict[(x, y)] = Map_tile(passable=True, tile=" ", blocking=False, 
+                                         description='an animation', is_animated=True,
+                                         animation=Animation(), actors=actors)
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
@@ -125,6 +161,10 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
         print(points_until_wall)
 
 async def push(direction=None, pusher=None):
+    """
+    basic pushing behavior for single-tile actors.
+    TODO: implement multi-tile pushable actors. a bookshelf? large crates?▧
+    """
     #run if something that has moveable flag has an actor push into it.
     await asyncio.sleep(0)
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
@@ -416,6 +456,10 @@ def map_init():
     #map_dict[(3, 3)].tile = '☐'
     actor_dict['box'] = Actor(x_coord=3, y_coord=3, tile='☐')
     map_dict[(3, 3)].actors['box'] = True
+    for i in range(10):
+        map_dict[(4, i - 5)] = Map_tile(passable=True, tile=" ", blocking=False, 
+                                 description='an animation', is_animated=True,
+                                 animation=cycle(range(10)))
     #map_dict[(3, 3)].passable = False
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
@@ -433,7 +477,7 @@ def map_init():
     draw_door(25, 20)
     draw_door(29, 20)
     draw_door(41, 20)
-    draw_circle(center_coord=(-30, -30))
+    #draw_circle(center_coord=(-30, -30))
     #connect_with_passage(0, 0, -30, -30)
     connect_with_passage(-30, -30, 0, 0)
     #sow_texture(55, 25, radius=5, seeds=10, palette=":,~.:\"`", color_num=1, 
@@ -665,7 +709,9 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
         await asyncio.sleep(.01)
         #pull up the most recent viewing angles based on recent inputs:
         fuzzy, display = await angle_checker(angle_from_twelve)
-        if display or fuzzy:
+        if (x_offset, y_offset) == (0, 0):
+            print_choice=term.red('@')
+        elif display or fuzzy:
             player_x, player_y = actor_dict['player'].coords()
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
             tile_key = (x_display_coord, y_display_coord)
@@ -681,7 +727,10 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
                     if actor_tile:
                         print_choice = actor_tile
                     else:
-                        print_choice = tile
+                        if map_dict[tile_key].is_animated:
+                            print_choice = next(map_dict[tile_key].animation)
+                        else:
+                            print_choice = tile
                 else:
                     print_choice = ' '
             else:
@@ -830,10 +879,15 @@ async def random_unicode(length=1, clean=True):
                 print(a)
     return u"".join(random_unicodes)
 
+async def damage_door():
+    """ allows actors to break down doors"""
+    pass
+
 async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(3, 8),
                          tentacle_rate=.05, tentacle_colors="456"):
     """
     creates a (currently) stationary mass of random length and color tentacles
+    move away while distance is far, move slowly towards when distance is near, radius = 20?
     """
     await asyncio.sleep(0)
     while True:
@@ -891,7 +945,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             elif behavior_val > .6:
                 new_coord = await wander(*coord, shroud_name_key)
             else:
-                new_coord = await seek(current_coords=coord, name_key=shroud_name_key, 
+                new_coord = await seek(current_coord=coord, name_key=shroud_name_key, 
                                        seek_key=core_name_key)
             map_dict[new_coord].actors[shroud_name_key] = True 
         #move the core
@@ -1045,7 +1099,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    vine_id = str(round(random(), 5))[2:]
+    #vine_id = str(round(random(), 5))[2:]
+    vine_id = str(datetime.time(datetime.now()))
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
     for vine_name in vine_actor_names:
@@ -1184,11 +1239,10 @@ def main():
                                  tile="Ϩ", name_key="test_seeker1", hurtful=True))
     loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
                                  tile="Ϩ", name_key="test_seeker2", hurtful=True))
-    loop.create_task(constant_update_tile())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
     loop.create_task(health_test())
     loop.create_task(death_check())
