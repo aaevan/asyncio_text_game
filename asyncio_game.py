@@ -33,7 +33,9 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, health=50, hurtful=True, moveable=True):
+    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
+                 health=50, hurtful=True, moveable=True, is_animated=False,
+                 animation=""):
         """ create a new actor at position x, y """
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
@@ -42,6 +44,8 @@ class Actor:
         self.max_health = self.health #max health is set to original value
         self.alive = True
         self.moveable = moveable
+        self.is_animated = is_animated
+        self.animation = animation
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -60,10 +64,10 @@ class Actor:
 
 class Animation:
     def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
-        presets = {"fire":{"animation":".:*", "behavior":"random", "color_choices":"333221"},
+        presets = {"fire":{"animation":"^∧", "behavior":"random", "color_choices":"3331"},
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
-                   "grass":{"animation":("▒"*20 + "▓"), "behavior":"random", "color_choices":("2")}
-                  }
+                   "grass":{"animation":("▒"*20 + "▓"), "behavior":"random", "color_choices":("2")},
+                   "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},}
         if preset:
             preset_kwargs = presets[preset]
             #self.preset = None
@@ -83,6 +87,8 @@ map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile="@", health=100)
+state_dict['facing'] = 'n'
+actor_dict['player'].just_teleported = False
 term = Terminal()
 
 #Drawing functions---------------------------------------------------------------------------------
@@ -279,7 +285,11 @@ async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
     await asyncio.sleep(.01)
     open_space, walls, history = 0, 0, []
     points = await get_line(coord_a, coord_b)
-    for point in points:
+    change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
+    reference_point = coord_a[0], coord_a[1] + 5
+    #get angle between two points so we can use it for magic doors
+    for number, point in enumerate(points):
+        # if there is a magic door between, start another is_clear_between of length remaining
         if map_dict[point].blocking == False:
             open_space += 1
         else:
@@ -387,7 +397,7 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         if description:
             map_dict[toss_coord].description = description
 
-async def flood_fill(coord=(0, 0), target='/', replacement=' ', depth=0,
+async def flood_fill(coord=(0, 0), target='░', replacement=' ', depth=0,
                      max_depth=10, random=False):
     """ Algorithm from wikipedia 
     figure out how to still allow player movement after it has started.
@@ -423,7 +433,7 @@ def draw_door(x, y, closed = True):
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
 
-def is_magic_door(x_pos, y_pos):
+async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     """
     notes for portals/magic doors:
     either gapless teleporting doors or gapped by darkness doors.
@@ -446,20 +456,40 @@ def is_magic_door(x_pos, y_pos):
     when within a short distance, the entire field flickers (mostly) red to black
     red within view distance and only you and the tentacle monster are visible
     """
+    await asyncio.sleep(0)
+    #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
+    #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
+    #map_dict[start_coord].blocking = True
+    map_dict[start_coord].magic = True
+    map_dict[start_coord].is_animated = True
+    map_dict[start_coord].animation = Animation(animation="▮", 
+                                                   behavior='random', 
+                                                   color_choices="1234567",
+                                                   preset=None)
+    while(True):
+        await asyncio.sleep(.1)
+        player_coords = actor_dict['player'].coords()
+        just_teleported = actor_dict['player'].just_teleported
+        if player_coords == start_coord and not just_teleported:
+            asyncio.ensure_future(filter_print(output_text="You are teleported."))
+            map_dict[player_coords].passable=True
+            actor_dict['player'].update(*end_coord)
+            actor_dict['player'].just_teleported = True
+
+async def create_magic_door_pair(loop=None, door_a_coords=(5, 5), door_b_coords=(-25, -25)):
+    loop.create_task(magic_door(start_coord=(5, 5), end_coord=(-22, 18)))
+    loop.create_task(magic_door(start_coord=(-22, 18), end_coord=(5, 5)))
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     #sow_texture(20, 20, radius=50, seeds=500, color_num=7)
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     #map_dict[(3, 3)].tile = '☐'
-    actor_dict['box'] = Actor(x_coord=3, y_coord=3, tile='☐')
-    map_dict[(3, 3)].actors['box'] = True
-    for i in range(10):
-        map_dict[(4, i - 5)] = Map_tile(passable=True, tile=" ", blocking=False, 
-                                 description='an animation', is_animated=True,
-                                 animation=cycle(range(10)))
+    actor_dict['box'] = Actor(x_coord=5, y_coord=5, tile='☐')
+    map_dict[(7, 7)].actors['box'] = True
+    map_dict[(7, 7)].magic = True
     #map_dict[(3, 3)].passable = False
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
@@ -544,10 +574,12 @@ async def handle_input(key):
     view_angles = dict(zip(compass_directions, view_tuples))
     fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
     fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
+    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     if key in directions:
         x_shift, y_shift = directions[key]
         if key in 'wasd':
             await push(pusher='player', direction=key_to_compass[key])
+        actor_dict['player'].just_teleported = False
     shifted_x, shifted_y = x + x_shift, y + y_shift
     if key in 'Vv':
         asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
@@ -556,12 +588,11 @@ async def handle_input(key):
         asyncio.ensure_future(filter_print(output_text=description)),
     if key in ' ':
         asyncio.ensure_future(toggle_doors()),
-    if key in '4':
-        asyncio.ensure_future(filter_print()),
+    if key in 'f':
+        facing_dir = dir_to_name[state_dict['facing']]
+        asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
     if key in '7':
         asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
-    if key in 'n':
-        asyncio.ensure_future(push(pusher='player', direction='n'))
     if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
         map_dict[(x, y)].passable = True #make previous space passable
         actor_dict['player'].update(x + x_shift, y + y_shift)
@@ -570,6 +601,7 @@ async def handle_input(key):
     if key in "ijkl":
         with term.location(0, 5):
             print(view_angles[key_to_compass[key]])
+        state_dict['facing'] = key_to_compass[key]
         state_dict['view_angles'] = view_angles[key_to_compass[key]]
         state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
         with term.location(0, 6):
@@ -640,7 +672,7 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
         if use_degrees:
             return degrees(result)
         else:
-            return degrees
+            return result
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
                                       reference_point=(0, 5), distance_from_center=30,
@@ -699,10 +731,9 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_printed = ' '
     #view angle setup
-    if x_offset >= 0:
-        angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
-    else:
-        angle_from_twelve = 360 - (await find_angle(p2=(x_offset, y_offset)))
+    angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
+    if x_offset <= 0:
+        angle_from_twelve = 360 - angle_from_twelve
     display = False
     fuzzy = False
     while True:
@@ -713,12 +744,16 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
             print_choice=term.red('@')
         elif display or fuzzy:
             player_x, player_y = actor_dict['player'].coords()
+            #add a line in here for different levels/dimensions:
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
             tile_key = (x_display_coord, y_display_coord)
             tile = map_dict[tile_key].tile
             if map_dict[tile_key].actors:
-                map_dict_key = next(iter(map_dict[tile_key].actors))
-                actor_tile = actor_dict[map_dict_key].tile
+                actor_name = next(iter(map_dict[tile_key].actors))
+                if actor_dict[actor_name].is_animated:
+                    actor_tile = next(actor_dict[actor_name].animation)
+                else:
+                    actor_tile = actor_dict[actor_name].tile
             else:
                 actor_tile = None
             if randint(0, round(distance)) < threshold:
@@ -737,8 +772,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
                 print_choice = choice(noise_palette)
         else:
             print_choice = ' '
-        if fuzzy and random() < .3:
-            print_choice = ' ' 
+        #if fuzzy and random() < .3:
+            #print_choice = ' ' 
         with term.location(*print_location):
             if last_printed != print_choice:
                 print(print_choice)
@@ -757,10 +792,12 @@ async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=3
     top_bar = "┌" + ("─" * box_width) + "┐"
     bottom_bar = "└" + ("─" * box_width) + "┘"
     if position == "top left":
-        x_print, y_print= x_margin, y_margin
-    window_width, window_height = term.width, term.height
-    middle_x, middle_y = (int(window_width / 2 - 2), 
+        x_print, y_print = x_margin, y_margin
+    if position == "centered":
+        window_width, window_height = term.width, term.height
+        middle_x, middle_y = (int(window_width / 2 - 2), 
                           int(window_height / 2 - 2),)
+        x_print, y_print = middle_x + x_margin, middle_y + y_margin
     while True:
         await asyncio.sleep(1)
         with term.location(x_print, y_print):
@@ -1029,11 +1066,13 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
             counter += 1
 
 async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*", 
-        movement_function=wander, name_key="test", hurtful=False):
+        movement_function=wander, name_key="test", hurtful=False,
+        is_animated=False, animation=" "):
     """ A coroutine that creates a randomly wandering '*' """
     if len(tile) >= 1:
         animated = True
-    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile, hurtful=hurtful)
+    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile, hurtful=hurtful,
+                                   is_animated=is_animated, animation=animation)
     coords = actor_dict[name_key].coords()
     while True:
         await asyncio.sleep(speed)
@@ -1196,7 +1235,9 @@ async def view_init(loop, term_x_radius = 23, term_y_radius = 23, max_view_radiu
 
 async def ui_tasks(loop):
     await asyncio.sleep(0)
-    await ui_box_draw(x_margin=49, y_margin=35, box_width=23)
+    asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
+    asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=5, box_height=3, position="centered"))
+    asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=5, box_height=3, position="centered"))
 
 async def death_check():
     await asyncio.sleep(0)
@@ -1235,15 +1276,19 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     loop.create_task(ui_tasks(loop))
-    loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
-                                 tile="Ϩ", name_key="test_seeker1", hurtful=True))
-    loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
-                                 tile="Ϩ", name_key="test_seeker2", hurtful=True))
+    #loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
+                                 #tile="Ϩ", name_key="test_seeker1", hurtful=True,
+                                 #is_animated=True, animation=Animation(preset="blob")))
+    #loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
+                                 #tile="Ϩ", name_key="test_seeker2", hurtful=True))
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
+    loop.create_task(create_magic_door_pair(loop))
+    #loop.create_task(magic_door(start_coord=(5, 5), end_coord=(-22, 18)))
+    #loop.create_task(magic_door(start_coord=(-22, 18), end_coord=(5, 5)))
     loop.create_task(health_test())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
