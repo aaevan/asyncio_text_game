@@ -30,6 +30,7 @@ class Map_tile:
             self.actors = actors
         self.is_animated = is_animated
         self.animation = animation
+        self.magic = False
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -289,7 +290,20 @@ async def is_clear_between(coord_a=(0, 0), coord_b=(5, 5)):
     reference_point = coord_a[0], coord_a[1] + 5
     #get angle between two points so we can use it for magic doors
     for number, point in enumerate(points):
+        remaining_points = ()
         # if there is a magic door between, start another is_clear_between of length remaining
+        if map_dict[point].magic == True:
+            last_point = points[-1]
+            difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
+            destination = map_dict[point].magic_destination
+            if difference_from_last is not (0, 0):
+                coord_through_door = (destination[0] + difference_from_last[0], destination[1] + difference_from_last[1])
+                if map_dict[coord_through_door].blocking:
+                    return ' '
+                if map_dict[coord_through_door].is_animated:
+                    return next(map_dict[coord_through_door].animation)
+                else:
+                    return map_dict[coord_through_door].tile
         if map_dict[point].blocking == False:
             open_space += 1
         else:
@@ -460,7 +474,11 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
     #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
     #map_dict[start_coord].blocking = True
+    map_dict[start_coord].tile = " "
+    map_dict[start_coord].blocking = False
+    map_dict[start_coord].passable = True
     map_dict[start_coord].magic = True
+    map_dict[start_coord].magic_destination = end_coord
     map_dict[start_coord].is_animated = True
     map_dict[start_coord].animation = Animation(animation="▮", 
                                                    behavior='random', 
@@ -477,8 +495,8 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
             actor_dict['player'].just_teleported = True
 
 async def create_magic_door_pair(loop=None, door_a_coords=(5, 5), door_b_coords=(-25, -25)):
-    loop.create_task(magic_door(start_coord=(5, 5), end_coord=(-22, 18)))
-    loop.create_task(magic_door(start_coord=(-22, 18), end_coord=(5, 5)))
+    loop.create_task(magic_door(start_coord=(door_a_coords), end_coord=(door_b_coords)))
+    loop.create_task(magic_door(start_coord=(door_b_coords), end_coord=(door_a_coords)))
 
 def map_init():
     clear()
@@ -489,7 +507,7 @@ def map_init():
     #map_dict[(3, 3)].tile = '☐'
     actor_dict['box'] = Actor(x_coord=5, y_coord=5, tile='☐')
     map_dict[(7, 7)].actors['box'] = True
-    map_dict[(7, 7)].magic = True
+    #map_dict[(7, 7)].magic = True
     #map_dict[(3, 3)].passable = False
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
@@ -608,24 +626,6 @@ async def handle_input(key):
             print(state_dict['view_angles'], state_dict['view_angles'][0])
         #await sword(direction=key_to_compass[key])
     return x, y
-
-async def debug_grid(x_print_coord=0, y_print_coord=6):
-    """
-    print a grid of ones and zeroes running is_clear_between on the area surrounding player location.
-    """
-    await asyncio.sleep(0)
-    player_x, player_y = actor_dict["player"].coords()
-    output_array = [[0 for i in range(10)] for j in range(10)]
-    for x_index, x_coord in enumerate(range(-5, 5)):
-        for y_index, y_coord in enumerate(range(-5, 5)):
-            if (x_coord, y_coord) == (player_x, player_y):
-                output_array[y_index][x_index] = '@'
-            else:
-                target_tuple = (player_x + x_coord, player_y + y_coord)
-                output_array[y_index][x_index] = int(await is_clear_between((player_x, player_y), target_tuple))
-    with term.location(x_print_coord, y_print_coord):
-        for row in output_array:
-            print(''.join([str(i) for i in row]))
 
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
@@ -757,7 +757,9 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
             else:
                 actor_tile = None
             if randint(0, round(distance)) < threshold:
-                if await is_clear_between((player_x, player_y), tile_key):
+                clear_between_result = await is_clear_between((player_x, player_y), tile_key)
+                #if await is_clear_between((player_x, player_y), tile_key):
+                if clear_between_result == True:
                     await trigger_announcement(tile_key, player_coords=(player_x, player_y))
                     if actor_tile:
                         print_choice = actor_tile
@@ -766,6 +768,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 18):
                             print_choice = next(map_dict[tile_key].animation)
                         else:
                             print_choice = tile
+                elif clear_between_result != False and clear_between_result != None:
+                    print_choice = clear_between_result
                 else:
                     print_choice = ' '
             else:
@@ -1286,7 +1290,10 @@ def main():
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
-    loop.create_task(create_magic_door_pair(loop))
+    #loop.create_task(create_magic_door_pair(loop=loop))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(25, 3)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(25, 4)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(25, 5)))
     #loop.create_task(magic_door(start_coord=(5, 5), end_coord=(-22, 18)))
     #loop.create_task(magic_door(start_coord=(-22, 18), end_coord=(5, 5)))
     loop.create_task(health_test())
