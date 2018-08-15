@@ -304,7 +304,7 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     points = await get_line(coord_a, coord_b)
     change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
     reference_point = coord_a[0], coord_a[1] + 5
-    for number, point in enumerate(points):
+    for point in points:
         # if there is a magic door between, start another check_line_of_sight of length remaining
         if map_dict[point].magic == True:
             last_point = points[-1]
@@ -609,6 +609,8 @@ async def handle_input(key):
         asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
     if key in '7':
         asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
+    if key in 'b':
+        asyncio.ensure_future(spawn_bubble())
     if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
         map_dict[(x, y)].passable = True #make previous space passable
         del map_dict[(x, y)].actors['player']
@@ -1130,7 +1132,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    #vine_id = str(round(random(), 5))[2:]
     vine_id = str(datetime.time(datetime.now()))
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
@@ -1210,6 +1211,29 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
             with term.location(x_coord, y_coord):
                 print("{}".format(key_value))
 
+async def spawn_bubble(radius=4):
+    #TODO: make radius variable and automatically found
+    coords = actor_dict['player'].coords()
+    await asyncio.sleep(0)
+    bubble_sprite = [[' ', '*', '*', '*', ' '],
+                     ['*', '1', '1', '1', '*'],
+                     ['*', '1', '1', '1', '*'],
+                     ['*', '1', '1', '1', '*'],
+                     [' ', '*', '*', '*', ' ']]
+    bubble_id = str(datetime.time(datetime.now()))
+    bubble_pieces = {}
+    for y_val, line in enumerate(bubble_sprite):
+        for x_val, char in enumerate(list(line)):
+            bubble_actor_name = "bubble_{}_{}_{}".format(x_val, y_val, bubble_id)
+            bubble_piece_coords = coords[0] + (x_val - 2), coords[1] + (y_val - 2)
+            tile = bubble_sprite[y_val][x_val]
+            if tile in '1 ':
+                continue
+            actor_dict[bubble_actor_name] = Actor(tile=tile, x_coord=bubble_piece_coords[0], y_coord=bubble_piece_coords[1])
+            map_dict[bubble_piece_coords].actors[bubble_actor_name]=True
+            map_dict[bubble_piece_coords].passable = False
+            map_dict[bubble_piece_coords].moveable = False
+
 async def health_test():
     while True:
         await asyncio.sleep(2)
@@ -1288,9 +1312,6 @@ def main():
     result = loop.run_forever()
 
 #TODO: add an aiming reticule and/or a bullet actor that is spawned by a keypress
-#TODO: add a function that returns the points of a path that goes until it hits the next wall.
-    #for point in points in line, if passable, continue, else, 
-    #return points up to but not including the current point
 
 with term.hidden_cursor():
     old_settings = termios.tcgetattr(sys.stdin)
