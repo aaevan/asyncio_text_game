@@ -7,7 +7,7 @@ from blessings import Terminal
 from collections import defaultdict
 from datetime import datetime
 from random import randint, choice, random, shuffle
-from math import acos, degrees, pi, sin, sqrt
+from math import acos, cos, degrees, pi, sin, sqrt
 from itertools import cycle
 from subprocess import call
 from time import sleep #hack to prevent further input/freeze screen on player death
@@ -677,7 +677,7 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
             return result
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
-                                      reference_point=(0, 5), distance_from_center=30,
+                                      reference_point=(0, 5), distance_from_center=10,
                                       rounded=True):
     """
     returns a point that lies at distance distance_from_center from point
@@ -690,6 +690,7 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     a---b
       x
     """
+    await asyncio.sleep(0)
     angle = 90 - angle_from_twelve
     print(angle)
     x = cos(angle) * distance_from_center
@@ -1222,6 +1223,9 @@ async def spawn_bubble(radius=4):
                      [' ', '*', '*', '*', ' ']]
     bubble_id = str(datetime.time(datetime.now()))
     bubble_pieces = {}
+    for i in range(10):
+        await point_at_distance_and_angle(angle_from_twelve=(randint(0, 359)))
+    """
     for y_val, line in enumerate(bubble_sprite):
         for x_val, char in enumerate(list(line)):
             bubble_actor_name = "bubble_{}_{}_{}".format(x_val, y_val, bubble_id)
@@ -1233,6 +1237,7 @@ async def spawn_bubble(radius=4):
             map_dict[bubble_piece_coords].actors[bubble_actor_name]=True
             map_dict[bubble_piece_coords].passable = False
             map_dict[bubble_piece_coords].moveable = False
+    """
 
 async def health_test():
     while True:
