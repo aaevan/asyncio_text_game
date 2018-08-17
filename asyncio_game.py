@@ -677,10 +677,10 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
             return result
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
-                                      reference_point=(0, 5), distance_from_center=10,
+                                      reference_point=(0, 5), radius=10,
                                       rounded=True):
     """
-    returns a point that lies at distance distance_from_center from point
+    returns a point that lies at distance radius from point
     central_point. a is reference_point, b is central_point, c is returned point
     
         c
@@ -692,9 +692,9 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     """
     await asyncio.sleep(0)
     angle = 90 - angle_from_twelve
-    print(angle)
-    x = cos(angle) * distance_from_center
-    y = sin(angle) * distance_from_center
+    x = cos(angle) * radius
+    y = sin(angle) * radius
+    #print(x, y, angle)
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
@@ -1212,32 +1212,36 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
             with term.location(x_coord, y_coord):
                 print("{}".format(key_value))
 
-async def spawn_bubble(radius=4):
-    #TODO: make radius variable and automatically found
-    coords = actor_dict['player'].coords()
+async def spawn_bubble(centered_on_actor='player', radius=6):
+    coords = actor_dict[centered_on_actor].coords()
     await asyncio.sleep(0)
-    bubble_sprite = [[' ', '*', '*', '*', ' '],
-                     ['*', '1', '1', '1', '*'],
-                     ['*', '1', '1', '1', '*'],
-                     ['*', '1', '1', '1', '*'],
-                     [' ', '*', '*', '*', ' ']]
     bubble_id = str(datetime.time(datetime.now()))
     bubble_pieces = {}
-    for i in range(10):
-        await point_at_distance_and_angle(angle_from_twelve=(randint(0, 359)))
-    """
-    for y_val, line in enumerate(bubble_sprite):
-        for x_val, char in enumerate(list(line)):
-            bubble_actor_name = "bubble_{}_{}_{}".format(x_val, y_val, bubble_id)
-            bubble_piece_coords = coords[0] + (x_val - 2), coords[1] + (y_val - 2)
-            tile = bubble_sprite[y_val][x_val]
-            if tile in '1 ':
-                continue
-            actor_dict[bubble_actor_name] = Actor(tile=tile, x_coord=bubble_piece_coords[0], y_coord=bubble_piece_coords[1])
-            map_dict[bubble_piece_coords].actors[bubble_actor_name]=True
-            map_dict[bubble_piece_coords].passable = False
-            map_dict[bubble_piece_coords].moveable = False
-    """
+    player_coords = actor_dict['player'].coords()
+    every_five = [i * 5 for i in range(72)]
+    points_at_distance = {await point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
+    for num, point in enumerate(points_at_distance):
+        #map_dict[point].tile = term.green('▓')
+        actor_name = 'bubble_{}_{}'.format(bubble_id, num)
+        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point)))
+
+async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0)):
+    actor_dict[name] = Actor(moveable=False, x_coord=coords[0], y_coord=coords[1], 
+                             tile=str(death_clock), is_animated=True,
+                             animation=Animation(preset='water'))
+    map_dict[coords].actors[name] = True
+    #TODO: model of passable spaces is flawed. multiple things change whether a space is passable.
+    #map_tiles should register a default state to return to or have multiple properties (is_wall)
+    #or perhaps check for actors that are solid?
+    prev_passable_state = map_dict[coords].passable
+    map_dict[coords].passable = False
+    while death_clock >= 1:
+        await asyncio.sleep(1)
+        death_clock -= 1
+        actor_dict[name].tile = str(death_clock)
+    del map_dict[coords].actors[name]
+    del actor_dict[name]
+    map_dict[coords].passable = prev_passable_state
 
 async def health_test():
     while True:
@@ -1305,7 +1309,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
     loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
