@@ -168,6 +168,10 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     with term.location(55, 10):
         print(points_until_wall)
 
+async def multi_tile_pushable(core_coord=(0, 0), child_node_list=((-1, -1), (-1, 1), (1, 1), (1, -1))):
+    await asyncio.sleep(0)
+    pass
+
 async def push(direction=None, pusher=None):
     """
     basic pushing behavior for single-tile actors.
@@ -1221,7 +1225,6 @@ async def spawn_bubble(centered_on_actor='player', radius=6):
     every_five = [i * 5 for i in range(72)]
     points_at_distance = {await point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
     for num, point in enumerate(points_at_distance):
-        #map_dict[point].tile = term.green('▓')
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
         asyncio.ensure_future(timed_actor(name=actor_name, coords=(point)))
 
@@ -1238,7 +1241,6 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0)):
     while death_clock >= 1:
         await asyncio.sleep(1)
         death_clock -= 1
-        actor_dict[name].tile = str(death_clock)
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
@@ -1261,8 +1263,23 @@ async def view_init(loop, term_x_radius = 23, term_y_radius = 23, max_view_radiu
 async def ui_tasks(loop):
     await asyncio.sleep(0)
     asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
-    asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=5, box_height=3, position="centered"))
-    asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=5, box_height=3, position="centered"))
+    asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
+    asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
+    
+async def print_icon(x_coord=0, y_coord=0, icon='wand', on_center=True):
+    icons = {'wand':('┌───┐',
+                     '│  *│', 
+                     '│ / │',
+                     '│/  │',
+                     '└───┘',),
+            'empty':('┌───┐',
+                     '│   │', 
+                     '│   │',
+                     '│   │',
+                     '└───┘',),}
+            for y in zip(icons[icon], range(y_coord-2, y_coord+3)):
+                with term_location(x_coord - 2, y):
+                    print(
 
 async def death_check():
     await asyncio.sleep(0)
