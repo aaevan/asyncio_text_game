@@ -18,8 +18,14 @@ class Map_tile:
     def __init__(self, passable=True, tile="▓", blocking=True, 
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
-                 animation="", actors=None):
-        """ create a new map tile, location is stored in map_dict"""
+                 animation="", actors=None, contains_items={}):
+        """ create a new map tile, location is stored in map_dict
+        actors is a dictionary of actor names with value == True if 
+                occupied by that actor, otherwise the key is deleted.
+                TODO: replace with a set that just lists actor_ids
+        contains_items is a set that lists item_ids which the player or
+                other actors may draw from.
+        """
         self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
         self.distance_trigger = distance_trigger
@@ -36,8 +42,9 @@ class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
-                 animation=""):
-        """ create a new actor at position x, y """
+                 animation="", holding_items=[]):
+        """ create a new actor at position x, y 
+        actors hold a number of items that are either used or dropped upon death"""
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
@@ -47,6 +54,7 @@ class Actor:
         self.moveable = moveable
         self.is_animated = is_animated
         self.animation = animation
+        self.holding_items = holding_items
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -71,7 +79,8 @@ class Animation:
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},}
         if preset:
             preset_kwargs = presets[preset]
-            #self.preset = None
+            #calls init again using kwargs, but with preset set to None to 
+            #avoid infinite recursion.
             self.__init__(**preset_kwargs, preset=None)
         else:
             self.animation = animation
@@ -83,6 +92,56 @@ class Animation:
             color_choice = int(choice(self.color_choices))
             return term.color(color_choice)(choice(self.animation))
 
+
+class Item:
+    """
+    An item that can be used either by the player or various actors.
+    An item:
+        can be carried.
+            picked up when walked over as interim
+            picked up on menu then keyboard input to select.
+        have a representation on the ground
+        when the player is over a tile with items, the items are displayed in a
+                window. A key can be pressed to view items.
+        can be stored in a container (chests? pots? crates?)
+            destructible crates/pots that strew debris around when broken(???)
+        can be used (via its usable_power and given power_kwargs (for different
+                versions of the same item)
+        have a unique hidden representation and a separate description as seen
+                by the player
+        can have a limited number of uses
+        have a 3x3 tile representation.
+        can be assigned to a given number key
+        can use an alternate power given shift and the number (???)
+    """
+    def __init__(self, name='generic_item', spawn_coord=(0, 0), uses=None, 
+                 ground_repr='?', usable_power=None, power_kwargs={}, 
+                 broken=False, use_message='You use the item.',
+                 broken_text=" is broken."):
+        self.name = name
+        self.spawn_coord = spawn_coord
+        self.uses = uses
+        self.ground_repr = ground_repr
+        self.usable_power = usable_power
+        self.broken = broken
+
+    def use(self):
+        if self.uses is not None and not self.broken:
+            self.usable_power(**power_kwargs)
+            self.uses -= 1
+            filter_print(output_text=use_message)
+            if uses <= 0:
+                self.broken = True
+        else:
+            filter_print(output_text="{}".format(self.name, broken_text))
+
+"""
+A mechanism for modular effects?
+number of particles,
+behavior of particles (stationary, wandering or seeking?)
+lifetime of particles
+secondary effects (on either map or player or other actors
+"""
 
 term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
@@ -580,6 +639,13 @@ def isData():
 async def handle_input(key):
     """
     interpret keycodes and do various actions.
+    controls:
+    wasd to move/push
+    ijkl to look in different directions
+    e to examine
+    spacebar to open doors
+    esc to open inventory
+    a variable in state_dict to capture input while in menus?
     """
     await asyncio.sleep(0)  
     x_shift, y_shift = 0, 0 
@@ -1088,6 +1154,7 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
                               seeds=10, description="blood.")
             map_dict[coords].tile = body_tile
             map_dict[coords].description = "A body."
+            #TODO: make items carried drop onto tile.
             return
 
 async def constant_update_tile(x_offset=0, y_offset=0, tile=term.red('@')):
@@ -1266,7 +1333,7 @@ async def ui_tasks(loop):
     asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
     asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
     
-async def print_icon(x_coord=0, y_coord=0, icon='wand', on_center=True):
+async def print_icon(x_coord=0, y_coord=20, icon='wand'):
     icons = {'wand':('┌───┐',
                      '│  *│', 
                      '│ / │',
@@ -1277,9 +1344,9 @@ async def print_icon(x_coord=0, y_coord=0, icon='wand', on_center=True):
                      '│   │',
                      '│   │',
                      '└───┘',),}
-            for y in zip(icons[icon], range(y_coord-2, y_coord+3)):
-                with term_location(x_coord - 2, y):
-                    print(
+    for (num, line) in enumerate(icons[icon]):
+        with term.location(x_coord, y_coord + num):
+            print(line)
 
 async def death_check():
     await asyncio.sleep(0)
