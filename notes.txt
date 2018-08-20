@@ -10,12 +10,10 @@ icons for items made on 3x3 or 4x4 grid, display in boxes to left and right of h
 
 without a flashlight, your view radius is a small fuzzy circle
 
-aim flashlight/view with uio jkl m,.
-
 k aims flashlight down and greatly reduces view radius
 when flashlight changes directions, it sweeps through neutral if passing from one side to another
 
-with a flashlight (aimed with ijkl), your view radius in that quadrant goes -much- further
+[ ]with a flashlight (aimed with ijkl), your view radius in that quadrant goes -much- further
 
 press buttons or toggle doors with spacebar, 
 

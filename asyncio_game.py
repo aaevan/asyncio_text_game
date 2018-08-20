@@ -18,7 +18,7 @@ class Map_tile:
     def __init__(self, passable=True, tile="▓", blocking=True, 
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
-                 animation="", actors=None, contains_items={}):
+                 animation="", actors=None, items=None):
         """ create a new map tile, location is stored in map_dict
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
@@ -34,6 +34,7 @@ class Map_tile:
         #allows for new map_tiles to be initialized with an existing actor list
         else:
             self.actors = actors
+        self.items = defaultdict(lambda:None)
         self.is_animated = is_animated
         self.animation = animation
         self.magic = False
@@ -115,13 +116,13 @@ class Item:
         can use an alternate power given shift and the number (???)
     """
     def __init__(self, name='generic_item', spawn_coord=(0, 0), uses=None, 
-                 ground_repr='?', usable_power=None, power_kwargs={}, 
+                 tile='?', usable_power=None, power_kwargs={}, 
                  broken=False, use_message='You use the item.',
                  broken_text=" is broken."):
         self.name = name
         self.spawn_coord = spawn_coord
         self.uses = uses
-        self.ground_repr = ground_repr
+        self.tile = tile
         self.usable_power = usable_power
         self.broken = broken
 
@@ -147,6 +148,7 @@ term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
+item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile=term.red("@"), health=100)
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
@@ -204,12 +206,10 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
             distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
             if distance_to_center <= radius:
                 actors = map_dict[(x, y)].actors
-                #map_dict[(x, y)].tile = choice(palette)
-                #map_dict[(x, y)].passable = passable
-                #map_dict[(x, y)].blocking = blocking
                 map_dict[(x, y)] = Map_tile(passable=True, tile=" ", blocking=False, 
                                          description='an animation', is_animated=True,
                                          animation=Animation(), actors=actors)
+
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
@@ -230,6 +230,22 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
 async def multi_tile_pushable(core_coord=(0, 0), child_node_list=((-1, -1), (-1, 1), (1, 1), (1, -1))):
     await asyncio.sleep(0)
     pass
+
+async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
+    item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
+    item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.blue('/'), 'usable_power':None},
+                    'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
+                           'usable_power':None}}
+    item_dict[item_id] = Item(**item_catalog[instance_of])
+    map_dict[coord].items[item_id] = True
+
+#async def item_slot(key='q', item_id=None):
+    #await asyncio.sleep(0)
+    #while True:
+        #if item in item_dict:
+            #item_dict[item]
+        #pass
 
 async def push(direction=None, pusher=None):
     """
@@ -350,11 +366,32 @@ async def check_contents_of_tile(coord):
             return next(actor_dict[actor_name].animation)
         else:
             return actor_dict[actor_name].tile
+    if map_dict[coord].items:
+        item_name = next(iter(map_dict[coord].items))
+        return item_dict[item_name].tile
+        return item_name
     if map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
         return map_dict[coord].tile
-           
+
+async def display_items_at_coord(coord=actor_dict['player'].coords()):
+    last_coord = None
+    item_list = ' '
+    with term.location(0, 24):
+        print("Items here:")
+    while True:
+        await asyncio.sleep(.1)
+        player_coords = actor_dict['player'].coords()
+        if player_coords != last_coord:
+            with term.location(0, 25):
+                print(' ' * len(repr(item_list)))
+            #a separate function to transfer item ids from here to player inv.
+            item_list = [item for item in map_dict[player_coords].items]
+            with term.location(0, 25):
+                print(item_list)
+        last_coord = player_coords
+            
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
@@ -1400,6 +1437,9 @@ def main():
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(health_test())
+    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
+    loop.create_task(display_items_at_coord())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
