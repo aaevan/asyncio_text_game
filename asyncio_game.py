@@ -43,7 +43,7 @@ class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
-                 animation="", holding_items=[]):
+                 animation="", holding_items={}):
         """ create a new actor at position x, y 
         actors hold a number of items that are either used or dropped upon death"""
         self.x_coord, self.y_coord, = (x_coord, y_coord)
@@ -126,9 +126,9 @@ class Item:
         self.usable_power = usable_power
         self.broken = broken
 
-    def use(self):
+    async def use(self):
         if self.uses is not None and not self.broken:
-            self.usable_power(**power_kwargs)
+            await self.usable_power(**power_kwargs)
             self.uses -= 1
             filter_print(output_text=use_message)
             if uses <= 0:
@@ -152,6 +152,7 @@ item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(tile=term.red("@"), health=100)
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
+state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
 
 #Drawing functions---------------------------------------------------------------------------------
@@ -237,6 +238,7 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
                             'tile':term.blue('/'), 'usable_power':None},
                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
                            'usable_power':None}}
+    # if instance_of in item_catalog:
     item_dict[item_id] = Item(**item_catalog[instance_of])
     map_dict[coord].items[item_id] = True
 
@@ -684,7 +686,6 @@ async def handle_input(key):
     esc to open inventory
     a variable in state_dict to capture input while in menus?
     """
-    await asyncio.sleep(0)  
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
@@ -698,43 +699,99 @@ async def handle_input(key):
     fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
     fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
-    if key in directions:
-        x_shift, y_shift = directions[key]
-        if key in 'wasd':
-            await push(pusher='player', direction=key_to_compass[key])
-        actor_dict['player'].just_teleported = False
-    shifted_x, shifted_y = x + x_shift, y + y_shift
-    if key in 'Vv':
-        asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
-    if key in 'Ee':
-        description = map_dict[(x, y)].description
-        asyncio.ensure_future(filter_print(output_text=description)),
-    if key in ' ':
-        asyncio.ensure_future(toggle_doors()),
-    if key in 'f':
-        facing_dir = dir_to_name[state_dict['facing']]
-        asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
-    if key in '7':
-        asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
-    if key in 'b':
-        asyncio.ensure_future(spawn_bubble())
-    if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
-        map_dict[(x, y)].passable = True #make previous space passable
-        del map_dict[(x, y)].actors['player']
-        actor_dict['player'].update(x + x_shift, y + y_shift)
-        x, y = actor_dict['player'].coords()
-        map_dict[(x, y)].passable = False #make current space impassable
-        map_dict[(x, y)].actors['player'] = True
-    if key in "ijkl":
-        with term.location(0, 5):
-            print(view_angles[key_to_compass[key]])
-        state_dict['facing'] = key_to_compass[key]
-        state_dict['view_angles'] = view_angles[key_to_compass[key]]
-        state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
-        with term.location(0, 6):
-            print(state_dict['view_angles'], state_dict['view_angles'][0])
-        #await sword(direction=key_to_compass[key])
+    await asyncio.sleep(0)  
+    if state_dict['in_menu'] == True:
+        if key in state_dict['menu_choices']:
+            state_dict['menu_choice'] = key
+        else:
+            state_dict['menu_choice'] = False
+            state_dict['in_menu'] = False
+        # when g is pressed, if there is more than one item on the space, get
+        # caught in a while loop (that checks state_dict['menu_choice']
+        # if key is w or s, scroll up or down the list accordingly.
+    else:
+        if key in directions:
+            x_shift, y_shift = directions[key]
+            if key in 'wasd':
+                await push(pusher='player', direction=key_to_compass[key])
+            actor_dict['player'].just_teleported = False
+        shifted_x, shifted_y = x + x_shift, y + y_shift
+        if key in 'Vv':
+            asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
+        if key in 'Ee':
+            description = map_dict[(x, y)].description
+            asyncio.ensure_future(filter_print(output_text=description)),
+        if key in ' ':
+            asyncio.ensure_future(toggle_doors()),
+        if key in 'g':
+            #state_dict['in_menu'] = True
+            asyncio.ensure_future(item_choices(coords=(x, y)))
+        if key in 'f':
+            facing_dir = dir_to_name[state_dict['facing']]
+            asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
+        if key in '7':
+            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
+        if key in 'b':
+            asyncio.ensure_future(spawn_bubble())
+        if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
+            map_dict[(x, y)].passable = True #make previous space passable
+            del map_dict[(x, y)].actors['player']
+            actor_dict['player'].update(x + x_shift, y + y_shift)
+            x, y = actor_dict['player'].coords()
+            map_dict[(x, y)].passable = False #make current space impassable
+            map_dict[(x, y)].actors['player'] = True
+        if key in "ijkl":
+            with term.location(0, 5):
+                print(view_angles[key_to_compass[key]])
+            state_dict['facing'] = key_to_compass[key]
+            state_dict['view_angles'] = view_angles[key_to_compass[key]]
+            state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
+            with term.location(0, 6):
+                print(state_dict['view_angles'], state_dict['view_angles'][0])
+            #await sword(direction=key_to_compass[key])
     return x, y
+
+async def useful_debug_information():
+    while True:
+        await asyncio.sleep(.1)
+        with term.location(0, 34):
+            print("Useful debug information:")
+        with term.location(0, 35):
+            print(state_dict['menu_choices'])
+        with term.location(0, 36):
+            print(state_dict['in_menu'])
+        with term.location(0, 37):
+            print(state_dict['menu_choice'])
+
+async def item_choices(coords=None):
+    await asyncio.sleep(0)
+    if not map_dict[coords].items:
+        asyncio.ensure_future(filter_print(output_text="nothing's here."))
+    else:
+        state_dict['in_menu'] = True
+        for y in range(5, 10):
+            with term.location(0, y):
+                print(' ' * 20)
+        item_list = [item for item in map_dict[coords].items]
+        for (number, item) in enumerate(item_list):
+            with term.location(0, y):
+                print("{} : {}".format(number, item_dict[item].name))
+        state_dict['menu_choices'] = [i for i in range(len(item_list))]
+        while True:
+            await asyncio.sleep(.1)
+            menu_choice = state_dict['menu_choice']
+            if type(menu_choice) == str:
+                if menu_choice in [str(i) for i in range(10)]:
+                    menu_choice = int(menu_choice)
+            if menu_choice in range(len(item_list)):
+                picked_item_id = item_list[menu_choice]
+                pickup_text = "picked up {}".format(item_dict[picked_item_id].name)
+                del map_dict[coords].items[picked_item_id]
+                actor_dict['player'].holding_items[picked_item_id] = True
+                asyncio.ensure_future(filter_print(pickup_text))
+                state_dict['in_menu'] = False
+                break
+             
 
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
@@ -1075,7 +1132,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         await asyncio.sleep(speed)
         for offset, shroud_name_key in enumerate(shroud_piece_names):
             #deleting instance of the shroud pieces from the map_dict's actor list:
-            coord = (actor_dict[shroud_name_key].x_coord, actor_dict[shroud_name_key].y_coord)
+            coord = actor_dict[shroud_name_key].coords()
             if shroud_name_key in map_dict[coord].actors:
                 del map_dict[coord].actors[shroud_name_key]
             behavior_val = random()
@@ -1157,8 +1214,7 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
         #write the new locations of each segment to the map_dict's tiles' actor lists
         counter = 0
         for name_key, coord in zip(segment_names, segment_locations):
-            actor_dict[(name_key)].x_coord = coord[0]
-            actor_dict[(name_key)].y_coord = coord[1]
+            actor_dict[(name_key)].update(coord)
             segment_tile_key = (movement_history[counter], movement_history[counter - 1])
             if segment_tile_key == (0, -1):
                 actor_dict[(name_key)].tile = '1'
@@ -1291,7 +1347,7 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
     actor_coords = None
     while True:
         await asyncio.sleep(update_speed)
-        actor_coords = (actor_dict['player'].x_coord, actor_dict['player'].y_coord)
+        actor_coords = actor_dict[actor_dict_key].coords()
         state_dict[state_dict_key] = actor_coords
 
 async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
@@ -1431,8 +1487,8 @@ def main():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-    loop.create_task(tentacled_mass())
-    loop.create_task(tentacled_mass(start_coord=(9, 4)))
+    #loop.create_task(tentacled_mass())
+    #loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
@@ -1441,6 +1497,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(display_items_at_coord())
     loop.create_task(death_check())
+    loop.create_task(useful_debug_information())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
