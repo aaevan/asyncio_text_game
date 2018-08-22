@@ -18,7 +18,8 @@ class Map_tile:
     def __init__(self, passable=True, tile="▓", blocking=True, 
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
-                 animation="", actors=None, items=None):
+                 animation="", actors=None, items=None, 
+                 magic=False, magic_destination=False):
         """ create a new map tile, location is stored in map_dict
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
@@ -35,9 +36,8 @@ class Map_tile:
         else:
             self.actors = actors
         self.items = defaultdict(lambda:None)
-        self.is_animated = is_animated
-        self.animation = animation
-        self.magic = False
+        self.is_animated, self.animation = is_animated, animation
+        self.magic, self.magic_destination = magic, magic_destination
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -390,10 +390,25 @@ async def display_items_at_coord(coord=actor_dict['player'].coords()):
                 print(' ' * len(repr(item_list)))
             #a separate function to transfer item ids from here to player inv.
             item_list = [item for item in map_dict[player_coords].items]
-            with term.location(0, 25):
-                print(item_list)
+            for number, item_id in enumerate(item_list):
+                with term.location(0, 25 + number):
+                    print(item_dict[item_id].name)
         last_coord = player_coords
-            
+
+async def display_items_on_actor(actor_key='player'):
+    item_list = ' '
+    with term.location(0, 24):
+        print("Items here:")
+    while True:
+        await asyncio.sleep(.1)
+        with term.location(0, 8):
+            print("player is holding:")
+        with term.location(0, 9):
+            print(' ' * len(repr(item_list)))
+        item_list = [item for item in actor_dict[actor_key].holding_items]
+        for number, item_id in enumerate(item_list):
+            with term.location(0, 9 + number):
+                print(item_dict[item_id].name)
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
@@ -546,10 +561,17 @@ async def flood_fill(coord=(0, 0), target='░', replacement=' ', depth=0,
         await flood_fill((coord[0] + direction[0], coord[1] + direction[1]), *args)
 
 def clear():
+    """
+    clears the screen.
+    """
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
 def draw_door(x, y, closed = True):
+    """
+    creates a door at the specified map_dict coordinate and sets the relevant
+    attributes.
+    """
     states = [('▮', False, True), ('▯', True, False)]
     if closed:
         tile, passable, blocking = states[0]
@@ -581,16 +603,11 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
     #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
     #map_dict[start_coord].blocking = True
-    map_dict[start_coord].tile = " "
-    map_dict[start_coord].blocking = False
-    map_dict[start_coord].passable = True
-    map_dict[start_coord].magic = True
-    map_dict[start_coord].magic_destination = end_coord
-    map_dict[start_coord].is_animated = True
-    map_dict[start_coord].animation = Animation(animation="▮", 
-                                                   behavior='random', 
-                                                   color_choices="1234567",
-                                                   preset=None)
+    animation = Animation(animation='▮', behavior='random', 
+                          color_choices="1234567", preset=None)
+    map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
+                                     magic=True, magic_destination=end_coord,
+                                     is_animated=True, animation=animation)
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
@@ -618,20 +635,14 @@ def map_init():
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    connect_with_passage(7, 7, 17, 17)
-    connect_with_passage(17, 17, 25, 10)
-    connect_with_passage(20, 20, 35, 20)
-    connect_with_passage(0, 0, 17, 17)
-    connect_with_passage(39, 20, 41, 20)
-    draw_door(7, 16)
-    draw_door(0, 5)
+    passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
+                (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0)]
+    for passage in passages:
+        connect_with_passage(*passage)
+    doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
+    for door in doors:
+        draw_door(*door)
     write_description()
-    draw_door(14, 17)
-    draw_door(25, 20)
-    draw_door(25, 20)
-    draw_door(29, 20)
-    draw_door(41, 20)
-    connect_with_passage(-30, -30, 0, 0)
     announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
 
@@ -656,7 +667,6 @@ async def use_stairs(direction="down"):
     called from handle_input to use stair tiles.
     """
     pass
-
 
 def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
              root_node_coords=(0, 0), rooms=10, root_room_size = (10, 10)):
@@ -749,6 +759,8 @@ async def handle_input(key):
             with term.location(0, 6):
                 print(state_dict['view_angles'], state_dict['view_angles'][0])
             #await sword(direction=key_to_compass[key])
+    with term.location(0, 1):
+        print("key is: {}".format(key))
     return x, y
 
 async def useful_debug_information():
@@ -769,14 +781,18 @@ async def item_choices(coords=None):
         asyncio.ensure_future(filter_print(output_text="nothing's here."))
     else:
         state_dict['in_menu'] = True
+        #clear a region of screen
         for y in range(5, 10):
             with term.location(0, y):
                 print(' ' * 20)
         item_list = [item for item in map_dict[coords].items]
-        for (number, item) in enumerate(item_list):
-            with term.location(0, y):
-                print("{} : {}".format(number, item_dict[item].name))
-        state_dict['menu_choices'] = [i for i in range(len(item_list))]
+        if len(item_list) > 1:
+            for (number, item) in enumerate(item_list):
+                with term.location(0, 5 + number):
+                    print("{} : {}".format(number, item_dict[item].name))
+        #It waits still for another input. A way of just picking up the only item automatically?
+        #state_dict['menu_choices'] = [i for i in range(len(item_list))]
+        state_dict['menu_choices'] = [index for index, _ in enumerate(item_list)]
         while True:
             await asyncio.sleep(.1)
             menu_choice = state_dict['menu_choice']
@@ -784,14 +800,20 @@ async def item_choices(coords=None):
                 if menu_choice in [str(i) for i in range(10)]:
                     menu_choice = int(menu_choice)
             if menu_choice in range(len(item_list)):
-                picked_item_id = item_list[menu_choice]
-                pickup_text = "picked up {}".format(item_dict[picked_item_id].name)
-                del map_dict[coords].items[picked_item_id]
-                actor_dict['player'].holding_items[picked_item_id] = True
-                asyncio.ensure_future(filter_print(pickup_text))
+                await pickup_item(coords=coords, picked_item_id=item_list[menu_choice])
                 state_dict['in_menu'] = False
                 break
-             
+
+async def pickup_item(coords=(0, 0), picked_item_id=None, target_actor='player'):
+    """
+    Transfers an item from a map tile to the holding_items dict of an actor.
+    """
+    await asyncio.sleep(0)
+    pickup_text = "picked up {}".format(item_dict[picked_item_id].name)
+    del map_dict[coords].items[picked_item_id]
+    actor_dict['player'].holding_items[picked_item_id] = True
+    asyncio.ensure_future(filter_print(pickup_text))
+    return True
 
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
@@ -1411,7 +1433,7 @@ async def health_test():
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
 
-async def view_init(loop, term_x_radius = 23, term_y_radius = 23, max_view_radius = 22):
+async def view_init(loop, term_x_radius = 18, term_y_radius = 18, max_view_radius = 18):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -1496,6 +1518,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
     loop.create_task(death_check())
     loop.create_task(useful_debug_information())
     asyncio.set_event_loop(loop)
