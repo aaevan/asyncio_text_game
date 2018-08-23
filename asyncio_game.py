@@ -360,8 +360,6 @@ async def get_line(start, end):
     return points
 
 async def check_contents_of_tile(coord):
-    #if map_dict[coord].blocking:
-        #return ' '
     if map_dict[coord].actors:
         actor_name = next(iter(map_dict[coord].actors))
         if actor_dict[actor_name].is_animated:
@@ -385,29 +383,29 @@ async def display_items_at_coord(coord=actor_dict['player'].coords()):
     while True:
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
-        if player_coords != last_coord:
-            with term.location(0, 25):
-                print(' ' * len(repr(item_list)))
-            #a separate function to transfer item ids from here to player inv.
-            item_list = [item for item in map_dict[player_coords].items]
-            for number, item_id in enumerate(item_list):
-                with term.location(0, 25 + number):
-                    print(item_dict[item_id].name)
+        for i in range(10):
+            with term.location(0, i + 25):
+                print(' ' * 20)
+        item_list = [item for item in map_dict[player_coords].items]
+        for number, item_id in enumerate(item_list):
+            with term.location(0, 25 + number):
+                print(item_dict[item_id].name)
         last_coord = player_coords
 
 async def display_items_on_actor(actor_key='player'):
     item_list = ' '
-    with term.location(0, 24):
-        print("Items here:")
+    #with term.location(0, 24):
+        #print("Items here:")
     while True:
         await asyncio.sleep(.1)
-        with term.location(0, 8):
+        with term.location(0, 7):
             print("player is holding:")
-        with term.location(0, 9):
-            print(' ' * len(repr(item_list)))
+        for i in range(10):
+            with term.location(0, i + 8):
+                print(' ' * 15)
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
-            with term.location(0, 9 + number):
+            with term.location(0, 8 + number):
                 print(item_dict[item_id].name)
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
@@ -716,6 +714,7 @@ async def handle_input(key):
         else:
             state_dict['menu_choice'] = False
             state_dict['in_menu'] = False
+        # only gives one chance for correct input right now. fix?
         # when g is pressed, if there is more than one item on the space, get
         # caught in a while loop (that checks state_dict['menu_choice']
         # if key is w or s, scroll up or down the list accordingly.
@@ -751,13 +750,11 @@ async def handle_input(key):
             map_dict[(x, y)].passable = False #make current space impassable
             map_dict[(x, y)].actors['player'] = True
         if key in "ijkl":
-            with term.location(0, 5):
-                print(view_angles[key_to_compass[key]])
             state_dict['facing'] = key_to_compass[key]
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
-            with term.location(0, 6):
-                print(state_dict['view_angles'], state_dict['view_angles'][0])
+            #with term.location(0, 6):
+                #print(state_dict['view_angles'], state_dict['view_angles'][0])
             #await sword(direction=key_to_compass[key])
     with term.location(0, 1):
         print("key is: {}".format(key))
@@ -780,12 +777,16 @@ async def item_choices(coords=None):
     if not map_dict[coords].items:
         asyncio.ensure_future(filter_print(output_text="nothing's here."))
     else:
-        state_dict['in_menu'] = True
+        item_list = [item for item in map_dict[coords].items]
+        if len(item_list) > 1:
+            state_dict['in_menu'] = True
+        else:
+            await pickup_item(coords=coords, picked_item_id=item_list[0])
+            return
         #clear a region of screen
         for y in range(5, 10):
             with term.location(0, y):
                 print(' ' * 20)
-        item_list = [item for item in map_dict[coords].items]
         if len(item_list) > 1:
             for (number, item) in enumerate(item_list):
                 with term.location(0, 5 + number):
@@ -1516,6 +1517,7 @@ def main():
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(health_test())
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
