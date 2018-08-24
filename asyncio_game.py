@@ -375,38 +375,38 @@ async def check_contents_of_tile(coord):
     else:
         return map_dict[coord].tile
 
-async def display_items_at_coord(coord=actor_dict['player'].coords()):
+async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
     last_coord = None
     item_list = ' '
-    with term.location(0, 24):
+    with term.location(x_pos, y_pos):
         print("Items here:")
     while True:
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
+        
         for i in range(10):
-            with term.location(0, i + 25):
+            with term.location(x_pos, i + (y_pos + 1)):
                 print(' ' * 20)
         item_list = [item for item in map_dict[player_coords].items]
         for number, item_id in enumerate(item_list):
-            with term.location(0, 25 + number):
-                print(item_dict[item_id].name)
+            with term.location(x_pos, (y_pos + 1) + number):
+                print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
         last_coord = player_coords
 
-async def display_items_on_actor(actor_key='player'):
+async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=7):
     item_list = ' '
-    #with term.location(0, 24):
-        #print("Items here:")
     while True:
         await asyncio.sleep(.1)
-        with term.location(0, 7):
+        with term.location(x_pos, y_pos):
             print("player is holding:")
-        for i in range(10):
-            with term.location(0, i + 8):
-                print(' ' * 15)
+        await clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
+        #for i in range(10):
+            #with term.location(x_pos, i + (y_pos + 1)):
+                #print(' ' * 15)
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
-            with term.location(0, 8 + number):
-                print(item_dict[item_id].name)
+            with term.location(x_pos, (y_pos + 1) + number):
+                print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
@@ -715,8 +715,6 @@ async def handle_input(key):
             state_dict['menu_choice'] = False
             state_dict['in_menu'] = False
         # only gives one chance for correct input right now. fix?
-        # when g is pressed, if there is more than one item on the space, get
-        # caught in a while loop (that checks state_dict['menu_choice']
         # if key is w or s, scroll up or down the list accordingly.
     else:
         if key in directions:
@@ -733,7 +731,6 @@ async def handle_input(key):
         if key in ' ':
             asyncio.ensure_future(toggle_doors()),
         if key in 'g':
-            #state_dict['in_menu'] = True
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
@@ -753,9 +750,6 @@ async def handle_input(key):
             state_dict['facing'] = key_to_compass[key]
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
-            #with term.location(0, 6):
-                #print(state_dict['view_angles'], state_dict['view_angles'][0])
-            #await sword(direction=key_to_compass[key])
     with term.location(0, 1):
         print("key is: {}".format(key))
     return x, y
@@ -763,36 +757,47 @@ async def handle_input(key):
 async def useful_debug_information():
     while True:
         await asyncio.sleep(.1)
-        with term.location(0, 34):
-            print("Useful debug information:")
         with term.location(0, 35):
-            print(state_dict['menu_choices'])
+            print("Useful debug information:")
         with term.location(0, 36):
-            print(state_dict['in_menu'])
+            print("menu_choices: {}".format(state_dict['menu_choices']))
         with term.location(0, 37):
-            print(state_dict['menu_choice'])
+            print("in_menu: {}".format(state_dict['in_menu']))
+        with term.location(0, 38):
+            print("menu_choice:".format(state_dict['menu_choice']))
 
-async def item_choices(coords=None):
+async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
+    await asyncio.sleep(0)
+    for y in range(screen_coord[1], screen_coord[1] + y_size):
+        with term.location(screen_coord[0], y):
+            print(' ' * x_size)
+
+async def item_choices(coords=None, x_pos=0, y_pos=25):
+    """
+    -item choices should appear next to the relevant part of the screen.
+    -item choices should really be useable as menu choices also.
+    -a series of numbers and colons to indicate the relevant choices
+    -give a position and list of values and item choices will hang until
+     a menu choice is made.
+    """
     await asyncio.sleep(0)
     if not map_dict[coords].items:
         asyncio.ensure_future(filter_print(output_text="nothing's here."))
     else:
         item_list = [item for item in map_dict[coords].items]
+        with term.location(30, 0):
+            print(len(item_list))
         if len(item_list) > 1:
             state_dict['in_menu'] = True
         else:
+            state_dict['in_menu'] = False
             await pickup_item(coords=coords, picked_item_id=item_list[0])
             return
-        #clear a region of screen
-        for y in range(5, 10):
-            with term.location(0, y):
-                print(' ' * 20)
+        await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
         if len(item_list) > 1:
             for (number, item) in enumerate(item_list):
-                with term.location(0, 5 + number):
-                    print("{} : {}".format(number, item_dict[item].name))
-        #It waits still for another input. A way of just picking up the only item automatically?
-        #state_dict['menu_choices'] = [i for i in range(len(item_list))]
+                with term.location(x_pos, y_pos + number):
+                    print("{}:".format(number))
         state_dict['menu_choices'] = [index for index, _ in enumerate(item_list)]
         while True:
             await asyncio.sleep(.1)
@@ -802,7 +807,10 @@ async def item_choices(coords=None):
                     menu_choice = int(menu_choice)
             if menu_choice in range(len(item_list)):
                 await pickup_item(coords=coords, picked_item_id=item_list[menu_choice])
+                await clear_screen_region(x_size=2, y_size=len(item_list), 
+                                          screen_coord=(x_pos, y_pos))
                 state_dict['in_menu'] = False
+                state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
                 break
 
 async def pickup_item(coords=(0, 0), picked_item_id=None, target_actor='player'):
@@ -1516,6 +1524,10 @@ def main():
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(health_test())
+    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
