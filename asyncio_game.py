@@ -384,9 +384,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         
-        for i in range(10):
-            with term.location(x_pos, i + (y_pos + 1)):
-                print(' ' * 20)
+        await clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1))
         item_list = [item for item in map_dict[player_coords].items]
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
@@ -400,9 +398,6 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=7):
         with term.location(x_pos, y_pos):
             print("player is holding:")
         await clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
-        #for i in range(10):
-            #with term.location(x_pos, i + (y_pos + 1)):
-                #print(' ' * 15)
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
@@ -791,7 +786,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             state_dict['in_menu'] = True
         else:
             state_dict['in_menu'] = False
-            await pickup_item(coords=coords, picked_item_id=item_list[0])
+            await get_item(coords=coords, item_id=item_list[0])
             return
         await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
         if len(item_list) > 1:
@@ -806,29 +801,28 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
                 if menu_choice in [str(i) for i in range(10)]:
                     menu_choice = int(menu_choice)
             if menu_choice in range(len(item_list)):
-                await pickup_item(coords=coords, picked_item_id=item_list[menu_choice])
+                await get_item(coords=coords, item_id=item_list[menu_choice])
                 await clear_screen_region(x_size=2, y_size=len(item_list), 
                                           screen_coord=(x_pos, y_pos))
                 state_dict['in_menu'] = False
                 state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
                 break
 
-async def pickup_item(coords=(0, 0), picked_item_id=None, target_actor='player'):
+async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
     await asyncio.sleep(0)
-    pickup_text = "picked up {}".format(item_dict[picked_item_id].name)
-    del map_dict[coords].items[picked_item_id]
-    actor_dict['player'].holding_items[picked_item_id] = True
+    pickup_text = "picked up {}".format(item_dict[item_id].name)
+    del map_dict[coords].items[item_id]
+    actor_dict['player'].holding_items[item_id] = True
     asyncio.ensure_future(filter_print(pickup_text))
     return True
 
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
     await asyncio.sleep(0)
-    x_run = abs(point_a[0] - point_b[0])
-    y_run = abs(point_a[1] - point_b[1])
+    x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
 
@@ -850,7 +844,6 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
             map_dict[tile_key].seen = True
     else:
         map_dict[tile_key].seen = True
-
 
 async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     """
@@ -917,8 +910,6 @@ async def angle_checker(angle_from_twelve):
 
 async def view_tile(x_offset=1, y_offset=1, threshold = 18):
     """ handles displaying data from map_dict """
-    #TODO:
-    #fuzzy edges flicker too erratically. find smoother way.
     noise_palette = " " * 5
     #absolute distance from player
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
@@ -1195,7 +1186,6 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
                                            name_key=core_name_key, seek_key="player")
         map_dict[new_core_location].actors[core_name_key] = True
 
-
 async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
     """
     the head is always index 0, followed by the rest of the list for each segment.
@@ -1258,9 +1248,17 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
         movement_function=wander, name_key="test", hurtful=False,
         is_animated=False, animation=" "):
     """ A coroutine that creates a randomly wandering '*' """
-    if len(tile) >= 1:
-        animated = True
-    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, tile=tile, hurtful=hurtful,
+    """
+    actors can:
+    move from square to square using a movement function
+    hold items
+    attack or interact with the player
+    die
+    exist for a set number of turns
+    """
+    #TODO: separate actor creation and behavior into separate functions?
+    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, 
+                                   tile=tile, hurtful=hurtful, leaves_body=True,
                                    is_animated=is_animated, animation=animation)
     coords = actor_dict[name_key].coords()
     while True:
@@ -1271,24 +1269,30 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
         coords = await movement_function(current_coord=current_coords, name_key=name_key)
         map_dict[coords].actors[name_key] = name_key
         if not actor_dict[name_key].alive:
-            body_tile = term.red(actor_dict[name_key].tile)
-            del actor_dict[name_key]
-            del map_dict[coords].actors[name_key]
-            await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
-                              seeds=10, description="blood.")
-            map_dict[coords].tile = body_tile
-            map_dict[coords].description = "A body."
+            await kill_actor(name_key=name_key)
+            #body_tile = term.red(actor_dict[name_key].tile)
+            #del actor_dict[name_key]
+            #del map_dict[coords].actors[name_key]
+            #await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
+                              #seeds=10, description="blood.")
+            #map_dict[coords].tile = body_tile
+            #map_dict[coords].description = "A body."
             #TODO: make items carried drop onto tile.
             return
 
-async def constant_update_tile(x_offset=0, y_offset=0, tile=term.red('@')):
-    await asyncio.sleep(1/30)
-    middle_x, middle_y = (int(term.width / 2 - 2),
-                          int(term.height / 2 - 2))
-    while True:
-        await asyncio.sleep(1/30)
-        with term.location(middle_x, middle_y):
-            print(tile)
+async def kill_actor(name_key=None, leaves_body=True, blood=True):
+    if leaves_body:
+        body_tile = term.red(actor_dict[name_key].tile)
+    del actor_dict[name_key]
+    del map_dict[coords].actors[name_key]
+    if blood:
+        await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
+                          seeds=10, description="blood.")
+    if leaves_body:
+        #TODO: replace the body with an item, drop items in spray around actor
+        map_dict[coords].tile = body_tile
+        map_dict[coords].description = "A body."
+    return
 
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
@@ -1435,6 +1439,10 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0)):
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
+
+#timed actor that also wanders around?
+async def timed_wanderer(death_clock=5, name='spark', coords=(0, 0)):
+    pass
 
 async def health_test():
     while True:
