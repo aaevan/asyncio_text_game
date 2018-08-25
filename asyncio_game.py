@@ -661,20 +661,6 @@ async def use_stairs(direction="down"):
     """
     pass
 
-def rand_map(x_min=-50, x_max=50, y_min=-50, y_max=50, palette = "░",
-             root_node_coords=(0, 0), rooms=10, root_room_size = (10, 10)):
-    root_room_x_size, root_room_y_size = root_room_size
-    floor_tile = choice(palette)
-    draw_centered_box(middle_coord = root_node_coords, x_size=root_room_x_size, 
-                      y_size=root_room_y_size, tile=floor_tile)
-    room_centers = [(randint(x_min, x_max), randint(y_min, y_max)) for _ in range(rooms)]
-    for room in room_centers:
-        draw_centered_box(middle_coord=(20, 20), x_size=randint(5,15), y_size=randint(5, 15), tile=floor_tile)
-        for _ in range(2):
-            connection_choice = choice(room_centers)
-            connect_with_passage(*room, *connection_choice, palette=floor_tile)
-    connect_with_passage(*root_node_coords, *choice(room_centers), palette=floor_tile)
-
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
 
@@ -767,10 +753,16 @@ async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
 
+async def equip_item(slot='q', item_id=None):
+    """
+    items to be equipped are items in 
+    """
+    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    state_dict['in_menu'] = True
+
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
     -item choices should appear next to the relevant part of the screen.
-    -item choices should really be useable as menu choices also.
     -a series of numbers and colons to indicate the relevant choices
     -give a position and list of values and item choices will hang until
      a menu choice is made.
@@ -780,20 +772,16 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
         asyncio.ensure_future(filter_print(output_text="nothing's here."))
     else:
         item_list = [item for item in map_dict[coords].items]
-        with term.location(30, 0):
-            print(len(item_list))
-        if len(item_list) > 1:
-            state_dict['in_menu'] = True
-        else:
+        if len(item_list) <= 1:
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
             return
-        await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
-        if len(item_list) > 1:
-            for (number, item) in enumerate(item_list):
-                with term.location(x_pos, y_pos + number):
-                    print("{}:".format(number))
+        state_dict['in_menu'] = True
         state_dict['menu_choices'] = [index for index, _ in enumerate(item_list)]
+        await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
+        for (number, item) in enumerate(item_list):
+            with term.location(x_pos, y_pos + number):
+                print("{}:".format(number))
         while True:
             await asyncio.sleep(.1)
             menu_choice = state_dict['menu_choice']
