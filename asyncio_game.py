@@ -396,7 +396,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=7):
     while True:
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
-            print("player is holding:")
+            print("Inventory:")
         await clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
@@ -759,6 +759,20 @@ async def equip_item(slot='q', item_id=None):
     """
     item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     state_dict['in_menu'] = True
+    
+async def key_slot_checker(slot='q', frequency=.1):
+    await asyncio.sleep(0)
+    while True:
+        await asyncio.sleep(frequency)
+        #the item's id name is stored in state_dict under the key's name.
+        equipped_item = state_dict["{}_slot".format(slot)]
+        if equipped_item:
+            #if it's equipped, display the icon.
+            icon = item_dict[item_id].icon
+            print_icon(x_coord=0, y_coord=20, icon_name=icon)
+
+async def print_icon(x_coord=0, y_coord=20, icon='wand'):
+
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -776,8 +790,9 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
             return
+        menu_choices = [index for index, _ in enumerate(item_list)]
+        state_dict['menu_choices'] = menu_choices
         state_dict['in_menu'] = True
-        state_dict['menu_choices'] = [index for index, _ in enumerate(item_list)]
         await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
         for (number, item) in enumerate(item_list):
             with term.location(x_pos, y_pos + number):
@@ -788,7 +803,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             if type(menu_choice) == str:
                 if menu_choice in [str(i) for i in range(10)]:
                     menu_choice = int(menu_choice)
-            if menu_choice in range(len(item_list)):
+            if menu_choice in menu_choices:
                 await get_item(coords=coords, item_id=item_list[menu_choice])
                 await clear_screen_region(x_size=2, y_size=len(item_list), 
                                           screen_coord=(x_pos, y_pos))
@@ -870,7 +885,6 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     angle = 90 - angle_from_twelve
     x = cos(angle) * radius
     y = sin(angle) * radius
-    #print(x, y, angle)
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
@@ -896,7 +910,7 @@ async def angle_checker(angle_from_twelve):
         fuzzy = False
     return fuzzy, display
 
-async def view_tile(x_offset=1, y_offset=1, threshold = 18):
+async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
     #absolute distance from player
@@ -1438,7 +1452,7 @@ async def health_test():
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
 
-async def view_init(loop, term_x_radius = 18, term_y_radius = 18, max_view_radius = 18):
+async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -1453,7 +1467,7 @@ async def ui_tasks(loop):
     asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
     asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
     
-async def print_icon(x_coord=0, y_coord=20, icon='wand'):
+async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     icons = {'wand':('┌───┐',
                      '│  *│', 
                      '│ / │',
