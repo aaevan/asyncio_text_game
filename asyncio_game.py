@@ -713,6 +713,8 @@ async def handle_input(key):
             asyncio.ensure_future(toggle_doors()),
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
+        if key in 'u':
+            asyncio.ensure_future(choose_item())
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
@@ -753,12 +755,42 @@ async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
 
-async def equip_item(slot='q', item_id=None):
+async def choose_item(item_id_choices=None, slot='q', item_id=None, x_pos=0, y_pos=8):
     """
-    items to be equipped are items in 
+    Takes a list of item_id values
+    Prints to some region of the screen:
+    Get stuck in a loop until a choice is made:
+    Returns an item_id
     """
-    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    with term.location(30, 1):
+        print(item_id_choices)
+    if item_id_choices == None:
+        item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    if len(item_id_choices) == 0:
+        state_dict['in_menu'] = False
+        return None
+    if len(item_id_choices) == 1:
+        state_dict['in_menu'] = False
+        return menu_id_choices[0]
+    menu_choices = [index for index, _ in enumerate(item_id_choices)]
+    state_dict['menu_choices'] = menu_choices
     state_dict['in_menu'] = True
+    await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
+    for (number, item) in enumerate(item_id_choices):
+        with term.location(x_pos, y_pos + number):
+            print("{}:".format(number))
+    while True:
+        await asyncio.sleep(.02)
+        menu_choice = state_dict['menu_choice']
+        if type(menu_choice) == str:
+            if menu_choice in [str(i) for i in range(10)]:
+                menu_choice = int(menu_choice)
+        if menu_choice in menu_choices:
+            await clear_screen_region(x_size=2, y_size=len(item_id_choices), 
+                                      screen_coord=(x_pos, y_pos))
+            state_dict['in_menu'] = False
+            state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
+            return menu_choice
     
 async def key_slot_checker(slot='q', frequency=.1):
     await asyncio.sleep(0)
@@ -770,9 +802,6 @@ async def key_slot_checker(slot='q', frequency=.1):
             #if it's equipped, display the icon.
             icon = item_dict[item_id].icon
             print_icon(x_coord=0, y_coord=20, icon_name=icon)
-
-async def print_icon(x_coord=0, y_coord=20, icon='wand'):
-
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -790,6 +819,11 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
             return
+        id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
+        with term.location(40, 0):
+            print("getting item {}".format(id_choice))
+        #await get_item(coords=coords, item_id=id_choice)
+        """
         menu_choices = [index for index, _ in enumerate(item_list)]
         state_dict['menu_choices'] = menu_choices
         state_dict['in_menu'] = True
@@ -798,7 +832,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             with term.location(x_pos, y_pos + number):
                 print("{}:".format(number))
         while True:
-            await asyncio.sleep(.1)
+            await asyncio.sleep(.02)
             menu_choice = state_dict['menu_choice']
             if type(menu_choice) == str:
                 if menu_choice in [str(i) for i in range(10)]:
@@ -810,6 +844,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
                 state_dict['in_menu'] = False
                 state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
                 break
+        """
 
 async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
