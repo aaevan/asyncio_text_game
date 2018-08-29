@@ -242,13 +242,6 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_dict[item_id] = Item(**item_catalog[instance_of])
     map_dict[coord].items[item_id] = True
 
-#async def item_slot(key='q', item_id=None):
-    #await asyncio.sleep(0)
-    #while True:
-        #if item in item_dict:
-            #item_dict[item]
-        #pass
-
 async def push(direction=None, pusher=None):
     """
     basic pushing behavior for single-tile actors.
@@ -690,7 +683,7 @@ async def handle_input(key):
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
-        if key in state_dict['menu_choices']:
+        if int(key) in state_dict['menu_choices']:
             state_dict['menu_choice'] = key
         else:
             state_dict['menu_choice'] = False
@@ -714,7 +707,7 @@ async def handle_input(key):
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'u':
-            asyncio.ensure_future(choose_item())
+            asyncio.ensure_future(equip_item())
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
@@ -755,15 +748,13 @@ async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
 
-async def choose_item(item_id_choices=None, slot='q', item_id=None, x_pos=0, y_pos=8):
+async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
     """
     Takes a list of item_id values
     Prints to some region of the screen:
     Get stuck in a loop until a choice is made:
     Returns an item_id
     """
-    with term.location(30, 1):
-        print(item_id_choices)
     if item_id_choices == None:
         item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     if len(item_id_choices) == 0:
@@ -790,18 +781,33 @@ async def choose_item(item_id_choices=None, slot='q', item_id=None, x_pos=0, y_p
                                       screen_coord=(x_pos, y_pos))
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-            return menu_choice
+            with term.location(30, 10):
+                print("chose: {}".format(item_id_choices[int(menu_choice)]))
+            return item_id_choices[int(menu_choice)]
     
 async def key_slot_checker(slot='q', frequency=.1):
+    """
+    make it possible to equip each number to an item
+    """
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(frequency)
         #the item's id name is stored in state_dict under the key's name.
-        equipped_item = state_dict["{}_slot".format(slot)]
-        if equipped_item:
+        equipped_item_id = state_dict["{}_slot".format(slot)]
+        if equipped_item_id:
             #if it's equipped, display the icon.
-            icon = item_dict[item_id].icon
-            print_icon(x_coord=0, y_coord=20, icon_name=icon)
+            item_name = item_dict[equipped_item_id].name
+            await print_icon(x_coord=0, y_coord=20, icon_name=item_name)
+
+async def equip_item(slot='q'):
+    """
+    each slot must also have a coroutine to use the item's abilities.
+    """
+    await asyncio.sleep(0)
+    item_id_choice = await choose_item()
+    state_dict["{}_slot".format(slot)] = item_id_choice
+    with term.location(30, 10):
+        print("equipped {} to slot {}".format(item_id_choice, slot))
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -820,9 +826,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             await get_item(coords=coords, item_id=item_list[0])
             return
         id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
-        with term.location(40, 0):
-            print("getting item {}".format(id_choice))
-        #await get_item(coords=coords, item_id=id_choice)
+        await get_item(coords=coords, item_id=id_choice)
         """
         menu_choices = [index for index, _ in enumerate(item_list)]
         state_dict['menu_choices'] = menu_choices
@@ -1487,7 +1491,9 @@ async def health_test():
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
 
+#DEBUG
 async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
+#async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -1503,17 +1509,28 @@ async def ui_tasks(loop):
     asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
     
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
+    """
+    prints an item's 3x3 icon representation. tiles are stored within this 
+    function.
+    """
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
     icons = {'wand':('┌───┐',
                      '│  *│', 
                      '│ / │',
                      '│/  │',
+                     '└───┘',),
+              'nut':('┌───┐',
+                     '│/ \│', 
+                     '│\_/│',
+                     '│\_/│',
                      '└───┘',),
             'empty':('┌───┐',
                      '│   │', 
                      '│   │',
                      '│   │',
                      '└───┘',),}
-    for (num, line) in enumerate(icons[icon]):
+    for (num, line) in enumerate(icons[icon_name]):
         with term.location(x_coord, y_coord + num):
             print(line)
 
@@ -1579,7 +1596,7 @@ def main():
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     loop.create_task(death_check())
-    loop.create_task(useful_debug_information())
+    loop.create_task(key_slot_checker())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
