@@ -771,8 +771,6 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
                                       screen_coord=(x_pos, y_pos))
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-            with term.location(30, 10):
-                print("chose: {}".format(item_id_choices[int(menu_choice)]))
             return item_id_choices[int(menu_choice)]
     
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
@@ -795,6 +793,8 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
             x_coord, y_coord = await offset_of_center(*print_location)
         else:
             x_coord, y_coord = print_location
+        with term.location(x_coord + 2, y_coord + 5):
+            print(slot)
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
 async def equip_item(slot='q'):
@@ -804,8 +804,11 @@ async def equip_item(slot='q'):
     await asyncio.sleep(0)
     item_id_choice = await choose_item()
     state_dict["{}_slot".format(slot)] = item_id_choice
-    with term.location(30, 10):
-        print("equipped {} to slot {}".format(item_id_choice, slot))
+    item_name = item_dict[item_id_choice].name
+    equip_message = "Equipped {} to slot {}.".format(item_id_choice, slot)
+    await filter_print(output_text=equip_message)
+    #with term.location(30, 10):
+        #print("equipped {} to slot {}".format(item_id_choice, slot))
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -1511,8 +1514,6 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
 async def ui_tasks(loop):
     await asyncio.sleep(0)
     asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
-    #asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
-    #asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
     loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     
