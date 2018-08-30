@@ -706,8 +706,10 @@ async def handle_input(key):
             asyncio.ensure_future(toggle_doors()),
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
-        if key in 'u':
-            asyncio.ensure_future(equip_item())
+        if key in 'Q':
+            asyncio.ensure_future(equip_item(slot='q'))
+        if key in 'E':
+            asyncio.ensure_future(equip_item(slot='e'))
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
@@ -729,18 +731,6 @@ async def handle_input(key):
     with term.location(0, 1):
         print("key is: {}".format(key))
     return x, y
-
-async def useful_debug_information():
-    while True:
-        await asyncio.sleep(.1)
-        with term.location(0, 35):
-            print("Useful debug information:")
-        with term.location(0, 36):
-            print("menu_choices: {}".format(state_dict['menu_choices']))
-        with term.location(0, 37):
-            print("in_menu: {}".format(state_dict['in_menu']))
-        with term.location(0, 38):
-            print("menu_choice:".format(state_dict['menu_choice']))
 
 async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
     await asyncio.sleep(0)
@@ -785,19 +775,27 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
                 print("chose: {}".format(item_id_choices[int(menu_choice)]))
             return item_id_choices[int(menu_choice)]
     
-async def key_slot_checker(slot='q', frequency=.1):
+async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
     make it possible to equip each number to an item
     """
     await asyncio.sleep(0)
+    slot_name = "{}_slot".format(slot)
+    state_dict[slot_name] = 'empty'
     while True:
         await asyncio.sleep(frequency)
         #the item's id name is stored in state_dict under the key's name.
         equipped_item_id = state_dict["{}_slot".format(slot)]
-        if equipped_item_id:
+        if equipped_item_id is not 'empty':
             #if it's equipped, display the icon.
             item_name = item_dict[equipped_item_id].name
-            await print_icon(x_coord=0, y_coord=20, icon_name=item_name)
+        else:
+            item_name = 'empty'
+        if centered:
+            x_coord, y_coord = await offset_of_center(*print_location)
+        else:
+            x_coord, y_coord = print_location
+        await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
 async def equip_item(slot='q'):
     """
@@ -1001,6 +999,14 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 last_printed = print_choice
         #distant tiles update slower than near tiles:
         await asyncio.sleep(distance * .015)
+
+async def offset_of_center(x_offset=0, y_offset=0):
+    await asyncio.sleep(0)
+    window_width, window_height = term.width, term.height
+    middle_x, middle_y = (int(window_width / 2 - 2), 
+                      int(window_height / 2 - 2),)
+    x_print, y_print = middle_x + x_offset, middle_y + y_offset
+    return x_print, y_print
 
 async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=30, y_margin=4):
     """
@@ -1505,8 +1511,10 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
 async def ui_tasks(loop):
     await asyncio.sleep(0)
     asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
-    asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
-    asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
+    #asyncio.ensure_future(ui_box_draw(x_margin=-30, y_margin=10, box_width=3, box_height=3, position="centered"))
+    #asyncio.ensure_future(ui_box_draw(x_margin=30, y_margin=10, box_width=3, box_height=3, position="centered"))
+    loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
@@ -1596,7 +1604,6 @@ def main():
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     loop.create_task(death_check())
-    loop.create_task(key_slot_checker())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
