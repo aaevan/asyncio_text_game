@@ -124,17 +124,24 @@ class Item:
         self.uses = uses
         self.tile = tile
         self.usable_power = usable_power
+        self.use_message = use_message
         self.broken = broken
+        self.broken_text = broken_text
+        self.power_kwargs = power_kwargs
 
     async def use(self):
-        if self.uses is not None and not self.broken:
-            await self.usable_power(**power_kwargs)
-            self.uses -= 1
-            filter_print(output_text=use_message)
-            if uses <= 0:
+        await asyncio.sleep(0)
+        if self.uses != None and not self.broken:
+            with term.location(40, 0):
+                print("using {}!".format(repr(self.usable_power)))
+            await self.usable_power(**self.power_kwargs)
+            if self.uses is not None:
+                self.uses -= 1
+            await filter_print(output_text=self.use_message)
+            if self.uses <= 0:
                 self.broken = True
         else:
-            filter_print(output_text="{}".format(self.name, broken_text))
+            await filter_print(output_text="{}".format(self.name, self.broken_text))
 
 """
 A mechanism for modular effects?
@@ -237,7 +244,12 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.blue('/'), 'usable_power':None},
                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
-                           'usable_power':None}}
+                           'usable_power':None},
+                    'shield wand':{'name':instance_of, 'spawn_coord':coord, 'tile':term.blue('/'),
+                                   'usable_power':None},
+                    'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                                 'tile':term.green('/'), 'usable_power':vine_grow}}
+
     # if instance_of in item_catalog:
     item_dict[item_id] = Item(**item_catalog[instance_of])
     map_dict[coord].items[item_id] = True
@@ -657,6 +669,14 @@ async def use_stairs(direction="down"):
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
 
+async def is_number(number="0"):
+    await asyncio.sleep(0)
+    try:
+        float(number)
+        return True
+    except ValueError:
+        return False
+
 async def handle_input(key):
     """
     interpret keycodes and do various actions.
@@ -683,13 +703,12 @@ async def handle_input(key):
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
-        if int(key) in state_dict['menu_choices']:
-            state_dict['menu_choice'] = key
+        if await is_number(key):
+            if int(key) in state_dict['menu_choices']:
+                state_dict['menu_choice'] = key
         else:
             state_dict['menu_choice'] = False
             state_dict['in_menu'] = False
-        # only gives one chance for correct input right now. fix?
-        # if key is w or s, scroll up or down the list accordingly.
     else:
         if key in directions:
             x_shift, y_shift = directions[key]
@@ -710,6 +729,9 @@ async def handle_input(key):
             asyncio.ensure_future(equip_item(slot='q'))
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
+        # TODO: use item in slot ___ as function
+        if key in 'u':
+            asyncio.ensure_future(use_chosen_item())
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
@@ -805,10 +827,17 @@ async def equip_item(slot='q'):
     item_id_choice = await choose_item()
     state_dict["{}_slot".format(slot)] = item_id_choice
     item_name = item_dict[item_id_choice].name
-    equip_message = "Equipped {} to slot {}.".format(item_id_choice, slot)
+    equip_message = "Equipped {} to slot {}.".format(item_name, slot)
     await filter_print(output_text=equip_message)
     #with term.location(30, 10):
         #print("equipped {} to slot {}".format(item_id_choice, slot))
+
+async def use_chosen_item():
+    await asyncio.sleep(0)
+    item_id_choice = await choose_item()
+    await item_dict[item_id_choice].use()
+    
+    #we have to create some items with usable powers.
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -1524,6 +1553,8 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
+    if 'wand' in icon_name:
+        icon_name = 'wand'
     icons = {'wand':('┌───┐',
                      '│  *│', 
                      '│ / │',
@@ -1600,6 +1631,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(display_items_at_coord())
