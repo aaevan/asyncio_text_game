@@ -141,7 +141,7 @@ class Item:
             if self.uses <= 0:
                 self.broken = True
         else:
-            await filter_print(output_text="{}".format(self.name, self.broken_text))
+            await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
 """
 A mechanism for modular effects?
@@ -241,14 +241,17 @@ async def multi_tile_pushable(core_coord=(0, 0), child_node_list=((-1, -1), (-1,
 
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
+    wand_broken_text = " is out of charges."
     item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.blue('/'), 'usable_power':None},
                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
                            'usable_power':None},
-                    'shield wand':{'name':instance_of, 'spawn_coord':coord, 'tile':term.blue('/'),
-                                   'usable_power':None},
+                    'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                                   'tile':term.blue('/'),
+                                   'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
                     'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                                 'tile':term.green('/'), 'usable_power':vine_grow}}
+                                 'tile':term.green('/'), 'usable_power':vine_grow, 
+                                 'power_kwargs':{'on_actor':'player'}, 'broken_text':wand_broken_text}}
 
     # if instance_of in item_catalog:
     item_dict[item_id] = Item(**item_catalog[instance_of])
@@ -729,6 +732,10 @@ async def handle_input(key):
             asyncio.ensure_future(equip_item(slot='q'))
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
+        if key in 'q':
+            asyncio.ensure_future(use_item_in_slot(slot='q'))
+        if key in 'e':
+            asyncio.ensure_future(use_item_in_slot(slot='e'))
         # TODO: use item in slot ___ as function
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
@@ -833,11 +840,15 @@ async def equip_item(slot='q'):
         #print("equipped {} to slot {}".format(item_id_choice, slot))
 
 async def use_chosen_item():
+    #TODO: use is broken when a single item is in the player's inventory.
     await asyncio.sleep(0)
     item_id_choice = await choose_item()
     await item_dict[item_id_choice].use()
     
-    #we have to create some items with usable powers.
+async def use_item_in_slot(slot="q"):
+    await asyncio.sleep(0)
+    item_id = state_dict["{}_slot".format(slot)]
+    await item_dict[item_id].use()
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -857,28 +868,6 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             return
         id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
         await get_item(coords=coords, item_id=id_choice)
-        """
-        menu_choices = [index for index, _ in enumerate(item_list)]
-        state_dict['menu_choices'] = menu_choices
-        state_dict['in_menu'] = True
-        await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
-        for (number, item) in enumerate(item_list):
-            with term.location(x_pos, y_pos + number):
-                print("{}:".format(number))
-        while True:
-            await asyncio.sleep(.02)
-            menu_choice = state_dict['menu_choice']
-            if type(menu_choice) == str:
-                if menu_choice in [str(i) for i in range(10)]:
-                    menu_choice = int(menu_choice)
-            if menu_choice in menu_choices:
-                await get_item(coords=coords, item_id=item_list[menu_choice])
-                await clear_screen_region(x_size=2, y_size=len(item_list), 
-                                          screen_coord=(x_pos, y_pos))
-                state_dict['in_menu'] = False
-                state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-                break
-        """
 
 async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
@@ -905,7 +894,7 @@ async def parse_announcement(tile_key):
         asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
 
 async def trigger_announcement(tile_key, player_coords=(0, 0)):
-    if map_dict[tile_key].announcing == True and map_dict[tile_key].seen == False:
+    if map_dict[tile_key].announcing and not map_dict[tile_key].seen:
         if map_dict[tile_key].distance_trigger:
             distance = await point_to_point_distance(tile_key, player_coords)
             if distance <= map_dict[tile_key].distance_trigger:
@@ -1181,7 +1170,7 @@ async def damage_door():
     pass
 
 async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(3, 8),
-                         tentacle_rate=.05, tentacle_colors="456"):
+                         tentacle_rate=.1, tentacle_colors="456"):
     """
     creates a (currently) stationary mass of random length and color tentacles
     move away while distance is far, move slowly towards when distance is near, radius = 20?
@@ -1189,6 +1178,9 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(tentacle_rate)
+        #asyncio.ensure_future(timed_actor(coords=start_coord))
+        if random() < .3:
+            start_coord = start_coord[0] + randint(-1, 1), start_coord[1] + randint(-1, 1)
         tentacle_color = int(choice(tentacle_colors))
         asyncio.ensure_future(vine_grow(start_x=start_coord[0], start_y=start_coord[1], actor_key="tentacle", 
                        rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
@@ -1212,7 +1204,6 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         open doors (slowly)
         push boxes
             takes speed**1.2 for each box stacked
-
     shrouded_horror is a core and a number of shroud pieces
     when it is first run, core is started as a coroutine (as an actor) as is each shroud_location
     """
@@ -1389,15 +1380,17 @@ async def toggle_doors():
             map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.1, vine_length=15, rounded=True,
+                    rate=.1, vine_length=20, rounded=True,
                     behavior="retract", speed=.01, damage=20,
                     extend_wait=.025, retract_wait=.25,
-                    color_num=2):
+                    color_num=2, on_actor=None):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
     TODO: vines can be pushed right now. Add immoveable property to actors. make vines immovable
     """
     await asyncio.sleep(rate)
+    if on_actor:
+        start_x, start_y = actor_dict[on_actor].coords()
     if not rounded:
         vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
                 (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
@@ -1491,6 +1484,10 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
                 print("{}".format(key_value))
 
 async def spawn_bubble(centered_on_actor='player', radius=6):
+    """
+    spawns a circle of animated timed actors that are impassable
+    rand_delay in timed_actor is for a fade-in/fade-out effect.
+    """
     coords = actor_dict[centered_on_actor].coords()
     await asyncio.sleep(0)
     bubble_id = str(datetime.time(datetime.now()))
@@ -1500,9 +1497,16 @@ async def spawn_bubble(centered_on_actor='player', radius=6):
     points_at_distance = {await point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
     for num, point in enumerate(points_at_distance):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
-        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point)))
+        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), rand_delay=.3))
 
-async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0)):
+async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0), rand_delay=0):
+    """
+    spawns an actor at given coords that disappears after a number of turns.
+    """
+    if name == 'timed_actor':
+        name = name + str(datetime.time(datetime.now()))
+    if rand_delay:
+        await asyncio.sleep(random() * rand_delay)
     actor_dict[name] = Actor(moveable=False, x_coord=coords[0], y_coord=coords[1], 
                              tile=str(death_clock), is_animated=True,
                              animation=Animation(preset='water'))
@@ -1620,8 +1624,8 @@ def main():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-    #loop.create_task(tentacled_mass())
-    #loop.create_task(tentacled_mass(start_coord=(9, 4)))
+    loop.create_task(tentacled_mass())
+    loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
@@ -1632,6 +1636,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
+    loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(display_items_at_coord())
