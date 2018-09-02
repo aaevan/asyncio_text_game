@@ -237,15 +237,15 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     wand_broken_text = " is out of charges."
     item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.blue('/'), 'usable_power':None},
-                    'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
-                           'usable_power':None},
-                    'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                                   'tile':term.blue('/'),
-                                   'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-                    'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                                 'tile':term.green('/'), 'usable_power':vine_grow, 
-                                 'power_kwargs':{'on_actor':'player'}, 'broken_text':wand_broken_text}}
-
+                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
+                            'usable_power':None},
+             'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.blue('/'), 'power_kwargs':{'radius':6},
+                            'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
+               'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.green('/'), 'usable_power':vine_grow, 
+                            'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
+                            'broken_text':wand_broken_text}}
     if instance_of in item_catalog:
         item_dict[item_id] = Item(**item_catalog[instance_of])
         map_dict[coord].items[item_id] = True
@@ -350,38 +350,6 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=7):
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
-
-async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
-    """
-    intended to be used for occlusion.
-    show the tile that the first collision happened at but not the following tile
-    TODO: doors are not visible
-    """
-    await asyncio.sleep(.01)
-    open_space, walls, history = 0, 0, []
-    points = await get_line(coord_a, coord_b)
-    change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
-    reference_point = coord_a[0], coord_a[1] + 5
-    for point in points:
-        # if there is a magic door between, start another check_line_of_sight of length remaining
-        if map_dict[point].magic == True:
-            last_point = points[-1]
-            difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
-            destination = map_dict[point].magic_destination
-            if difference_from_last is not (0, 0):
-                #TODO: fix x-ray vision problem past magic doors into solid wall
-                coord_through_door = (destination[0] + difference_from_last[0], destination[1] + difference_from_last[1])
-                return await check_contents_of_tile(coord_through_door)
-        if map_dict[point].blocking == False:
-            open_space += 1
-        else:
-            walls += 1
-        if walls > 1:
-            return False
-    if walls == 0:
-        return True
-    if map_dict[points[-1]].blocking == True and walls == 1:
-        return True
 
 async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30, 
                        pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0, blocking=False):
@@ -578,9 +546,9 @@ def map_init():
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
     passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
                 (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0)]
+    doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
-    doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
     for door in doors:
         draw_door(*door)
     write_description()
@@ -654,11 +622,14 @@ async def handle_input(key):
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
                   'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
-    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 'i':'n', 'j':'w', 'k':'s', 'l':'e'}
+    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
+                      'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
     fov = 100
     fuzz = 20
-    view_tuples = [(i - fov/2, i, j, j + fov/2) for i, j in [(360, 0), (90, 90), (180, 180), (270, 270)]]
+    #angles are given in a pair to resolve problems with the split at 360 and 0 degrees.
+    angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
+    view_tuples = [(i - fov/2, i, j, j + fov/2) for i, j in angle_pairs]
     view_angles = dict(zip(compass_directions, view_tuples))
     fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
     fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
@@ -695,7 +666,6 @@ async def handle_input(key):
             asyncio.ensure_future(use_item_in_slot(slot='q'))
         if key in 'e':
             asyncio.ensure_future(use_item_in_slot(slot='e'))
-        # TODO: use item in slot ___ as function
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'f':
@@ -778,7 +748,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
         return None
     if len(item_id_choices) == 1:
         state_dict['in_menu'] = False
-        return menu_id_choices[0]
+        return item_id_choices[0]
     menu_choices = [index for index, _ in enumerate(item_id_choices)]
     state_dict['menu_choices'] = menu_choices
     state_dict['in_menu'] = True
@@ -842,10 +812,20 @@ async def use_chosen_item():
     item_id_choice = await choose_item()
     await item_dict[item_id_choice].use()
     
-async def use_item_in_slot(slot="q"):
+async def use_item_in_slot(slot='q'):
     await asyncio.sleep(0)
-    item_id = state_dict["{}_slot".format(slot)]
-    await item_dict[item_id].use()
+    item_id = state_dict['{}_slot'.format(slot)]
+    if item_id is 'empty':
+        #await filter_print(output_text='Nothing is equipped to {}!'.format(slot))
+        pass
+    else:
+        if item_dict[item_id].power_kwargs:
+            await item_dict[item_id].use()
+        else:
+            #put custom null action here instead of 'Nothing happens.'
+            #as given for each item.
+            #TODO: conditional effects, say, being near a door.
+            await filter_print(output_text='Nothing happens.')
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -1022,6 +1002,38 @@ async def angle_checker(angle_from_twelve):
 #-------------------------------------------------------------------------------
 
 #UI/HUD functions---------------------------------------------------------------
+async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
+    """
+    intended to be used for occlusion.
+    show the tile that the first collision happened at but not the following tile
+    TODO: doors are not visible
+    """
+    await asyncio.sleep(.01)
+    open_space, walls, history = 0, 0, []
+    points = await get_line(coord_a, coord_b)
+    change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
+    reference_point = coord_a[0], coord_a[1] + 5
+    for point in points:
+        # if there is a magic door between, start another check_line_of_sight of length remaining
+        if map_dict[point].magic == True:
+            last_point = points[-1]
+            difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
+            destination = map_dict[point].magic_destination
+            if difference_from_last is not (0, 0):
+                #TODO: fix x-ray vision problem past magic doors into solid wall
+                coord_through_door = (destination[0] + difference_from_last[0], destination[1] + difference_from_last[1])
+                return await check_contents_of_tile(coord_through_door)
+        if map_dict[point].blocking == False:
+            open_space += 1
+        else:
+            walls += 1
+        if walls > 1:
+            return False
+    if walls == 0:
+        return True
+    if map_dict[points[-1]].blocking == True and walls == 1:
+        return True
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
@@ -1216,7 +1228,7 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     else:
         pass
 
-async def seek(current_coord=(0, 0), name_key=None, seek_key='player'):
+async def seek_actor(current_coord=(0, 0), name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
     x_current, y_current = current_coord
@@ -1260,6 +1272,11 @@ async def random_unicode(length=1, clean=True):
             if len(repr(a)) == 3:
                 print(a)
     return u"".join(random_unicodes)
+
+async def facing_dir_to_num(direction="n"):
+    await asyncio.sleep(0)
+    dir_to_num = {'n':1, 'e':2, 's':3, 'w':4}
+    return dir_to_num[direction]
 
 async def run_every_n(sec_interval=3, repeating_function=None, args=() ):
     while True:
@@ -1341,7 +1358,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             elif behavior_val > .6:
                 new_coord = await wander(*coord, shroud_name_key)
             else:
-                new_coord = await seek(current_coord=coord, name_key=shroud_name_key, 
+                new_coord = await seek_actor(current_coord=coord, name_key=shroud_name_key, 
                                        seek_key=core_name_key)
             map_dict[new_coord].actors[shroud_name_key] = True 
         #move the core
@@ -1360,7 +1377,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         elif core_behavior_val > .4:
             new_core_location = await wander(*core_location, core_name_key)
         else:
-            new_core_location = await seek(current_coord=core_location, 
+            new_core_location = await seek_actor(current_coord=core_location, 
                                            name_key=core_name_key, seek_key="player")
         map_dict[new_core_location].actors[core_name_key] = True
 
@@ -1468,7 +1485,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                     rate=.1, vine_length=20, rounded=True,
                     behavior="retract", speed=.01, damage=20,
                     extend_wait=.025, retract_wait=.25,
-                    color_num=2, on_actor=None):
+                    color_num=2, on_actor=None, start_facing=False):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
     TODO: vines can be pushed right now. Add immoveable property to actors. make vines immovable
@@ -1492,8 +1509,12 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     vine_id = str(datetime.time(datetime.now()))
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
-    for vine_name in vine_actor_names:
+    if start_facing:
+        facing_dir = state_dict['facing']
+        next_dir = await facing_dir_to_num(facing_dir)
+    else:
         next_dir = randint(1, 4)
+    for vine_name in vine_actor_names:
         while (prev_dir, next_dir) in exclusions:
             next_dir = randint(1, 4)
         next_tuple, vine_tile = (movement_tuples[next_dir], 
@@ -1504,6 +1525,9 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                       moveable=False)
         current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         prev_dir = next_dir
+        #next_dir is generated at the end of the for loop so it can be
+        #initialized to a given direction.
+        next_dir = randint(1, 4)
     for vine_name in vine_actor_names:
         await asyncio.sleep(extend_wait)
         map_tile = actor_dict[vine_name].tile
@@ -1599,19 +1623,19 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     loop.create_task(ui_setup(loop))
+    """
     for i in range(30):
         name = 'test_seeker_{}'.format(i)
         start_coord = (randint(-30, -15), randint(-30, -15))
-        speed = 1 + random()
-        loop.create_task(basic_actor(*start_coord, speed=speed, movement_function=seek, 
+        speed = .5 + random()/2
+        loop.create_task(basic_actor(*start_coord, speed=speed, movement_function=seek_actor, 
                                      tile="Ϩ", name_key=name, hurtful=True,
                                      is_animated=True, animation=Animation(preset="blob")))
-    #loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
-                                 #tile="Ϩ", name_key="test_seeker2", hurtful=True))
+                                     """
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
     loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
