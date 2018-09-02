@@ -13,6 +13,8 @@ from subprocess import call
 from time import sleep #hack to prevent further input/freeze screen on player death
 import os
 
+#Class definitions--------------------------------------------------------------
+
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile="▓", blocking=True, 
@@ -27,7 +29,8 @@ class Map_tile:
         contains_items is a set that lists item_ids which the player or
                 other actors may draw from.
         """
-        self.passable, self.tile, self.blocking, self.description = (passable, tile, blocking, description)
+        self.tile, self.passable, self.blocking = (tile, passable, blocking)
+        self.description = description
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
         self.distance_trigger = distance_trigger
         if not actors:
@@ -71,6 +74,13 @@ class Actor:
         if coord_move:
             self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
 
+    async def wander(self):
+        x_move, y_move = randint(-1, 1), randint(-1, 1)
+        next_position = (self.x_coord + x_move, self.y_coord + y_move)
+        if map_dict[next_position].passable:
+            actor_dict[name_key].move_by(coord_move=(x_move, y_move))
+        return next_position
+
 
 class Animation:
     def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
@@ -99,21 +109,14 @@ class Item:
     An item that can be used either by the player or various actors.
     An item:
         can be carried.
-            picked up when walked over as interim
-            picked up on menu then keyboard input to select.
+        can be picked up on keyboard input.
         have a representation on the ground
         when the player is over a tile with items, the items are displayed in a
-                window. A key can be pressed to view items.
+                window. 
         can be stored in a container (chests? pots? crates?)
             destructible crates/pots that strew debris around when broken(???)
         can be used (via its usable_power and given power_kwargs (for different
                 versions of the same item)
-        have a unique hidden representation and a separate description as seen
-                by the player
-        can have a limited number of uses
-        have a 3x3 tile representation.
-        can be assigned to a given number key
-        can use an alternate power given shift and the number (???)
     """
     def __init__(self, name='generic_item', spawn_coord=(0, 0), uses=None, 
                  tile='?', usable_power=None, power_kwargs={}, 
@@ -143,14 +146,8 @@ class Item:
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
-"""
-A mechanism for modular effects?
-number of particles,
-behavior of particles (stationary, wandering or seeking?)
-lifetime of particles
-secondary effects (on either map or player or other actors
-"""
 
+#Global state setup-------------------------------------------------------------
 term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
@@ -162,7 +159,7 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
 
-#Drawing functions---------------------------------------------------------------------------------
+#Drawing functions--------------------------------------------------------------
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
@@ -215,8 +212,8 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
             if distance_to_center <= radius:
                 actors = map_dict[(x, y)].actors
                 map_dict[(x, y)] = Map_tile(passable=True, tile=" ", blocking=False, 
-                                         description='an animation', is_animated=True,
-                                         animation=Animation(), actors=actors)
+                                            description='an animation', is_animated=True,
+                                            animation=Animation(), actors=actors)
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
@@ -235,10 +232,6 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     with term.location(55, 10):
         print(points_until_wall)
 
-async def multi_tile_pushable(core_coord=(0, 0), child_node_list=((-1, -1), (-1, 1), (1, 1), (1, -1))):
-    await asyncio.sleep(0)
-    pass
-
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
     wand_broken_text = " is out of charges."
@@ -253,9 +246,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
                                  'tile':term.green('/'), 'usable_power':vine_grow, 
                                  'power_kwargs':{'on_actor':'player'}, 'broken_text':wand_broken_text}}
 
-    # if instance_of in item_catalog:
-    item_dict[item_id] = Item(**item_catalog[instance_of])
-    map_dict[coord].items[item_id] = True
+    if instance_of in item_catalog:
+        item_dict[item_id] = Item(**item_catalog[instance_of])
+        map_dict[coord].items[item_id] = True
 
 async def push(direction=None, pusher=None):
     """
@@ -305,9 +298,6 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
                 actor_dict[actor].health -= 10
             if actor_dict[actor].health <= 0:
                 actor_dict[actor].alive = False
-                #del actor_dict[actor]
-                #del map_dict[segment_coord].actors[actor]
-                
         await asyncio.sleep(speed)
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -383,6 +373,7 @@ async def check_contents_of_tile(coord):
     else:
         return map_dict[coord].tile
 
+#Item interaction---------------------------------------------------------------
 async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
     last_coord = None
     item_list = ' '
@@ -650,9 +641,9 @@ def map_init():
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
     creates a one-time announcement at coord.
+    split announcement up into separate sequential pieces with pipes
+    pipes are parsed in view_tile
     """
-    #split announcement up into separate sequential pieces with pipes
-    #pipes are parsed in view_tile
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
@@ -679,6 +670,26 @@ async def is_number(number="0"):
         return True
     except ValueError:
         return False
+
+#Top level input----------------------------------------------------------------
+
+async def get_key(): 
+    """the closest thing I could get to non-blocking input"""
+    await asyncio.sleep(0)
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        tty.setcbreak(sys.stdin.fileno())
+        while True:
+            await asyncio.sleep(0)
+            if isData():
+                key = sys.stdin.read(1)
+                if key == 'x1b':  # x1b is ESC
+                    break
+                x, y = await handle_input(key)
+            else:
+                await asyncio.sleep(.01) 
+    finally: 
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
 async def handle_input(key):
     """
@@ -761,11 +772,50 @@ async def handle_input(key):
         print("key is: {}".format(key))
     return x, y
 
-async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
-    await asyncio.sleep(0)
-    for y in range(screen_coord[1], screen_coord[1] + y_size):
-        with term.location(screen_coord[0], y):
-            print(' ' * x_size)
+async def toggle_doors():
+    x, y = actor_dict['player'].coords()
+    door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
+    for door in door_dirs:
+        door_coord_tuple = (x + door[0], y + door[1])
+        door_state = map_dict[door_coord_tuple].tile 
+        if door_state == "▮":
+            map_dict[door_coord_tuple].tile = '▯'
+            map_dict[door_coord_tuple].passable = True
+            map_dict[door_coord_tuple].blocking = False
+        elif door_state == '▯':
+            map_dict[door_coord_tuple].tile = '▮'
+            map_dict[door_coord_tuple].passable = False
+            map_dict[door_coord_tuple].blocking = True
+
+#Item Interaction---------------------------------------------------------------
+
+async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
+    """
+    prints an item's 3x3 icon representation. tiles are stored within this 
+    function.
+    """
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    if 'wand' in icon_name:
+        icon_name = 'wand'
+    icons = {'wand':('┌───┐',
+                     '│  *│', 
+                     '│ / │',
+                     '│/  │',
+                     '└───┘',),
+              'nut':('┌───┐',
+                     '│/ \│', 
+                     '│\_/│',
+                     '│\_/│',
+                     '└───┘',),
+            'empty':('┌───┐',
+                     '│   │', 
+                     '│   │',
+                     '│   │',
+                     '└───┘',),}
+    for (num, line) in enumerate(icons[icon_name]):
+        with term.location(x_coord, y_coord + num):
+            print(line)
 
 async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
     """
@@ -880,12 +930,7 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     asyncio.ensure_future(filter_print(pickup_text))
     return True
 
-async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
-    """ finds 2d distance between two points """
-    await asyncio.sleep(0)
-    x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
-    distance = round(sqrt(x_run ** 2 + y_run ** 2))
-    return distance
+#Announcement/message handling--------------------------------------------------
 
 async def parse_announcement(tile_key):
     """ parses an annoucement, with a new printing after each pipe """
@@ -905,6 +950,15 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
             map_dict[tile_key].seen = True
     else:
         map_dict[tile_key].seen = True
+
+#Geometry functions-------------------------------------------------------------
+
+async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+    """ finds 2d distance between two points """
+    await asyncio.sleep(0)
+    x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
+    distance = round(sqrt(x_run ** 2 + y_run ** 2))
+    return distance
 
 async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     """
@@ -968,6 +1022,8 @@ async def angle_checker(angle_from_twelve):
         fuzzy = False
     return fuzzy, display
 
+#UI/HUD functions---------------------------------------------------------------
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
@@ -1029,6 +1085,12 @@ async def offset_of_center(x_offset=0, y_offset=0):
     x_print, y_print = middle_x + x_offset, middle_y + y_offset
     return x_print, y_print
 
+async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
+    await asyncio.sleep(0)
+    for y in range(screen_coord[1], screen_coord[1] + y_size):
+        with term.location(screen_coord[0], y):
+            print(' ' * x_size)
+
 async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=30, y_margin=4):
     """
     draws a box for UI elements
@@ -1084,23 +1146,48 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             break
         timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
 
-async def get_key(): 
-    """the closest thing I could get to non-blocking input"""
+async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
     await asyncio.sleep(0)
-    old_settings = termios.tcgetattr(sys.stdin)
-    try:
-        tty.setcbreak(sys.stdin.fileno())
-        while True:
-            await asyncio.sleep(0)
-            if isData():
-                key = sys.stdin.read(1)
-                if key == 'x1b':  # x1b is ESC
-                    break
-                x, y = await handle_input(key)
-            else:
-                await asyncio.sleep(.01) 
-    finally: 
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+    for x in range(-term_x_radius, term_x_radius + 1):
+       for y in range(-term_y_radius, term_y_radius + 1):
+           distance = sqrt(x**2 + y**2)
+           #cull view_tile instances that are beyond a certain radius
+           if distance < max_view_radius:
+               loop.create_task(view_tile(x_offset=x, y_offset=y))
+
+async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
+                  actor_name=None, attribute=None, title=None, bar=False, 
+                  bar_length=20, is_actor=True, is_state=False):
+    """listen to a specific key of state_dict """
+    await asyncio.sleep(0)
+    while True:
+        await asyncio.sleep(0)
+        if attribute == 'coords':
+            key_value = str((getattr(actor_dict[actor_name], 'x_coord'), getattr(actor_dict[actor_name], 'y_coord')))
+        else:
+            key_value = getattr(actor_dict[actor_name], attribute)
+        max_value = getattr(actor_dict[actor_name], "max_health")
+        if bar:
+            bar_filled = round((int(key_value)/max_value) * bar_length)
+            bar_unfilled = bar_length - bar_filled
+            bar_characters = "█" * bar_filled + "░" * bar_unfilled
+        if title:
+            with term.location(x_coord, y_coord):
+                if not bar:
+                    print("{}{}".format(title, key_value))
+                else:
+                    print("{}{}".format(title, term.red(bar_characters)))
+        else:
+            with term.location(x_coord, y_coord):
+                print("{}".format(key_value))
+
+async def ui_setup(loop):
+    await asyncio.sleep(0)
+    asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
+    loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
+
+#Actor behavior functions-------------------------------------------------------
 
 async def wander(x_current, y_current, name_key):
     """ 
@@ -1149,6 +1236,12 @@ async def seek(current_coord=(0, 0), name_key=None, seek_key='player'):
     actor_dict[name_key].update(active_x, active_y)
     return (active_x, active_y)
 
+async def damage_door():
+    """ allows actors to break down doors"""
+    pass
+
+#misc utility functions---------------------------------------------------------
+
 async def random_unicode(length=1, clean=True):
     """
     Create a list of unicode characters within the range 0000-D7FF
@@ -1165,9 +1258,22 @@ async def random_unicode(length=1, clean=True):
                 print(a)
     return u"".join(random_unicodes)
 
-async def damage_door():
-    """ allows actors to break down doors"""
-    pass
+async def run_every_n(sec_interval=3, repeating_function=None, args=() ):
+    while True:
+        await asyncio.sleep(sec_interval)
+        x, y = actor_dict['player'].coords()
+        asyncio.ensure_future(repeating_function(*args))
+
+async def track_actor_location(state_dict_key="player", actor_dict_key="player", update_speed=.1, length=10):
+    await asyncio.sleep(0)
+    actor_coords = None
+    while True:
+        await asyncio.sleep(update_speed)
+        actor_coords = actor_dict[actor_dict_key].coords()
+        state_dict[state_dict_key] = actor_coords
+
+
+#Actor creation and controllers----------------------------------------------
 
 async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(3, 8),
                          tentacle_rate=.1, tentacle_colors="456"):
@@ -1340,14 +1446,6 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
         map_dict[coords].actors[name_key] = name_key
         if not actor_dict[name_key].alive:
             await kill_actor(name_key=name_key)
-            #body_tile = term.red(actor_dict[name_key].tile)
-            #del actor_dict[name_key]
-            #del map_dict[coords].actors[name_key]
-            #await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
-                              #seeds=10, description="blood.")
-            #map_dict[coords].tile = body_tile
-            #map_dict[coords].description = "A body."
-            #TODO: make items carried drop onto tile.
             return
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
@@ -1363,21 +1461,6 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     return
-
-async def toggle_doors():
-    x, y = actor_dict['player'].coords()
-    door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
-    for door in door_dirs:
-        door_coord_tuple = (x + door[0], y + door[1])
-        door_state = map_dict[door_coord_tuple].tile 
-        if door_state == "▮":
-            map_dict[door_coord_tuple].tile = '▯'
-            map_dict[door_coord_tuple].passable = True
-            map_dict[door_coord_tuple].blocking = False
-        elif door_state == '▯':
-            map_dict[door_coord_tuple].tile = '▮'
-            map_dict[door_coord_tuple].passable = False
-            map_dict[door_coord_tuple].blocking = True
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
@@ -1436,53 +1519,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         await asyncio.sleep(end_wait)
         del map_dict[coord].actors[vine_name]
 
-async def run_every_n(sec_interval=3, repeating_function=vine_grow, args=() ):
-    while True:
-        await asyncio.sleep(sec_interval)
-        x, y = actor_dict['player'].coords()
-        asyncio.ensure_future(repeating_function(*args))
-
-async def sin_loop(state_dict_key="testsin", update_speed=.1, length=10):
-    await asyncio.sleep(0)
-    sins = [sin((pi/length) * i) for i in range(length * 2)]
-    for num in cycle(sins):
-        await asyncio.sleep(update_speed)
-        state_dict[state_dict_key] = num
-
-async def track_actor_location(state_dict_key="player", actor_dict_key="player", update_speed=.1, length=10):
-    await asyncio.sleep(0)
-    actor_coords = None
-    while True:
-        await asyncio.sleep(update_speed)
-        actor_coords = actor_dict[actor_dict_key].coords()
-        state_dict[state_dict_key] = actor_coords
-
-async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
-                  actor_name=None, attribute=None, title=None, bar=False, 
-                  bar_length=20, is_actor=True, is_state=False):
-    """listen to a specific key of state_dict """
-    await asyncio.sleep(0)
-    while True:
-        await asyncio.sleep(0)
-        if attribute == 'coords':
-            key_value = str((getattr(actor_dict[actor_name], 'x_coord'), getattr(actor_dict[actor_name], 'y_coord')))
-        else:
-            key_value = getattr(actor_dict[actor_name], attribute)
-        max_value = getattr(actor_dict[actor_name], "max_health")
-        if bar:
-            bar_filled = round((int(key_value)/max_value) * bar_length)
-            bar_unfilled = bar_length - bar_filled
-            bar_characters = "█" * bar_filled + "░" * bar_unfilled
-        if title:
-            with term.location(x_coord, y_coord):
-                if not bar:
-                    print("{}{}".format(title, key_value))
-                else:
-                    print("{}{}".format(title, term.red(bar_characters)))
-        else:
-            with term.location(x_coord, y_coord):
-                print("{}".format(key_value))
-
 async def spawn_bubble(centered_on_actor='player', radius=6):
     """
     spawns a circle of animated timed actors that are impassable
@@ -1523,60 +1559,11 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0), rand_del
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
-#timed actor that also wanders around?
-async def timed_wanderer(death_clock=5, name='spark', coords=(0, 0)):
-    pass
-
 async def health_test():
     while True:
         await asyncio.sleep(2)
         if state_dict["player_health"] < 100:
             state_dict["player_health"] += 1
-
-#DEBUG
-async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
-#async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
-    await asyncio.sleep(0)
-    for x in range(-term_x_radius, term_x_radius + 1):
-       for y in range(-term_y_radius, term_y_radius + 1):
-           distance = sqrt(x**2 + y**2)
-           #cull view_tile instances that are beyond a certain radius
-           if distance < max_view_radius:
-               loop.create_task(view_tile(x_offset=x, y_offset=y))
-
-async def ui_tasks(loop):
-    await asyncio.sleep(0)
-    asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
-    loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
-    
-async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
-    """
-    prints an item's 3x3 icon representation. tiles are stored within this 
-    function.
-    """
-    middle_x, middle_y = (int(term.width / 2 - 2), 
-                          int(term.height / 2 - 2),)
-    if 'wand' in icon_name:
-        icon_name = 'wand'
-    icons = {'wand':('┌───┐',
-                     '│  *│', 
-                     '│ / │',
-                     '│/  │',
-                     '└───┘',),
-              'nut':('┌───┐',
-                     '│/ \│', 
-                     '│\_/│',
-                     '│\_/│',
-                     '└───┘',),
-            'empty':('┌───┐',
-                     '│   │', 
-                     '│   │',
-                     '│   │',
-                     '└───┘',),}
-    for (num, line) in enumerate(icons[icon_name]):
-        with term.location(x_coord, y_coord + num):
-            print(line)
 
 async def death_check():
     await asyncio.sleep(0)
@@ -1614,7 +1601,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_tasks(loop))
+    loop.create_task(ui_setup(loop))
     #loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
                                  #tile="Ϩ", name_key="test_seeker1", hurtful=True,
                                  #is_animated=True, animation=Animation(preset="blob")))
