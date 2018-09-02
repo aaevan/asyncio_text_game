@@ -14,7 +14,6 @@ from time import sleep #hack to prevent further input/freeze screen on player de
 import os
 
 #Class definitions--------------------------------------------------------------
-
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile="▓", blocking=True, 
@@ -46,7 +45,7 @@ class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
-                 animation="", holding_items={}):
+                 animation="", holding_items={}, leaves_body=False):
         """ create a new actor at position x, y 
         actors hold a number of items that are either used or dropped upon death"""
         self.x_coord, self.y_coord, = (x_coord, y_coord)
@@ -59,6 +58,7 @@ class Actor:
         self.is_animated = is_animated
         self.animation = animation
         self.holding_items = holding_items
+        self.leaves_body = leaves_body
 
     def update(self, x, y):
         self.x_coord, self.y_coord = x, y
@@ -145,7 +145,7 @@ class Item:
                 self.broken = True
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
-
+#-------------------------------------------------------------------------------
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -158,9 +158,9 @@ map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
+#-------------------------------------------------------------------------------
 
 #Drawing functions--------------------------------------------------------------
-
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
     """ Draws a box at the given coordinates."""
@@ -305,58 +305,6 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
 
-async def get_line(start, end):
-    """Bresenham's Line Algorithm
-    Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
-    Produces a list of tuples from start and end
- 
-    >>> points1 = get_line((0, 0), (3, 4))
-    >>> points2 = get_line((3, 4), (0, 0))
-    >>> assert(set(points1) == set(points2))
-    >>> print(points1)
-    [(0, 0), (1, 1), (1, 2), (2, 3), (3, 4)]
-    >>> print(points2)
-    [(3, 4), (2, 3), (1, 2), (1, 1), (0, 0)]
-    """
-    await asyncio.sleep(0)
-    x1, y1 = start
-    # Setup initial conditions
-    x2, y2 = end
-    dx = x2 - x1
-    dy = y2 - y1
-    # Determine how steep the line is
-    is_steep = abs(dy) > abs(dx)
-    # Rotate line
-    if is_steep:
-        x1, y1 = y1, x1
-        x2, y2 = y2, x2
-    # Swap start and end points if necessary and store swap state
-    swapped = False
-    if x1 > x2:
-        x1, x2 = x2, x1
-        y1, y2 = y2, y1
-        swapped = True
-    # Recalculate differentials
-    dx = x2 - x1
-    dy = y2 - y1
-    # Calculate error
-    error = int(dx / 2.0)
-    ystep = 1 if y1 < y2 else -1
-    # Iterate over bounding box generating points between start and end
-    y = y1
-    points = []
-    for x in range(x1, x2 + 1):
-        coord = (y, x) if is_steep else (x, y)
-        points.append(coord)
-        error -= abs(dy)
-        if error < 0:
-            y += ystep
-            error += dx
-    # Reverse the list if the coordinates were swapped
-    if swapped:
-        points.reverse()
-    return points
-
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
         actor_name = next(iter(map_dict[coord].actors))
@@ -372,6 +320,7 @@ async def check_contents_of_tile(coord):
         return next(map_dict[coord].animation)
     else:
         return map_dict[coord].tile
+#-------------------------------------------------------------------------------
 
 #Item interaction---------------------------------------------------------------
 async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
@@ -672,7 +621,6 @@ async def is_number(number="0"):
         return False
 
 #Top level input----------------------------------------------------------------
-
 async def get_key(): 
     """the closest thing I could get to non-blocking input"""
     await asyncio.sleep(0)
@@ -788,7 +736,6 @@ async def toggle_doors():
             map_dict[door_coord_tuple].blocking = True
 
 #Item Interaction---------------------------------------------------------------
-
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
@@ -931,7 +878,6 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     return True
 
 #Announcement/message handling--------------------------------------------------
-
 async def parse_announcement(tile_key):
     """ parses an annoucement, with a new printing after each pipe """
     announcement_sequence = map_dict[tile_key].announcement.split("|")
@@ -950,15 +896,67 @@ async def trigger_announcement(tile_key, player_coords=(0, 0)):
             map_dict[tile_key].seen = True
     else:
         map_dict[tile_key].seen = True
+#-------------------------------------------------------------------------------
 
 #Geometry functions-------------------------------------------------------------
-
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
     await asyncio.sleep(0)
     x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
+
+async def get_line(start, end):
+    """Bresenham's Line Algorithm
+    Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
+    Produces a list of tuples from start and end
+ 
+    >>> points1 = get_line((0, 0), (3, 4))
+    >>> points2 = get_line((3, 4), (0, 0))
+    >>> assert(set(points1) == set(points2))
+    >>> print(points1)
+    [(0, 0), (1, 1), (1, 2), (2, 3), (3, 4)]
+    >>> print(points2)
+    [(3, 4), (2, 3), (1, 2), (1, 1), (0, 0)]
+    """
+    await asyncio.sleep(0)
+    x1, y1 = start
+    # Setup initial conditions
+    x2, y2 = end
+    dx = x2 - x1
+    dy = y2 - y1
+    # Determine how steep the line is
+    is_steep = abs(dy) > abs(dx)
+    # Rotate line
+    if is_steep:
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+    # Swap start and end points if necessary and store swap state
+    swapped = False
+    if x1 > x2:
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
+        swapped = True
+    # Recalculate differentials
+    dx = x2 - x1
+    dy = y2 - y1
+    # Calculate error
+    error = int(dx / 2.0)
+    ystep = 1 if y1 < y2 else -1
+    # Iterate over bounding box generating points between start and end
+    y = y1
+    points = []
+    for x in range(x1, x2 + 1):
+        coord = (y, x) if is_steep else (x, y)
+        points.append(coord)
+        error -= abs(dy)
+        if error < 0:
+            y += ystep
+            error += dx
+    # Reverse the list if the coordinates were swapped
+    if swapped:
+        points.reverse()
+    return points
 
 async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     """
@@ -1021,9 +1019,9 @@ async def angle_checker(angle_from_twelve):
     else:
         fuzzy = False
     return fuzzy, display
+#-------------------------------------------------------------------------------
 
 #UI/HUD functions---------------------------------------------------------------
-
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
@@ -1182,13 +1180,18 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
                 print("{}".format(key_value))
 
 async def ui_setup(loop):
+    """
+    lays out UI elements to the screen at the start of the program.
+    """
     await asyncio.sleep(0)
     asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
     loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
+#-------------------------------------------------------------------------------
 
 #Actor behavior functions-------------------------------------------------------
-
 async def wander(x_current, y_current, name_key):
     """ 
     randomly increments or decrements x_current and y_current
@@ -1239,9 +1242,9 @@ async def seek(current_coord=(0, 0), name_key=None, seek_key='player'):
 async def damage_door():
     """ allows actors to break down doors"""
     pass
+#-------------------------------------------------------------------------------
 
 #misc utility functions---------------------------------------------------------
-
 async def random_unicode(length=1, clean=True):
     """
     Create a list of unicode characters within the range 0000-D7FF
@@ -1271,10 +1274,9 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
         await asyncio.sleep(update_speed)
         actor_coords = actor_dict[actor_dict_key].coords()
         state_dict[state_dict_key] = actor_coords
-
+#-------------------------------------------------------------------------------
 
 #Actor creation and controllers----------------------------------------------
-
 async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(3, 8),
                          tentacle_rate=.1, tentacle_colors="456"):
     """
@@ -1558,12 +1560,7 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0), rand_del
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
-
-async def health_test():
-    while True:
-        await asyncio.sleep(2)
-        if state_dict["player_health"] < 100:
-            state_dict["player_health"] += 1
+#-------------------------------------------------------------------------------
 
 async def death_check():
     await asyncio.sleep(0)
@@ -1602,32 +1599,30 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     loop.create_task(ui_setup(loop))
-    #loop.create_task(basic_actor(*(7, 13), speed=.5, movement_function=seek, 
-                                 #tile="Ϩ", name_key="test_seeker1", hurtful=True,
-                                 #is_animated=True, animation=Animation(preset="blob")))
+    for i in range(30):
+        name = 'test_seeker_{}'.format(i)
+        start_coord = (randint(-30, -15), randint(-30, -15))
+        speed = 1 + random()
+        loop.create_task(basic_actor(*start_coord, speed=speed, movement_function=seek, 
+                                     tile="Ϩ", name_key=name, hurtful=True,
+                                     is_animated=True, animation=Animation(preset="blob")))
     #loop.create_task(basic_actor(*(35, 16), speed=.5, movement_function=seek, 
                                  #tile="Ϩ", name_key="test_seeker2", hurtful=True))
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(tentacled_mass())
     loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
-    loop.create_task(health_test())
-    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
-    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
-    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
-    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
-    loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    for i in range(5):
+        loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
     loop.create_task(death_check())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
