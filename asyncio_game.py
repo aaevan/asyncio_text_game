@@ -7,7 +7,7 @@ from blessings import Terminal
 from collections import defaultdict
 from datetime import datetime
 from random import randint, choice, random, shuffle
-from math import acos, cos, degrees, pi, sin, sqrt
+from math import acos, cos, degrees, pi, radians, sin, sqrt
 from itertools import cycle
 from subprocess import call
 from time import sleep #hack to prevent further input/freeze screen on player death
@@ -215,6 +215,9 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                                             description='an animation', is_animated=True,
                                             animation=Animation(), actors=actors)
 
+#-------------------------------------------------------------------------------
+
+#Actions------------------------------------------------------------------------
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
@@ -231,24 +234,6 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
         map_dict[point].tile = term.red(choice(palette))
     with term.location(55, 10):
         print(points_until_wall)
-
-async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
-    item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
-    wand_broken_text = " is out of charges."
-    item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.blue('/'), 'usable_power':None},
-                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
-                            'usable_power':None},
-             'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.blue('/'), 'power_kwargs':{'radius':6},
-                            'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-               'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.green('/'), 'usable_power':vine_grow, 
-                            'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
-                            'broken_text':wand_broken_text}}
-    if instance_of in item_catalog:
-        item_dict[item_id] = Item(**item_catalog[instance_of])
-        map_dict[coord].items[item_id] = True
 
 async def push(direction=None, pusher=None):
     """
@@ -305,24 +290,27 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
 
-async def check_contents_of_tile(coord):
-    if map_dict[coord].actors:
-        actor_name = next(iter(map_dict[coord].actors))
-        if actor_dict[actor_name].is_animated:
-            return next(actor_dict[actor_name].animation)
-        else:
-            return actor_dict[actor_name].tile
-    if map_dict[coord].items:
-        item_name = next(iter(map_dict[coord].items))
-        return item_dict[item_name].tile
-        return item_name
-    if map_dict[coord].is_animated:
-        return next(map_dict[coord].animation)
-    else:
-        return map_dict[coord].tile
 #-------------------------------------------------------------------------------
 
 #Item interaction---------------------------------------------------------------
+async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
+    item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
+    wand_broken_text = " is out of charges."
+    item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.blue('/'), 'usable_power':None},
+                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
+                            'usable_power':None},
+             'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.blue('/'), 'power_kwargs':{'radius':6},
+                            'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
+               'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+                            'tile':term.green('/'), 'usable_power':vine_grow, 
+                            'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
+                            'broken_text':wand_broken_text}}
+    if instance_of in item_catalog:
+        item_dict[item_id] = Item(**item_catalog[instance_of])
+        map_dict[coord].items[item_id] = True
+
 async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
     last_coord = None
     item_list = ' '
@@ -858,24 +846,24 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     return True
 
 #Announcement/message handling--------------------------------------------------
-async def parse_announcement(tile_key):
+async def parse_announcement(tile_coord_key):
     """ parses an annoucement, with a new printing after each pipe """
-    announcement_sequence = map_dict[tile_key].announcement.split("|")
+    announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for delay, line in enumerate(announcement_sequence):
         asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
 
-async def trigger_announcement(tile_key, player_coords=(0, 0)):
-    if map_dict[tile_key].announcing and not map_dict[tile_key].seen:
-        if map_dict[tile_key].distance_trigger:
-            distance = await point_to_point_distance(tile_key, player_coords)
-            if distance <= map_dict[tile_key].distance_trigger:
-                await parse_announcement(tile_key)
-                map_dict[tile_key].seen = True
+async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
+    if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
+        if map_dict[tile_coord_key].distance_trigger:
+            distance = await point_to_point_distance(tile_coord_key, player_coords)
+            if distance <= map_dict[tile_coord_key].distance_trigger:
+                await parse_announcement(tile_coord_key)
+                map_dict[tile_coord_key].seen = True
         else:
-            await parse_announcement(tile_key)
-            map_dict[tile_key].seen = True
+            await parse_announcement(tile_coord_key)
+            map_dict[tile_coord_key].seen = True
     else:
-        map_dict[tile_key].seen = True
+        map_dict[tile_coord_key].seen = True
 #-------------------------------------------------------------------------------
 
 #Geometry functions-------------------------------------------------------------
@@ -973,8 +961,8 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     """
     await asyncio.sleep(0)
     angle = 90 - angle_from_twelve
-    x = cos(angle) * radius
-    y = sin(angle) * radius
+    x = cos(radians(angle)) * radius
+    y = sin(radians(angle)) * radius
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
@@ -1006,7 +994,6 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
-    TODO: doors are not visible
     """
     await asyncio.sleep(.01)
     open_space, walls, history = 0, 0, []
@@ -1021,7 +1008,8 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
             destination = map_dict[point].magic_destination
             if difference_from_last is not (0, 0):
                 #TODO: fix x-ray vision problem past magic doors into solid wall
-                coord_through_door = (destination[0] + difference_from_last[0], destination[1] + difference_from_last[1])
+                coord_through_door = (destination[0] + difference_from_last[0], 
+                                      destination[1] + difference_from_last[1])
                 return await check_contents_of_tile(coord_through_door)
         if map_dict[point].blocking == False:
             open_space += 1
@@ -1061,12 +1049,12 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
             player_x, player_y = actor_dict['player'].coords()
             #add a line in here for different levels/dimensions:
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
-            tile_key = (x_display_coord, y_display_coord)
+            tile_coord_key = (x_display_coord, y_display_coord)
             if randint(0, round(distance)) < threshold:
-                line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_key)
+                line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
                 if line_of_sight_result == True:
-                    await trigger_announcement(tile_key, player_coords=(player_x, player_y))
-                    print_choice = await check_contents_of_tile(tile_key)
+                    await trigger_announcement(tile_coord_key, player_coords=(player_x, player_y))
+                    print_choice = await check_contents_of_tile(tile_coord_key)
                 elif line_of_sight_result != False and line_of_sight_result != None:
                     #catches tiles beyond magic doors:
                     print_choice = line_of_sight_result
@@ -1086,6 +1074,22 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 last_printed = print_choice
         #distant tiles update slower than near tiles:
         await asyncio.sleep(distance * .015)
+
+async def check_contents_of_tile(coord):
+    if map_dict[coord].actors:
+        actor_name = next(iter(map_dict[coord].actors))
+        if actor_dict[actor_name].is_animated:
+            return next(actor_dict[actor_name].animation)
+        else:
+            return actor_dict[actor_name].tile
+    if map_dict[coord].items:
+        item_name = next(iter(map_dict[coord].items))
+        return item_dict[item_name].tile
+        return item_name
+    if map_dict[coord].is_animated:
+        return next(map_dict[coord].animation)
+    else:
+        return map_dict[coord].tile
 
 async def offset_of_center(x_offset=0, y_offset=0):
     await asyncio.sleep(0)
@@ -1431,11 +1435,11 @@ async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="
         counter = 0
         for name_key, coord in zip(segment_names, segment_locations):
             actor_dict[(name_key)].update(coord)
-            segment_tile_key = (movement_history[counter], movement_history[counter - 1])
-            if segment_tile_key == (0, -1):
+            segment_tile_coord_key = (movement_history[counter], movement_history[counter - 1])
+            if segment_tile_coord_key == (0, -1):
                 actor_dict[(name_key)].tile = '1'
             else:
-                actor_dict[(name_key)].tile = snake_segments[segment_tile_key]
+                actor_dict[(name_key)].tile = snake_segments[segment_tile_coord_key]
             map_dict[coord].actors[name_key] = name_key
             counter += 1
 
@@ -1561,7 +1565,8 @@ async def spawn_bubble(centered_on_actor='player', radius=6):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
         asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), rand_delay=.3))
 
-async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0), rand_delay=0):
+async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
+                      rand_delay=0, solid=True):
     """
     spawns an actor at given coords that disappears after a number of turns.
     """
@@ -1577,13 +1582,44 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0), rand_del
     #map_tiles should register a default state to return to or have multiple properties (is_wall)
     #or perhaps check for actors that are solid?
     prev_passable_state = map_dict[coords].passable
-    map_dict[coords].passable = False
+    if solid:
+        map_dict[coords].passable = False
     while death_clock >= 1:
         await asyncio.sleep(1)
         death_clock -= 1
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
+
+async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0), 
+                rand_speed=True):
+    """
+    generates an actor that orbits about a point
+    TODO:
+    """
+    await asyncio.sleep(0)
+    angle = randint(0, 360)
+    particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    actor_dict[particle_id] = Actor(x_coord=on_center[0], y_coord=on_center[1], 
+                                    tile='X', moveable=False, is_animated=True,
+                                    animation=Animation(preset='water'))
+    map_dict[on_center].actors[particle_id] = True
+    point_coord = actor_dict[particle_id].coords()
+    if rand_speed:
+        speed_multiplier = 1 + (random()/2 - .25)
+    else:
+        speed_multiplier = 1
+    last_location = None
+    while True:
+        await asyncio.sleep(0.005 * speed_multiplier)
+        del map_dict[point_coord].actors[particle_id]
+        point_coord = await point_at_distance_and_angle(radius=radius, central_point=on_center, angle_from_twelve=angle)
+        if point_coord != last_location:
+            actor_dict[particle_id].update(*point_coord)
+            last_location = actor_dict[particle_id].coords()
+        map_dict[last_location].actors[particle_id] = True
+        angle = (angle + degrees_per_step) % 360
+
 #-------------------------------------------------------------------------------
 
 async def death_check():
@@ -1636,8 +1672,8 @@ def main():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-    loop.create_task(tentacled_mass())
-    loop.create_task(tentacled_mass(start_coord=(9, 4)))
+    #loop.create_task(tentacled_mass())
+    #loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
@@ -1648,6 +1684,8 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
+    for i in range(50):
+        loop.create_task(orbit(radius=5))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
