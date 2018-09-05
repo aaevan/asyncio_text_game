@@ -86,8 +86,9 @@ class Animation:
     def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
         presets = {"fire":{"animation":"^∧", "behavior":"random", "color_choices":"3331"},
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
-                   "grass":{"animation":("▒"*20 + "▓"), "behavior":"random", "color_choices":("2")},
-                   "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},}
+                   "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
+                   "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
+                   "noise":{"animation":("▒" + ' ' * 1), "behavior":"random", "color_choices":"0"}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -784,18 +785,17 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
 async def equip_item(slot='q'):
     """
     each slot must also have a coroutine to use the item's abilities.
+    #TODO: fix bug with zero items in inventory.
     """
     await asyncio.sleep(0)
+    slot_name = "{}_slot".format(slot)
     item_id_choice = await choose_item()
-    state_dict["{}_slot".format(slot)] = item_id_choice
+    state_dict[slot_name] = item_id_choice
     item_name = item_dict[item_id_choice].name
     equip_message = "Equipped {} to slot {}.".format(item_name, slot)
     await filter_print(output_text=equip_message)
-    #with term.location(30, 10):
-        #print("equipped {} to slot {}".format(item_id_choice, slot))
 
 async def use_chosen_item():
-    #TODO: use is broken when a single item is in the player's inventory.
     await asyncio.sleep(0)
     item_id_choice = await choose_item()
     await item_dict[item_id_choice].use()
@@ -804,7 +804,6 @@ async def use_item_in_slot(slot='q'):
     await asyncio.sleep(0)
     item_id = state_dict['{}_slot'.format(slot)]
     if item_id is 'empty':
-        #await filter_print(output_text='Nothing is equipped to {}!'.format(slot))
         pass
     else:
         if item_dict[item_id].power_kwargs:
@@ -1591,11 +1590,15 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
-async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0), 
-                rand_speed=True):
+async def orbit(name='particle', radius=3, degrees_per_step=1, on_center=(0, 0), 
+                rand_speed=False, track_actor=None, 
+                sin_radius=False, sin_radius_amplitude=4):
     """
     generates an actor that orbits about a point
-    TODO:
+    TODO: radius that oscillates over time
+    TODO: particles that shoot out from an origin
+    TODO: particles that converge on an origin
+    TODO: particles that follow an arbitrary path
     """
     await asyncio.sleep(0)
     angle = randint(0, 360)
@@ -1605,13 +1608,21 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
                                     animation=Animation(preset='water'))
     map_dict[on_center].actors[particle_id] = True
     point_coord = actor_dict[particle_id].coords()
+    original_radius = radius
+    if sin_radius:
+        # a generator expression for each value in 360.
+        sin_cycle = ((sin(radians(i)) * sin_radius_amplitude) + original_radius for i in cycle(range(360)))
     if rand_speed:
         speed_multiplier = 1 + (random()/2 - .25)
     else:
         speed_multiplier = 1
     last_location = None
     while True:
+        if sin_radius:
+            radius = next(sin_cycle)
         await asyncio.sleep(0.005 * speed_multiplier)
+        if track_actor:
+            on_center = actor_dict['player'].coords()
         del map_dict[point_coord].actors[particle_id]
         point_coord = await point_at_distance_and_angle(radius=radius, central_point=on_center, angle_from_twelve=angle)
         if point_coord != last_location:
@@ -1684,8 +1695,8 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    for i in range(50):
-        loop.create_task(orbit(radius=5))
+    for i in range(30):
+        loop.create_task(orbit(radius=5, sin_radius=True))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 

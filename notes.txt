@@ -1,3 +1,15 @@
+particle effects:
+an explosion is a number of particles at random speeds and angles starting at an origin.
+particles are either in one location or leave a trail of actors that disappear after a number of timesteps.
+The actor itself has a different name than its motion blur/particle trail.
+
+TODO:
+a function to trace an actor along a line segment
+a function to trace an arc of given radius from one point to another. arc can be a small section of a larger circle.
+
+pseudo-3d:
+something that travels in an arc, appearing at a higher tile than what it would cast a shadow to from a directly overhead light.
+
 implement box pushing, heaviness is how many turns it takes to move the object. 2x2 boxes?
 
 add tracking of last direction of movement
