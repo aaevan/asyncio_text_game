@@ -1590,6 +1590,22 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
+async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10)):
+    asyncio.sleep(0)
+    points = await get_line(start_coord, end_coord)
+    particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    actor_dict[particle_id] = Actor(x_coord=start_coord[0], y_coord=start_coord[1], 
+                                    tile='X', moveable=False, is_animated=True,
+                                    animation=Animation(preset='water'))
+    map_dict[start_coord].actors[particle_id] = True
+    for point in points:
+        await asyncio.sleep(0.1)
+        del map_dict[point].actors[particle_id]
+        if point_coord != last_location:
+            actor_dict[particle_id].update(*point_coord)
+            last_location = actor_dict[particle_id].coords()
+
+
 async def orbit(name='particle', radius=3, degrees_per_step=1, on_center=(0, 0), 
                 rand_speed=False, track_actor=None, 
                 sin_radius=False, sin_radius_amplitude=4):
@@ -1684,7 +1700,6 @@ def main():
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    #loop.create_task(tentacled_mass(start_coord=(9, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
