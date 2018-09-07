@@ -1595,16 +1595,38 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
     points = await get_line(start_coord, end_coord)
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
     actor_dict[particle_id] = Actor(x_coord=start_coord[0], y_coord=start_coord[1], 
-                                    tile='X', moveable=False, is_animated=True,
-                                    animation=Animation(preset='water'))
+                                    tile='X', moveable=False)
     map_dict[start_coord].actors[particle_id] = True
+    last_location = points[0]
     for point in points:
-        await asyncio.sleep(0.1)
-        del map_dict[point].actors[particle_id]
-        if point_coord != last_location:
-            actor_dict[particle_id].update(*point_coord)
-            last_location = actor_dict[particle_id].coords()
+        await asyncio.sleep(.07)
+        if particle_id in map_dict[last_location].actors:
+            del map_dict[last_location].actors[particle_id]
+        map_dict[point].actors[particle_id] = True
+        actor_dict[particle_id].update(*point)
+        last_location = actor_dict[particle_id].coords()
+    del map_dict[last_location].actors[particle_id]
+    del actor_dict[particle_id]
 
+async def radial_fountain(anchor_actor='player', frequency=.1, radius=10, deathclock=100):
+    await asyncio.sleep(0)
+    while True:
+        await asyncio.sleep(frequency)
+        rand_angle = randint(0, 360)
+        actor_location = actor_dict[anchor_actor].coords()
+        reference = (actor_location[0], actor_location[1] + 5)
+        point = await point_at_distance_and_angle(angle_from_twelve=rand_angle, 
+                                                  central_point=actor_location,
+                                                  reference_point=reference, 
+                                                  radius=radius)
+        with term.location(0, 20):
+            print("point is: {}, angle is: {}".format(point, rand_angle))
+        asyncio.ensure_future(travel_along_line(start_coord=actor_location, 
+                                                end_coord=point))
+        if deathclock:
+            deathclock -= 1
+            if deathclock <= 0:
+                break
 
 async def orbit(name='particle', radius=3, degrees_per_step=1, on_center=(0, 0), 
                 rand_speed=False, track_actor=None, 
@@ -1710,8 +1732,10 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    for i in range(30):
-        loop.create_task(orbit(radius=5, sin_radius=True))
+    loop.create_task(travel_along_line())
+    loop.create_task(radial_fountain())
+    #for i in range(30):
+        #loop.create_task(orbit(radius=5, sin_radius=True))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
