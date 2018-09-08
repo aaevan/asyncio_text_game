@@ -43,11 +43,12 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
+    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
                  animation="", holding_items={}, leaves_body=False):
         """ create a new actor at position x, y 
         actors hold a number of items that are either used or dropped upon death"""
+        self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
@@ -61,7 +62,11 @@ class Actor:
         self.leaves_body = leaves_body
 
     def update(self, x, y):
+        #TODO: patch in names to every actor that has been defined.
+        if self.name in map_dict[self.coords()].actors:
+            del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
+        map_dict[self.coords()].actors[self.name] = True
 
     def coords(self):
         return (self.x_coord, self.y_coord)
@@ -73,14 +78,6 @@ class Actor:
             self.y_coord = self.y_coord + y_move
         if coord_move:
             self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
-
-    async def wander(self):
-        x_move, y_move = randint(-1, 1), randint(-1, 1)
-        next_position = (self.x_coord + x_move, self.y_coord + y_move)
-        if map_dict[next_position].passable:
-            actor_dict[name_key].move_by(coord_move=(x_move, y_move))
-        return next_position
-
 
 class Animation:
     def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
@@ -154,7 +151,7 @@ map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(tile=term.red("@"), health=100)
+actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100)
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
@@ -258,9 +255,7 @@ async def push(direction=None, pusher=None):
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = (pushed_coords[0] + chosen_dir[0], pushed_coords[1] + chosen_dir[1])
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
-            del map_dict[destination_coords].actors[pushed_name]
             actor_dict[pushed_name].update(*pushed_destination)
-            map_dict[pushed_destination].actors[pushed_name] = True
 
 async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
     """extends and retracts a line of characters
@@ -277,8 +272,8 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) for i in range(length)]
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
-        actor_dict[segment_name] = Actor(tile=term.red(chosen_dir[2]))
-        map_dict[segment_coord].actors[segment_name] = True
+        actor_dict[segment_name] = Actor(name=segment_name, tile=term.red(chosen_dir[2]))
+        #map_dict[segment_coord].actors[segment_name] = True
         for actor in map_dict[segment_coord].actors:
             if actor_dict[actor].health >= 0:
                 actor_dict[actor].health -= 10
@@ -513,10 +508,10 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
         if player_coords == start_coord and not just_teleported:
             asyncio.ensure_future(filter_print(output_text="You are teleported."))
             map_dict[player_coords].passable=True
-            del map_dict[player_coords].actors['player']
+            #del map_dict[player_coords].actors['player']
             actor_dict['player'].update(*end_coord)
             x, y = actor_dict['player'].coords()
-            map_dict[(x, y)].actors['player'] = True
+            #map_dict[(x, y)].actors['player'] = True
             actor_dict['player'].just_teleported = True
 
 async def create_magic_door_pair(loop=None, door_a_coords=(5, 5), door_b_coords=(-25, -25)):
@@ -528,7 +523,7 @@ def map_init():
     draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    actor_dict['box'] = Actor(x_coord=5, y_coord=5, tile='☐')
+    actor_dict['box'] = Actor(name='box', x_coord=5, y_coord=5, tile='☐')
     map_dict[(7, 7)].actors['box'] = True
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
@@ -668,11 +663,11 @@ async def handle_input(key):
             asyncio.ensure_future(radial_fountain())
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             map_dict[(x, y)].passable = True #make previous space passable
-            del map_dict[(x, y)].actors['player']
+            #del map_dict[(x, y)].actors['player']
             actor_dict['player'].update(x + x_shift, y + y_shift)
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
-            map_dict[(x, y)].actors['player'] = True
+            #map_dict[(x, y)].actors['player'] = True
         if key in "ijkl":
             state_dict['facing'] = key_to_compass[key]
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
@@ -1218,8 +1213,7 @@ async def wander(x_current, y_current, name_key):
     x_move, y_move = randint(-1, 1), randint(-1, 1)
     next_position = (x_current + x_move, y_current + y_move)
     if map_dict[next_position].passable:
-        actor_dict[name_key].move_by(coord_move=(x_move, y_move))
-    return next_position
+        return next_position
 
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
     await asyncio.sleep(0)
@@ -1233,28 +1227,35 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     else:
         pass
 
-async def seek_actor(current_coord=(0, 0), name_key=None, seek_key='player'):
+async def seek_actor(name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
     await asyncio.sleep(0)
-    x_current, y_current = current_coord
+    x_current, y_current = actor_dict[name_key].coords()
     target_x, target_y = actor_dict[seek_key].coords()
     active_x, active_y = x_current, y_current
+    next_x, next_y = x_current, y_current
     diff_x, diff_y = (active_x - target_x), (active_y - target_y)
     hurtful = actor_dict[name_key].hurtful
     player_x, player_y = actor_dict["player"].coords()
     player_x_diff, player_y_diff = (active_x - player_x), (active_y - player_y)
     if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         await attack(attacker_key=name_key, defender_key="player")
-    if diff_x > 0 and map_dict[(active_x - 1, active_y)].passable:
-        active_x -= 1
-    if diff_x < 0 and map_dict[(active_x + 1, active_y)].passable:
-        active_x += 1
-    if diff_y > 0 and map_dict[(active_x, active_y - 1)].passable:
-        active_y -= 1
-    if diff_y < 0 and map_dict[(active_x, active_y + 1)].passable:
-        active_y += 1
-    actor_dict[name_key].update(active_x, active_y)
-    return (active_x, active_y)
+    if diff_x > 0:
+        next_x = active_x - 1
+    elif diff_x < 0:
+        next_x = active_x + 1
+    if diff_y > 0: 
+        next_y = active_y - 1
+    elif diff_y < 0:
+        next_y = active_y + 1
+    if map_dict[(next_x, next_y)].passable:
+        with term.location(30, 0):
+            print("returning {}".format((next_x, next_y)))
+        return (next_x, next_y)
+    else:
+        with term.location(30, 0):
+            print("returning {}".format((x_current, y_current)))
+        return (x_current, y_current)
 
 async def damage_door():
     """ allows actors to break down doors"""
@@ -1340,109 +1341,64 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     await asyncio.sleep(0)
     #initialize all shroud tiles to starting coordinates:
     core_location = (start_x, start_y)
-    actor_dict[core_name_key] = Actor(x_coord=core_location[0], y_coord=core_location[1], tile=" ")
-    map_dict[core_location].actors[core_name_key] = True
+    actor_dict[core_name_key] = Actor(name=core_name_key, moveable=False, tile=' ')
+    actor_dict[core_name_key].update(*core_location)
     shroud_locations = [(start_x, start_y)] * shroud_pieces
     #initialize segment actors:
     shroud_piece_names = []
     for number, shroud_coord in enumerate(shroud_locations):
         shroud_piece_names.append("{}_piece_{}".format(core_name_key, number))
     for number, name in enumerate(shroud_piece_names):
-        actor_dict[name] = Actor(x_coord=start_x, y_coord=start_y, tile=' ')
+        actor_dict[name] = Actor(name=name, moveable=False, x_coord=start_x, y_coord=start_y, tile=' ')
     wait = 0
     while True:
         await asyncio.sleep(speed)
         for offset, shroud_name_key in enumerate(shroud_piece_names):
             #deleting instance of the shroud pieces from the map_dict's actor list:
-            coord = actor_dict[shroud_name_key].coords()
-            if shroud_name_key in map_dict[coord].actors:
-                del map_dict[coord].actors[shroud_name_key]
-            behavior_val = random()
-            if behavior_val < .2:
-                new_coord = coord
-            elif behavior_val > .6:
-                new_coord = await wander(*coord, shroud_name_key)
-            else:
-                new_coord = await seek_actor(current_coord=coord, name_key=shroud_name_key, 
-                                       seek_key=core_name_key)
-            map_dict[new_coord].actors[shroud_name_key] = True 
-        #move the core
-        #TODO: wrap actor movement and deletion of old location into a function.
+            new_coord = await choose_shroud_move(shroud_name_key=shroud_name_key,
+                                                 core_name_key=core_name_key)
+            if new_coord:
+                actor_dict[shroud_name_key].update(*new_coord)
         core_location = actor_dict[core_name_key].coords()
-        if core_name_key in map_dict[core_location].actors:
-            del map_dict[core_location].actors[core_name_key]
-        core_behavior_val = random()
         if wait > 0:
             wait -= 1
             pass 
-        elif core_behavior_val < .05:
-            new_core_location = core_location
-            asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
-            wait = 20
-        elif core_behavior_val > .4:
-            new_core_location = await wander(*core_location, core_name_key)
         else:
-            new_core_location = await seek_actor(current_coord=core_location, 
-                                           name_key=core_name_key, seek_key="player")
-        map_dict[new_core_location].actors[core_name_key] = True
+            new_core_location = await choose_core_move(core_name_key=core_name_key)
+        if new_core_location:
+            actor_dict[core_name_key].update(*new_core_location)
 
-async def snake(start_x=0, start_y=0, speed=.05, head="0", length=10, name_key="snake"):
+async def choose_core_move(core_name_key=''):
     """
-    the head is always index 0, followed by the rest of the list for each segment.
-    when the head moves to a new cell, the next segment in line takes it's coordinates.
-    still broken. perhaps not worth fixing.
+    breaks out random movement of core into separate function
     """
     await asyncio.sleep(0)
-    #initialize segment locations all to starting coordinates:
-    segment_locations = [(start_x, start_y)] * length
-    rand_direction = randint(1, 4)
-    snake_segments = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
-                      (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', 
-                      (4, 2):'0', (2, 4):'0', (1, 3):'0', (3, 1):'0'}
-    new_x, new_y = 0, 0 
-    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
-    movement_history = [1] * length * 2
-    #initialize segment actors:
-    segment_names = []
-    for number, segment_coord in enumerate(segment_locations):
-        segment_names.append("{}_seg_{}".format(name_key, number))
-        actor_dict[(segment_names[-1])] = Actor(x_coord=segment_coord[0], y_coord=segment_coord[1])
-    print(segment_names)
-    while True:
-        await asyncio.sleep(speed)
-        #deleting all traces of the snake segments from the map_dict's actor list:
-        for name_key, coord in zip(segment_names, segment_locations):
-            if name_key in map_dict[coord].actors:
-                del map_dict[coord].actors[name_key]
-        segment_locations.pop()
-        #creating a new head location that doesn't overlap with existing segments:
-        fail_count = 0
-        while (new_x, new_y) in segment_locations or map_dict[(new_x, new_y)].passable == False:
-            rand_direction = randint(1, 4)
-            rand_direction_tuple = movement_tuples[rand_direction]
-            new_x, new_y = (segment_locations[0][0] + rand_direction_tuple[0],
-                            segment_locations[0][1] + rand_direction_tuple[1],)
-            #an easy but ugly fix for the snake dead-ending.
-            #a better fix would be for it to switch directions
-            if map_dict[(new_x, new_y)].passable == False:
-                fail_count += 1
-            if fail_count > 5:
-                new_x, new_y = start_x, start_y
-        movement_history.pop()
-        movement_history.insert(0, rand_direction)
-        new_head_coord = (new_x, new_y)
-        segment_locations.insert(0, new_head_coord)
-        #write the new locations of each segment to the map_dict's tiles' actor lists
-        counter = 0
-        for name_key, coord in zip(segment_names, segment_locations):
-            actor_dict[(name_key)].update(coord)
-            segment_tile_coord_key = (movement_history[counter], movement_history[counter - 1])
-            if segment_tile_coord_key == (0, -1):
-                actor_dict[(name_key)].tile = '1'
-            else:
-                actor_dict[(name_key)].tile = snake_segments[segment_tile_coord_key]
-            map_dict[coord].actors[name_key] = name_key
-            counter += 1
+    core_behavior_val = random()
+    core_location = actor_dict[core_name_key].coords()
+    if core_behavior_val < .05:
+        new_core_location = actor_dict[core_name_key].coords()
+        asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
+        wait = 20
+    elif core_behavior_val > .4:
+        new_core_location = await wander(*core_location, core_name_key)
+    else:
+        new_core_location = await seek_actor(name_key=core_name_key, seek_key="player")
+    return new_core_location
+
+async def choose_shroud_move(shroud_name_key='', core_name_key=''):
+    """
+    breaks out random movement of core into separate function
+    """
+    await asyncio.sleep(0)
+    coord = actor_dict[shroud_name_key].coords()
+    behavior_val = random()
+    if behavior_val < .2:
+        new_shroud_location = coord
+    elif behavior_val > .6:
+        new_shroud_location = await wander(*coord, shroud_name_key)
+    else:
+        new_shroud_location = await seek_actor(name_key=shroud_name_key, seek_key=core_name_key)
+    return new_shroud_location
 
 async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
@@ -1456,18 +1412,19 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
     die
     exist for a set number of turns
     """
-    #TODO: separate actor creation and behavior into separate functions?
-    actor_dict[(name_key)] = Actor(x_coord=start_x, y_coord=start_y, speed=speed, 
+    actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, speed=speed, 
                                    tile=tile, hurtful=hurtful, leaves_body=True,
                                    is_animated=is_animated, animation=animation)
     coords = actor_dict[name_key].coords()
     while True:
         await asyncio.sleep(speed)
+        next_coords = await movement_function(name_key=name_key)
         current_coords = actor_dict[name_key].coords() #checked again here because actors can be pushed around
-        if name_key in map_dict[current_coords].actors:
-            del map_dict[current_coords].actors[name_key]
-        coords = await movement_function(current_coord=current_coords, name_key=name_key)
-        map_dict[coords].actors[name_key] = name_key
+        if current_coords != next_coords:
+            if name_key in map_dict[current_coords].actors:
+                del map_dict[current_coords].actors[name_key]
+            map_dict[next_coords].actors[name_key] = True
+            actor_dict[name_key].update(*next_coords)
         if not actor_dict[name_key].alive:
             await kill_actor(name_key=name_key)
             return
@@ -1524,7 +1481,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
             next_dir = randint(1, 4)
         next_tuple, vine_tile = (movement_tuples[next_dir], 
                                  vine_picks[(prev_dir, next_dir)])
-        actor_dict[vine_name] = Actor(x_coord=current_coord[0],
+        actor_dict[vine_name] = Actor(name=vine_name, x_coord=current_coord[0],
                                       y_coord=current_coord[1],
                                       tile=term.color(color_num)(vine_tile),
                                       moveable=False)
@@ -1575,7 +1532,7 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
         name = name + str(datetime.time(datetime.now()))
     if rand_delay:
         await asyncio.sleep(random() * rand_delay)
-    actor_dict[name] = Actor(moveable=False, x_coord=coords[0], y_coord=coords[1], 
+    actor_dict[name] = Actor(name=name, moveable=False, x_coord=coords[0], y_coord=coords[1], 
                              tile=str(death_clock), is_animated=True,
                              animation=Animation(preset='water'))
     map_dict[coords].actors[name] = True
@@ -1600,7 +1557,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
     if animation:
         is_animated = True
-    actor_dict[particle_id] = Actor(x_coord=start_coord[0], y_coord=start_coord[1], 
+    actor_dict[particle_id] = Actor(name=particle_id, x_coord=start_coord[0], y_coord=start_coord[1], 
                                     tile='X', moveable=False, is_animated=is_animated,
                                     animation=animation)
     map_dict[start_coord].actors[particle_id] = True
@@ -1677,7 +1634,7 @@ async def orbit(name='particle', radius=6, degrees_per_step=1, on_center=(0, 0),
     await asyncio.sleep(0)
     angle = randint(0, 360)
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
-    actor_dict[particle_id] = Actor(x_coord=on_center[0], y_coord=on_center[1], 
+    actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
                                     tile='X', moveable=False, is_animated=True,
                                     animation=Animation(preset='water'))
     map_dict[on_center].actors[particle_id] = True
@@ -1744,19 +1701,17 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     loop.create_task(ui_setup(loop))
-    """
-    for i in range(30):
+    for i in range(1):
         name = 'test_seeker_{}'.format(i)
-        start_coord = (randint(-30, -15), randint(-30, -15))
+        start_coord = (-20, -20)
         speed = .5 + random()/2
         loop.create_task(basic_actor(*start_coord, speed=speed, movement_function=seek_actor, 
                                      tile="Ϩ", name_key=name, hurtful=True,
                                      is_animated=True, animation=Animation(preset="blob")))
-                                     """
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
@@ -1768,10 +1723,10 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    loop.create_task(travel_along_line())
-    loop.create_task(radial_fountain())
-    for i in range(30):
-        loop.create_task(orbit(radius=5, sin_radius=True))
+    #loop.create_task(travel_along_line())
+    #loop.create_task(radial_fountain())
+    #for i in range(30):
+        #loop.create_task(orbit(radius=5, sin_radius=True))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
