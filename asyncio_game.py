@@ -664,6 +664,8 @@ async def handle_input(key):
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
+        if key in 'B':
+            asyncio.ensure_future(radial_fountain())
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             map_dict[(x, y)].passable = True #make previous space passable
             del map_dict[(x, y)].actors['player']
@@ -1590,52 +1592,86 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
-async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10)):
+async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
+                            speed=.05, animation=Animation(preset='fire'),
+                            debris=".,'`\""):
     asyncio.sleep(0)
     points = await get_line(start_coord, end_coord)
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    if animation:
+        is_animated = True
     actor_dict[particle_id] = Actor(x_coord=start_coord[0], y_coord=start_coord[1], 
-                                    tile='X', moveable=False)
+                                    tile='X', moveable=False, is_animated=is_animated,
+                                    animation=animation)
     map_dict[start_coord].actors[particle_id] = True
     last_location = points[0]
     for point in points:
-        await asyncio.sleep(.07)
+        await asyncio.sleep(speed)
         if particle_id in map_dict[last_location].actors:
             del map_dict[last_location].actors[particle_id]
         map_dict[point].actors[particle_id] = True
         actor_dict[particle_id].update(*point)
         last_location = actor_dict[particle_id].coords()
+    if debris:
+        if random() > .8:
+            map_dict[last_location].tile = choice(debris)
+            map_dict[last_location].description = "Debris."
     del map_dict[last_location].actors[particle_id]
     del actor_dict[particle_id]
 
-async def radial_fountain(anchor_actor='player', frequency=.1, radius=10, deathclock=100):
+async def radial_fountain(anchor_actor='player', angle_range=(0, 360), 
+                          frequency=.01, radius=(10, 30), speed=(1, 7), 
+                          collapse=True, debris=None, deathclock=100,
+                          animation=Animation(preset='water')):
+    """
+    creates a number of short lived actors that move towards or away from a
+    given actor, depending on collapse.
+
+    speed determines the rate at which particles will travel.
+
+    frequency determines the rate at which new temporary actors are spawned.
+
+    Debris is both palette and switch for whether the tile where the actor ends
+    will be changed.
+
+    Deathclock decides how long the fountain lasts.
+
+    angle_range, radius and speed are given in the range that will be passed
+    to randint. Speed is divided by 100 so that randint can be used easily.
+
+    angle_range can be defined as a cone (example: (45, 135)) for a cone shaped 
+    effect.
+    """
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(frequency)
-        rand_angle = randint(0, 360)
+        rand_angle = randint(*angle_range)
         actor_location = actor_dict[anchor_actor].coords()
         reference = (actor_location[0], actor_location[1] + 5)
+        rand_radius = randint(*radius)
+        rand_speed = randint(*speed) / 100
         point = await point_at_distance_and_angle(angle_from_twelve=rand_angle, 
                                                   central_point=actor_location,
                                                   reference_point=reference, 
-                                                  radius=radius)
-        with term.location(0, 20):
-            print("point is: {}, angle is: {}".format(point, rand_angle))
-        asyncio.ensure_future(travel_along_line(start_coord=actor_location, 
-                                                end_coord=point))
+                                                  radius=rand_radius)
+        if collapse:
+            start_coord, end_coord = point, actor_location
+        else:
+            start_coord, end_coord = actor_location, point
+        asyncio.ensure_future(travel_along_line(start_coord=start_coord, 
+                                                end_coord=end_coord,
+                                                debris=debris,
+                                                animation=animation))
         if deathclock:
             deathclock -= 1
             if deathclock <= 0:
                 break
 
-async def orbit(name='particle', radius=3, degrees_per_step=1, on_center=(0, 0), 
+async def orbit(name='particle', radius=6, degrees_per_step=1, on_center=(0, 0), 
                 rand_speed=False, track_actor=None, 
-                sin_radius=False, sin_radius_amplitude=4):
+                sin_radius=False, sin_radius_amplitude=3):
     """
     generates an actor that orbits about a point
-    TODO: radius that oscillates over time
-    TODO: particles that shoot out from an origin
-    TODO: particles that converge on an origin
     TODO: particles that follow an arbitrary path
     """
     await asyncio.sleep(0)
@@ -1734,8 +1770,8 @@ def main():
     loop.create_task(death_check())
     loop.create_task(travel_along_line())
     loop.create_task(radial_fountain())
-    #for i in range(30):
-        #loop.create_task(orbit(radius=5, sin_radius=True))
+    for i in range(30):
+        loop.create_task(orbit(radius=5, sin_radius=True))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
