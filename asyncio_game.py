@@ -85,7 +85,7 @@ class Animation:
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
                    "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
-                   "noise":{"animation":("▒" + ' ' * 1), "behavior":"random", "color_choices":"0"}}
+                   "noise":{"animation":("  █▓▒" + ' ' * 1), "behavior":"random", "color_choices":"1"}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -211,7 +211,7 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                 actors = map_dict[(x, y)].actors
                 map_dict[(x, y)] = Map_tile(passable=True, tile=" ", blocking=False, 
                                             description='an animation', is_animated=True,
-                                            animation=Animation(), actors=actors)
+                                            animation=Animation(preset='noise'), actors=actors)
 
 #-------------------------------------------------------------------------------
 
@@ -285,6 +285,27 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
+
+async def flashy_teleport(destination=(0, 0), actor='player'):
+    """
+    does a flash animation of drawing in particles then teleports the player
+        to a given location.
+    uses radial_fountain in collapse mode for the effect
+    upon arrival, a random nova of particles is released (also using 
+        radial_fountain but in reverse
+    TODO: figure out settings for
+    """
+    await asyncio.sleep(.25)
+    if map_dict[destination].passable:
+        await radial_fountain(deathclock=75, radius=(5, 18))
+        await asyncio.sleep(.2)
+        actor_dict[actor].update(1000, 1000)
+        await asyncio.sleep(.8)
+        actor_dict[actor].update(*destination)
+        await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
+                              deathclock=30, speed=(1, 1))
+    else:
+        await filter_print(output_text="Something is in the way.")
 
 #-------------------------------------------------------------------------------
 
@@ -604,8 +625,9 @@ async def handle_input(key):
     """
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
-    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1), 
-                  'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
+    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
+                  #'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
+    hops = {'A':(-15, 0), 'D':(15, 0), 'W':(0, -15), 'S':(0, 15),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
@@ -632,6 +654,11 @@ async def handle_input(key):
             if key in 'wasd':
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
+        if key in hops:
+            player_coords = actor_dict['player'].coords()
+            destination = (player_coords[0] + hops[key][0], 
+                           player_coords[1] + hops[key][1])
+            await flashy_teleport(destination=destination)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
@@ -1165,6 +1192,28 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
+async def async_map_init(loop=None):
+    """
+    a map function that makes two different features, one with a normal small
+    number coordinate and the other with an unreachably large number.
+    
+    a map that generates as the player gets close to its existing nodes
+
+    when a node is approached, spawn a new chunk while still out of sight
+
+    The player can teleport between the two areas with an item and they are set
+    up 1 to 1 with one another with differences between the two areas.
+
+    One is barren except for a few very scary monsters? 
+    """
+    #scary nightmare land
+    await draw_circle(center_coord=(1000, 1000), radius=50)
+    for _ in range(10):
+        x, y = randint(-18, 18), randint(-18, 18)
+        loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
+
+
+
 async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
                   actor_name=None, attribute=None, title=None, bar=False, 
                   bar_length=20, is_actor=True, is_state=False):
@@ -1523,6 +1572,16 @@ async def spawn_bubble(centered_on_actor='player', radius=6):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
         asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), rand_delay=.3))
 
+async def points_at_distance(radius=5, central_point=(0, 0)):
+    every_five = [i * 5 for i in range(72)]
+    points = []
+    for angle in every_five:
+        point = await point_at_distance_and_angle(radius=radius, 
+                                                  central_point=player_coords, 
+                                                  angle_from_twelve=angle)
+        points.append(point)
+    return set(points)
+
 async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
                       rand_delay=0, solid=True):
     """
@@ -1641,7 +1700,7 @@ async def orbit(name='particle', radius=6, degrees_per_step=1, on_center=(0, 0),
     point_coord = actor_dict[particle_id].coords()
     original_radius = radius
     if sin_radius:
-        # a generator expression for each value in 360.
+        # a cyclical generator expression for each value in 360.
         sin_cycle = ((sin(radians(i)) * sin_radius_amplitude) + original_radius for i in cycle(range(360)))
     if rand_speed:
         speed_multiplier = 1 + (random()/2 - .25)
@@ -1711,6 +1770,7 @@ def main():
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
+    loop.create_task(async_map_init(loop=loop))
     loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
     loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
