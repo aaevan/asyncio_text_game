@@ -63,10 +63,13 @@ class Actor:
 
     def update(self, x, y):
         #TODO: patch in names to every actor that has been defined.
+        if not map_dict[self.coords()].passable:
+            map_dict[self.coords()].passable = True
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
         map_dict[self.coords()].actors[self.name] = True
+        map_dict[self.coords()].passable = False
 
     def coords(self):
         return (self.x_coord, self.y_coord)
@@ -85,7 +88,8 @@ class Animation:
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
                    "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
-                   "noise":{"animation":("  █▓▒" + ' ' * 1), "behavior":"random", "color_choices":"1"}}
+                   "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
+                   "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -156,6 +160,7 @@ map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
+state_dict['plane'] = 'normal'
 #-------------------------------------------------------------------------------
 
 #Drawing functions--------------------------------------------------------------
@@ -313,6 +318,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
     wand_broken_text = " is out of charges."
+    shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
     item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.blue('/'), 'usable_power':None},
                      'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
@@ -320,6 +326,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
              'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
+            'shift amulet':{'name':instance_of, 'spawn_coord':coord, 'uses':1000,
+                            'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
+                            'usable_power':pass_between, 'broken_text':"Something went wrong."},
                'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
                             'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
@@ -660,6 +669,8 @@ async def handle_input(key):
                            player_coords[1] + hops[key][1])
             await flashy_teleport(destination=destination)
         shifted_x, shifted_y = x + x_shift, y + y_shift
+        if key in '3':
+            asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
         if key in 'Ee':
@@ -737,6 +748,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│/ \│', 
                      '│\_/│',
                      '│\_/│',
+                     '└───┘',),
+     'shift amulet':('┌───┐',
+                     '│╭─╮│', 
+                     '││ ││',
+                     '│╰ʘ╯│',
                      '└───┘',),
             'empty':('┌───┐',
                      '│   │', 
@@ -1211,7 +1227,28 @@ async def async_map_init(loop=None):
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
+    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
 
+async def pass_between(x_offset, y_offset, plane_name='nightmare'):
+    """
+    shift from default area to alternate area and vice versa.
+    """
+    await asyncio.sleep(0)
+    player_x, player_y = actor_dict['player'].coords()
+    if state_dict['plane'] == 'normal':
+        destination, plane = (player_x + x_offset, player_y + y_offset), plane_name
+    elif state_dict['plane'] == plane_name:
+        destination, plane = (player_x - x_offset, player_y - y_offset), 'normal'
+    else:
+        return False
+    if map_dict[destination].passable:
+        actor_dict['player'].update(*destination)
+        state_dict['plane'] = plane
+    else:
+        await filter_print(output_text="Something is in the way.")
 
 
 async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
@@ -1298,12 +1335,8 @@ async def seek_actor(name_key=None, seek_key='player'):
     elif diff_y < 0:
         next_y = active_y + 1
     if map_dict[(next_x, next_y)].passable:
-        with term.location(30, 0):
-            print("returning {}".format((next_x, next_y)))
         return (next_x, next_y)
     else:
-        with term.location(30, 0):
-            print("returning {}".format((x_current, y_current)))
         return (x_current, y_current)
 
 async def damage_door():
@@ -1771,15 +1804,13 @@ def main():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(async_map_init(loop=loop))
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     for i in range(5):
         loop.create_task(spawn_item_at_coords(coord=(5, 5)))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
+    loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
