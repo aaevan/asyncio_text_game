@@ -295,7 +295,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     does a flash animation of drawing in particles then teleports the player
         to a given location.
-    uses radial_fountain in collapse mode for the effect
+    uses 2adial_fountain in collapse mode for the effect
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     TODO: figure out settings for
@@ -640,7 +640,7 @@ async def handle_input(key):
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
-    fov = 100
+    fov = 120
     fuzz = 20
     #angles are given in a pair to resolve problems with the split at 360 and 0 degrees.
     angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
@@ -825,7 +825,6 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
 async def equip_item(slot='q'):
     """
     each slot must also have a coroutine to use the item's abilities.
-    #TODO: fix bug with zero items in inventory.
     """
     await asyncio.sleep(0)
     slot_name = "{}_slot".format(slot)
@@ -851,7 +850,6 @@ async def use_item_in_slot(slot='q'):
         else:
             #put custom null action here instead of 'Nothing happens.'
             #as given for each item.
-            #TODO: conditional effects, say, being near a door.
             await filter_print(output_text='Nothing happens.')
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
@@ -1046,10 +1044,19 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
             difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
             destination = map_dict[point].magic_destination
             if difference_from_last is not (0, 0):
-                #TODO: fix x-ray vision problem past magic doors into solid wall
                 coord_through_door = (destination[0] + difference_from_last[0], 
                                       destination[1] + difference_from_last[1])
-                return await check_contents_of_tile(coord_through_door)
+                door_points = await get_line(destination, coord_through_door)
+                if len(door_points) >= 2:
+                    line_of_sight_result = await check_line_of_sight(door_points[1], coord_through_door)
+                else:
+                    line_of_sight_result = True
+                if line_of_sight_result != False and line_of_sight_result != None:
+                    #catches tiles beyond magic doors:
+                    return coord_through_door
+                else:
+                    return line_of_sight_result
+                #return await check_contents_of_tile(coord_through_door)
         if map_dict[point].blocking == False:
             open_space += 1
         else:
@@ -1084,14 +1091,17 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
         fuzzy, display = await angle_checker(angle_from_twelve)
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.red('@')
-        elif display or fuzzy:
+        #elif display or fuzzy:
+        elif display:
             player_x, player_y = actor_dict['player'].coords()
             #add a line in here for different levels/dimensions:
             x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
             tile_coord_key = (x_display_coord, y_display_coord)
             if randint(0, round(distance)) < threshold:
                 line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
-                if line_of_sight_result == True:
+                if type(line_of_sight_result) is tuple: #
+                    print_choice = await check_contents_of_tile(line_of_sight_result) #
+                elif line_of_sight_result == True:
                     await trigger_announcement(tile_coord_key, player_coords=(player_x, player_y))
                     print_choice = await check_contents_of_tile(tile_coord_key)
                 elif line_of_sight_result != False and line_of_sight_result != None:
