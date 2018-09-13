@@ -1376,11 +1376,11 @@ async def facing_dir_to_num(direction="n"):
     dir_to_num = {'n':1, 'e':2, 's':3, 'w':4}
     return dir_to_num[direction]
 
-async def run_every_n(sec_interval=3, repeating_function=None, args=() ):
+async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
     while True:
         await asyncio.sleep(sec_interval)
         x, y = actor_dict['player'].coords()
-        asyncio.ensure_future(repeating_function(*args))
+        asyncio.ensure_future(repeating_function(**kwargs))
 
 async def track_actor_location(state_dict_key="player", actor_dict_key="player", update_speed=.1, length=10):
     await asyncio.sleep(0)
@@ -1771,16 +1771,29 @@ async def death_check():
     player_health = actor_dict["player"].health
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    message = "You have died."
+    death_message = "You have died."
     while True:
         await asyncio.sleep(0)
         player_health = actor_dict["player"].health
         if player_health <= 0:
-            await filter_print(output_text=message, x_coord=(middle_x - round(len(message)/2)), 
+            await filter_print(output_text=death_message, x_coord=(middle_x - round(len(death_message)/2)), 
                                y_coord=middle_y, blocking=True)
             sleep(30000)
             await kill_all_tasks()
 
+async def environment_check(rate=.1):
+    """
+    checks actors that share a space with the player and applies status effects
+    and/or damage over time for obstacle-type actors such as tentacles from 
+    vine_grow().
+    """
+    await asyncio.sleep(0)
+    while actor_dict['player'].health >= 0:
+        await asyncio.sleep(rate)
+        player_coords = actor_dict['player'].coords
+        with term.location(40, 0):
+            print(len(map_dict[player_coords].actors))
+#
 async def kill_all_tasks():
     await asyncio.sleep(0)
     pending = asyncio.Task.all_tasks()
@@ -1824,6 +1837,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
+    loop.create_task(environment_check())
     #loop.create_task(travel_along_line())
     #loop.create_task(radial_fountain())
     #for i in range(30):
