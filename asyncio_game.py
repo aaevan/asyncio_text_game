@@ -262,6 +262,17 @@ async def push(direction=None, pusher=None):
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(*pushed_destination)
 
+async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', offset=(-1,-1), alive=True):
+    await asyncio.sleep(refresh_speed)
+    follower_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    actor_dict[follower_id] = Actor(name=follower_id, tile="%")
+    while alive:
+        await asyncio.sleep(refresh_speed)
+        parent_coords = actor_dict[parent_actor].coords()
+        follow_x, follow_y = (parent_coords[0] + offset[0], 
+                              parent_coords[1] + offset[1])
+        actor_dict[follower_id].update(follow_x, follow_y)
+
 async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
     """extends and retracts a line of characters
     TODO: implement damage dealt to other actors
@@ -1788,11 +1799,13 @@ async def environment_check(rate=.1):
     vine_grow().
     """
     await asyncio.sleep(0)
-    while actor_dict['player'].health >= 0:
-        await asyncio.sleep(rate)
-        player_coords = actor_dict['player'].coords
-        with term.location(40, 0):
-            print(len(map_dict[player_coords].actors))
+    pass
+    #next(iter(map_dict[player_coords].actors))
+    #while actor_dict['player'].health >= 0:
+        #await asyncio.sleep(rate)
+        #player_coords = actor_dict['player'].coords
+        #with term.location(40, 0):
+            #print([i for i in map_dict[player_coords].actors])
 #
 async def kill_all_tasks():
     await asyncio.sleep(0)
@@ -1837,11 +1850,11 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    loop.create_task(environment_check())
     #loop.create_task(travel_along_line())
     #loop.create_task(radial_fountain())
-    #for i in range(30):
-        #loop.create_task(orbit(radius=5, sin_radius=True))
+    loop.create_task(follower_actor(parent_actor="player", offset=(-5, -1)))
+    loop.create_task(follower_actor(parent_actor="player", offset=(-5, 0)))
+    loop.create_task(follower_actor(parent_actor="player", offset=(-5, 1)))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
