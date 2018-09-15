@@ -63,13 +63,13 @@ class Actor:
 
     def update(self, x, y):
         #TODO: patch in names to every actor that has been defined.
-        if not map_dict[self.coords()].passable:
-            map_dict[self.coords()].passable = True
+        #if not map_dict[self.coords()].passable:
+            #map_dict[self.coords()].passable = True
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
         map_dict[self.coords()].actors[self.name] = True
-        map_dict[self.coords()].passable = False
+        #map_dict[self.coords()].passable = False
 
     def coords(self):
         return (self.x_coord, self.y_coord)
@@ -89,7 +89,8 @@ class Animation:
                    "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
                    "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
-                   "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"}}
+                   "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"},
+                   "none":{"animation":(" "), "behavior":"random", "color_choices":"1"}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -262,16 +263,35 @@ async def push(direction=None, pusher=None):
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(*pushed_destination)
 
-async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', offset=(-1,-1), alive=True):
+async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
+                         offset=(-1,-1), alive=True):
     await asyncio.sleep(refresh_speed)
     follower_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
-    actor_dict[follower_id] = Actor(name=follower_id, tile="%")
+    actor_dict[follower_id] = Actor(name=follower_id, tile=" ")
     while alive:
         await asyncio.sleep(refresh_speed)
         parent_coords = actor_dict[parent_actor].coords()
         follow_x, follow_y = (parent_coords[0] + offset[0], 
                               parent_coords[1] + offset[1])
         actor_dict[follower_id].update(follow_x, follow_y)
+
+async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4, loop=None):
+    actor_id = await generate_id(base_name=name)
+    loop.create_task(basic_actor(*start_coord, speed=3, movement_function=seek_actor, 
+                                 tile=" ", name_key=actor_id, hurtful=True,
+                                 is_animated=True, animation=Animation(preset="none")))
+    await asyncio.sleep(0)
+    range_tuple = (-circle_size, circle_size + 1)
+    for x in range(*range_tuple):
+        for y in range(*range_tuple):
+            distance_to_center = await point_to_point_distance(point_a=(0, 0), point_b=(x, y))
+            if distance_to_center <= circle_size:
+                loop.create_task(follower_actor(parent_actor=actor_id, offset=(x, y)))
+            else:
+                pass
+    loop.create_task(radial_fountain(anchor_actor=actor_id,
+                                     animation=Animation(preset='sparse noise')))
+
 
 async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
     """extends and retracts a line of characters
@@ -1366,6 +1386,9 @@ async def damage_door():
 #-------------------------------------------------------------------------------
 
 #misc utility functions---------------------------------------------------------
+async def generate_id(base_name="name"):
+    return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
+
 async def random_unicode(length=1, clean=True):
     """
     Create a list of unicode characters within the range 0000-D7FF
@@ -1503,7 +1526,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
         new_shroud_location = await seek_actor(name_key=shroud_name_key, seek_key=core_name_key)
     return new_shroud_location
 
-async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*", 
+async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
         is_animated=False, animation=" "):
     """ A coroutine that creates a randomly wandering '*' """
@@ -1515,6 +1538,7 @@ async def basic_actor(start_x=0, start_y=0, speed=.1, tile="*",
     die
     exist for a set number of turns
     """
+    await asyncio.sleep(0)
     actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, speed=speed, 
                                    tile=tile, hurtful=hurtful, leaves_body=True,
                                    is_animated=is_animated, animation=animation)
@@ -1690,8 +1714,8 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
     del actor_dict[particle_id]
 
 async def radial_fountain(anchor_actor='player', angle_range=(0, 360), 
-                          frequency=.01, radius=(10, 30), speed=(1, 7), 
-                          collapse=True, debris=None, deathclock=100,
+                          frequency=.1, radius=(3, 30), speed=(1, 7), 
+                          collapse=True, debris=None, deathclock=None,
                           animation=Animation(preset='water')):
     """
     creates a number of short lived actors that move towards or away from a
@@ -1828,14 +1852,19 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup(loop))
-    for i in range(1):
-        name = 'test_seeker_{}'.format(i)
-        start_coord = (-20, -20)
-        speed = .5 + random()/2
-        loop.create_task(basic_actor(*start_coord, speed=speed, movement_function=seek_actor, 
-                                     tile="Ϩ", name_key=name, hurtful=True,
-                                     is_animated=True, animation=Animation(preset="blob")))
+    #loop.create_task(ui_setup(loop))
+
+    #TODO: create function for spawning preset actors, in the same way
+    # as animations use presets. *****
+
+    #for i in range(1):
+        #name = 'test_seeker_{}'.format(i)
+        #start_coord = (-20, -20)
+        #speed = .5 + random()/2
+        #loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
+                                     #tile="Ϩ", name_key=name, hurtful=True,
+                                     #is_animated=True, animation=Animation(preset="blob")))
+
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
@@ -1850,11 +1879,8 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
+    loop.create_task(circle_of_darkness(loop=loop))
     #loop.create_task(travel_along_line())
-    #loop.create_task(radial_fountain())
-    loop.create_task(follower_actor(parent_actor="player", offset=(-5, -1)))
-    loop.create_task(follower_actor(parent_actor="player", offset=(-5, 0)))
-    loop.create_task(follower_actor(parent_actor="player", offset=(-5, 1)))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
