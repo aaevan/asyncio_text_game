@@ -16,7 +16,8 @@ import os
 #Class definitions--------------------------------------------------------------
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile="▓", blocking=True, 
+    #def __init__(self, passable=True, tile="▓", blocking=True, 
+    def __init__(self, passable=True, tile="⣿", blocking=True, 
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
@@ -162,6 +163,29 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
 state_dict['plane'] = 'normal'
+
+bw_gradient = ((" "),
+               term.color(7)("░"),
+               term.color(8)("░"),
+               term.color(7)("▒"),
+               term.color(8)("▒"),
+               term.color(7)("▓"),
+               term.color(7)("█"),
+               term.color(8)("▓"),
+               term.color(8)("▓"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               term.color(8)("█"),
+               )
+    
+#defined at top level as a dictionary for fastest lookup time
+#calling bright_to_dark as a function was -very- slow.
+bright_to_dark = {i:bw_gradient[::-1][i] for i, _ in enumerate(bw_gradient)}
+ 
 #-------------------------------------------------------------------------------
 
 #Drawing functions--------------------------------------------------------------
@@ -1155,6 +1179,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
         with term.location(*print_location):
             # only print something if it has changed:
             if last_printed != print_choice:
+                if print_choice == "░":
+                    print_choice = bright_to_dark[int(distance)]
                 print(print_choice)
                 last_printed = print_choice
         #distant tiles update slower than near tiles:
@@ -1297,10 +1323,36 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     else:
         await filter_print(output_text="Something is in the way.")
 
-async def printing_testing():
-    for color, y in zip(range(10), range(10)):
-        with term.location(5, y):
-            print(term.color(color)(" ░▒▓█"), term.on_color(7)(term.color(color)(" ░▒▓")))
+async def printing_testing(distance=0):
+    await asyncio.sleep(0)
+
+    bw_gradient = ((" "),                               #0
+                   term.color(7)("░"),                  #1
+                   term.color(8)("░"),                  #3
+                   term.color(7)("▒"),                  #5
+                   term.color(8)("▒"),                  #7
+                   term.color(7)("▓"),                  #9
+                   term.color(7)("█"),                  #10
+                   term.color(8)("▓"),                  #11
+                   term.color(8)("▓"),                  #11
+                   term.color(8)("▓"),                  #11
+                   term.color(8)("▓"),                  #11
+                   term.color(8)("█"),                  #12
+                   term.color(8)("█"),                  #13
+                   term.color(8)("█"),                  #14
+                   term.color(8)("█"),                  #15
+                   )
+    bright_to_dark = bw_gradient[::-1]
+    for number, tile in enumerate(bw_gradient):
+        with term.location(number, 4):
+            print(str(number))
+    for number, tile in enumerate(reversed(bw_gradient)):
+        with term.location(number, 5):
+            print(tile)
+    if distance <= len(bright_to_dark) -1:
+        return bright_to_dark[int(distance)]
+    else:
+        return " "
 
 actor_dict['player'].coords()
 
