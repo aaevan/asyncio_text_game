@@ -264,10 +264,10 @@ async def push(direction=None, pusher=None):
             actor_dict[pushed_name].update(*pushed_destination)
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
-                         offset=(-1,-1), alive=True):
+                         offset=(-1,-1), alive=True, tile=" "):
     await asyncio.sleep(refresh_speed)
     follower_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
-    actor_dict[follower_id] = Actor(name=follower_id, tile=" ")
+    actor_dict[follower_id] = Actor(name=follower_id, tile=tile)
     while alive:
         await asyncio.sleep(refresh_speed)
         parent_coords = actor_dict[parent_actor].coords()
@@ -287,6 +287,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4,
             distance_to_center = await point_to_point_distance(point_a=(0, 0), point_b=(x, y))
             if distance_to_center <= circle_size:
                 loop.create_task(follower_actor(parent_actor=actor_id, offset=(x, y)))
+                loop.create_task(follower_actor(tile=term.on_white(" "), parent_actor=actor_id, offset=(1000 + x, 1000 + y)))
             else:
                 pass
     loop.create_task(radial_fountain(anchor_actor=actor_id,
@@ -333,7 +334,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
-        await radial_fountain(deathclock=75, radius=(5, 18))
+        await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
         await asyncio.sleep(.2)
         actor_dict[actor].update(1000, 1000)
         await asyncio.sleep(.8)
@@ -384,7 +385,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
         last_coord = player_coords
 
-async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=7):
+async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
@@ -840,7 +841,7 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
         await asyncio.sleep(frequency)
         #the item's id name is stored in state_dict under the key's name.
         equipped_item_id = state_dict["{}_slot".format(slot)]
-        if equipped_item_id is not 'empty':
+        if equipped_item_id not in ('empty', None):
             #if it's equipped, display the icon.
             item_name = item_dict[equipped_item_id].name
         else:
@@ -861,9 +862,13 @@ async def equip_item(slot='q'):
     slot_name = "{}_slot".format(slot)
     item_id_choice = await choose_item()
     state_dict[slot_name] = item_id_choice
-    item_name = item_dict[item_id_choice].name
-    equip_message = "Equipped {} to slot {}.".format(item_name, slot)
-    await filter_print(output_text=equip_message)
+    if hasattr(item_dict[item_id_choice], 'name'):
+        item_name = item_dict[item_id_choice].name
+        equip_message = "Equipped {} to slot {}.".format(item_name, slot)
+        await filter_print(output_text=equip_message)
+    else:
+        await filter_print(output_text="Nothing to equip!")
+
 
 async def use_chosen_item():
     await asyncio.sleep(0)
@@ -1165,7 +1170,7 @@ async def check_contents_of_tile(coord):
     if map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return item_dict[item_name].tile
-        return item_name
+        #return item_name
     if map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
@@ -1285,12 +1290,19 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         destination, plane = (player_x - x_offset, player_y - y_offset), 'normal'
     else:
         return False
+    map_dict[player_x, player_y].passable = True
     if map_dict[destination].passable:
         actor_dict['player'].update(*destination)
         state_dict['plane'] = plane
     else:
         await filter_print(output_text="Something is in the way.")
 
+async def printing_testing():
+    for color, y in zip(range(10), range(10)):
+        with term.location(5, y):
+            print(term.color(color)(" ░▒▓█"), term.on_color(7)(term.color(color)(" ░▒▓")))
+
+actor_dict['player'].coords()
 
 async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
                   actor_name=None, attribute=None, title=None, bar=False, 
@@ -1852,7 +1864,9 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup(loop))
+    #UI_DEBUG
+    loop.create_task(ui_setup(loop))
+    loop.create_task(printing_testing())
 
     #TODO: create function for spawning preset actors, in the same way
     # as animations use presets. *****
