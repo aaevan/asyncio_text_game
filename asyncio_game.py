@@ -321,7 +321,6 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4,
 async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
     """extends and retracts a line of characters
     TODO: implement damage dealt to other actors
-    TODO: it turns out it looks more like a laser with the speed set very low (0?)
     TODO: end the range once it hits a wall
     """
     await asyncio.sleep(0)
@@ -354,7 +353,6 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     uses 2adial_fountain in collapse mode for the effect
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
-    TODO: figure out settings for
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
@@ -516,28 +514,6 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             map_dict[toss_coord].passable = passable
         if description:
             map_dict[toss_coord].description = description
-
-async def flood_fill(coord=(0, 0), target='░', replacement=' ', depth=0,
-                     max_depth=10, random=False):
-    """ Algorithm from wikipedia 
-    figure out how to still allow player movement after it has started.
-    figure out how to end a coroutine.
-    TODO: Fix. broken right now.
-    """
-    await asyncio.sleep(0)
-    if depth == max_depth:
-        return
-    if map_dict[coord].tile == replacement:
-        return
-    if map_dict[coord].tile != target:
-        return
-    map_dict[coord].tile = replacement
-    args = (target, replacement, depth + 1, max_depth, random)
-    coord_dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-    if random:
-        shuffle(coord_dirs)
-    for direction in coord_dirs:
-        await flood_fill((coord[0] + direction[0], coord[1] + direction[1]), *args)
 
 def clear():
     """
@@ -1629,7 +1605,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
                           seeds=10, description="blood.")
     if leaves_body:
-        #TODO: replace the body with an item, drop items in spray around actor
+        #TODO: drop items in spray around actor
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     return
@@ -1641,7 +1617,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                     color_num=2, on_actor=None, start_facing=False):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
     TODO: make vines stay within walls (a toggle between clipping and tunneling)
-    TODO: vines can be pushed right now. Add immoveable property to actors. make vines immovable
     """
     await asyncio.sleep(rate)
     if on_actor:
@@ -1907,6 +1882,26 @@ async def kill_all_tasks():
     #TODO, add a function to break given a flag to quit, put this in every task?
     #not working right now,
 
+async def spawn_preset_actor(loop=None, coords=(0, 0), preset='blob'):
+    """
+    spawns an entity with various presets based on preset given.
+    *** does not need to be set at top level. Can be nested in map and character
+    placement.
+    """
+    asyncio.sleep(0)
+    pass
+    
+    if preset == 'blob':
+        for i in range(1):
+            name = 'test_seeker_{}'.format(i)
+            start_coord = (-20, -20)
+            speed = .5 + random()/2
+            loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
+                                         tile="Ϩ", name_key=name, hurtful=True,
+                                         is_animated=True, animation=Animation(preset="blob")))
+    else:
+        pass
+
 def main():
     map_init()
     state_dict["player_health"] = 100
@@ -1919,18 +1914,6 @@ def main():
     #UI_DEBUG
     loop.create_task(ui_setup(loop))
     loop.create_task(printing_testing())
-
-    #TODO: create function for spawning preset actors, in the same way
-    # as animations use presets. *****
-
-    #for i in range(1):
-        #name = 'test_seeker_{}'.format(i)
-        #start_coord = (-20, -20)
-        #speed = .5 + random()/2
-        #loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
-                                     #tile="Ϩ", name_key=name, hurtful=True,
-                                     #is_animated=True, animation=Animation(preset="blob")))
-
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
