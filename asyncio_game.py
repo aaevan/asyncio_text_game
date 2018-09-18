@@ -14,6 +14,8 @@ from time import sleep #hack to prevent further input/freeze screen on player de
 import os
 
 #Class definitions--------------------------------------------------------------
+
+
 class Map_tile:
     """ holds the status and state of each tile. """
     #def __init__(self, passable=True, tile="▓", blocking=True, 
@@ -89,6 +91,7 @@ class Animation:
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
                    "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
+                   "short glyph":{"animation":("ɘəɚɛɜɝ"), "behavior":"random", "color_choices":("6")},
                    "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
                    "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"},
                    "none":{"animation":(" "), "behavior":"random", "color_choices":"1"}}
@@ -299,8 +302,9 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
                               parent_coords[1] + offset[1])
         actor_dict[follower_id].update(follow_x, follow_y)
 
-async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4, loop=None):
+async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
     actor_id = await generate_id(base_name=name)
+    loop = asyncio.get_event_loop()
     loop.create_task(basic_actor(*start_coord, speed=3, movement_function=seek_actor, 
                                  tile=" ", name_key=actor_id, hurtful=True,
                                  is_animated=True, animation=Animation(preset="none")))
@@ -576,7 +580,8 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
             #map_dict[(x, y)].actors['player'] = True
             actor_dict['player'].just_teleported = True
 
-async def create_magic_door_pair(loop=None, door_a_coords=(5, 5), door_b_coords=(-25, -25)):
+async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
+    loop = asyncio.get_event_loop()
     loop.create_task(magic_door(start_coord=(door_a_coords), end_coord=(door_b_coords)))
     loop.create_task(magic_door(start_coord=(door_b_coords), end_coord=(door_a_coords)))
 
@@ -801,6 +806,8 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
     Prints to some region of the screen:
     Get stuck in a loop until a choice is made:
     Returns an item_id
+
+    defaults to items in player's inventory if item_id_choices is passed None
     """
     if item_id_choices == None:
         item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
@@ -1256,7 +1263,7 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
-async def async_map_init(loop=None):
+async def async_map_init():
     """
     a map function that makes two different features, one with a normal small
     number coordinate and the other with an unreachably large number.
@@ -1272,13 +1279,14 @@ async def async_map_init(loop=None):
     """
     #scary nightmare land
     await draw_circle(center_coord=(1000, 1000), radius=50)
+    loop = asyncio.get_event_loop()
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
-    loop.create_task(create_magic_door_pair(loop=loop, door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
@@ -1321,12 +1329,11 @@ async def printing_testing(distance=0):
     bright_to_dark = bw_gradient[::-1]
     for number, tile in enumerate(bw_gradient):
         with term.location(number, 4):
-            print(str(number))
+            print(term.bold(str(number)))
     for number, tile in enumerate(reversed(bw_gradient)):
         with term.location(number, 5):
             print(tile)
-    if distance <= len(bright_to_dark) -1:
-        return bright_to_dark[int(distance)]
+    if distance <= len(bright_to_dark) -1: return bright_to_dark[int(distance)]
     else:
         return " "
 
@@ -1358,12 +1365,13 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
             with term.location(x_coord, y_coord):
                 print("{}".format(key_value))
 
-async def ui_setup(loop):
+async def ui_setup():
     """
     lays out UI elements to the screen at the start of the program.
     """
     await asyncio.sleep(0)
     asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
+    loop = asyncio.get_event_loop()
     loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     loop.create_task(display_items_at_coord())
@@ -1725,6 +1733,15 @@ async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
+async def line_generator(point_a=(0,0), point_b=(5, 7), resolution=.31):
+    await asyncio.sleep(0)
+    pass
+    #distance = point_to_point_distance(point_a=point_a, point_b=point_b)
+    #x_run, y_run = (point_b[0] - point_a[0],
+                    #point_b[1] - point_a[1])
+    #x_step_size = x_run / resolution
+    #y_step_size = y_run / resolution
+
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
                             speed=.05, animation=Animation(preset='fire'),
                             debris=".,'`\""):
@@ -1882,23 +1899,23 @@ async def kill_all_tasks():
     #TODO, add a function to break given a flag to quit, put this in every task?
     #not working right now,
 
-async def spawn_preset_actor(loop=None, coords=(0, 0), preset='blob'):
+async def spawn_preset_actor(coords=(0, 0), preset='blob'):
     """
     spawns an entity with various presets based on preset given.
     *** does not need to be set at top level. Can be nested in map and character
     placement.
     """
     asyncio.sleep(0)
-    pass
-    
+    loop = asyncio.get_event_loop()
     if preset == 'blob':
-        for i in range(1):
-            name = 'test_seeker_{}'.format(i)
-            start_coord = (-20, -20)
-            speed = .5 + random()/2
-            loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
-                                         tile="Ϩ", name_key=name, hurtful=True,
-                                         is_animated=True, animation=Animation(preset="blob")))
+        name = 'test_seeker_{}'.format(123)
+        start_coord = (-20, -20)
+        speed = .5 + random()/2
+        loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
+                                     tile="Ϩ", name_key=name, hurtful=True,
+                                     is_animated=True, animation=Animation(preset="blob")))
+    #elif preset == 'box':
+        #name = 
     else:
         pass
 
@@ -1911,13 +1928,14 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
+    loop.create_task(spawn_preset_actor(preset='blob'))
     #UI_DEBUG
-    loop.create_task(ui_setup(loop))
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(async_map_init(loop=loop))
+    loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
     for i in range(5):
@@ -1928,7 +1946,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    loop.create_task(circle_of_darkness(loop=loop))
+    loop.create_task(circle_of_darkness())
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
