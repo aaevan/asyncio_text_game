@@ -27,7 +27,6 @@ class Map_tile:
         """ create a new map tile, location is stored in map_dict
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
-                TODO: replace with a set that just lists actor_ids
         contains_items is a set that lists item_ids which the player or
                 other actors may draw from.
         """
@@ -66,13 +65,10 @@ class Actor:
 
     def update(self, x, y):
         #TODO: patch in names to every actor that has been defined.
-        #if not map_dict[self.coords()].passable:
-            #map_dict[self.coords()].passable = True
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
         map_dict[self.coords()].actors[self.name] = True
-        #map_dict[self.coords()].passable = False
 
     def coords(self):
         return (self.x_coord, self.y_coord)
@@ -86,14 +82,17 @@ class Actor:
             self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
 
 class Animation:
-    def __init__(self, animation=None, behavior=None, color_choices=None, preset="grass"):
+    def __init__(self, animation=None, behavior=None, color_choices=None, 
+                 preset="grass", background=None):
         presets = {"fire":{"animation":"^∧", "behavior":"random", "color_choices":"3331"},
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
-                   "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2")},
+                   "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2"),},
                    "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
-                   "short glyph":{"animation":("ɘəɚɛɜɝ"), "behavior":"random", "color_choices":("6")},
+                   "short glyph":{"animation":("ɘəɚ"), "behavior":"random", "color_choices":("6")},
                    "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
                    "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"},
+                   "explosion":{"animation":("█▓▒"), "behavior":"random", 
+                       "color_choices":"111333", "background":"0111333"},
                    "none":{"animation":(" "), "behavior":"random", "color_choices":"1"}}
         if preset:
             preset_kwargs = presets[preset]
@@ -104,11 +103,16 @@ class Animation:
             self.animation = animation
             self.behavior = behavior
             self.color_choices = color_choices
+            self.background = background
     
     def __next__(self):
         if self.behavior == "random":
             color_choice = int(choice(self.color_choices))
-            return term.color(color_choice)(choice(self.animation))
+            if self.background:
+                background_choice = int(choice(self.background))
+                return term.on_color(background_choice)(term.color(color_choice)(choice(self.animation)))
+            else:
+                return term.color(color_choice)(choice(self.animation))
 
 
 class Item:
@@ -249,6 +253,35 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
 #-------------------------------------------------------------------------------
 
 #Actions------------------------------------------------------------------------
+async def throw_item(source_actor='player', direction="n", throw_distance=13):
+    """
+    Moves item from player's inventory to another tile at distance 
+    throw_distance
+
+    TODO: problem with multiple tosses of same item (key error)
+    TODO: items will pass through walls right now, check for clear line of sight first.
+    """
+    del actor_dict['player'].holding_items[thrown_item_id]
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    direction_tuple = directions[direction]
+    thrown_item_id = await choose_item()
+    with term.location(5, 30):
+        print(thrown_item_id)
+    starting_point = actor_dict[source_actor].coords()
+    destination = (starting_point[0] + direction_tuple[0] * throw_distance,
+                   starting_point[1] + direction_tuple[1] * throw_distance)
+    if not hasattr(item_dict[thrown_item_id], 'tile'):
+        return False
+    item_tile = item_dict[thrown_item_id].tile
+    throw_text = "throwing {} {}.(destionation: {})".format(item_dict[thrown_item_id].name, direction, destination)
+    asyncio.ensure_future(filter_print(throw_text))
+    await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
+                            end_coord=destination, speed=.05, tile=item_tile, 
+                            animation=None, debris=None)
+    del actor_dict['player'].holding_items[thrown_item_id]
+    map_dict[destination].items[thrown_item_id] = True
+    return True
+
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
     with term.location(55, 0):
@@ -450,9 +483,6 @@ async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30,
         else:
             asyncio.sleep(pause_fade_out)
 
-def write_description(x_coord=0, y_coord=0, text="this is the origin."):
-    map_dict[(x_coord, y_coord)].description = text
-
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
     x_tuple = (top_left[0], top_left[0] + x_size)
     y_tuple = (top_left[1], top_left[1] + y_size)
@@ -602,7 +632,6 @@ def map_init():
         connect_with_passage(*passage)
     for door in doors:
         draw_door(*door)
-    write_description()
     announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
 
@@ -710,7 +739,7 @@ async def handle_input(key):
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
-        if key in 'Ee':
+        if key in 'Xx':
             description = map_dict[(x, y)].description
             asyncio.ensure_future(filter_print(output_text=description)),
         if key in ' ':
@@ -719,6 +748,9 @@ async def handle_input(key):
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
             asyncio.ensure_future(equip_item(slot='q'))
+        if key in 't':
+            print(state_dict['facing'])
+            asyncio.ensure_future(throw_item(direction=state_dict['facing']))
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
         if key in 'q':
@@ -800,7 +832,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         with term.location(x_coord, y_coord + num):
             print(line)
 
-async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=8):
+async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
     """
     Takes a list of item_id values
     Prints to some region of the screen:
@@ -1129,7 +1161,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     display = False
     fuzzy = False
     while True:
-        await asyncio.sleep(.01)
+        await asyncio.sleep(distance * .015)
+        #await asyncio.sleep(.01)
         #pull up the most recent viewing angles based on recent inputs:
         fuzzy, display = await angle_checker(angle_from_twelve)
         if (x_offset, y_offset) == (0, 0):
@@ -1167,7 +1200,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 print(print_choice)
                 last_printed = print_choice
         #distant tiles update slower than near tiles:
-        await asyncio.sleep(distance * .015)
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
@@ -1333,6 +1365,11 @@ async def printing_testing(distance=0):
     for number, tile in enumerate(reversed(bw_gradient)):
         with term.location(number, 5):
             print(tile)
+    for number in range(10):
+        with term.location(number, 6):
+            print(term.color(number)(str(number)))
+        with term.location(number, 7):
+            print(term.on_color(number)(str(number)))
     if distance <= len(bright_to_dark) -1: return bright_to_dark[int(distance)]
     else:
         return " "
@@ -1743,15 +1780,17 @@ async def line_generator(point_a=(0,0), point_b=(5, 7), resolution=.31):
     #y_step_size = y_run / resolution
 
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
-                            speed=.05, animation=Animation(preset='fire'),
-                            debris=".,'`\""):
+                            speed=.05, tile="X", animation=Animation(preset='fire'),
+                            debris=None):
     asyncio.sleep(0)
     points = await get_line(start_coord, end_coord)
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
     if animation:
         is_animated = True
+    else:
+        is_animated = False
     actor_dict[particle_id] = Actor(name=particle_id, x_coord=start_coord[0], y_coord=start_coord[1], 
-                                    tile='X', moveable=False, is_animated=is_animated,
+                                    tile=tile, moveable=False, is_animated=is_animated,
                                     animation=animation)
     map_dict[start_coord].actors[particle_id] = True
     last_location = points[0]
@@ -1928,7 +1967,6 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(spawn_preset_actor(preset='blob'))
     #UI_DEBUG
     loop.create_task(ui_setup())
     loop.create_task(printing_testing())
@@ -1946,7 +1984,8 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(death_check())
-    loop.create_task(circle_of_darkness())
+    #loop.create_task(circle_of_darkness())
+    #loop.create_task(spawn_preset_actor(preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
