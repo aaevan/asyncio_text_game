@@ -253,32 +253,34 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
 #-------------------------------------------------------------------------------
 
 #Actions------------------------------------------------------------------------
-async def throw_item(source_actor='player', direction="n", throw_distance=13):
+async def throw_item(source_actor='player', direction="n", throw_distance=13, rand_drift=2):
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
 
-    TODO: problem with multiple tosses of same item (key error)
-    TODO: items will pass through walls right now, check for clear line of sight first.
+    TODO: if item would collide with something solid, stop there.
     """
-    del actor_dict['player'].holding_items[thrown_item_id]
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     direction_tuple = directions[direction]
     thrown_item_id = await choose_item()
-    with term.location(5, 30):
-        print(thrown_item_id)
+    if thrown_item_id == None:
+        await filter_print(output_text="Nothing to throw!")
+        return False
+    del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
     destination = (starting_point[0] + direction_tuple[0] * throw_distance,
                    starting_point[1] + direction_tuple[1] * throw_distance)
+    if rand_drift:
+        destination = (destination[0] + randint(0, rand_drift),
+                       destination[1] + randint(0, rand_drift))
     if not hasattr(item_dict[thrown_item_id], 'tile'):
         return False
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = "throwing {} {}.(destionation: {})".format(item_dict[thrown_item_id].name, direction, destination)
+    throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
     asyncio.ensure_future(filter_print(throw_text))
     await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
                             end_coord=destination, speed=.05, tile=item_tile, 
                             animation=None, debris=None)
-    del actor_dict['player'].holding_items[thrown_item_id]
     map_dict[destination].items[thrown_item_id] = True
     return True
 
@@ -311,8 +313,6 @@ async def push(direction=None, pusher=None):
     pusher_coords = actor_dict[pusher].coords()
     destination_coords = (pusher_coords[0] + chosen_dir[0], pusher_coords[1] + chosen_dir[1])
     if not map_dict[destination_coords].actors:
-        with term.location(0, 0):
-            print("nothing to push")
         return
     pushed_name = next(iter(map_dict[destination_coords].actors))
     if not actor_dict[pushed_name].moveable:
@@ -749,7 +749,6 @@ async def handle_input(key):
         if key in 'Q':
             asyncio.ensure_future(equip_item(slot='q'))
         if key in 't':
-            print(state_dict['facing'])
             asyncio.ensure_future(throw_item(direction=state_dict['facing']))
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
