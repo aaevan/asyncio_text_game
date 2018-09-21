@@ -3,6 +3,8 @@ an explosion is a number of particles at random speeds and angles starting at an
 particles are either in one location or leave a trail of actors that disappear after a number of timesteps.
 The actor itself has a different name than its motion blur/particle trail.
 
+lay down a trail of something for a number of moves, trigger with second keypress.ø
+
 TODO:
 a function to trace an actor along a line segment
 a function to trace an arc of given radius from one point to another. arc can be a small section of a larger circle.

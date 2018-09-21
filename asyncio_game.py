@@ -275,6 +275,18 @@ async def throw_item(source_actor='player', direction="n", throw_distance=13, ra
                        destination[1] + randint(0, rand_drift))
     if not hasattr(item_dict[thrown_item_id], 'tile'):
         return False
+    line_of_sight_result = await check_line_of_sight(coord_a=starting_point, coord_b=destination)
+    #find last open tile before wall and place item there.
+    if not line_of_sight_result:
+        last_open = None
+        points = await get_line(starting_point, destination)
+        #ignore the first point, that's where the player is standing.
+        for point in points[1:]:
+            if map_dict[point].passable:
+                last_open = point
+            else:
+                break
+        destination = last_open
     item_tile = item_dict[thrown_item_id].tile
     throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
     asyncio.ensure_future(filter_print(throw_text))
@@ -1967,7 +1979,7 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     #UI_DEBUG
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
@@ -1975,8 +1987,8 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    for i in range(5):
-        loop.create_task(spawn_item_at_coords(coord=(5, 5)))
+    for i in range(9):
+        loop.create_task(spawn_item_at_coords(coord=(0, 0)))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
     loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
