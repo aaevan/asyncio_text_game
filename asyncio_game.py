@@ -23,7 +23,7 @@ class Map_tile:
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
-                 magic=False, magic_destination=False):
+                 magic=False, magic_destination=False, mutable=True):
         """ create a new map tile, location is stored in map_dict
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
@@ -42,6 +42,7 @@ class Map_tile:
         self.items = defaultdict(lambda:None)
         self.is_animated, self.animation = is_animated, animation
         self.magic, self.magic_destination = magic, magic_destination
+        self.mutable = mutable
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -132,7 +133,7 @@ class Item:
     def __init__(self, name='generic_item', item_id=None, spawn_coord=(0, 0), uses=None, 
                  tile='?', current_location=None, usable_power=None, power_kwargs={}, 
                  broken=False, use_message='You use the item.',
-                 broken_text=" is broken."):
+                 broken_text=" is broken.", mutable=True):
         self.name = name
         self.item_id = item_id
         self.spawn_coord = spawn_coord
@@ -144,6 +145,7 @@ class Item:
         self.broken = broken
         self.broken_text = broken_text
         self.power_kwargs = power_kwargs
+        self.mutable = mutable
 
     async def use(self):
         await asyncio.sleep(0)
@@ -243,6 +245,8 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
     await asyncio.sleep(0)
     for x in range(center_coord[0] - radius, center_coord[0] + radius):
         for y in range(center_coord[1] - radius, center_coord[1] + radius):
+            if not map_dict[(x, y)].mutable:
+                continue
             distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
             if animation:
                 is_animated = True
@@ -250,9 +254,10 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 is_animated = False
             if distance_to_center <= radius:
                 actors = map_dict[(x, y)].actors
+                items = map_dict[(x, y)].items
                 map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False, 
                                             description=None, is_animated=is_animated,
-                                            animation=animation, actors=actors)
+                                            animation=animation, actors=actors, items=items)
 
 #-------------------------------------------------------------------------------
 
@@ -316,12 +321,14 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
         item_dict[thrown_item_id].tile = original_tile
         await asyncio.sleep(.5)
         item_dict[thrown_item_id].tile = term.red(str(count))
-    del map_dict[item_location].items[thrown_item_id]
+    #hack to fix problems with draw_circle 
+    if thrown_item_id in map_dict[item_location].items:
+        del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
     asyncio.ensure_future(filter_print(output_text='BOOM!'))
     await radial_fountain(tile_anchor=item_location, anchor_actor='player', 
                          frequency=.001, radius=(3, 10), speed=(1, 2), 
-                         collapse=False, debris='`.,\'', deathclock=50,
+                         collapse=False, debris='`.,\'', deathclock=25,
                          animation=Animation(preset='explosion'))
     await draw_circle(center_coord=item_location)
     #TODO: add flag to be set on items to prevent them from being picked up.
@@ -2024,7 +2031,7 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     #UI_DEBUG
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
@@ -2032,14 +2039,13 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    for i in range(9):
-        loop.create_task(spawn_item_at_coords(coord=(0, 0)))
+    for i in range(5):
+        loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
     loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
-    loop.create_task(spawn_item_at_coords(coord=(3, 3), instance_of='fused charge'))
     loop.create_task(death_check())
     #loop.create_task(circle_of_darkness())
     #loop.create_task(spawn_preset_actor(preset='blob'))
