@@ -129,12 +129,14 @@ class Item:
         can be used (via its usable_power and given power_kwargs (for different
                 versions of the same item)
     """
-    def __init__(self, name='generic_item', spawn_coord=(0, 0), uses=None, 
-                 tile='?', usable_power=None, power_kwargs={}, 
+    def __init__(self, name='generic_item', item_id=None, spawn_coord=(0, 0), uses=None, 
+                 tile='?', current_location=None, usable_power=None, power_kwargs={}, 
                  broken=False, use_message='You use the item.',
                  broken_text=" is broken."):
         self.name = name
+        self.item_id = item_id
         self.spawn_coord = spawn_coord
+        self.current_location = self.spawn_coord
         self.uses = uses
         self.tile = tile
         self.usable_power = usable_power
@@ -146,8 +148,6 @@ class Item:
     async def use(self):
         await asyncio.sleep(0)
         if self.uses != None and not self.broken:
-            with term.location(40, 0):
-                print("using {}!".format(repr(self.usable_power)))
             await self.usable_power(**self.power_kwargs)
             if self.uses is not None:
                 self.uses -= 1
@@ -235,8 +235,8 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
-                passable=True, blocking=False):
+async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
+                passable=True, blocking=False, animation=None):
     """
     draws a circle in real time. eats actors right now
     """
@@ -244,16 +244,20 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
     for x in range(center_coord[0] - radius, center_coord[0] + radius):
         for y in range(center_coord[1] - radius, center_coord[1] + radius):
             distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
+            if animation:
+                is_animated = True
+            else:
+                is_animated = False
             if distance_to_center <= radius:
                 actors = map_dict[(x, y)].actors
-                map_dict[(x, y)] = Map_tile(passable=True, tile=" ", blocking=False, 
-                                            description='an animation', is_animated=True,
-                                            animation=Animation(preset='noise'), actors=actors)
+                map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False, 
+                                            description=None, is_animated=is_animated,
+                                            animation=animation, actors=actors)
 
 #-------------------------------------------------------------------------------
 
 #Actions------------------------------------------------------------------------
-async def throw_item(source_actor='player', direction="n", throw_distance=13, rand_drift=2):
+async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
@@ -261,8 +265,10 @@ async def throw_item(source_actor='player', direction="n", throw_distance=13, ra
     TODO: if item would collide with something solid, stop there.
     """
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    direction_tuple = directions[direction]
-    thrown_item_id = await choose_item()
+    if direction is None:
+        direction_tuple = directions[state_dict['facing']]
+    if not thrown_item_id:
+        thrown_item_id = await choose_item()
     if thrown_item_id == None:
         await filter_print(output_text="Nothing to throw!")
         return False
@@ -294,7 +300,31 @@ async def throw_item(source_actor='player', direction="n", throw_distance=13, ra
                             end_coord=destination, speed=.05, tile=item_tile, 
                             animation=None, debris=None)
     map_dict[destination].items[thrown_item_id] = True
+    item_dict[thrown_item_id].current_location = destination
     return True
+
+async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
+                             direction=None, throw_distance=13, rand_drift=2,
+                             fused_effect=None, fused_effect_kwargs={}):
+    await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
+                     direction=direction, throw_distance=throw_distance, 
+                     rand_drift=rand_drift)
+    item_location = item_dict[thrown_item_id].current_location
+    original_tile = item_dict[thrown_item_id].tile
+    for count in reversed(range(fuse_length + 1)):
+        await asyncio.sleep(.5)
+        item_dict[thrown_item_id].tile = original_tile
+        await asyncio.sleep(.5)
+        item_dict[thrown_item_id].tile = term.red(str(count))
+    del map_dict[item_location].items[thrown_item_id]
+    del item_dict[thrown_item_id]
+    asyncio.ensure_future(filter_print(output_text='BOOM!'))
+    await radial_fountain(tile_anchor=item_location, anchor_actor='player', 
+                         frequency=.001, radius=(3, 10), speed=(1, 2), 
+                         collapse=False, debris='`.,\'', deathclock=50,
+                         animation=Animation(preset='explosion'))
+    await draw_circle(center_coord=item_location)
+    #TODO: add flag to be set on items to prevent them from being picked up.
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
@@ -422,17 +452,21 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
     item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
-    item_catalog = {'wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.blue('/'), 'usable_power':None},
-                     'nut':{'name':instance_of, 'spawn_coord':coord, 'tile':term.red('⏣'),
-                            'usable_power':None},
-             'shield wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.blue('/'), 'power_kwargs':{'radius':6},
+    item_catalog = {'wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':10, 'tile':term.blue('/'), 'usable_power':None},
+                     'nut':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
+                            'power_kwargs':{'thrown_item_id':item_id}},
+            'fused charge':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
+                            'power_kwargs':{'thrown_item_id':item_id}},
+             'shield wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-            'shift amulet':{'name':instance_of, 'spawn_coord':coord, 'uses':1000,
+            'shift amulet':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':1000,
                             'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
-               'vine wand':{'name':instance_of, 'spawn_coord':coord, 'uses':10,
+               'vine wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':10,
                             'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             'broken_text':wand_broken_text}}
@@ -761,7 +795,7 @@ async def handle_input(key):
         if key in 'Q':
             asyncio.ensure_future(equip_item(slot='q'))
         if key in 't':
-            asyncio.ensure_future(throw_item(direction=state_dict['facing']))
+            asyncio.ensure_future(throw_item())
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
         if key in 'q':
@@ -829,6 +863,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│\_/│',
                      '│\_/│',
                      '└───┘',),
+     'fused charge':('┌───┐',
+                     '│/*\│', 
+                     '│\_/│',
+                     '│\_/│',
+                     '└───┘',),
      'shift amulet':('┌───┐',
                      '│╭─╮│', 
                      '││ ││',
@@ -890,8 +929,11 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
     while True:
         await asyncio.sleep(frequency)
         #the item's id name is stored in state_dict under the key's name.
-        equipped_item_id = state_dict["{}_slot".format(slot)]
-        if equipped_item_id not in ('empty', None):
+        equipped_item_id = state_dict[slot_name]
+        if equipped_item_id not in actor_dict['player'].holding_items:
+            item_name = 'empty'
+            state_dict[slot_name] = 'empty'
+        elif equipped_item_id not in ('empty', None):
             #if it's equipped, display the icon.
             item_name = item_dict[equipped_item_id].name
         else:
@@ -1172,8 +1214,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     display = False
     fuzzy = False
     while True:
-        await asyncio.sleep(distance * .015)
-        #await asyncio.sleep(.01)
+        await asyncio.sleep(1 / 15)
+        #await asyncio.sleep(distance * .015)
         #pull up the most recent viewing angles based on recent inputs:
         fuzzy, display = await angle_checker(angle_from_twelve)
         if (x_offset, y_offset) == (0, 0):
@@ -1819,10 +1861,10 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
     del map_dict[last_location].actors[particle_id]
     del actor_dict[particle_id]
 
-async def radial_fountain(anchor_actor='player', angle_range=(0, 360), 
-                          frequency=.1, radius=(3, 30), speed=(1, 7), 
-                          collapse=True, debris=None, deathclock=None,
-                          animation=Animation(preset='water')):
+async def radial_fountain(anchor_actor='player', tile_anchor=None, 
+                          angle_range=(0, 360), frequency=.1, radius=(3, 30),
+                          speed=(1, 7), collapse=True, debris=None, 
+                          deathclock=None, animation=Animation(preset='water')):
     """
     creates a number of short lived actors that move towards or away from a
     given actor, depending on collapse.
@@ -1846,18 +1888,21 @@ async def radial_fountain(anchor_actor='player', angle_range=(0, 360),
     while True:
         await asyncio.sleep(frequency)
         rand_angle = randint(*angle_range)
-        actor_location = actor_dict[anchor_actor].coords()
-        reference = (actor_location[0], actor_location[1] + 5)
+        if tile_anchor:
+            origin_coord = tile_anchor
+        else:
+            origin_coord = actor_dict[anchor_actor].coords()
+        reference = (origin_coord[0], origin_coord[1] + 5)
         rand_radius = randint(*radius)
         rand_speed = randint(*speed) / 100
         point = await point_at_distance_and_angle(angle_from_twelve=rand_angle, 
-                                                  central_point=actor_location,
+                                                  central_point=origin_coord,
                                                   reference_point=reference, 
                                                   radius=rand_radius)
         if collapse:
-            start_coord, end_coord = point, actor_location
+            start_coord, end_coord = point, origin_coord
         else:
-            start_coord, end_coord = actor_location, point
+            start_coord, end_coord = origin_coord, point
         asyncio.ensure_future(travel_along_line(start_coord=start_coord, 
                                                 end_coord=end_coord,
                                                 debris=debris,
@@ -1979,7 +2024,7 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     #UI_DEBUG
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
@@ -1994,6 +2039,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
+    loop.create_task(spawn_item_at_coords(coord=(3, 3), instance_of='fused charge'))
     loop.create_task(death_check())
     #loop.create_task(circle_of_darkness())
     #loop.create_task(spawn_preset_actor(preset='blob'))
