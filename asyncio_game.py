@@ -173,24 +173,13 @@ state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
 state_dict['plane'] = 'normal'
 
-bw_gradient = ((" "),
-               term.color(7)("░"),
-               term.color(8)("░"),
-               term.color(7)("▒"),
-               term.color(8)("▒"),
-               term.color(7)("▓"),
-               term.color(7)("█"),
-               term.color(8)("▓"),
-               term.color(8)("▓"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               term.color(8)("█"),
-               )
-    
+bw_background_tile_pairs = ((0, ' '), (7, "░"), (8, "░"), (7, "▒"), (8, "▒"), 
+                            (7, "▓"), (7, "█"), (8, "▓"), (8, "▓"), 
+                            #repeat the last pair 6 times, unpack it:
+                            *[(8, "█") for _ in range(6)]) 
+
+bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in bw_background_tile_pairs])
+
 #defined at top level as a dictionary for fastest lookup time
 #calling bright_to_dark as a function was -very- slow.
 bright_to_dark = {i:bw_gradient[::-1][i] for i, _ in enumerate(bw_gradient)}
@@ -815,7 +804,8 @@ async def handle_input(key):
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
         if key in '7':
-            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords())),
+            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
+                                  animation=Animation(preset='noise')))
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if key in 'B':
@@ -1370,7 +1360,7 @@ async def async_map_init():
     One is barren except for a few very scary monsters? 
     """
     #scary nightmare land
-    await draw_circle(center_coord=(1000, 1000), radius=50)
+    await draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
     loop = asyncio.get_event_loop()
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
@@ -2031,13 +2021,13 @@ def main():
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
     #UI_DEBUG
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(async_map_init())
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
     for i in range(5):
         loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
