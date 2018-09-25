@@ -173,16 +173,19 @@ state_dict['menu_choices'] = []
 actor_dict['player'].just_teleported = False
 state_dict['plane'] = 'normal'
 
-bw_background_tile_pairs = ((0, ' '), (7, "░"), (8, "░"), (7, "▒"), (8, "▒"), 
-                            (7, "▓"), (7, "█"), (8, "▓"), (8, "▓"), 
-                            #repeat the last pair 6 times, unpack it:
-                            *[(8, "█") for _ in range(6)]) 
+bw_background_tile_pairs = ((0, ' '),       #dark
+                            (7, "░"),
+                            (8, "░"), 
+                            (7, "▒"),
+                            (8, "▒"), 
+                            (7, "▓"), 
+                            (7, "█"), 
+                          *((8, "▓"),) * 2,
+                          *((8, "█"),) * 6) #bright
 
 bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in bw_background_tile_pairs])
-
 #defined at top level as a dictionary for fastest lookup time
-#calling bright_to_dark as a function was -very- slow.
-bright_to_dark = {i:bw_gradient[::-1][i] for i, _ in enumerate(bw_gradient)}
+bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
  
 #-------------------------------------------------------------------------------
 
@@ -459,6 +462,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
              'shield wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
                             'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
+              'red potion':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':1, 'tile':term.red('◉'), 'power_kwargs':{},
+                            'usable_power':health_potion, 'broken_text':wand_broken_text},
             'shift amulet':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':1000,
                             'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
@@ -798,6 +804,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_item_in_slot(slot='q'))
         if key in 'e':
             asyncio.ensure_future(use_item_in_slot(slot='e'))
+        if key in 'h':
+            asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'f':
@@ -962,7 +970,8 @@ async def equip_item(slot='q'):
 async def use_chosen_item():
     await asyncio.sleep(0)
     item_id_choice = await choose_item()
-    await item_dict[item_id_choice].use()
+    if item_id_choice != None:
+        await item_dict[item_id_choice].use()
     
 async def use_item_in_slot(slot='q'):
     await asyncio.sleep(0)
@@ -1768,11 +1777,29 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         await asyncio.sleep(end_wait)
         del map_dict[coord].actors[vine_name]
 
-async def spawn_bubble(centered_on_actor='player', radius=6):
+async def health_potion(actor_key='player', total_restored=25, duration=2, sub_second_step=.1):
+    await asyncio.sleep(0)
+    num_steps = duration / sub_second_step
+    health_per_step = total_restored / num_steps
+    for i in range(int(num_steps)):
+        await asyncio.sleep(sub_second_step)
+        if (actor_dict[actor_key].health + health_per_step >= actor_dict[actor_key].max_health):
+            actor_dict[actor_key].health = actor_dict[actor_key].max_health
+        else:
+            actor_dict[actor_key].health += health_per_step
+
+#TODO: give items a consumable flag
+
+#async def consume_item(item_id=None, effect_function=health_potion, 
+
+async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     """
     spawns a circle of animated timed actors that are impassable
     rand_delay in timed_actor is for a fade-in/fade-out effect.
     """
+    if state_dict['bubble_cooldown']:
+        await filter_print(output_text="Nothing happens.")
+        return False
     coords = actor_dict[centered_on_actor].coords()
     await asyncio.sleep(0)
     bubble_id = str(datetime.time(datetime.now()))
@@ -1780,9 +1807,14 @@ async def spawn_bubble(centered_on_actor='player', radius=6):
     player_coords = actor_dict['player'].coords()
     every_five = [i * 5 for i in range(72)]
     points_at_distance = {await point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
+    state_dict['bubble_cooldown'] = True
     for num, point in enumerate(points_at_distance):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
-        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), rand_delay=.3))
+        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), 
+                              rand_delay=.3, death_clock=duration))
+    await asyncio.sleep(duration)
+    state_dict['bubble_cooldown'] = False
+    return True
 
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
@@ -1794,7 +1826,7 @@ async def points_at_distance(radius=5, central_point=(0, 0)):
         points.append(point)
     return set(points)
 
-async def timed_actor(death_clock=5, name='timed_actor', coords=(0, 0),
+async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
                       rand_delay=0, solid=True):
     """
     spawns an actor at given coords that disappears after a number of turns.
