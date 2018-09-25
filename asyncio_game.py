@@ -868,6 +868,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│\_/│',
                      '│\_/│',
                      '└───┘',),
+       'red potion':('┌───┐',
+                     '│┌O┐│', 
+                     '│|{}|│'.format(term.red('█')),
+                     '│└─┘│',
+                     '└───┘',),
      'fused charge':('┌───┐',
                      '│/*\│', 
                      '│\_/│',
@@ -2068,6 +2073,10 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
     loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
     loop.create_task(death_check())
     #loop.create_task(circle_of_darkness())
     #loop.create_task(spawn_preset_actor(preset='blob'))
