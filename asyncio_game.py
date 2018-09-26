@@ -511,13 +511,15 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
             with term.location(x_pos, (y_pos + 1) + number):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
-async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30, 
+async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
                        pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0, blocking=False):
     await asyncio.sleep(delay)
+    if x_offset == 0:
+        x_offset = -int(len(output_text) / 2)
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    y_location = term.height - 8
-    x_location = middle_x - int(len(output_text) / 2)
+    y_location = term.height + y_offset
+    x_location = middle_x + x_offset
     await asyncio.sleep(0)
     numbered_chars = [(place, char) for place, char in enumerate(output_text)]
     shuffle(numbered_chars)
@@ -537,6 +539,21 @@ async def filter_print(output_text="You open the door.", x_coord=20, y_coord=30,
             await asyncio.sleep(pause_fade_out)
         else:
             asyncio.sleep(pause_fade_out)
+
+async def print_screen_grid():
+    """
+    prints an overlay for finding positions of text
+    """
+    for y in range(term.height // 5):
+        for x in range(term.width // 5):
+            with term.location(x * 5, y * 5):
+                print(".")
+
+async def help_text():
+    """
+    prints relevant keys and controls to the screen using filter_print
+    """
+    pass 
 
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -681,7 +698,8 @@ def map_init():
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
     passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
-                (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0)]
+                (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0),
+                (60, 20, 90, 20)]
     doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
@@ -796,6 +814,8 @@ async def handle_input(key):
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
+        if key in '?':
+            asyncio.ensure_future(filter_print(output_text='1234')),
         if key in 'Xx':
             description = map_dict[(x, y)].description
             asyncio.ensure_future(filter_print(output_text=description)),
@@ -823,6 +843,8 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='noise')))
+        if key in '8':
+            asyncio.ensure_future(print_screen_grid())
         if key in 'o':
             asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
@@ -1390,8 +1412,8 @@ async def async_map_init():
     One is barren except for a few very scary monsters? 
     """
     #scary nightmare land
-    await draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
     loop = asyncio.get_event_loop()
+    loop.create_task(draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise')))
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
@@ -1399,6 +1421,16 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
+    for _ in range(100):
+        await asyncio.sleep(1)
+        x, y = randint(-18, 18), randint(-18, 18)
+        rand_radius = randint(5, 10)
+        coord = (90 + x, 20 + x)
+        with term.location(65, 2):
+            print(_, x, y, rand_radius, coord)
+        loop.create_task(draw_circle(center_coord=coord, radius=rand_radius, 
+                                     animation=Animation(base_tile=str(_), preset='shimmer')))
+
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
