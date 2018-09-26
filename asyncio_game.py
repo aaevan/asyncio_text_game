@@ -83,7 +83,7 @@ class Actor:
             self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
 
 class Animation:
-    def __init__(self, animation=None, behavior=None, color_choices=None, 
+    def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
                  preset="grass", background=None):
         presets = {"fire":{"animation":"^∧", "behavior":"random", "color_choices":"3331"},
                    "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
@@ -92,6 +92,7 @@ class Animation:
                    "short glyph":{"animation":("ɘəɚ"), "behavior":"random", "color_choices":("6")},
                    "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
                    "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"},
+                   "shimmer":{"animation":(base_tile), "behavior":"random", "color_choices":'1234567'},
                    "explosion":{"animation":("█▓▒"), "behavior":"random", 
                        "color_choices":"111333", "background":"0111333"},
                    "none":{"animation":(" "), "behavior":"random", "color_choices":"1"}}
@@ -102,6 +103,7 @@ class Animation:
             self.__init__(**preset_kwargs, preset=None)
         else:
             self.animation = animation
+            self.base_tile = base_tile
             self.behavior = behavior
             self.color_choices = color_choices
             self.background = background
@@ -463,8 +465,13 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
                             'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
               'red potion':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':1, 'tile':term.red('◉'), 'power_kwargs':{},
-                            'usable_power':health_potion, 'broken_text':wand_broken_text},
+                            'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
+                            'total_restored':50}, 'usable_power':health_potion, 
+                            'broken_text':wand_broken_text},
+             'shiny stone':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
+                            'uses':9999, 'tile':term.blue('o'), 
+                            'power_kwargs':{'radius':5, 'track_actor':'player'}, 
+                            'usable_power':orbit, 'broken_text':wand_broken_text},
             'shift amulet':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':1000,
                             'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
@@ -640,8 +647,8 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
     #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
     #map_dict[start_coord].blocking = True
-    animation = Animation(animation='▮', behavior='random', 
-                          color_choices="1234567", preset=None)
+    animation = Animation(base_tile='▮', preset='shimmer')
+                          #color_choices="1234567", preset=None)
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
                                      magic=True, magic_destination=end_coord,
                                      is_animated=True, animation=animation)
@@ -668,8 +675,8 @@ def map_init():
     draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    actor_dict['box'] = Actor(name='box', x_coord=5, y_coord=5, tile='☐')
-    map_dict[(7, 7)].actors['box'] = True
+    actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐')
+    map_dict[(7, 5)].actors['box'] = True
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
@@ -680,8 +687,10 @@ def map_init():
         connect_with_passage(*passage)
     for door in doors:
         draw_door(*door)
-    announcement_at_coord(coord=(0, 17), distance_trigger=5, announcement="something slithers into the wall as you approach.")
-    announcement_at_coord(coord=(7, 17), distance_trigger=1, announcement="you hear muffled scratching from the other side")
+    announcement_at_coord(coord=(0, 17), distance_trigger=5, 
+                          announcement="something slithers into the wall as you approach.")
+    announcement_at_coord(coord=(7, 17), distance_trigger=1, 
+                          announcement="you hear muffled scratching from the other side")
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
@@ -814,6 +823,8 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='noise')))
+        if key in 'o':
+            asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if key in 'B':
@@ -882,6 +893,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│╭─╮│', 
                      '││ ││',
                      '│╰ʘ╯│',
+                     '└───┘',),
+      'shiny stone':('┌───┐',   #effect while equipped: orbit
+                     '│ _ │', 
+                     '│(_)│',
+                     '│   │',
                      '└───┘',),
             'empty':('┌───┐',
                      '│   │', 
@@ -1225,8 +1241,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     display = False
     fuzzy = False
     while True:
-        await asyncio.sleep(1 / 15)
-        #await asyncio.sleep(distance * .015)
+        #await asyncio.sleep(1 / 15)
+        await asyncio.sleep(distance * .015)
         #pull up the most recent viewing angles based on recent inputs:
         fuzzy, display = await angle_checker(angle_from_twelve)
         if (x_offset, y_offset) == (0, 0):
@@ -1782,8 +1798,11 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         await asyncio.sleep(end_wait)
         del map_dict[coord].actors[vine_name]
 
-async def health_potion(actor_key='player', total_restored=25, duration=2, sub_second_step=.1):
+async def health_potion(item_id=None, actor_key='player', total_restored=25, duration=2, sub_second_step=.1):
     await asyncio.sleep(0)
+    if item_id:
+        del item_dict[item_id]
+        del actor_dict['player'].holding_items[item_id]
     num_steps = duration / sub_second_step
     health_per_step = total_restored / num_steps
     for i in range(int(num_steps)):
@@ -1946,7 +1965,7 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
             if deathclock <= 0:
                 break
 
-async def orbit(name='particle', radius=6, degrees_per_step=1, on_center=(0, 0), 
+async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0), 
                 rand_speed=False, track_actor=None, 
                 sin_radius=False, sin_radius_amplitude=3):
     """
@@ -1957,8 +1976,8 @@ async def orbit(name='particle', radius=6, degrees_per_step=1, on_center=(0, 0),
     angle = randint(0, 360)
     particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
     actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
-                                    tile='X', moveable=False, is_animated=True,
-                                    animation=Animation(preset='water'))
+                                    moveable=False, is_animated=True,
+                                    animation=Animation(base_tile='◉', preset='shimmer'))
     map_dict[on_center].actors[particle_id] = True
     point_coord = actor_dict[particle_id].coords()
     original_radius = radius
@@ -2043,8 +2062,6 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob'):
         loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
                                      tile="Ϩ", name_key=name, hurtful=True,
                                      is_animated=True, animation=Animation(preset="blob")))
-    #elif preset == 'box':
-        #name = 
     else:
         pass
 
@@ -2066,17 +2083,13 @@ def main():
     loop.create_task(async_map_init())
     loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    for i in range(5):
-        loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
+    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
-    loop.create_task(spawn_item_at_coords(coord=(4, 8), instance_of='shift amulet'))
-    loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
-    loop.create_task(spawn_item_at_coords(coord=(5, 4), instance_of='nut'))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red potion'))
+    loop.create_task(spawn_item_at_coords(coord=(4, 4), instance_of='shift amulet'))
+    loop.create_task(spawn_item_at_coords(coord=(5, 5), instance_of='nut'))
+    loop.create_task(spawn_item_at_coords(coord=(3, 3), instance_of='red potion'))
+    loop.create_task(spawn_item_at_coords(coord=(5, 0), instance_of='shiny stone'))
     loop.create_task(death_check())
     #loop.create_task(circle_of_darkness())
     #loop.create_task(spawn_preset_actor(preset='blob'))
