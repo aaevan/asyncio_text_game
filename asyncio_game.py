@@ -260,8 +260,6 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
-
-    TODO: if item would collide with something solid, stop there.
     """
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     if direction is None:
@@ -325,6 +323,12 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
                          collapse=False, debris='`.,\'', deathclock=25,
                          animation=Animation(preset='explosion'))
     await draw_circle(center_coord=item_location)
+    blast_radius = await get_circle(center=item_location, radius=6)
+    with term.location(50, 3):
+        print(actor_dict['player'].coords(), actor_dict['player'].coords() in blast_radius)
+    for coord in blast_radius:
+        for actor in map_dict[coord].actors.items():
+            actor_dict[actor[0]].health -= 75
     #TODO: add flag to be set on items to prevent them from being picked up.
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
@@ -1087,6 +1091,16 @@ async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
+
+async def get_circle(center=(0, 0), radius=5):
+    radius_range = [i for i in range(-radius, radius + 1)]
+    result = []
+    for x in radius_range:
+       for y in radius_range:
+           distance = sqrt(x**2 + y**2)
+           if distance <= radius:
+               result.append((center[0] + x, center[1] + y))
+    return result
 
 async def get_line(start, end):
     """Bresenham's Line Algorithm
@@ -2047,10 +2061,8 @@ async def death_check():
         await asyncio.sleep(0)
         player_health = actor_dict["player"].health
         if player_health <= 0:
-            await filter_print(output_text=death_message, x_coord=(middle_x - round(len(death_message)/2)), 
-                               y_coord=middle_y, blocking=True)
-            sleep(30000)
-            await kill_all_tasks()
+            await filter_print(output_text=death_message)
+            sleep(9999)
 
 async def environment_check(rate=.1):
     """
@@ -2059,13 +2071,13 @@ async def environment_check(rate=.1):
     vine_grow().
     """
     await asyncio.sleep(0)
-    pass
-    #next(iter(map_dict[player_coords].actors))
-    #while actor_dict['player'].health >= 0:
-        #await asyncio.sleep(rate)
-        #player_coords = actor_dict['player'].coords
-        #with term.location(40, 0):
-            #print([i for i in map_dict[player_coords].actors])
+    while actor_dict['player'].health >= 0:
+        await asyncio.sleep(rate)
+        player_coords = actor_dict['player'].coords()
+        with term.location(40, 0):
+            print(" " * 10)
+        with term.location(40, 0):
+            print(len([i for i in map_dict[player_coords].actors.items()]))
 #
 async def kill_all_tasks():
     await asyncio.sleep(0)
@@ -2123,6 +2135,7 @@ def main():
     loop.create_task(spawn_item_at_coords(coord=(3, 3), instance_of='red potion'))
     loop.create_task(spawn_item_at_coords(coord=(5, 0), instance_of='shiny stone'))
     loop.create_task(death_check())
+    loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
     #loop.create_task(spawn_preset_actor(preset='blob'))
     #loop.create_task(travel_along_line())
