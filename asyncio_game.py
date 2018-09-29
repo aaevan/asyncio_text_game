@@ -373,7 +373,7 @@ async def push(direction=None, pusher=None):
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
     await asyncio.sleep(refresh_speed)
-    follower_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    follower_id = await generate_id(base_name=name)
     actor_dict[follower_id] = Actor(name=follower_id, tile=tile)
     while alive:
         await asyncio.sleep(refresh_speed)
@@ -385,7 +385,7 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
     actor_id = await generate_id(base_name=name)
     loop = asyncio.get_event_loop()
-    loop.create_task(basic_actor(*start_coord, speed=3, movement_function=seek_actor, 
+    loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
                                  tile=" ", name_key=actor_id, hurtful=True,
                                  is_animated=True, animation=Animation(preset="none")))
     await asyncio.sleep(0)
@@ -411,7 +411,7 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
     starting_coords = actor_dict['player'].coords()
     chosen_dir = dir_coords[direction]
-    sword_id = str(round(random(), 5))[2:]
+    sword_id = await generate_id(base_name='')
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) for i in range(length)]
@@ -454,7 +454,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
-    item_id = "{}_{}".format(instance_of, str(datetime.time(datetime.now())))
+    item_id = await generate_id(base_name=instance_of)
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
     item_catalog = {'wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
@@ -1805,7 +1805,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    vine_id = str(datetime.time(datetime.now()))
+    vine_id = await generate_id(base_name='')
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
     if start_facing:
@@ -1872,7 +1872,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
         return False
     coords = actor_dict[centered_on_actor].coords()
     await asyncio.sleep(0)
-    bubble_id = str(datetime.time(datetime.now()))
+    bubble_id = await generate_id(base_name='')
     bubble_pieces = {}
     player_coords = actor_dict['player'].coords()
     every_five = [i * 5 for i in range(72)]
@@ -1902,7 +1902,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     spawns an actor at given coords that disappears after a number of turns.
     """
     if name == 'timed_actor':
-        name = name + str(datetime.time(datetime.now()))
+        name = name + await generate_id(base_name='')
     if rand_delay:
         await asyncio.sleep(random() * rand_delay)
     actor_dict[name] = Actor(name=name, moveable=False, x_coord=coords[0], y_coord=coords[1], 
@@ -1936,7 +1936,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
                             debris=None):
     asyncio.sleep(0)
     points = await get_line(start_coord, end_coord)
-    particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    particle_id = await generate_id(base_name=name)
     if animation:
         is_animated = True
     else:
@@ -2020,7 +2020,7 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
     """
     await asyncio.sleep(0)
     angle = randint(0, 360)
-    particle_id = "{}_{}".format(name, str(datetime.time(datetime.now())))
+    particle_id = await generate_id(base_name=name)
     actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
                                     moveable=False, is_animated=True,
                                     animation=Animation(base_tile='◉', preset='shimmer'))
@@ -2127,6 +2127,8 @@ def main():
     loop.create_task(async_map_init())
     loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
+    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
+    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
     loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
     loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
     loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
