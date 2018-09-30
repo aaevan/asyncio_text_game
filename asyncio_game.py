@@ -363,19 +363,38 @@ async def damage_actor(actor=None, damage=10, display_above=True):
         actor_dict[actor].health = 0
     else:
         actor_dict[actor].health = current_health - damage
+    exclusions = ('particle', 'vine', 'shroud')
+    for word in exclusions:
+        if word in actor:
+            return
+    await damage_numbers(damage=damage, actor=actor)
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
-    pass
-    #actor_coords = actor_dict[actor].coords()
-    #for x_pos, digit in enumerate(str(damage)):
-        #start_coord = actor_coords[0] + x_pos, actor_coords[1]
-        #end_coord = start_coord[0], start_coord[1] + squares_above
-        #asyncio.ensure_future(travel_along_line(tile=digit,
-                                                #start_coord=start_coord, 
-                                                #end_coord=end_coord,
-                                                #debris=False,
-                                                #animation=False))
-
+    actor_coords = actor_dict[actor].coords()
+    #TODO: swap in digits of unicode superscript and subscript
+    digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
+                            '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
+                            '-':'⁻', '+':'⁺'}
+    digit_to_subscript =   {'1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', 
+                            '6':'₆', '7':'₇', '8':'₈', '9':'₉', '0':'₀',
+                            '-':'₋', '+':'₊'}
+    if damage >= 0:
+        damage = '-' + str(damage)
+    else:
+        damage = '+' + str(damage)[1:]
+    for x_pos, digit in enumerate(damage):
+        start_coord = actor_coords[0] + (x_pos - 1), actor_coords[1] - 1
+        end_coord = start_coord[0], start_coord[1] - squares_above
+        if damage[0] == '-':
+            tile = term.red(digit_to_superscript[digit])
+        else:
+            tile = term.green(digit_to_superscript[digit])
+        asyncio.ensure_future(travel_along_line(tile=tile,
+                                                speed=.12,
+                                                start_coord=start_coord, 
+                                                end_coord=end_coord,
+                                                debris=False,
+                                                animation=False))
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
@@ -876,10 +895,10 @@ async def handle_input(key):
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
             asyncio.ensure_future(equip_item(slot='q'))
-        if key in 't':
-            asyncio.ensure_future(throw_item())
         if key in 'E':
             asyncio.ensure_future(equip_item(slot='e'))
+        if key in 't':
+            asyncio.ensure_future(throw_item())
         if key in 'q':
             asyncio.ensure_future(use_item_in_slot(slot='q'))
         if key in 'e':
@@ -888,6 +907,8 @@ async def handle_input(key):
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
+        if key in 'H':
+            asyncio.ensure_future(damage_numbers(actor='player'))
         if key in 'f':
             facing_dir = dir_to_name[state_dict['facing']]
             asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
@@ -900,15 +921,11 @@ async def handle_input(key):
             asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
-        if key in 'B':
-            asyncio.ensure_future(radial_fountain())
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             map_dict[(x, y)].passable = True #make previous space passable
-            #del map_dict[(x, y)].actors['player']
             actor_dict['player'].update(x + x_shift, y + y_shift)
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
-            #map_dict[(x, y)].actors['player'] = True
         if key in "ijkl":
             state_dict['facing'] = key_to_compass[key]
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
@@ -2173,21 +2190,23 @@ def main():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(async_map_init())
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
-    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
-    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
-    loop.create_task(spawn_item_at_coords(coord=(0, 0), instance_of='fused charge'))
-    loop.create_task(spawn_item_at_coords(coord=(6, 6), instance_of='vine wand'))
-    loop.create_task(spawn_item_at_coords(coord=(7, 7), instance_of='shield wand'))
-    loop.create_task(spawn_item_at_coords(coord=(4, 4), instance_of='shift amulet'))
-    loop.create_task(spawn_item_at_coords(coord=(5, 5), instance_of='nut'))
-    loop.create_task(spawn_item_at_coords(coord=(3, 3), instance_of='red potion'))
-    loop.create_task(spawn_item_at_coords(coord=(5, 0), instance_of='shiny stone'))
+    item_spawns = (((0, 0), 'fused charge'),
+                   ((0, 0), 'fused charge'),
+                   ((0, 0), 'fused charge'),
+                   ((6, 6), 'vine wand'),
+                   ((7, 7), 'shield wand'),
+                   ((4, 4), 'shift amulet'),
+                   ((5, 5), 'nut'),
+                   ((3, 3), 'red potion'),
+                   ((5, 0), 'shiny stone'),)
+    for coord, item in item_spawns:
+        loop.create_task(spawn_item_at_coords(coord=coord, instance_of=item))
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
-    #loop.create_task(spawn_preset_actor(preset='blob'))
+    loop.create_task(spawn_preset_actor(preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
