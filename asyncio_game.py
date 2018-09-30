@@ -18,13 +18,15 @@ import os
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    #def __init__(self, passable=True, tile="▓", blocking=True, 
     def __init__(self, passable=True, tile="⣿", blocking=True, 
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
                  magic=False, magic_destination=False, mutable=True):
-        """ create a new map tile, location is stored in map_dict
+        """ create a new map tile, map_dict holds tiles.
+        A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
+        The tile representation of Map_tile at coordinate (0, 0) is accesed 
+        with map_dict[(0, 0)].tile.
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
         contains_items is a set that lists item_ids which the player or
@@ -49,14 +51,12 @@ class Actor:
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
                  animation="", holding_items={}, leaves_body=False):
-        """ create a new actor at position x, y 
-        actors hold a number of items that are either used or dropped upon death"""
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
-        self.max_health = self.health #max health is set to original value
+        self.max_health = self.health #max health is set to starting value
         self.alive = True
         self.moveable = moveable
         self.is_animated = is_animated
@@ -65,7 +65,6 @@ class Actor:
         self.leaves_body = leaves_body
 
     def update(self, x, y):
-        #TODO: patch in names to every actor that has been defined.
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -80,22 +79,44 @@ class Actor:
         if y_move:
             self.y_coord = self.y_coord + y_move
         if coord_move:
-            self.x_coord, self.y_coord = self.x_coord + coord_move[0], self.y_coord + coord_move[1]
+            self.x_coord, self.y_coord = (self.x_coord + coord_move[0], 
+                                          self.y_coord + coord_move[1])
 
 class Animation:
+    #TODO: add animations that loop.
     def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
-                 preset="grass", background=None):
-        presets = {"fire":{"animation":"^∧", "behavior":"random", "color_choices":"3331"},
-                   "water":{"animation":"▒▓▓▓████", "behavior":"random", "color_choices":("4"*10 + "6")},
-                   "grass":{"animation":("▒" * 20 + "▓"), "behavior":"random", "color_choices":("2"),},
-                   "blob":{"animation":("ööööÖ"), "behavior":"random", "color_choices":("6")},
-                   "short glyph":{"animation":("ɘəɚ"), "behavior":"random", "color_choices":("6")},
-                   "noise":{"animation":("            █▓▒"), "behavior":"random", "color_choices":"1"},
-                   "sparse noise":{"animation":(" " * 100 + "█▓▒"), "behavior":"random", "color_choices":"1" * 5 + "7"},
-                   "shimmer":{"animation":(base_tile), "behavior":"random", "color_choices":'1234567'},
-                   "explosion":{"animation":("█▓▒"), "behavior":"random", 
-                       "color_choices":"111333", "background":"0111333"},
-                   "none":{"animation":(" "), "behavior":"random", "color_choices":"1"}}
+                 preset="none", background=None):
+        presets = {"fire":{"animation":"^∧", 
+                           "behavior":"random", 
+                           "color_choices":"3331"},
+                  "water":{"animation":"▒▓▓▓████", 
+                           "behavior":"random",
+                           "color_choices":("4"*10 + "6")},
+                  "grass":{"animation":("▒" * 20 + "▓"), 
+                           "behavior":"random",
+                           "color_choices":("2"),},
+                   "blob":{"animation":("ööööÖ"),
+                           "behavior":"random",
+                           "color_choices":("6")},
+            "short glyph":{"animation":("ɘəɚ"), 
+                           "behavior":"random", 
+                           "color_choices":("6")},
+                  "noise":{"animation":("            █▓▒"), 
+                           "behavior":"random", 
+                           "color_choices":"1"},
+           "sparse noise":{"animation":(" " * 100 + "█▓▒"), 
+                           "behavior":"random", 
+                           "color_choices":"1" * 5 + "7"},
+                "shimmer":{"animation":(base_tile), 
+                           "behavior":"random", 
+                           "color_choices":'1234567'},
+              "explosion":{"animation":("█▓▒"), 
+                           "behavior":"random", 
+                           "color_choices":"111333",
+                           "background":"0111333"},
+                   "none":{"animation":(" "), 
+                           "behavior":"random", 
+                           "color_choices":"1"}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -125,8 +146,8 @@ class Item:
         can be carried.
         can be picked up on keyboard input.
         have a representation on the ground
-        when the player is over a tile with items, the items are displayed in a
-                window. 
+        when the player is over a tile with items, 
+            the items are displayed in a window. 
         can be stored in a container (chests? pots? crates?)
             destructible crates/pots that strew debris around when broken(???)
         can be used (via its usable_power and given power_kwargs (for different
@@ -169,10 +190,10 @@ actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100)
+actor_dict['player'].just_teleported = False
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
-actor_dict['player'].just_teleported = False
 state_dict['plane'] = 'normal'
 
 bw_background_tile_pairs = ((0, ' '),       #dark
@@ -194,7 +215,7 @@ bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
 #Drawing functions--------------------------------------------------------------
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
-    """ Draws a box at the given coordinates."""
+    """ Draws a box to map_dict at the given coordinates."""
     x_tuple = (top_left[0], top_left[0] + x_size)
     y_tuple = (top_left[1], top_left[1] + y_size)
     if filled:
@@ -308,28 +329,53 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
                      rand_drift=rand_drift)
     item_location = item_dict[thrown_item_id].current_location
     original_tile = item_dict[thrown_item_id].tile
+    #TODO: break this loop into a separate function.
     for count in reversed(range(fuse_length + 1)):
         await asyncio.sleep(.5)
         item_dict[thrown_item_id].tile = original_tile
         await asyncio.sleep(.5)
         item_dict[thrown_item_id].tile = term.red(str(count))
-    #hack to fix problems with draw_circle 
     if thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
-    asyncio.ensure_future(filter_print(output_text='BOOM!'))
-    await radial_fountain(tile_anchor=item_location, anchor_actor='player', 
-                         frequency=.001, radius=(3, 10), speed=(1, 2), 
-                         collapse=False, debris='`.,\'', deathclock=25,
-                         animation=Animation(preset='explosion'))
-    await draw_circle(center_coord=item_location)
-    blast_radius = await get_circle(center=item_location, radius=6)
-    with term.location(50, 3):
-        print(actor_dict['player'].coords(), actor_dict['player'].coords() in blast_radius)
-    for coord in blast_radius:
+    await explosion_effect(center=item_location, radius=6, damage=75)
+
+async def explosion_effect(center=(0, 0), radius=6, damage=75, destroys_terrain=True):
+    #TODO: make items keep track of their location when in an inventory.
+    await radial_fountain(tile_anchor=center, anchor_actor='player', 
+                          frequency=.001, radius=(3, radius + 3), speed=(1, 2), 
+                          collapse=False, debris='`.,\'', deathclock=25,
+                          animation=Animation(preset='explosion'))
+    if destroys_terrain:
+        await draw_circle(center_coord=center)
+    if damage:
+        await damage_within_circle(center=center, radius=radius, damage=damage)
+
+async def damage_within_circle(center=(0, 0), radius=6, damage=75):
+    area_of_effect = await get_circle(center=center, radius=radius)
+    for coord in area_of_effect:
         for actor in map_dict[coord].actors.items():
-            actor_dict[actor[0]].health -= 75
-    #TODO: add flag to be set on items to prevent them from being picked up.
+            await damage_actor(actor=actor[0], damage=damage)
+
+async def damage_actor(actor=None, damage=10, display_above=True):
+    current_health = actor_dict[actor].health
+    if current_health - damage <= 0:
+        actor_dict[actor].health = 0
+    else:
+        actor_dict[actor].health = current_health - damage
+
+async def damage_numbers(actor=None, damage=10, squares_above=5):
+    pass
+    #actor_coords = actor_dict[actor].coords()
+    #for x_pos, digit in enumerate(str(damage)):
+        #start_coord = actor_coords[0] + x_pos, actor_coords[1]
+        #end_coord = start_coord[0], start_coord[1] + squares_above
+        #asyncio.ensure_future(travel_along_line(tile=digit,
+                                                #start_coord=start_coord, 
+                                                #end_coord=end_coord,
+                                                #debris=False,
+                                                #animation=False))
+
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
@@ -366,7 +412,8 @@ async def push(direction=None, pusher=None):
         return 0
     else:
         pushed_coords = actor_dict[pushed_name].coords()
-        pushed_destination = (pushed_coords[0] + chosen_dir[0], pushed_coords[1] + chosen_dir[1])
+        pushed_destination = (pushed_coords[0] + chosen_dir[0], 
+                              pushed_coords[1] + chosen_dir[1])
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(*pushed_destination)
 
@@ -2061,7 +2108,8 @@ async def death_check():
         await asyncio.sleep(0)
         player_health = actor_dict["player"].health
         if player_health <= 0:
-            await filter_print(output_text=death_message)
+            asyncio.ensure_future(filter_print(pause_stay_on=99, output_text=death_message))
+            await asyncio.sleep(1)
             sleep(9999)
 
 async def environment_check(rate=.1):
