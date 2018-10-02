@@ -363,11 +363,12 @@ async def damage_actor(actor=None, damage=10, display_above=True):
         actor_dict[actor].health = 0
     else:
         actor_dict[actor].health = current_health - damage
-    exclusions = ('particle', 'vine', 'shroud')
+    exclusions = ('sword', 'particle', 'vine', 'shroud')
     for word in exclusions:
         if word in actor:
             return
-    await damage_numbers(damage=damage, actor=actor)
+    if display_above:
+        asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     actor_coords = actor_dict[actor].coords()
@@ -474,7 +475,10 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     TODO: implement damage dealt to other actors
     TODO: end the range once it hits a wall
     """
+    if 'sword_out' in state_dict and state_dict['sword_out'] == True:
+        return False
     await asyncio.sleep(0)
+    state_dict['sword_out'] = True
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
     starting_coords = actor_dict['player'].coords()
     chosen_dir = dir_coords[direction]
@@ -493,10 +497,11 @@ async def sword(direction='n', actor='player', length=5, name='sword',
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
+    state_dict['sword_out'] = False
 
-async def sword_item_ability():
+async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
-    asyncio.ensure_future(sword(facing_dir))
+    asyncio.ensure_future(sword(facing_dir, length=length))
 
 async def flashy_teleport(destination=(0, 0), actor='player'):
     """
@@ -547,6 +552,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
             'shift amulet':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':1000,
                             'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
+               'red sword':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':99999,
+                            'tile':term.red('ļ'), 'power_kwargs':{'length':3},
+                            'usable_power':sword_item_ability, 'broken_text':"Something went wrong."},
                'vine wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':10,
                             'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
@@ -909,8 +917,6 @@ async def handle_input(key):
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
-        if key in 'H':
-            asyncio.ensure_future(damage_numbers(actor='player'))
         if key in 'f':
             await sword_item_ability()
         if key in '7':
@@ -964,6 +970,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│  *│', 
                      '│ / │',
                      '│/  │',
+                     '└───┘',),
+        'red sword':('┌───┐',
+                     '│  {}│'.format(term.red('╱')),
+                     '│ {} │'.format(term.red('╱')),
+                     '│{}  │'.format(term.bold(term.red('╳'))),
                      '└───┘',),
               'nut':('┌───┐',
                      '│/ \│', 
@@ -1447,6 +1458,55 @@ async def status_bar_draw(state_dict_key="health", position="top left", bar_heig
     asyncio.ensure_future(ui_box_draw(position=position, bar_height=box_height, bar_width=box_width,
                           x_margin=x_margin, y_margin=y_margin))
 
+async def directional_damage_alert(direction='n'):
+    with term.location(30, 0):
+        print(direction)
+    angle_pair_index = await facing_dir_to_num(direction)
+    angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
+    arc_width = 90
+    dir_arcs = [((int(i - arc_width/2), i), (j, int(j + arc_width/2))) for i, j in angle_pairs]
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    angle_pair = dir_arcs[angle_pair_index]
+    warning_ui_points = [await point_at_distance_and_angle(
+                                 radius=17 + randint(0, 3), 
+                                 central_point=(middle_x, middle_y), 
+                                 angle_from_twelve=randint(*choice(angle_pair)))
+                         for _ in range(40)]
+    for tile in [term.red("█"), ' ']:
+        shuffle(warning_ui_points)
+        for point in warning_ui_points:
+            await asyncio.sleep(random()/70)
+            with term.location(*point):
+                print(tile)
+
+async def find_damage_direction(attacker_key):
+    """
+    four possible outputs.
+        N
+       
+    W       E
+
+        S
+
+    N: y value of attacker is less than player Y
+    E: x value is greater than player x
+    S: y value is greater than player y
+    W: x value of attacker is less than player x
+    """
+    attacker_location = actor_dict[attacker_key].coords()
+    player_location = actor_dict['player'].coords()
+    if attacker_location[1] < player_location[1]: #N
+        return 'n'
+    elif attacker_location[0] > player_location[0]: #E
+        return 'e'
+    elif attacker_location[1] > player_location[1]: #S 
+        return 's'
+    elif attacker_location[0] < player_location[0]: #W
+        return 'w'
+    else:
+        return 'n'
+
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
     await asyncio.sleep(0)
     timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
@@ -1627,6 +1687,8 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
                           seeds=randint(1, spatter_num), description="blood.")
     if actor_dict[defender_key].health >= attacker_strength:
         actor_dict[defender_key].health -= attacker_strength
+        direction = await find_damage_direction(attacker_key)
+        asyncio.ensure_future(directional_damage_alert(direction=direction))
     else:
         pass
 
@@ -1682,8 +1744,8 @@ async def random_unicode(length=1, clean=True):
     return u"".join(random_unicodes)
 
 async def facing_dir_to_num(direction="n"):
-    await asyncio.sleep(0)
-    dir_to_num = {'n':1, 'e':2, 's':3, 'w':4}
+    #await asyncio.sleep(0)
+    dir_to_num = {'n':2, 'e':1, 's':0, 'w':3}
     return dir_to_num[direction]
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
@@ -1820,6 +1882,9 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
                                    is_animated=is_animated, animation=animation)
     coords = actor_dict[name_key].coords()
     while True:
+        if actor_dict[name_key].health <= 0:
+            await kill_actor(name_key=name_key)
+            return
         await asyncio.sleep(speed)
         next_coords = await movement_function(name_key=name_key)
         current_coords = actor_dict[name_key].coords() #checked again here because actors can be pushed around
@@ -1828,9 +1893,6 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(*next_coords)
-        if actor_dict[name_key].health <= 0:
-            await kill_actor(name_key=name_key)
-            return
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
@@ -1910,6 +1972,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         coord = actor_dict[vine_name].coord
         await asyncio.sleep(end_wait)
         del map_dict[coord].actors[vine_name]
+        del actor_dict[vine_name]
 
 async def health_potion(item_id=None, actor_key='player', total_restored=25, duration=2, sub_second_step=.1):
     await asyncio.sleep(0)
@@ -2202,6 +2265,7 @@ def main():
                    ((7, 7), 'shield wand'),
                    ((4, 4), 'shift amulet'),
                    ((5, 5), 'nut'),
+                   ((-3, 0), 'red sword'),
                    ((3, 3), 'red potion'),
                    ((5, 0), 'shiny stone'),)
     for coord, item in item_spawns:
