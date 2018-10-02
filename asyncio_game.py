@@ -468,7 +468,8 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
                                      animation=Animation(preset='sparse noise')))
 
 
-async def sword(direction='n', actor='player', length=4, name='sword', speed=.05):
+async def sword(direction='n', actor='player', length=5, name='sword', 
+                speed=.05, damage=10):
     """extends and retracts a line of characters
     TODO: implement damage dealt to other actors
     TODO: end the range once it hits a wall
@@ -478,23 +479,24 @@ async def sword(direction='n', actor='player', length=4, name='sword', speed=.05
     starting_coords = actor_dict['player'].coords()
     chosen_dir = dir_coords[direction]
     sword_id = await generate_id(base_name='')
-    sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(length)]
+    sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
-                       starting_coords[1] + chosen_dir[1] * i) for i in range(length)]
+                       starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(name=segment_name, tile=term.red(chosen_dir[2]))
-        #map_dict[segment_coord].actors[segment_name] = True
-        for actor in map_dict[segment_coord].actors:
-            if actor_dict[actor].health >= 0:
-                actor_dict[actor].health -= 10
-            if actor_dict[actor].health <= 0:
-                actor_dict[actor].alive = False
+        map_dict[segment_coord].actors[segment_name] = True
+        for actor in map_dict[segment_coord].actors.items():
+            await damage_actor(actor=actor[0], damage=damage)
         await asyncio.sleep(speed)
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
+
+async def sword_item_ability():
+    facing_dir = state_dict['facing']
+    asyncio.ensure_future(sword(facing_dir))
 
 async def flashy_teleport(destination=(0, 0), actor='player'):
     """
@@ -910,8 +912,7 @@ async def handle_input(key):
         if key in 'H':
             asyncio.ensure_future(damage_numbers(actor='player'))
         if key in 'f':
-            facing_dir = dir_to_name[state_dict['facing']]
-            asyncio.ensure_future(filter_print(output_text="facing {}".format(facing_dir)))
+            await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='noise')))
@@ -1827,20 +1828,22 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(*next_coords)
-        if not actor_dict[name_key].alive:
+        if actor_dict[name_key].health <= 0:
             await kill_actor(name_key=name_key)
             return
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
+    coords = actor_dict[name_key].coords()
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
-        await sow_texture(root_x=coords[0], root_y=coords[1], radius=5, paint=True, 
-                          seeds=10, description="blood.")
+        await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
+                          seeds=5, description="blood.")
     if leaves_body:
         #TODO: drop items in spray around actor
+        
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     return
@@ -2156,7 +2159,7 @@ async def kill_all_tasks():
     #TODO, add a function to break given a flag to quit, put this in every task?
     #not working right now,
 
-async def spawn_preset_actor(coords=(0, 0), preset='blob'):
+async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1):
     """
     spawns an entity with various presets based on preset given.
     *** does not need to be set at top level. Can be nested in map and character
@@ -2164,12 +2167,12 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob'):
     """
     asyncio.sleep(0)
     loop = asyncio.get_event_loop()
+    actor_id = await generate_id(base_name=preset)
     if preset == 'blob':
-        name = 'test_seeker_{}'.format(123)
-        start_coord = (-20, -20)
-        speed = .5 + random()/2
-        loop.create_task(basic_actor(*start_coord, speed=1, movement_function=seek_actor, 
-                                     tile="Ϩ", name_key=name, hurtful=True,
+        name = "{}_{}".format(preset, actor_id)
+        start_coord = coords
+        loop.create_task(basic_actor(*coords, speed=speed, movement_function=seek_actor, 
+                                     tile="ö", name_key=name, hurtful=True,
                                      is_animated=True, animation=Animation(preset="blob")))
     else:
         pass
@@ -2206,7 +2209,9 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
-    loop.create_task(spawn_preset_actor(preset='blob'))
+    for i in range(30):
+        rand_coord = (randint(-25, 25), randint(-25, 25))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
