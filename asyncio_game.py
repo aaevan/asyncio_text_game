@@ -828,6 +828,7 @@ async def get_key():
     """the closest thing I could get to non-blocking input"""
     await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
+    key = None
     try:
         tty.setcbreak(sys.stdin.fileno())
         while True:
@@ -836,9 +837,13 @@ async def get_key():
                 key = sys.stdin.read(1)
                 if key == 'x1b':  # x1b is ESC
                     break
-                x, y = await handle_input(key)
+                state_dict['last_key'] = await handle_input(key)
             else:
+                state_dict['last_key'] = None
                 await asyncio.sleep(.01) 
+            #TODO: fix problems with keys being able to be repeated.
+            with term.location(0, 1):
+                print("key is: {}".format(repr(key)))
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -853,6 +858,8 @@ async def handle_input(key):
     esc to open inventory
     a variable in state_dict to capture input while in menus?
     """
+    if state_dict['last_key'] == key:
+        return
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
@@ -937,8 +944,6 @@ async def handle_input(key):
             state_dict['facing'] = key_to_compass[key]
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
-    with term.location(0, 1):
-        print("key is: {}".format(key))
     return x, y
 
 async def toggle_doors():
