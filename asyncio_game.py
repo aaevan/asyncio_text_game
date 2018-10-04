@@ -828,22 +828,30 @@ async def get_key():
     """the closest thing I could get to non-blocking input"""
     await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
-    key = None
     try:
         tty.setcbreak(sys.stdin.fileno())
+        rolling_window = [None] * 10
+        rolling_index = 0
         while True:
+            key = None
             await asyncio.sleep(0)
             if isData():
                 key = sys.stdin.read(1)
                 if key == 'x1b':  # x1b is ESC
                     break
-                state_dict['last_key'] = await handle_input(key)
+                if key not in rolling_window:
+                    await handle_input(key)
+                state_dict['last_key'] = key
             else:
                 state_dict['last_key'] = None
                 await asyncio.sleep(.01) 
             #TODO: fix problems with keys being able to be repeated.
             with term.location(0, 1):
                 print("key is: {}".format(repr(key)))
+            rolling_index = (rolling_index + 1) % 10
+            with term.location(0, 2):
+                print(rolling_window, rolling_index)
+            await asyncio.sleep(.1)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
