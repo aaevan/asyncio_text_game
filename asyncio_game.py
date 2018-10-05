@@ -522,6 +522,14 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
                               deathclock=30, speed=(1, 1))
     else:
         await filter_print(output_text="Something is in the way.")
+    
+async def random_blink(actor='player', radius=20):
+    current_location = actor_dict[actor].coords()
+    blink_to = randint(-radius, radius), randint(-radius, radius)
+    while not await check_line_of_sight(coord_a=current_location, coord_b=blink_to):
+        blink_to = randint(-radius, radius), randint(-radius, radius)
+    actor_dict[actor].update(*blink_to)
+
 
 #-------------------------------------------------------------------------------
 
@@ -830,28 +838,20 @@ async def get_key():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
-        rolling_window = [None] * 10
-        rolling_index = 0
         while True:
             key = None
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.01)
             if isData():
                 key = sys.stdin.read(1)
                 if key == 'x1b':  # x1b is ESC
                     break
-                if key not in rolling_window:
+                if key is not None:
                     await handle_input(key)
-                state_dict['last_key'] = key
-            else:
-                state_dict['last_key'] = None
-                await asyncio.sleep(.01) 
+            #else:
+                #await asyncio.sleep(.01) 
             #TODO: fix problems with keys being able to be repeated.
             with term.location(0, 1):
                 print("key is: {}".format(repr(key)))
-            rolling_index = (rolling_index + 1) % 10
-            with term.location(0, 2):
-                print(rolling_window, rolling_index)
-            await asyncio.sleep(.1)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -866,12 +866,9 @@ async def handle_input(key):
     esc to open inventory
     a variable in state_dict to capture input while in menus?
     """
-    if state_dict['last_key'] == key:
-        return
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
-                  #'A':(-10, 0), 'D':(10, 0), 'W':(0, -10), 'S':(0, 10),}
     hops = {'A':(-15, 0), 'D':(15, 0), 'W':(0, -15), 'S':(0, 15),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
@@ -900,6 +897,7 @@ async def handle_input(key):
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
         if key in hops:
+            #TODO: break hops into separate function/ability
             player_coords = actor_dict['player'].coords()
             destination = (player_coords[0] + hops[key][0], 
                            player_coords[1] + hops[key][1])
@@ -941,6 +939,10 @@ async def handle_input(key):
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
             asyncio.ensure_future(orbit(track_actor='player'))
+        if key in '6':
+            with term.location(5, 5):
+                print("trying to blink...")
+            await random_blink()
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
@@ -2286,9 +2288,9 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
-    for i in range(30):
-        rand_coord = (randint(-25, 25), randint(-25, 25))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(30):
+        #rand_coord = (randint(-25, 25), randint(-25, 25))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
