@@ -525,10 +525,24 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
-    blink_to = randint(-radius, radius), randint(-radius, radius)
-    while not await check_line_of_sight(coord_a=current_location, coord_b=blink_to):
+    #blink_to = randint(-radius, radius), randint(-radius, radius)
+    while True:
+        await asyncio.sleep(.01)
         blink_to = randint(-radius, radius), randint(-radius, radius)
-    actor_dict[actor].update(*blink_to)
+        distance = await point_to_point_distance(point_a=blink_to, 
+                                                 point_b=current_location)
+        if distance > radius:
+            continue
+        line_of_sight_result = await check_line_of_sight(coord_a=current_location, coord_b=blink_to)
+        if type(line_of_sight_result) is None:
+            continue
+        if type(line_of_sight_result) is bool:
+            actor_dict[actor].update(*blink_to)
+            return
+        else:
+            actor_dict[actor].update(*line_of_sight_result)
+            return
+
 
 
 #-------------------------------------------------------------------------------
