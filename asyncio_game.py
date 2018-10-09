@@ -86,37 +86,40 @@ class Animation:
     #TODO: add animations that loop.
     def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
                  preset="none", background=None):
-        presets = {"fire":{"animation":"^∧", 
-                           "behavior":"random", 
-                           "color_choices":"3331"},
-                  "water":{"animation":"▒▓▓▓████", 
-                           "behavior":"random",
-                           "color_choices":("4"*10 + "6")},
-                  "grass":{"animation":("▒" * 20 + "▓"), 
-                           "behavior":"random",
-                           "color_choices":("2"),},
-                   "blob":{"animation":("ööööÖ"),
-                           "behavior":"random",
-                           "color_choices":("6")},
-            "short glyph":{"animation":("ɘəɚ"), 
-                           "behavior":"random", 
-                           "color_choices":("6")},
-                  "noise":{"animation":("            █▓▒"), 
-                           "behavior":"random", 
-                           "color_choices":"1"},
-           "sparse noise":{"animation":(" " * 100 + "█▓▒"), 
-                           "behavior":"random", 
-                           "color_choices":"1" * 5 + "7"},
-                "shimmer":{"animation":(base_tile), 
-                           "behavior":"random", 
-                           "color_choices":'1234567'},
-              "explosion":{"animation":("█▓▒"), 
-                           "behavior":"random", 
-                           "color_choices":"111333",
-                           "background":"0111333"},
-                   "none":{"animation":(" "), 
-                           "behavior":"random", 
-                           "color_choices":"1"}}
+        presets = {'fire':{'animation':'^∧', 
+                           'behavior':'random', 
+                           'color_choices':'3331'},
+                  'water':{'animation':'▒▓▓▓████', 
+                           'behavior':'random',
+                           'color_choices':('4'*10 + '6')},
+                  'grass':{'animation':('▒' * 20 + '▓'), 
+                           'behavior':'random',
+                           'color_choices':('2'),},
+                   'blob':{'animation':('ööööÖ'),
+                           'behavior':'random',
+                           'color_choices':('6')},
+            'short glyph':{'animation':('ɘəɚ'), 
+                           'behavior':'random', 
+                           'color_choices':('6')},
+                  'noise':{'animation':('            █▓▒'), 
+                           'behavior':'random', 
+                           'color_choices':'1'},
+           'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
+                           'behavior':'random', 
+                           'color_choices':'1' * 5 + '7'},
+                'shimmer':{'animation':(base_tile), 
+                           'behavior':'random', 
+                           'color_choices':'1234567'},
+                  'blank':{'animation':' ', 
+                           'behavior':'random', 
+                           'color_choices':'0'},
+              'explosion':{'animation':('█▓▒'), 
+                           'behavior':'random', 
+                           'color_choices':'111333',
+                           'background':'0111333'},
+                   'none':{'animation':(' '), 
+                           'behavior':'random', 
+                           'color_choices':'1'}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -526,6 +529,9 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
     #blink_to = randint(-radius, radius), randint(-radius, radius)
+    await asyncio.sleep(.2)
+    actor_dict[actor].update(*(500, 500))
+    await asyncio.sleep(.2)
     while True:
         await asyncio.sleep(.01)
         blink_to = randint(-radius, radius), randint(-radius, radius)
@@ -534,7 +540,7 @@ async def random_blink(actor='player', radius=20):
         if distance > radius:
             continue
         line_of_sight_result = await check_line_of_sight(coord_a=current_location, coord_b=blink_to)
-        if type(line_of_sight_result) is None:
+        if line_of_sight_result is None:
             continue
         if type(line_of_sight_result) is bool:
             actor_dict[actor].update(*blink_to)
@@ -542,8 +548,6 @@ async def random_blink(actor='player', radius=20):
         else:
             actor_dict[actor].update(*line_of_sight_result)
             return
-
-
 
 #-------------------------------------------------------------------------------
 
@@ -1582,6 +1586,8 @@ async def async_map_init():
     #scary nightmare land
     loop = asyncio.get_event_loop()
     loop.create_task(draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise')))
+    #a small dark room
+    loop.create_task(draw_circle(center_coord=(500, 500), radius=15, animation=Animation(preset='blank')))
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
