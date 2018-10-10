@@ -324,24 +324,16 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     item_dict[thrown_item_id].current_location = destination
     return True
 
-async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
-                             direction=None, throw_distance=13, rand_drift=2,
-                             fused_effect=None, fused_effect_kwargs={}):
-    await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
-                     direction=direction, throw_distance=throw_distance, 
-                     rand_drift=rand_drift)
-    item_location = item_dict[thrown_item_id].current_location
-    original_tile = item_dict[thrown_item_id].tile
-    #TODO: break this loop into a separate function.
+async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
+    await asyncio.sleep(0)
+    original_tile = item_dict[item_id].tile
     for count in reversed(range(fuse_length + 1)):
         await asyncio.sleep(.5)
-        item_dict[thrown_item_id].tile = original_tile
+        item_dict[item_id].tile = original_tile
         await asyncio.sleep(.5)
-        item_dict[thrown_item_id].tile = term.red(str(count))
-    if thrown_item_id in map_dict[item_location].items:
-        del map_dict[item_location].items[thrown_item_id]
-    del item_dict[thrown_item_id]
-    await explosion_effect(center=item_location, radius=6, damage=75)
+        item_dict[item_id].tile = term.red(str(count))
+    if reset_tile:
+        item_dict[item_id].tile = original_tile
 
 async def explosion_effect(center=(0, 0), radius=6, damage=75, destroys_terrain=True):
     #TODO: make items keep track of their location when in an inventory.
@@ -354,11 +346,31 @@ async def explosion_effect(center=(0, 0), radius=6, damage=75, destroys_terrain=
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
+async def fused_throw_action(fuse_length=5, thrown_item_id=None, source_actor='player', 
+                             direction=None, throw_distance=13, rand_drift=2,
+                             fused_effect=None, fused_effect_kwargs={}):
+    await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
+                     direction=direction, throw_distance=throw_distance, 
+                     rand_drift=rand_drift)
+    item_location = item_dict[thrown_item_id].current_location
+    await display_fuse(fuse_length=fuse_length, item_id=thrown_item_id)
+    if thrown_item_id in map_dict[item_location].items:
+        del map_dict[item_location].items[thrown_item_id]
+    del item_dict[thrown_item_id]
+    await explosion_effect(center=item_location, radius=6, damage=75)
+
+async def damage_all_actors_at_coord(exclude=None, coord=(0, 0), damage=10):
+    for actor in map_dict[coord].actors.items():
+        if actor == exclude:
+            continue
+        await damage_actor(actor=actor[0], damage=damage, display_above=False)
+
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     area_of_effect = await get_circle(center=center, radius=radius)
     for coord in area_of_effect:
-        for actor in map_dict[coord].actors.items():
-            await damage_actor(actor=actor[0], damage=damage)
+        await damage_all_actors_at_coord(coord=coord, damage=damage)
+        #for actor in map_dict[coord].actors.items():
+            #await damage_actor(actor=actor[0], damage=damage)
 
 async def damage_actor(actor=None, damage=10, display_above=True):
     current_health = actor_dict[actor].health
@@ -379,9 +391,9 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
     digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
                             '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
                             '-':'⁻', '+':'⁺'}
-    digit_to_subscript =   {'1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', 
-                            '6':'₆', '7':'₇', '8':'₈', '9':'₉', '0':'₀',
-                            '-':'₋', '+':'₊'}
+    #digit_to_subscript =   {'1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', 
+                            #'6':'₆', '7':'₇', '8':'₈', '9':'₉', '0':'₀',
+                            #'-':'₋', '+':'₊'}
     if damage >= 0:
         damage = '-' + str(damage)
     else:
@@ -462,10 +474,15 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     range_tuple = (-circle_size, circle_size + 1)
     for x in range(*range_tuple):
         for y in range(*range_tuple):
-            distance_to_center = await point_to_point_distance(point_a=(0, 0), point_b=(x, y))
+            distance_to_center = await point_to_point_distance(point_a=(0, 0), 
+                                                               point_b=(x, y))
             if distance_to_center <= circle_size:
-                loop.create_task(follower_actor(parent_actor=actor_id, offset=(x, y)))
-                loop.create_task(follower_actor(tile=term.on_white(" "), parent_actor=actor_id, offset=(1000 + x, 1000 + y)))
+                loop.create_task(follower_actor(parent_actor=actor_id, 
+                                                offset=(x, y)))
+                #shadow in nightmare space
+                loop.create_task(follower_actor(tile=term.on_white(" "), 
+                                                parent_actor=actor_id, 
+                                                offset=(1000 + x, 1000 + y)))
             else:
                 pass
     loop.create_task(radial_fountain(anchor_actor=actor_id,
@@ -475,7 +492,6 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 async def sword(direction='n', actor='player', length=5, name='sword', 
                 speed=.05, damage=10):
     """extends and retracts a line of characters
-    TODO: implement damage dealt to other actors
     TODO: end the range once it hits a wall
     """
     if 'sword_out' in state_dict and state_dict['sword_out'] == True:
@@ -865,9 +881,6 @@ async def get_key():
                     break
                 if key is not None:
                     await handle_input(key)
-            #else:
-                #await asyncio.sleep(.01) 
-            #TODO: fix problems with keys being able to be repeated.
             with term.location(0, 1):
                 print("key is: {}".format(repr(key)))
     finally: 
@@ -1515,6 +1528,7 @@ async def directional_damage_alert(direction='n'):
 
 async def find_damage_direction(attacker_key):
     """
+    TODO: fix to pull from an angle instead
     four possible outputs.
         N
        
@@ -1808,13 +1822,13 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
     await asyncio.sleep(0)
     while True:
         await asyncio.sleep(tentacle_rate)
-        #asyncio.ensure_future(timed_actor(coords=start_coord))
+        #TODO: create a core that moves around and seeks the player
         if random() < .3:
             start_coord = start_coord[0] + randint(-1, 1), start_coord[1] + randint(-1, 1)
         tentacle_color = int(choice(tentacle_colors))
         asyncio.ensure_future(vine_grow(start_x=start_coord[0], start_y=start_coord[1], actor_key="tentacle", 
                        rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
-                       behavior="retract", speed=.01, damage=20, color_num=tentacle_color,
+                       behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                        extend_wait=.025, retract_wait=.25 ))
     
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
@@ -1940,7 +1954,6 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
                           seeds=5, description="blood.")
     if leaves_body:
         #TODO: drop items in spray around actor
-        
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     return
@@ -1995,12 +2008,19 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         await asyncio.sleep(extend_wait)
         map_tile = actor_dict[vine_name].tile
         coord = actor_dict[vine_name].coord
+        with term.location(0, 3):
+            print(coord)
         if behavior == "grow":
             map_dict[coord].tile = map_tile
         if behavior == "retract" or "bolt":
             map_dict[coord].actors[vine_name] = True
+        if damage:
+            await damage_all_actors_at_coord(exclude=vine_name, 
+                                             coord=coord, 
+                                             damage=damage)
     if behavior == "retract":
-        end_loop, end_wait = reversed(vine_actor_names), retract_wait
+        end_loop = reversed(vine_actor_names)
+        end_wait = retract_wait
     if behavior == "bolt":
         end_loop, end_wait = vine_actor_names, extend_wait
     for vine_name in end_loop:
@@ -2009,7 +2029,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         del map_dict[coord].actors[vine_name]
         del actor_dict[vine_name]
 
-async def health_potion(item_id=None, actor_key='player', total_restored=25, duration=2, sub_second_step=.1):
+async def health_potion(item_id=None, actor_key='player', total_restored=25, 
+                        duration=2, sub_second_step=.1):
     await asyncio.sleep(0)
     if item_id:
         del item_dict[item_id]
@@ -2022,10 +2043,6 @@ async def health_potion(item_id=None, actor_key='player', total_restored=25, dur
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
         else:
             actor_dict[actor_key].health += health_per_step
-
-#TODO: give items a consumable flag
-
-#async def consume_item(item_id=None, effect_function=health_potion, 
 
 async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     """
@@ -2314,8 +2331,6 @@ def main():
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
-
-#TODO: add an aiming reticule and/or a bullet actor that is spawned by a keypress
 
 with term.hidden_cursor():
     old_settings = termios.tcgetattr(sys.stdin)
