@@ -117,6 +117,9 @@ class Animation:
                            'behavior':'random', 
                            'color_choices':'111333',
                            'background':'0111333'},
+              'loop test':{'animation':('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'), 
+                           'behavior':'loop both', 
+                           'color_choices':'1111'},
                    'none':{'animation':(' '), 
                            'behavior':'random', 
                            'color_choices':'1'}}
@@ -131,15 +134,45 @@ class Animation:
             self.behavior = behavior
             self.color_choices = color_choices
             self.background = background
+            #TODO: fix looping animations
+            #TODO: implement random walk animations
+            #use frame numbers instead of itertools.cycle
+            #cycle is too bulky and uses the same instance for multiple calls.
+            #when animation is called, instead increment frame number and return
+            #the tile at that index. self.frame_number.
+            #if random, just use choice.
+            #a random walk through the frames could be interesting.
+            if self.behavior == 'loop color':
+                self.color_choices = cycle(list(self.color_choices))
+            elif self.behavior == 'loop tile':
+                self.animation = cycle(list(self.animation))
+            elif self.behavior == 'loop both':
+                self.color_choices = cycle(list(self.color_choices))
+                self.animation = cycle(list(self.animation))
+
     
     def __next__(self):
         if self.behavior == "random":
             color_choice = int(choice(self.color_choices))
-            if self.background:
-                background_choice = int(choice(self.background))
-                return term.on_color(background_choice)(term.color(color_choice)(choice(self.animation)))
-            else:
-                return term.color(color_choice)(choice(self.animation))
+            animation_choice = choice(self.animation)
+        elif self.behavior == 'loop color':
+            color_choice = int(next(self.color_choices))
+            animation_choice = choice(self.animation)
+        elif self.behavior == 'loop tile':
+            color_choice = int(choice(self.color_choices))
+            animation_choice = int(next(self.animation))
+        elif self.behavior == 'loop both':
+            color_choice = int(next(self.color_choices))
+            animation_choice = next(self.animation)
+        else:
+            color_choice = 0
+            animation_choice = 'X'
+        if self.background:
+            background_choice = int(choice(self.background))
+            return term.on_color(background_choice)(term.color(color_choice)(animation_choice))
+        else:
+            return term.color(color_choice)(animation_choice)
+
 
 
 class Item:
@@ -965,7 +998,7 @@ async def handle_input(key):
             await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='noise')))
+                                  animation=Animation(preset='loop test')))
         if key in '8':
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
@@ -1399,8 +1432,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     display = False
     fuzzy = False
     while True:
-        #await asyncio.sleep(1 / 15)
-        await asyncio.sleep(distance * .015)
+        #await asyncio.sleep(distance * .015)
+        await asyncio.sleep(1 / 10)
         #pull up the most recent viewing angles based on recent inputs:
         fuzzy, display = await angle_checker(angle_from_twelve)
         if (x_offset, y_offset) == (0, 0):
