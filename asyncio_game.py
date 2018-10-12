@@ -3,6 +3,7 @@ import sys
 import select 
 import tty 
 import termios
+from copy import copy, deepcopy
 from blessings import Terminal
 from collections import defaultdict
 from datetime import datetime
@@ -83,7 +84,6 @@ class Actor:
                                           self.y_coord + coord_move[1])
 
 class Animation:
-    #TODO: add animations that loop.
     def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
                  preset="none", background=None):
         presets = {'fire':{'animation':'^∧', 
@@ -101,8 +101,8 @@ class Animation:
             'short glyph':{'animation':('ɘəɚ'), 
                            'behavior':'random', 
                            'color_choices':('6')},
-                  'noise':{'animation':('            █▓▒'), 
-                           'behavior':'random', 
+                  'noise':{'animation':('            ▒▓█▓▒'), 
+                           'behavior':'loop tile', 
                            'color_choices':'1'},
            'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
                            'behavior':'random', 
@@ -117,9 +117,9 @@ class Animation:
                            'behavior':'random', 
                            'color_choices':'111333',
                            'background':'0111333'},
-              'loop test':{'animation':('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'), 
+              'loop test':{'animation':('     ░▒▓▒░'), 
                            'behavior':'loop both', 
-                           'color_choices':'1111'},
+                           'color_choices':'11112222'},
                    'none':{'animation':(' '), 
                            'behavior':'random', 
                            'color_choices':'1'}}
@@ -129,41 +129,33 @@ class Animation:
             #avoid infinite recursion.
             self.__init__(**preset_kwargs, preset=None)
         else:
+            self.frame_number = 0
+            self.color_frame_number = 0
             self.animation = animation
             self.base_tile = base_tile
             self.behavior = behavior
             self.color_choices = color_choices
             self.background = background
-            #TODO: fix looping animations
-            #TODO: implement random walk animations
-            #use frame numbers instead of itertools.cycle
-            #cycle is too bulky and uses the same instance for multiple calls.
-            #when animation is called, instead increment frame number and return
-            #the tile at that index. self.frame_number.
-            #if random, just use choice.
+            #TODO: implement random walk through tile frames
             #a random walk through the frames could be interesting.
-            if self.behavior == 'loop color':
-                self.color_choices = cycle(list(self.color_choices))
-            elif self.behavior == 'loop tile':
-                self.animation = cycle(list(self.animation))
-            elif self.behavior == 'loop both':
-                self.color_choices = cycle(list(self.color_choices))
-                self.animation = cycle(list(self.animation))
-
     
     def __next__(self):
         if self.behavior == "random":
             color_choice = int(choice(self.color_choices))
             animation_choice = choice(self.animation)
         elif self.behavior == 'loop color':
-            color_choice = int(next(self.color_choices))
+            color_choice = int(list(self.color_choices)[self.color_frame_number])
+            self.color_frame_number = (self.color_frame_number + 1) % len(self.color_choices)
             animation_choice = choice(self.animation)
         elif self.behavior == 'loop tile':
             color_choice = int(choice(self.color_choices))
-            animation_choice = int(next(self.animation))
+            animation_choice = list(self.animation)[self.frame_number]
+            self.frame_number = (self.frame_number + 1) % len(self.animation)
         elif self.behavior == 'loop both':
-            color_choice = int(next(self.color_choices))
-            animation_choice = next(self.animation)
+            color_choice = int(list(self.color_choices)[self.color_frame_number])
+            self.color_frame_number = (self.color_frame_number + 1) % len(self.color_choices)
+            animation_choice = list(self.animation)[self.frame_number]
+            self.frame_number = (self.frame_number + 1) % len(self.animation)
         else:
             color_choice = 0
             animation_choice = 'X'
@@ -306,9 +298,10 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
             if distance_to_center <= radius:
                 actors = map_dict[(x, y)].actors
                 items = map_dict[(x, y)].items
+                # a copy of the animation is made so each tile can have its own instance.
                 map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False, 
                                             description=None, is_animated=is_animated,
-                                            animation=animation, actors=actors, items=items)
+                                            animation=copy(animation), actors=actors, items=items)
 
 #-------------------------------------------------------------------------------
 
@@ -420,7 +413,6 @@ async def damage_actor(actor=None, damage=10, display_above=True):
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     actor_coords = actor_dict[actor].coords()
-    #TODO: swap in digits of unicode superscript and subscript
     digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
                             '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
                             '-':'⁻', '+':'⁺'}
