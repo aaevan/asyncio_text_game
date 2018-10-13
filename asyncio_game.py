@@ -62,8 +62,13 @@ class Actor:
         self.moveable = moveable
         self.is_animated = is_animated
         self.animation = animation
-        self.holding_items = holding_items
         self.leaves_body = leaves_body
+        self.holding_items = holding_items
+        if holding_items:
+            for item in holding_items:
+                pass
+                #TODO: add spawning of items on actors
+                #spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=self.name)
 
     def update(self, x, y):
         if self.name in map_dict[self.coords()].actors:
@@ -123,6 +128,7 @@ class Animation:
                    'none':{'animation':(' '), 
                            'behavior':'random', 
                            'color_choices':'1'}}
+        #TODO: have color choices tied to a background/foreground color combination?
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -596,7 +602,7 @@ async def random_blink(actor='player', radius=20):
 #-------------------------------------------------------------------------------
 
 #Item interaction---------------------------------------------------------------
-async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
+async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     item_id = await generate_id(base_name=instance_of)
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
@@ -631,7 +637,10 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand'):
                             'broken_text':wand_broken_text}}
     if instance_of in item_catalog:
         item_dict[item_id] = Item(**item_catalog[instance_of])
-        map_dict[coord].items[item_id] = True
+        if not on_actor_id:
+            map_dict[coord].items[item_id] = True
+        else:
+            actor_dict[on_actor_id].holding_items[item_id] = True
 
 async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
     last_coord = None
@@ -973,6 +982,8 @@ async def handle_input(key):
             asyncio.ensure_future(filter_print(output_text=description)),
         if key in ' ':
             asyncio.ensure_future(toggle_doors()),
+        if key in '@':
+            asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id='player'))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -1859,7 +1870,7 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
                        behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                        extend_wait=.025, retract_wait=.25 ))
     
-async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
+async def jhrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     X a set core that moves around and an outer shroud of random moving tiles
     X shroud pieces are made of darkness. darkness is represented by an empty square (' ')
@@ -1975,12 +1986,16 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
+        held_items = actor_dict[name_key].holding_items
+        if actor_dict[name_key].holding_items:
+            for number, item in enumerate(actor_dict[actor_key].holding_items):
+                with term.location(30, 2 + number):
+                    print(item)
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
         await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
                           seeds=5, description="blood.")
-    if leaves_body:
         #TODO: drop items in spray around actor
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
@@ -2353,9 +2368,9 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
-    #for i in range(30):
-        #rand_coord = (randint(-25, 25), randint(-25, 25))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-25, 25), randint(-25, 25))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
