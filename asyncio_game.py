@@ -117,9 +117,9 @@ class Animation:
                            'behavior':'random', 
                            'color_choices':'111333',
                            'background':'0111333'},
-              'loop test':{'animation':('     ░▒▓▒░'), 
+              'loop test':{'animation':('      ░▒▓▒░'), 
                            'behavior':'loop both', 
-                           'color_choices':'11112222'},
+                           'color_choices':'1234565432'},
                    'none':{'animation':(' '), 
                            'behavior':'random', 
                            'color_choices':'1'}}
@@ -140,31 +140,34 @@ class Animation:
             #a random walk through the frames could be interesting.
     
     def __next__(self):
-        if self.behavior == "random":
+        behavior_lookup = {'random':{'color':'random', 'tile':'random'},
+                           'loop color':{'color':'loop', 'tile':'random'},
+                           'loop tile':{'color':'random', 'tile':'loop'},
+                           'loop both':{'color':'loop', 'tile':'loop'},}
+        current_behavior = behavior_lookup[self.behavior]
+        #color behavior:
+        if current_behavior['color'] == 'random':
             color_choice = int(choice(self.color_choices))
-            animation_choice = choice(self.animation)
-        elif self.behavior == 'loop color':
+        elif current_behavior['color'] == 'loop':
             color_choice = int(list(self.color_choices)[self.color_frame_number])
             self.color_frame_number = (self.color_frame_number + 1) % len(self.color_choices)
-            animation_choice = choice(self.animation)
-        elif self.behavior == 'loop tile':
-            color_choice = int(choice(self.color_choices))
-            animation_choice = list(self.animation)[self.frame_number]
-            self.frame_number = (self.frame_number + 1) % len(self.animation)
-        elif self.behavior == 'loop both':
-            color_choice = int(list(self.color_choices)[self.color_frame_number])
-            self.color_frame_number = (self.color_frame_number + 1) % len(self.color_choices)
-            animation_choice = list(self.animation)[self.frame_number]
+        else:
+            color_choice = 5 #purple
+        #tile behavior
+        if current_behavior['tile'] == 'random':
+            tile_choice = choice(self.animation)
+        elif current_behavior['tile'] == 'loop':
+            tile_choice = list(self.animation)[self.frame_number]
             self.frame_number = (self.frame_number + 1) % len(self.animation)
         else:
-            color_choice = 0
-            animation_choice = 'X'
+            tile_choice = '?'
+        #background behavior
         if self.background:
             background_choice = int(choice(self.background))
-            return term.on_color(background_choice)(term.color(color_choice)(animation_choice))
         else:
-            return term.color(color_choice)(animation_choice)
-
+            background_choice = 0
+        #combined output
+        return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
 
 class Item:
