@@ -64,11 +64,6 @@ class Actor:
         self.animation = animation
         self.leaves_body = leaves_body
         self.holding_items = holding_items
-        if holding_items:
-            for item in holding_items:
-                pass
-                #TODO: add spawning of items on actors
-                #spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=self.name)
 
     def update(self, x, y):
         if self.name in map_dict[self.coords()].actors:
@@ -604,39 +599,33 @@ async def random_blink(actor='player', radius=20):
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     item_id = await generate_id(base_name=instance_of)
+    #item text:
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
-    item_catalog = {'wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':10, 'tile':term.blue('/'), 'usable_power':None},
-                     'nut':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
+    item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':None},
+                     'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
-            'fused charge':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
+            'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id}},
-             'shield wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
+             'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-              'red potion':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
+              'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
                             'total_restored':50}, 'usable_power':health_potion, 
                             'broken_text':wand_broken_text},
-             'shiny stone':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 
-                            'uses':9999, 'tile':term.blue('o'), 
+             'shiny stone':{'uses':9999, 'tile':term.blue('o'), 
                             'power_kwargs':{'radius':5, 'track_actor':'player'}, 
                             'usable_power':orbit, 'broken_text':wand_broken_text},
-            'shift amulet':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':1000,
-                            'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
+             'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
-               'red sword':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':99999,
-                            'tile':term.red('ļ'), 'power_kwargs':{'length':3},
+             'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
                             'usable_power':sword_item_ability, 'broken_text':"Something went wrong."},
-               'vine wand':{'name':instance_of, 'item_id':item_id, 'spawn_coord':coord, 'uses':10,
-                            'tile':term.green('/'), 'usable_power':vine_grow, 
+             'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             'broken_text':wand_broken_text}}
+    #item generation:
     if instance_of in item_catalog:
-        item_dict[item_id] = Item(**item_catalog[instance_of])
+        item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
+                                  **item_catalog[instance_of])
         if not on_actor_id:
             map_dict[coord].items[item_id] = True
         else:
@@ -983,7 +972,7 @@ async def handle_input(key):
         if key in ' ':
             asyncio.ensure_future(toggle_doors()),
         if key in '@':
-            asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id='player'))
+            asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='fused charge', on_actor_id='player'))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -1648,16 +1637,6 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
-    for _ in range(100):
-        await asyncio.sleep(1)
-        x, y = randint(-18, 18), randint(-18, 18)
-        rand_radius = randint(5, 10)
-        coord = (90 + x, 20 + x)
-        with term.location(65, 2):
-            print(_, x, y, rand_radius, coord)
-        loop.create_task(draw_circle(center_coord=coord, radius=rand_radius, 
-                                     animation=Animation(base_tile=str(_), preset='shimmer')))
-
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
@@ -1988,7 +1967,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         body_tile = term.red(actor_dict[name_key].tile)
         held_items = actor_dict[name_key].holding_items
         if actor_dict[name_key].holding_items:
-            for number, item in enumerate(actor_dict[actor_key].holding_items):
+            for number, item in enumerate(actor_dict[name_key].holding_items):
                 with term.location(30, 2 + number):
                     print(item)
     del actor_dict[name_key]
@@ -2354,15 +2333,8 @@ def main():
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     #loop.create_task(tentacled_mass())
     item_spawns = (((0, 0), 'fused charge'),
-                   ((0, 0), 'fused charge'),
-                   ((0, 0), 'fused charge'),
-                   ((6, 6), 'vine wand'),
-                   ((7, 7), 'shield wand'),
-                   ((4, 4), 'shift amulet'),
-                   ((5, 5), 'nut'),
-                   ((-3, 0), 'red sword'),
-                   ((3, 3), 'red potion'),
-                   ((5, 0), 'shiny stone'),)
+                   ((1, 1), 'shield wand'),
+                   ((2, 2), 'shift amulet'),)
     for coord, item in item_spawns:
         loop.create_task(spawn_item_at_coords(coord=coord, instance_of=item))
     loop.create_task(death_check())
