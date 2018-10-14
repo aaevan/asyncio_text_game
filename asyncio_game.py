@@ -285,13 +285,14 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].blocking = blocking
 
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
-                passable=True, blocking=False, animation=None):
+                passable=True, blocking=False, animation=None, delay=0):
     """
     draws a circle in real time. eats actors right now
     """
     await asyncio.sleep(0)
     for x in range(center_coord[0] - radius, center_coord[0] + radius):
         for y in range(center_coord[1] - radius, center_coord[1] + radius):
+            await asyncio.sleep(delay)
             if not map_dict[(x, y)].mutable:
                 continue
             distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
@@ -376,9 +377,9 @@ async def explosion_effect(center=(0, 0), radius=6, damage=75, destroys_terrain=
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
-async def fused_throw_action(fuse_length=5, thrown_item_id=None, source_actor='player', 
-                             direction=None, throw_distance=13, rand_drift=2,
-                             fused_effect=None, fused_effect_kwargs={}):
+async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
+                             direction=None, throw_distance=13, rand_drift=2, 
+                             radius=6, damage=75):
     await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
                      direction=direction, throw_distance=throw_distance, 
                      rand_drift=rand_drift)
@@ -387,7 +388,7 @@ async def fused_throw_action(fuse_length=5, thrown_item_id=None, source_actor='p
     if thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
-    await explosion_effect(center=item_location, radius=6, damage=75)
+    await explosion_effect(center=item_location, radius=radius, damage=75)
 
 async def damage_all_actors_at_coord(exclude=None, coord=(0, 0), damage=10):
     for actor in map_dict[coord].actors.items():
@@ -598,15 +599,23 @@ async def random_blink(actor='player', radius=20):
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
-    item_id = await generate_id(base_name=instance_of)
     #item text:
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
+    possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
+                      'shiny stone', 'shift amulet', 'red sword', 'vine wand',
+                      'eye trinket', 'high explosives')
+    if instance_of == 'random':
+        instance_of = choice(possible_items)
+    item_id = await generate_id(base_name=instance_of)
     item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':None},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id}},
+                            'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
+         'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
+                            'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':0, 
+                                            'radius':15, 'damage':150, 'fuse_length':9}},
              'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
               'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
@@ -615,13 +624,15 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
              'shiny stone':{'uses':9999, 'tile':term.blue('o'), 
                             'power_kwargs':{'radius':5, 'track_actor':'player'}, 
                             'usable_power':orbit, 'broken_text':wand_broken_text},
-             'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
+            'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
-             'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
+               'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
                             'usable_power':sword_item_ability, 'broken_text':"Something went wrong."},
-             'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
+               'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
-                            'broken_text':wand_broken_text}}
+                            'broken_text':wand_broken_text},
+             'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
+                            'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
     #item generation:
     if instance_of in item_catalog:
         item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
@@ -1065,10 +1076,20 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│\_/│',
                      '│\_/│',
                      '└───┘',),
+  'high explosives':('┌───┐',
+                     '│ ╭ │', 
+                     '│ {} │'.format(term.red('█')),
+                     '│ {} │'.format(term.red('█')),
+                     '└───┘',),
      'shift amulet':('┌───┐',
                      '│╭─╮│', 
                      '││ ││',
                      '│╰ʘ╯│',
+                     '└───┘',),
+      'eye trinket':('┌───┐',
+                     '│   │', 
+                     '│<ʘ>│',
+                     '│   │',
                      '└───┘',),
       'shiny stone':('┌───┐',   #effect while equipped: orbit
                      '│ _ │', 
@@ -1731,6 +1752,8 @@ async def ui_setup():
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
+    loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
+    loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
 #-------------------------------------------------------------------------------
 
 #Actor behavior functions-------------------------------------------------------
@@ -2323,18 +2346,14 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #UI_DEBUG
     loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
-    loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
-    loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-    #loop.create_task(tentacled_mass())
-    item_spawns = (((0, 0), 'fused charge'),
-                   ((1, 1), 'shield wand'),
-                   ((2, 2), 'shift amulet'),)
+    item_spawns = []
+    for i in range(20):
+        item_spawns.append(((randint(-10, 10), randint(-10, 10),), 'random'))
     for coord, item in item_spawns:
         loop.create_task(spawn_item_at_coords(coord=coord, instance_of=item))
     loop.create_task(death_check())
