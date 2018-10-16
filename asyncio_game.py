@@ -23,7 +23,8 @@ class Map_tile:
                  description='', announcing=False, seen=False, 
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
-                 magic=False, magic_destination=False, mutable=True):
+                 magic=False, magic_destination=False, 
+                 mutable=True, locked=False):
         """ create a new map tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
         The tile representation of Map_tile at coordinate (0, 0) is accesed 
@@ -46,6 +47,7 @@ class Map_tile:
         self.is_animated, self.animation = is_animated, animation
         self.magic, self.magic_destination = magic, magic_destination
         self.mutable = mutable
+        self.locked = locked
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -584,7 +586,10 @@ async def random_blink(actor='player', radius=20):
     await asyncio.sleep(.2)
     while True:
         await asyncio.sleep(.01)
-        blink_to = randint(-radius, radius), randint(-radius, radius)
+        rand_x = randint(-radius, radius) + current_location[0]
+        rand_y = randint(-radius, radius) + current_location[1]
+        blink_to = (rand_x, rand_y)
+        #randint(-radius, radius), randint(-radius, radius)
         distance = await point_to_point_distance(point_a=blink_to, 
                                                  point_b=current_location)
         if distance > radius:
@@ -593,8 +598,11 @@ async def random_blink(actor='player', radius=20):
         if line_of_sight_result is None:
             continue
         if type(line_of_sight_result) is bool:
-            actor_dict[actor].update(*blink_to)
-            return
+            if line_of_sight_result is True:
+                actor_dict[actor].update(*blink_to)
+                return
+            else:
+                continue
         else:
             actor_dict[actor].update(*line_of_sight_result)
             return
@@ -619,9 +627,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
         #TODO: fix explosion effect to match size of radius
          'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':0, 
+                            'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':1, 
                                             'radius':15, 'damage':150, 'fuse_length':9,
-                                            'particle_count':30}},
+                                            'particle_count':30, 'rand_drift':0}},
              'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
               'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
@@ -793,7 +801,7 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def draw_door(x, y, closed = True):
+def draw_door(x, y, closed=True, locked=False):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
@@ -806,6 +814,7 @@ def draw_door(x, y, closed = True):
     map_dict[(x, y)].tile = tile
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
+    map_dict[(x, y)].locked = locked
 
 async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     """
@@ -869,7 +878,7 @@ def map_init():
     for passage in passages:
         connect_with_passage(*passage)
     for door in doors:
-        draw_door(*door)
+        draw_door(*door, locked=True)
     announcement_at_coord(coord=(0, 17), distance_trigger=5, 
                           announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, 
@@ -1038,6 +1047,9 @@ async def toggle_doors():
     for door in door_dirs:
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
+        if map_dict[door_coord_tuple].locked:
+            asyncio.ensure_future(filter_print(output_text="It's locked."))
+            continue
         if door_state == "▮":
             map_dict[door_coord_tuple].tile = '▯'
             map_dict[door_coord_tuple].passable = True
