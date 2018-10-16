@@ -120,6 +120,9 @@ class Animation:
               'loop test':{'animation':('      ░▒▓▒░'), 
                            'behavior':'loop both', 
                            'color_choices':'1234565432'},
+                 'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
+                           'behavior':'loop both', 
+                           'color_choices':'7'},
                    'none':{'animation':(' '), 
                            'behavior':'random', 
                            'color_choices':'1'}}
@@ -366,20 +369,20 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
     if reset_tile:
         item_dict[item_id].tile = original_tile
 
-async def explosion_effect(center=(0, 0), radius=6, damage=75, destroys_terrain=True):
+async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25, destroys_terrain=True):
     #TODO: make items keep track of their location when in an inventory.
     await radial_fountain(tile_anchor=center, anchor_actor='player', 
-                          frequency=.001, radius=(3, radius + 3), speed=(1, 2), 
-                          collapse=False, debris='`.,\'', deathclock=25,
+                          frequency=.001, radius=(radius, radius + 3), speed=(1, 2), 
+                          collapse=False, debris='`.,\'', deathclock=particle_count,
                           animation=Animation(preset='explosion'))
     if destroys_terrain:
-        await draw_circle(center_coord=center)
+        await draw_circle(center_coord=center, radius=radius)
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
 async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
                              direction=None, throw_distance=13, rand_drift=2, 
-                             radius=6, damage=75):
+                             radius=6, damage=75, particle_count=25):
     await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
                      direction=direction, throw_distance=throw_distance, 
                      rand_drift=rand_drift)
@@ -388,7 +391,8 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
     if thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
-    await explosion_effect(center=item_location, radius=radius, damage=75)
+    await explosion_effect(center=item_location, radius=radius, 
+                           damage=damage, particle_count=particle_count)
 
 async def damage_all_actors_at_coord(exclude=None, coord=(0, 0), damage=10):
     for actor in map_dict[coord].actors.items():
@@ -613,9 +617,11 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
+        #TODO: fix explosion effect to match size of radius
          'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':0, 
-                                            'radius':15, 'damage':150, 'fuse_length':9}},
+                                            'radius':15, 'damage':150, 'fuse_length':9,
+                                            'particle_count':30}},
              'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
                             'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
               'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
@@ -1004,7 +1010,7 @@ async def handle_input(key):
             await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='loop test')))
+                                  animation=Animation(preset='spikes')))
         if key in '8':
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
@@ -1817,22 +1823,6 @@ async def damage_door():
 async def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
-async def random_unicode(length=1, clean=True):
-    """
-    Create a list of unicode characters within the range 0000-D7FF
-    adapted from:
-    https://stackoverflow.com/questions/37842010/how-can-i-get-a-random-unicode-string/37844413#37844413
-    """
-    await asyncio.sleep(0)
-    random_unicodes = [chr(randrange(0xD7FF)) for _ in range(0, length)] 
-    if clean:
-        while True:
-            sleep(.01)
-            a = random_unicode(1)
-            if len(repr(a)) == 3:
-                print(a)
-    return u"".join(random_unicodes)
-
 async def facing_dir_to_num(direction="n"):
     #await asyncio.sleep(0)
     dir_to_num = {'n':2, 'e':1, 's':0, 'w':3}
@@ -1872,7 +1862,7 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
                        behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                        extend_wait=.025, retract_wait=.25 ))
     
-async def jhrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
+async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     X a set core that moves around and an outer shroud of random moving tiles
     X shroud pieces are made of darkness. darkness is represented by an empty square (' ')
