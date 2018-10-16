@@ -98,7 +98,7 @@ class Animation:
                            'behavior':'random',
                            'color_choices':('2'),},
                    'blob':{'animation':('ööööÖ'),
-                           'behavior':'random',
+                           'behavior':'loop tile',
                            'color_choices':('6')},
             'short glyph':{'animation':('ɘəɚ'), 
                            'behavior':'random', 
@@ -526,7 +526,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 
 
 async def sword(direction='n', actor='player', length=5, name='sword', 
-                speed=.05, damage=10):
+                speed=.05, damage=100):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
@@ -580,7 +580,6 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
-    #blink_to = randint(-radius, radius), randint(-radius, radius)
     await asyncio.sleep(.2)
     actor_dict[actor].update(*(500, 500))
     await asyncio.sleep(.2)
@@ -589,7 +588,6 @@ async def random_blink(actor='player', radius=20):
         rand_x = randint(-radius, radius) + current_location[0]
         rand_y = randint(-radius, radius) + current_location[1]
         blink_to = (rand_x, rand_y)
-        #randint(-radius, radius), randint(-radius, radius)
         distance = await point_to_point_distance(point_a=blink_to, 
                                                  point_b=current_location)
         if distance > radius:
@@ -625,7 +623,6 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
-        #TODO: fix explosion effect to match size of radius
          'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':1, 
                                             'radius':15, 'damage':150, 'fuse_length':9,
@@ -998,7 +995,10 @@ async def handle_input(key):
         if key in ' ':
             asyncio.ensure_future(toggle_doors()),
         if key in '@':
-            asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='fused charge', on_actor_id='player'))
+            #asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='fused charge', on_actor_id='player'))
+            player_coords = actor_dict['player'].coords()
+            asyncio.ensure_future(spawn_item_spray(base_coord=player_coords, 
+                                                   items=['nut', 'shield wand']))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -1958,7 +1958,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
 
 async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
-        is_animated=False, animation=" "):
+        strength=5, is_animated=False, animation=" ", holding_items=[]):
     """ A coroutine that creates a randomly wandering '*' """
     """
     actors can:
@@ -1969,9 +1969,11 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
     exist for a set number of turns
     """
     await asyncio.sleep(0)
-    actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, speed=speed, 
-                                   tile=tile, hurtful=hurtful, leaves_body=True,
-                                   is_animated=is_animated, animation=animation)
+    actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, 
+                                   speed=speed, tile=tile, hurtful=hurtful, 
+                                   leaves_body=True, strength=strength, 
+                                   is_animated=is_animated, animation=animation,
+                                   holding_items=holding_items)
     coords = actor_dict[name_key].coords()
     while True:
         if actor_dict[name_key].health <= 0:
@@ -1990,7 +1992,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
-        held_items = actor_dict[name_key].holding_items
+        holding_items = actor_dict[name_key].holding_items
         if actor_dict[name_key].holding_items:
             for number, item in enumerate(actor_dict[name_key].holding_items):
                 with term.location(30, 2 + number):
@@ -2000,10 +2002,19 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     if blood:
         await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
                           seeds=5, description="blood.")
-        #TODO: drop items in spray around actor
+        await spawn_item_spray(base_coord=coords, items=holding_items)
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     return
+
+async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
+    if items is None:
+        return
+    loop = asyncio.get_event_loop()
+    coord_choices = await get_circle(center=base_coord, radius=radius)
+    for item in items:
+        item_coord = choice(coord_choices)
+        loop.create_task(spawn_item_at_coords(coord=item_coord, instance_of=item))
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
@@ -2321,7 +2332,7 @@ async def kill_all_tasks():
     #TODO, add a function to break given a flag to quit, put this in every task?
     #not working right now,
 
-async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1):
+async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_items=[]):
     """
     spawns an entity with various presets based on preset given.
     *** does not need to be set at top level. Can be nested in map and character
@@ -2333,9 +2344,11 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1):
     if preset == 'blob':
         name = "{}_{}".format(preset, actor_id)
         start_coord = coords
+        item_drops = ['red potion']
         loop.create_task(basic_actor(*coords, speed=speed, movement_function=seek_actor, 
-                                     tile="ö", name_key=name, hurtful=True,
-                                     is_animated=True, animation=Animation(preset="blob")))
+                                     tile='ö', name_key=name, hurtful=True, strength=30,
+                                     is_animated=True, animation=Animation(preset="blob"),
+                                     holding_items=item_drops))
     else:
         pass
 
@@ -2354,10 +2367,6 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
-    for i in range(20):
-        item_spawns.append(((randint(-10, 10), randint(-10, 10),), 'random'))
-    for coord, item in item_spawns:
-        loop.create_task(spawn_item_at_coords(coord=coord, instance_of=item))
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
