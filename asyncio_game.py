@@ -99,11 +99,12 @@ class Animation:
                            'color_choices':('2'),},
                    'blob':{'animation':('ööööÖ'),
                            'behavior':'loop tile',
-                           'color_choices':('6')},
-            'short glyph':{'animation':('ɘəɚ'), 
-                           'behavior':'random', 
-                           'color_choices':('6')},
-                  'noise':{'animation':('            ▒▓█▓▒'), 
+                           'color_choices':('2')},
+                  'mouth':{'animation':('▲▸▼◀'),
+                           'behavior':'loop tile',
+                           'color_choices':('456')},
+                  #'noise':{'animation':('            ▒▓█▓▒'), 
+                  'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
                            'behavior':'loop tile', 
                            'color_choices':'1'},
            'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
@@ -1863,16 +1864,25 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
     move away while distance is far, move slowly towards when distance is near, radius = 20?
     """
     await asyncio.sleep(0)
+    tentacled_mass_id = await generate_id(base_name='tentacled_mass')
+    tentacled_mass_id = start_coord
+    actor_dict[tentacled_mass_id] = Actor(name=tentacled_mass_id, moveable=False, tile='*',
+                                          is_animated=True, animation=Animation(preset='mouth'))
+    actor_dict[tentacled_mass_id].update(*start_coord)
+    current_coord = start_coord
     while True:
         await asyncio.sleep(tentacle_rate)
         #TODO: create a core that moves around and seeks the player
         if random() < .3:
-            start_coord = start_coord[0] + randint(-1, 1), start_coord[1] + randint(-1, 1)
+            current_coord = current_coord[0] + randint(-1, 1), current_coord[1] + randint(-1, 1)
         tentacle_color = int(choice(tentacle_colors))
-        asyncio.ensure_future(vine_grow(start_x=start_coord[0], start_y=start_coord[1], actor_key="tentacle", 
+        start_x = current_coord[0] + choice([-1, 1])
+        start_y = current_coord[1] + choice([-1, 1])
+        asyncio.ensure_future(vine_grow(start_x=current_coord[0], start_y=current_coord[1], actor_key="tentacle", 
                        rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
                        behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                        extend_wait=.025, retract_wait=.25 ))
+        actor_dict[tentacled_mass_id].update(*current_coord)
     
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
@@ -2341,11 +2351,11 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     asyncio.sleep(0)
     loop = asyncio.get_event_loop()
     actor_id = await generate_id(base_name=preset)
+    name = "{}_{}".format(preset, actor_id)
+    start_coord = coords
     if preset == 'blob':
-        name = "{}_{}".format(preset, actor_id)
-        start_coord = coords
         item_drops = ['red potion']
-        loop.create_task(basic_actor(*coords, speed=speed, movement_function=seek_actor, 
+        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
                                      tile='ö', name_key=name, hurtful=True, strength=30,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
