@@ -984,6 +984,8 @@ async def handle_input(key):
                            player_coords[1] + hops[key][1])
             await flashy_teleport(destination=destination)
         shifted_x, shifted_y = x + x_shift, y + y_shift
+        if key in '?':
+            await display_help() 
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1203,7 +1205,6 @@ async def equip_item(slot='q'):
     else:
         await filter_print(output_text="Nothing to equip!")
 
-
 async def use_chosen_item():
     await asyncio.sleep(0)
     item_id_choice = await choose_item()
@@ -1408,6 +1409,28 @@ async def angle_checker(angle_from_twelve):
 #-------------------------------------------------------------------------------
 
 #UI/HUD functions---------------------------------------------------------------
+async def display_help():
+    x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
+    for y in range(y_offset, y_offset + 10):
+        with term.location(x_offset, y):
+            print(" "* 20)
+    with term.location(x_offset + 1, y_offset + 1):
+        print("wasd: move")
+    with term.location(x_offset + 1, y_offset + 2):
+        print("ijkl: look")
+    with term.location(x_offset + 1, y_offset + 3):
+        print("   g: grab item menu,")
+    with term.location(x_offset + 1, y_offset + 4):
+        print("      number to choose")
+    with term.location(x_offset + 1, y_offset + 5):
+        print(" Q/E: equip item to slot,")
+    with term.location(x_offset + 1, y_offset + 6):
+        print("      number to choose")
+    sleep(5)
+    for y in range(y_offset, y_offset + 10):
+        with term.location(x_offset, y):
+            print(" "* 20)
+
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
     intended to be used for occlusion.
@@ -1537,7 +1560,10 @@ async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
 
-async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=30, y_margin=4):
+async def ui_box_draw(position="top left", 
+                      box_height=1, box_width=9, 
+                      x_margin=30, y_margin=4,
+                      one_time=False):
     """
     draws a box for UI elements
     <--width-->
@@ -1566,6 +1592,8 @@ async def ui_box_draw(position="top left", box_height=1, box_width=9, x_margin=3
                 print("│")
             with term.location(x_print + box_width + 1, row):
                 print("│")
+        if one_time:
+            break
 
 async def status_bar_draw(state_dict_key="health", position="top left", bar_height=1, bar_width=10,
                           x_margin=5, y_margin=4):
@@ -1776,7 +1804,7 @@ async def ui_setup():
 #-------------------------------------------------------------------------------
 
 #Actor behavior functions-------------------------------------------------------
-async def wander(x_current, y_current, name_key):
+async def wander(x_current=0, y_current=0, name_key=None):
     """ 
     randomly increments or decrements x_current and y_current
     if square to be moved to is passable
@@ -1786,6 +1814,8 @@ async def wander(x_current, y_current, name_key):
     next_position = (x_current + x_move, y_current + y_move)
     if map_dict[next_position].passable:
         return next_position
+    else:
+        return x_current, y_current
 
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
     await asyncio.sleep(0)
@@ -1857,7 +1887,7 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
 #-------------------------------------------------------------------------------
 
 #Actor creation and controllers----------------------------------------------
-async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(3, 8),
+async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
                          tentacle_rate=.1, tentacle_colors="456"):
     """
     creates a (currently) stationary mass of random length and color tentacles
@@ -1865,23 +1895,22 @@ async def tentacled_mass(start_coord=(-5, -5), speed=.5, tentacle_length_range=(
     """
     await asyncio.sleep(0)
     tentacled_mass_id = await generate_id(base_name='tentacled_mass')
-    tentacled_mass_id = start_coord
     actor_dict[tentacled_mass_id] = Actor(name=tentacled_mass_id, moveable=False, tile='*',
                                           is_animated=True, animation=Animation(preset='mouth'))
     actor_dict[tentacled_mass_id].update(*start_coord)
     current_coord = start_coord
     while True:
         await asyncio.sleep(tentacle_rate)
-        #TODO: create a core that moves around and seeks the player
-        if random() < .3:
-            current_coord = current_coord[0] + randint(-1, 1), current_coord[1] + randint(-1, 1)
+        current_coord = await choose_core_move(core_name_key=tentacled_mass_id,
+                                               tentacles=False)
+        if current_coord:
+            actor_dict[tentacled_mass_id].update(*current_coord)
         tentacle_color = int(choice(tentacle_colors))
-        start_x = current_coord[0] + choice([-1, 1])
-        start_y = current_coord[1] + choice([-1, 1])
-        asyncio.ensure_future(vine_grow(start_x=current_coord[0], start_y=current_coord[1], actor_key="tentacle", 
-                       rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
-                       behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
-                       extend_wait=.025, retract_wait=.25 ))
+        asyncio.ensure_future(vine_grow(start_x=current_coord[0], 
+                start_y=current_coord[1], actor_key="tentacle", 
+                rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
+                behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
+                extend_wait=.025, retract_wait=.25 ))
         actor_dict[tentacled_mass_id].update(*current_coord)
     
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
@@ -1934,19 +1963,21 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         if new_core_location:
             actor_dict[core_name_key].update(*new_core_location)
 
-async def choose_core_move(core_name_key=''):
+async def choose_core_move(core_name_key='', tentacles=True):
     """
     breaks out random movement of core into separate function
     """
     await asyncio.sleep(0)
     core_behavior_val = random()
     core_location = actor_dict[core_name_key].coords()
-    if core_behavior_val < .05:
+    if core_behavior_val < .05 and tentacles:
         new_core_location = actor_dict[core_name_key].coords()
         asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
         wait = 20
     elif core_behavior_val > .4:
-        new_core_location = await wander(*core_location, core_name_key)
+        new_core_location = await wander(x_current=core_location[0],
+                                         y_current=core_location[1],
+                                         name_key=core_name_key)
     else:
         new_core_location = await seek_actor(name_key=core_name_key, seek_key="player")
     return new_core_location
