@@ -24,7 +24,8 @@ class Map_tile:
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
                  magic=False, magic_destination=False, 
-                 mutable=True, locked=False):
+                 mutable=True, 
+                 is_door=False, locked=False, key=''):
         """ create a new map tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
         The tile representation of Map_tile at coordinate (0, 0) is accesed 
@@ -47,7 +48,9 @@ class Map_tile:
         self.is_animated, self.animation = is_animated, animation
         self.magic, self.magic_destination = magic, magic_destination
         self.mutable = mutable
+        self.is_door = is_door
         self.locked = locked
+        self.key = key
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -466,6 +469,26 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     with term.location(55, 10):
         print(points_until_wall)
 
+async def unlock_door(actor_key='player', opens='red'):
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    check_dir = state_dict['facing']
+    actor_coord = actor_dict[actor_key].coords()
+    door_coord = (actor_coord[0] + directions[check_dir][0], 
+                  actor_coord[1] + directions[check_dir][1])
+    door_type = map_dict[door_coord].key
+    with term.location(50, 0):
+        print(door_coord)
+    if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
+        if map_dict[door_coord].locked:
+            output_text = "You unlock the {} door.".format(opens)
+            map_dict[door_coord].locked = False
+        elif not map_dict[door_coord].locked:
+            output_text = "You lock the {} door.".format(opens)
+            map_dict[door_coord].locked = True
+    else:
+        output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
+    asyncio.ensure_future(filter_print(output_text=output_text))
+
 async def push(direction=None, pusher=None):
     """
     basic pushing behavior for single-tile actors.
@@ -615,7 +638,7 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
     possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
                       'shiny stone', 'shift amulet', 'red sword', 'vine wand',
-                      'eye trinket', 'high explosives')
+                      'eye trinket', 'high explosives', 'red key', 'green key')
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = await generate_id(base_name=instance_of)
@@ -643,6 +666,12 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             'broken_text':wand_broken_text},
+                 'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
+                            'power_kwargs':{'opens':'red'}, 'broken_text':wand_broken_text,
+                            'use_message':''},
+               'green key':{'uses':9999, 'tile':term.green('⚷'), 'usable_power':unlock_door, 
+                            'power_kwargs':{'opens':'green'}, 'broken_text':wand_broken_text,
+                            'use_message':''},
              'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
                             'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
     #item generation:
@@ -720,11 +749,6 @@ async def print_screen_grid():
             with term.location(x * 5, y * 5):
                 print(".")
 
-async def help_text():
-    """
-    prints relevant keys and controls to the screen using filter_print
-    """
-    pass 
 
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -799,7 +823,7 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def draw_door(x, y, closed=True, locked=False):
+def draw_door(x, y, closed=True, locked=False, description='red', is_door=True):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
@@ -809,10 +833,16 @@ def draw_door(x, y, closed=True, locked=False):
         tile, passable, blocking = states[0]
     else:
         tile, passable, blocking = states[1]
+    #if description == 'red':
+        #map_dict[(x, y)].tile = term.red(tile)
+    #elif description == 'green':
+        #map_dict[(x, y)].tile = term.green(tile)
     map_dict[(x, y)].tile = tile
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
+    map_dict[(x, y)].is_door = is_door
     map_dict[(x, y)].locked = locked
+    map_dict[(x, y)].key = description
 
 async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     """
@@ -877,6 +907,7 @@ def map_init():
         connect_with_passage(*passage)
     for door in doors:
         draw_door(*door, locked=True)
+    draw_door(*(-5, -5), locked=True, description='green')
     announcement_at_coord(coord=(0, 17), distance_trigger=5, 
                           announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, 
@@ -986,12 +1017,12 @@ async def handle_input(key):
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if key in '?':
             await display_help() 
+        if key in 'h':
+            asyncio.ensure_future(unlock_door())
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
-        if key in '?':
-            asyncio.ensure_future(filter_print(output_text='1234')),
         if key in 'Xx':
             description = map_dict[(x, y)].description
             asyncio.ensure_future(filter_print(output_text=description)),
@@ -1051,7 +1082,9 @@ async def toggle_doors():
         door_coord_tuple = (x + door[0], y + door[1])
         door_state = map_dict[door_coord_tuple].tile 
         if map_dict[door_coord_tuple].locked:
-            asyncio.ensure_future(filter_print(output_text="It's locked."))
+            description = map_dict[door_coord_tuple].key
+            output_text="The {} door is locked.".format(description)
+            asyncio.ensure_future(filter_print(output_text=output_text))
             continue
         if door_state == "▮":
             map_dict[door_coord_tuple].tile = '▯'
@@ -1111,6 +1144,16 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│   │', 
                      '│<ʘ>│',
                      '│   │',
+                     '└───┘',),
+          'red key':('┌───┐',
+                     '│ {} │'.format(term.red('╒')),
+                     '│ {} │'.format(term.red('│')),
+                     '│ {} │'.format(term.red('O')),
+                     '└───┘',),
+          'green key':('┌───┐',
+                     '│ {} │'.format(term.green('╒')),
+                     '│ {} │'.format(term.green('│')),
+                     '│ {} │'.format(term.green('O')),
                      '└───┘',),
       'shiny stone':('┌───┐',   #effect while equipped: orbit
                      '│ _ │', 
@@ -1408,28 +1451,26 @@ async def angle_checker(angle_from_twelve):
     return fuzzy, display
 #-------------------------------------------------------------------------------
 
+#TODO: add timer that displays tooltip for help menu if no keys are pressed for a while.
+
 #UI/HUD functions---------------------------------------------------------------
 async def display_help():
     x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
-    for y in range(y_offset, y_offset + 10):
-        with term.location(x_offset, y):
-            print(" "* 20)
-    with term.location(x_offset + 1, y_offset + 1):
-        print("wasd: move")
-    with term.location(x_offset + 1, y_offset + 2):
-        print("ijkl: look")
-    with term.location(x_offset + 1, y_offset + 3):
-        print("   g: grab item menu,")
-    with term.location(x_offset + 1, y_offset + 4):
-        print("      number to choose")
-    with term.location(x_offset + 1, y_offset + 5):
-        print(" Q/E: equip item to slot,")
-    with term.location(x_offset + 1, y_offset + 6):
-        print("      number to choose")
-    sleep(5)
-    for y in range(y_offset, y_offset + 10):
-        with term.location(x_offset, y):
-            print(" "* 20)
+    help_text = ( " wasd: move               ",
+                  "space: open/close doors   ",
+                  " ijkl: look               ",
+                  "    g: grab item menu,    ",
+                  "       0-9 to choose      ",
+                  "  Q/E: equip item to slot,",
+                  "       0-9 to choose      ",
+                  "  q/e: use equipped item, ",
+                  "    t: throw chosen item  ",
+                  "    u: use selected item  ",
+                  "    x: examine tile       ",)
+    for line_number, line in enumerate(help_text):
+        x_print_coord, y_print_coord = 0, 0
+        asyncio.ensure_future(filter_print(output_text=line, pause_stay_on=5,
+                              x_offset=-40, y_offset=-30 + line_number))
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
@@ -1824,12 +1865,11 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
                           seeds=randint(1, spatter_num), description="blood.")
-    if actor_dict[defender_key].health >= attacker_strength:
-        actor_dict[defender_key].health -= attacker_strength
-        direction = await find_damage_direction(attacker_key)
-        asyncio.ensure_future(directional_damage_alert(direction=direction))
-    else:
-        pass
+    actor_dict[defender_key].health -= attacker_strength
+    if actor_dict[defender_key].health <= 0:
+        actor_dict[defender_key].health = 0
+    direction = await find_damage_direction(attacker_key)
+    asyncio.ensure_future(directional_damage_alert(direction=direction))
 
 async def seek_actor(name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
@@ -2406,14 +2446,16 @@ def main():
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
+    loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
     loop.create_task(death_check())
     loop.create_task(environment_check())
     #loop.create_task(circle_of_darkness())
-    for i in range(3):
-        rand_coord = (randint(-25, 25), randint(-25, 25))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(3):
+        #rand_coord = (randint(-25, 25), randint(-25, 25))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
