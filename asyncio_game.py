@@ -123,9 +123,12 @@ class Animation:
                            'behavior':'random', 
                            'color_choices':'111333',
                            'background':'0111333'},
-              'loop test':{'animation':('      ░▒▓▒░'), 
-                           'behavior':'loop both', 
-                           'color_choices':'1234565432'},
+              'loop test':{'animation':('0123456789abcdefghi'), 
+                           'behavior':'walk both', 
+                           'color_choices':'33333344444'},
+                 'bubble':{'animation':(' ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁'), 
+                           'behavior':'walk both', 
+                           'color_choices':'2'},
                  'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
                            'behavior':'loop both', 
                            'color_choices':'7'},
@@ -153,7 +156,10 @@ class Animation:
         behavior_lookup = {'random':{'color':'random', 'tile':'random'},
                            'loop color':{'color':'loop', 'tile':'random'},
                            'loop tile':{'color':'random', 'tile':'loop'},
-                           'loop both':{'color':'loop', 'tile':'loop'},}
+                           'loop both':{'color':'loop', 'tile':'loop'},
+                           'walk color':{'color':'walk', 'tile':'random'},
+                           'walk frame':{'color':'random', 'tile':'walk'},
+                           'walk both':{'color':'walk', 'tile':'walk'},}
         current_behavior = behavior_lookup[self.behavior]
         #color behavior:
         if current_behavior['color'] == 'random':
@@ -161,6 +167,10 @@ class Animation:
         elif current_behavior['color'] == 'loop':
             color_choice = int(list(self.color_choices)[self.color_frame_number])
             self.color_frame_number = (self.color_frame_number + 1) % len(self.color_choices)
+        elif current_behavior['color'] == 'walk':
+            self.color_frame_number = (self.color_frame_number + randint(-1, 1)) % len(self.color_choices)
+            color_choice = int(list(self.color_choices)[self.color_frame_number])
+
         else:
             color_choice = 5 #purple
         #tile behavior
@@ -169,6 +179,9 @@ class Animation:
         elif current_behavior['tile'] == 'loop':
             tile_choice = list(self.animation)[self.frame_number]
             self.frame_number = (self.frame_number + 1) % len(self.animation)
+        elif current_behavior['tile'] == 'walk':
+            self.frame_number = (self.frame_number + randint(-1, 1)) % len(self.animation)
+            tile_choice = list(self.animation)[self.frame_number]
         else:
             tile_choice = '?'
         #background behavior
@@ -1053,7 +1066,7 @@ async def handle_input(key):
             await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='spikes')))
+                                  animation=Animation(preset='bubble')))
         if key in '8':
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
