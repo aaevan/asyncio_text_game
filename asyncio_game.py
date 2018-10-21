@@ -731,7 +731,8 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
 async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
-                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, delay=0, blocking=False):
+                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, 
+                       delay=0, blocking=False):
     await asyncio.sleep(delay)
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
@@ -758,6 +759,14 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
             await asyncio.sleep(pause_fade_out)
         else:
             asyncio.sleep(pause_fade_out)
+
+async def filter_fill(top_left_coord=(0, 0), x_size=5, y_size=5, fill_char='X'):
+    fill_line = fill_char * x_size
+    numbered_fill = [(place, char) for place, char in enumerate(fill_line)]
+    #TODO: shuffle the order of a 2d array. in a second pass, add a y value, too.
+    for char in numbered_fill:
+        with term.location(char[0] + top_left_coord[0], top_left_coord[1])
+            print(char[1])
 
 async def print_screen_grid():
     """
@@ -912,7 +921,7 @@ async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25))
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐')
@@ -1039,6 +1048,7 @@ async def handle_input(key):
                 #TODO: implement second half of filter print to blot out things with spaces.
                 print(' ' * len(quit_question_text))
             state_dict['exiting'] = False
+
     else:
         if key in directions:
             x_shift, y_shift = directions[key]
