@@ -126,7 +126,7 @@ class Animation:
               'loop test':{'animation':('0123456789abcdefghi'), 
                            'behavior':'walk both', 
                            'color_choices':'33333344444'},
-                   'bars':{'animation':(' ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁'), 
+                   'bars':{'animation':(' ▁▂▃▄▅▆▇█'), 
                            'behavior':'loop both', 
                            'color_choices':'2'},
                  'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
@@ -157,7 +157,8 @@ class Animation:
                            'loop both':{'color':'loop', 'tile':'loop'},
                            'walk color':{'color':'walk', 'tile':'random'},
                            'walk frame':{'color':'random', 'tile':'walk'},
-                           'walk both':{'color':'walk', 'tile':'walk'},}
+                           'walk both':{'color':'walk', 'tile':'walk'},
+                           'breathe':{'color':'breathe', 'tile':'breathe'}}
 
         current_behavior = behavior_lookup[self.behavior]
         #color behavior:
@@ -169,7 +170,8 @@ class Animation:
         elif current_behavior['color'] == 'walk':
             self.color_frame_number = (self.color_frame_number + randint(-1, 1)) % len(self.color_choices)
             color_choice = int(list(self.color_choices)[self.color_frame_number])
-
+        #elif current_behavior['color'] == 'breathe':
+            #TODO: implement forward and back looping
         else:
             color_choice = 5 #purple
         #tile behavior
@@ -487,8 +489,6 @@ async def unlock_door(actor_key='player', opens='red'):
     door_coord = (actor_coord[0] + directions[check_dir][0], 
                   actor_coord[1] + directions[check_dir][1])
     door_type = map_dict[door_coord].key
-    with term.location(50, 0):
-        print(door_coord)
     if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
             output_text = "You unlock the {} door.".format(opens)
@@ -731,9 +731,18 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
 async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
-                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, 
+                       pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
                        delay=0, blocking=False):
-    await asyncio.sleep(delay)
+    #await asyncio.sleep(delay)
+    while True:
+        if state_dict['printing'] == True:
+            with term.location(30, 0):
+                print('waiting for lock...')
+            await asyncio.sleep(.1)
+        else:
+            break
+    #TODO: lock solves overlap of messages but causes delay. FIX.
+    state_dict['printing'] = True #get lock on printing
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
     middle_x, middle_y = (int(term.width / 2 - 2), 
@@ -759,14 +768,25 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
             await asyncio.sleep(pause_fade_out)
         else:
             asyncio.sleep(pause_fade_out)
+    state_dict['printing'] = False #releasing hold on printing to the screen
 
-async def filter_fill(top_left_coord=(0, 0), x_size=5, y_size=5, fill_char='X'):
-    fill_line = fill_char * x_size
-    numbered_fill = [(place, char) for place, char in enumerate(fill_line)]
-    #TODO: shuffle the order of a 2d array. in a second pass, add a y value, too.
-    for char in numbered_fill:
-        with term.location(char[0] + top_left_coord[0], top_left_coord[1])
-            print(char[1])
+async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10, 
+                      pause_between_prints=.005, pause_stay_on=3, 
+                      fill_char=term.red('X'), random_order=True):
+    coord_list = [(x, y) for x in range(x_size) for y in range(y_size)]
+    fill_char = choice('123456789')
+    if random_order:
+        shuffle(coord_list) #shuffle coord_list in place
+    x_offset, y_offset = top_left_coord
+    for pair in coord_list:
+        await asyncio.sleep(pause_between_prints)
+        print_coord = pair[0] + x_offset, pair[1] + y_offset
+        with term.location(*print_coord):
+            print(fill_char)
+    #await asyncio.sleep
+    #if random_order:
+        #shuffle(coord_list)
+
 
 async def print_screen_grid():
     """
@@ -1064,6 +1084,8 @@ async def handle_input(key):
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if key in '?':
             await display_help() 
+        if key in '$':
+            asyncio.ensure_future(filter_fill())
         if key in 'h':
             asyncio.ensure_future(unlock_door())
         if key in '3':
@@ -1095,7 +1117,8 @@ async def handle_input(key):
         if key in 'h':
             asyncio.ensure_future(health_potion())
         if key in 'u':
-            asyncio.ensure_future(use_chosen_item())
+            loop = asyncio.get_event_loop()
+            loop.create_task(use_chosen_item())
         if key in 'f':
             await sword_item_ability()
         if key in '7':
@@ -1300,10 +1323,10 @@ async def equip_item(slot='q'):
         await filter_print(output_text="Nothing to equip!")
 
 async def use_chosen_item():
-    await asyncio.sleep(0)
+    #await asyncio.sleep(0)
     item_id_choice = await choose_item()
     if item_id_choice != None:
-        await item_dict[item_id_choice].use()
+        asyncio.ensure_future(item_dict[item_id_choice].use())
     
 async def use_item_in_slot(slot='q'):
     await asyncio.sleep(0)
