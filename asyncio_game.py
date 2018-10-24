@@ -11,7 +11,6 @@ from random import randint, choice, random, shuffle
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from itertools import cycle
 from subprocess import call
-from time import sleep #hack to prevent further input/freeze screen on player death
 import os
 
 #Class definitions--------------------------------------------------------------
@@ -56,7 +55,8 @@ class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
-                 animation="", holding_items={}, leaves_body=False):
+                 animation="", holding_items={}, leaves_body=False,
+                 breakable=False):
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
@@ -69,6 +69,7 @@ class Actor:
         self.animation = animation
         self.leaves_body = leaves_body
         self.holding_items = holding_items
+        self.breakable = breakable
 
     def update(self, x, y):
         if self.name in map_dict[self.coords()].actors:
@@ -236,7 +237,6 @@ class Item:
                 self.broken = True
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
-#-------------------------------------------------------------------------------
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -265,8 +265,6 @@ bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in bw_background_tile
 #defined at top level as a dictionary for fastest lookup time
 bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
  
-#-------------------------------------------------------------------------------
-
 #Drawing functions--------------------------------------------------------------
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
@@ -331,7 +329,6 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                                             description=None, is_animated=is_animated,
                                             animation=copy(animation), actors=actors, items=items)
 
-#-------------------------------------------------------------------------------
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -423,8 +420,6 @@ async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     area_of_effect = await get_circle(center=center, radius=radius)
     for coord in area_of_effect:
         await damage_all_actors_at_coord(coord=coord, damage=damage)
-        #for actor in map_dict[coord].actors.items():
-            #await damage_actor(actor=actor[0], damage=damage)
 
 async def damage_actor(actor=None, damage=10, display_above=True):
     current_health = actor_dict[actor].health
@@ -438,6 +433,12 @@ async def damage_actor(actor=None, damage=10, display_above=True):
             return
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
+    #TODO: implement dropping items for breakable actors.
+    #TODO: create class for breakable/moveable scenery to 
+    #      not overload Actor class?
+    #if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
+        #non-breakable actors are handled with basic_actor
+        #await kill_actor(name_key=name_key)
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     actor_coords = actor_dict[actor].coords()
@@ -644,7 +645,6 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(*line_of_sight_result)
             return
 
-#-------------------------------------------------------------------------------
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
@@ -757,8 +757,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
             print(char[1])
         if not blocking:
             await asyncio.sleep(pause_fade_in)
-        else:
-            asyncio.sleep(pause_fade_in)
     shuffle(numbered_chars)
     await asyncio.sleep(pause_stay_on)
     for char in numbered_chars:
@@ -941,10 +939,11 @@ async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25))
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐')
+    actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐',
+                              holding_items=['red potion', 'nut'])
     map_dict[(7, 5)].actors['box'] = True
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
@@ -1016,6 +1015,8 @@ async def get_key():
                     await handle_input(key)
             with term.location(0, 1):
                 print("key is: {}".format(repr(key)))
+            if state_dict['halt_input'] == True:
+                break
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -1390,7 +1391,6 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
             map_dict[tile_coord_key].seen = True
     else:
         map_dict[tile_coord_key].seen = True
-#-------------------------------------------------------------------------------
 
 #Geometry functions-------------------------------------------------------------
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
@@ -1523,7 +1523,6 @@ async def angle_checker(angle_from_twelve):
     else:
         fuzzy = False
     return fuzzy, display
-#-------------------------------------------------------------------------------
 
 #TODO: add timer that displays tooltip for help menu if no keys are pressed for a while.
 
@@ -1882,12 +1881,10 @@ async def printing_testing(distance=0):
     else:
         return " "
 
-actor_dict['player'].coords()
-
 async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
                   actor_name=None, attribute=None, title=None, bar=False, 
                   bar_length=20, is_actor=True, is_state=False):
-    """listen to a specific key of state_dict """
+    """Create a status bar for the health of the 'player' actor"""
     await asyncio.sleep(0)
     while True:
         if state_dict['killall'] == True:
@@ -1925,7 +1922,6 @@ async def ui_setup():
     loop.create_task(display_items_on_actor())
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
-#-------------------------------------------------------------------------------
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(x_current=0, y_current=0, name_key=None):
@@ -1983,14 +1979,12 @@ async def seek_actor(name_key=None, seek_key='player'):
 async def damage_door():
     """ allows actors to break down doors"""
     pass
-#-------------------------------------------------------------------------------
 
 #misc utility functions---------------------------------------------------------
 async def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
 async def facing_dir_to_num(direction="n"):
-    #await asyncio.sleep(0)
     dir_to_num = {'n':2, 'e':1, 's':0, 'w':3}
     return dir_to_num[direction]
 
@@ -2011,7 +2005,6 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
         await asyncio.sleep(update_speed)
         actor_coords = actor_dict[actor_dict_key].coords()
         state_dict[state_dict_key] = actor_coords
-#-------------------------------------------------------------------------------
 
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
@@ -2164,13 +2157,13 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
+    holding_items = actor_dict[name_key].holding_items
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
-        holding_items = actor_dict[name_key].holding_items
-        if actor_dict[name_key].holding_items:
-            for number, item in enumerate(actor_dict[name_key].holding_items):
-                with term.location(30, 2 + number):
-                    print(item)
+    #if actor_dict[name_key].holding_items:
+        #for number, item in enumerate(actor_dict[name_key].holding_items):
+            #with term.location(30, 2 + number):
+                #print(item)
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
@@ -2336,15 +2329,6 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
-async def line_generator(point_a=(0,0), point_b=(5, 7), resolution=.31):
-    await asyncio.sleep(0)
-    pass
-    #distance = point_to_point_distance(point_a=point_a, point_b=point_b)
-    #x_run, y_run = (point_b[0] - point_a[0],
-                    #point_b[1] - point_a[1])
-    #x_step_size = x_run / resolution
-    #y_step_size = y_run / resolution
-
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='fire'),
                             debris=None):
@@ -2467,8 +2451,6 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
         map_dict[last_location].actors[particle_id] = True
         angle = (angle + degrees_per_step) % 360
 
-#-------------------------------------------------------------------------------
-
 async def death_check():
     await asyncio.sleep(0)
     player_health = actor_dict["player"].health
@@ -2482,8 +2464,9 @@ async def death_check():
         player_health = actor_dict["player"].health
         if player_health <= 0:
             asyncio.ensure_future(filter_print(pause_stay_on=99, output_text=death_message))
-            await asyncio.sleep(1)
-            sleep(9999)
+            state_dict['halt_input'] = True
+            await asyncio.sleep(3)
+            state_dict['killall'] = True
 
 async def environment_check(rate=.1):
     """
@@ -2511,8 +2494,6 @@ async def kill_all_tasks():
         # Cancelled task raises asyncio.CancelledError that we can suppress:
         with suppress(asyncio.CancelledError):
             loop.run_until_complete(task)
-    #TODO, add a function to break given a flag to quit, put this in every task?
-    #not working right now,
 
 async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_items=[]):
     """
@@ -2531,8 +2512,16 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      tile='ö', name_key=name, hurtful=True, strength=30,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
+    #elif preset == 'crate':
+        #item_drops = ['red potion', 'red potion']
     else:
         pass
+
+async def spawn_breakable(coords=(0, 0), preset='crate', holding_items=['red potion'], health=10):
+    pass
+    #def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
+                 #health=health, hurtful=False, moveable=True, is_animated=False,
+                 #animation="", holding_items={}, leaves_body=False):
 
 async def quitter_daemon():
     while True:
@@ -2563,9 +2552,9 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     #loop.create_task(circle_of_darkness())
-    #for i in range(3):
-        #rand_coord = (randint(-25, 25), randint(-25, 25))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-25, 25), randint(-25, 25))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
@@ -2577,4 +2566,3 @@ with term.hidden_cursor():
     finally: 
         clear()
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
-        #TODO: add a reset here calling from OS?
