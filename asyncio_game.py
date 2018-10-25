@@ -421,7 +421,8 @@ async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     for coord in area_of_effect:
         await damage_all_actors_at_coord(coord=coord, damage=damage)
 
-async def damage_actor(actor=None, damage=10, display_above=True):
+async def damage_actor(actor=None, damage=10, display_above=True,
+                       leaves_body=False, material='wood'):
     current_health = actor_dict[actor].health
     if current_health - damage <= 0:
         actor_dict[actor].health = 0
@@ -433,14 +434,17 @@ async def damage_actor(actor=None, damage=10, display_above=True):
             return
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
-    #TODO: implement dropping items for breakable actors.
-    #TODO: create class for breakable/moveable scenery to 
-    #      not overload Actor class?
-    #if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
-        #non-breakable actors are handled with basic_actor
-        #await kill_actor(name_key=name_key)
+    if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
+        root_x, root_y = actor_dict[actor].coords()
+        asyncio.ensure_future(sow_texture(root_x, root_y, palette='┌┐└┘', radius=2, seeds=4, 
+                              passable=True, stamp=True, paint=False, color_num=8,
+                              description='Broken {}.'.format(material),
+                              pause_between=.06))
+        await kill_actor(name_key=actor, blood=False, leaves_body=False)
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
+    if not hasattr(actor_dict[actor], 'coords'):
+        return
     actor_coords = actor_dict[actor].coords()
     digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
                             '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
@@ -505,8 +509,8 @@ async def push(direction=None, pusher=None):
     """
     basic pushing behavior for single-tile actors.
     TODO: implement multi-tile pushable actors. a bookshelf? large crates?▧
+    run if something that has moveable flag has an actor push into it.
     """
-    #run if something that has moveable flag has an actor push into it.
     await asyncio.sleep(0)
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
@@ -579,11 +583,13 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
+    to_damage_names = []
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(name=segment_name, tile=term.red(chosen_dir[2]))
         map_dict[segment_coord].actors[segment_name] = True
         for actor in map_dict[segment_coord].actors.items():
-            await damage_actor(actor=actor[0], damage=damage)
+            if 'sword' not in actor[0]:
+                to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -591,6 +597,10 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
     state_dict['sword_out'] = False
+    for actor in to_damage_names:
+        with term.location(40, 5):
+            print(actor)
+        await damage_actor(actor=actor, damage=damage)
 
 async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
@@ -836,13 +846,14 @@ def pick_point_in_cone(cone_left_edge, cone_right_edge):
     pass
 
 async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
-                passable=False, stamp=True, paint=True, color_num=1, description=''):
+                passable=False, stamp=True, paint=True, color_num=1, description='',
+                pause_between=.02):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
     await asyncio.sleep(0)
     for i in range(seeds):
-        await asyncio.sleep(.02)
+        await asyncio.sleep(pause_between)
         throw_dist = radius + 1
         while throw_dist >= radius:
             x_toss, y_toss = (randint(-radius, radius),
@@ -937,14 +948,25 @@ async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25))
     loop.create_task(magic_door(start_coord=(door_a_coords), end_coord=(door_b_coords)))
     loop.create_task(magic_door(start_coord=(door_b_coords), end_coord=(door_a_coords)))
 
+async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
+                          breakable=True, preset='random'):
+    box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
+    if preset == 'random':
+        contents = [choice(box_choices)]
+    container_id = await generate_id(base_name=base_name)
+    actor_dict[container_id] = Actor(name=base_name, tile='☐',
+                               x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
+                               breakable=True, holding_items=contents)
+    map_dict[spawn_coord].actors[container_id] = True
+
 def map_init():
     clear()
     draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐',
-                              holding_items=['red potion', 'nut'])
-    map_dict[(7, 5)].actors['box'] = True
+    #actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐',
+                              #breakable=True, holding_items=['red potion', 'nut'])
+    #map_dict[(7, 5)].actors['box'] = True
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
@@ -1066,7 +1088,6 @@ async def handle_input(key):
             state_dict['killall'] = True
         elif key in 'nN':
             with term.location(*term_location):
-                #TODO: implement second half of filter print to blot out things with spaces.
                 print(' ' * len(quit_question_text))
             state_dict['exiting'] = False
 
@@ -1826,6 +1847,9 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
+    loop.create_task(spawn_container(spawn_coord=(5, -4)))
+    loop.create_task(spawn_container(spawn_coord=(5, -5)))
+    loop.create_task(spawn_container(spawn_coord=(5, -6)))
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
@@ -2160,18 +2184,15 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
-    #if actor_dict[name_key].holding_items:
-        #for number, item in enumerate(actor_dict[name_key].holding_items):
-            #with term.location(30, 2 + number):
-                #print(item)
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
         await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
                           seeds=5, description="blood.")
-        await spawn_item_spray(base_coord=coords, items=holding_items)
+    if leaves_body:
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
+    await spawn_item_spray(base_coord=coords, items=holding_items)
     return
 
 async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
@@ -2552,9 +2573,9 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     #loop.create_task(circle_of_darkness())
-    for i in range(3):
-        rand_coord = (randint(-25, 25), randint(-25, 25))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(3):
+        #rand_coord = (randint(-25, 25), randint(-25, 25))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
