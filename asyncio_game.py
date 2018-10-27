@@ -1,35 +1,35 @@
 import asyncio
+import os
+import select
 import sys
-import select 
-import tty 
 import termios
+import tty
 from copy import copy, deepcopy
 from blessings import Terminal
 from collections import defaultdict
 from datetime import datetime
-from random import randint, choice, random, shuffle
-from math import acos, cos, degrees, pi, radians, sin, sqrt
 from itertools import cycle
+from math import acos, cos, degrees, pi, radians, sin, sqrt
+from random import randint, choice, random, shuffle
 from subprocess import call
-import os
 
 #Class definitions--------------------------------------------------------------
 
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile="⣿", blocking=True, 
-                 description='', announcing=False, seen=False, 
+    def __init__(self, passable=True, tile="⣿", blocking=True,
+                 description='', announcing=False, seen=False,
                  announcement="", distance_trigger=None, is_animated=False,
-                 animation="", actors=None, items=None, 
-                 magic=False, magic_destination=False, 
-                 mutable=True, 
+                 animation="", actors=None, items=None,
+                 magic=False, magic_destination=False,
+                 mutable=True,
                  is_door=False, locked=False, key=''):
         """ create a new map tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
-        The tile representation of Map_tile at coordinate (0, 0) is accesed 
+        The tile representation of Map_tile at coordinate (0, 0) is accesed
         with map_dict[(0, 0)].tile.
-        actors is a dictionary of actor names with value == True if 
+        actors is a dictionary of actor names with value == True if
                 occupied by that actor, otherwise the key is deleted.
         contains_items is a set that lists item_ids which the player or
                 other actors may draw from.
@@ -39,11 +39,11 @@ class Map_tile:
         self.announcing, self.seen, self.announcement = announcing, seen, announcement
         self.distance_trigger = distance_trigger
         if not actors:
-            self.actors = defaultdict(lambda:None)
+            self.actors = defaultdict(lambda: None)
         #allows for new map_tiles to be initialized with an existing actor list
         else:
             self.actors = actors
-        self.items = defaultdict(lambda:None)
+        self.items = defaultdict(lambda: None)
         self.is_animated, self.animation = is_animated, animation
         self.magic, self.magic_destination = magic, magic_destination
         self.mutable = mutable
@@ -51,9 +51,10 @@ class Map_tile:
         self.locked = locked
         self.key = key
 
+
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
+    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1,
                  health=50, hurtful=True, moveable=True, is_animated=False,
                  animation="", holding_items={}, leaves_body=False,
                  breakable=False):
@@ -62,7 +63,7 @@ class Actor:
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
-        self.max_health = self.health #max health is set to starting value
+        self.max_health = self.health  # max health is set to starting value
         self.alive = True
         self.moveable = moveable
         self.is_animated = is_animated
@@ -86,60 +87,61 @@ class Actor:
         if y_move:
             self.y_coord = self.y_coord + y_move
         if coord_move:
-            self.x_coord, self.y_coord = (self.x_coord + coord_move[0], 
+            self.x_coord, self.y_coord = (self.x_coord + coord_move[0],
                                           self.y_coord + coord_move[1])
 
+
 class Animation:
-    def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
+    def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None,
                  preset="none", background=None):
-        presets = {'fire':{'animation':'^∧', 
-                           'behavior':'random', 
-                           'color_choices':'3331'},
-                  'water':{'animation':'▒▓▓▓████', 
-                           'behavior':'random',
-                           'color_choices':('4'*10 + '6')},
-                  'grass':{'animation':('▒' * 20 + '▓'), 
-                           'behavior':'random',
-                           'color_choices':('2'),},
-                   'blob':{'animation':('ööööÖ'),
-                           'behavior':'loop tile',
-                           'color_choices':('2')},
-                  'mouth':{'animation':('▲▸▼◀'),
-                           'behavior':'loop tile',
-                           'color_choices':('456')},
-                  #'noise':{'animation':('            ▒▓█▓▒'), 
-                  'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
-                           'behavior':'loop tile', 
-                           'color_choices':'1'},
-           'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
-                           'behavior':'random', 
-                           'color_choices':'1' * 5 + '7'},
-                'shimmer':{'animation':(base_tile), 
-                           'behavior':'random', 
-                           'color_choices':'1234567'},
-                  'blank':{'animation':' ', 
-                           'behavior':'random', 
-                           'color_choices':'0'},
-              'explosion':{'animation':('█▓▒'), 
-                           'behavior':'random', 
-                           'color_choices':'111333',
-                           'background':'0111333'},
-              'loop test':{'animation':('0123456789abcdefghi'), 
-                           'behavior':'walk both', 
-                           'color_choices':'33333344444'},
-                   'bars':{'animation':(' ▁▂▃▄▅▆▇█'), 
-                           'behavior':'loop both', 
-                           'color_choices':'2'},
-                 'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
-                           'behavior':'loop both', 
-                           'color_choices':'7'},
-                   'none':{'animation':(' '), 
-                           'behavior':'random', 
-                           'color_choices':'1'}}
+        presets = {'fire': {'animation': '^∧',
+                            'behavior': 'random',
+                            'color_choices': '3331'},
+                   'water': {'animation': '▒▓▓▓████',
+                             'behavior': 'random',
+                             'color_choices': ('4'*10 + '6')},
+                   'grass': {'animation': ('▒' * 20 + '▓'),
+                             'behavior': 'random',
+                             'color_choices': ('2'), },
+                    'blob': {'animation': ('ööööÖ'),
+                             'behavior': 'loop tile',
+                             'color_choices': ('2')},
+                   'mouth': {'animation': ('▲▸▼◀'),
+                             'behavior': 'loop tile',
+                             'color_choices': ('456')},
+                   #'noise': {'animation': ('            ▒▓█▓▒'),
+                   'noise': {'animation': ('      ▒▓▒ ▒▓▒'),
+                             'behavior': 'loop tile',
+                             'color_choices': '1'},
+            'sparse noise': {'animation': (' ' * 100 + '█▓▒'),
+                             'behavior': 'random',
+                             'color_choices': '1' * 5 + '7'},
+                 'shimmer': {'animation': (base_tile),
+                             'behavior': 'random',
+                             'color_choices': '1234567'},
+                   'blank': {'animation': ' ',
+                             'behavior': 'random',
+                             'color_choices': '0'},
+               'explosion': {'animation': ('█▓▒'),
+                             'behavior': 'random',
+                             'color_choices': '111333',
+                             'background': '0111333'},
+               'loop test': {'animation': ('0123456789abcdefghi'),
+                             'behavior': 'walk both',
+                             'color_choices': '33333344444'},
+                    'bars': {'animation': (' ▁▂▃▄▅▆▇█'),
+                             'behavior': 'loop both',
+                             'color_choices': '2'},
+                  'spikes': {'animation': ('∧∧∧∧‸‸‸     '),
+                             'behavior': 'loop both',
+                             'color_choices': '7'},
+                    'none': {'animation': (' '),
+                             'behavior': 'random',
+                             'color_choices': '1'}}
         #TODO: have color choices tied to a background/foreground color combination?
         if preset:
             preset_kwargs = presets[preset]
-            #calls init again using kwargs, but with preset set to None to 
+            #calls init again using kwargs, but with preset set to None to
             #avoid infinite recursion.
             self.__init__(**preset_kwargs, preset=None)
         else:
@@ -150,16 +152,16 @@ class Animation:
             self.behavior = behavior
             self.color_choices = color_choices
             self.background = background
-    
+
     def __next__(self):
-        behavior_lookup = {'random':{'color':'random', 'tile':'random'},
-                           'loop color':{'color':'loop', 'tile':'random'},
-                           'loop tile':{'color':'random', 'tile':'loop'},
-                           'loop both':{'color':'loop', 'tile':'loop'},
-                           'walk color':{'color':'walk', 'tile':'random'},
-                           'walk frame':{'color':'random', 'tile':'walk'},
-                           'walk both':{'color':'walk', 'tile':'walk'},
-                           'breathe':{'color':'breathe', 'tile':'breathe'}}
+        behavior_lookup = {'random': {'color': 'random', 'tile': 'random'},
+                           'loop color': {'color': 'loop', 'tile': 'random'},
+                           'loop tile': {'color': 'random', 'tile': 'loop'},
+                           'loop both': {'color': 'loop', 'tile': 'loop'},
+                           'walk color': {'color': 'walk', 'tile': 'random'},
+                           'walk frame': {'color': 'random', 'tile': 'walk'},
+                           'walk both': {'color': 'walk', 'tile': 'walk'},
+                           'breathe': {'color': 'breathe', 'tile': 'breathe'}}
 
         current_behavior = behavior_lookup[self.behavior]
         #color behavior:
@@ -174,7 +176,7 @@ class Animation:
         #elif current_behavior['color'] == 'breathe':
             #TODO: implement forward and back looping
         else:
-            color_choice = 5 #purple
+            color_choice = 5  # purple
         #tile behavior
         if current_behavior['tile'] == 'random':
             tile_choice = choice(self.animation)
@@ -202,15 +204,15 @@ class Item:
         can be carried.
         can be picked up on keyboard input.
         have a representation on the ground
-        when the player is over a tile with items, 
-            the items are displayed in a window. 
+        when the player is over a tile with items,
+            the items are displayed in a window.
         can be stored in a container (chests? pots? crates?)
             destructible crates/pots that strew debris around when broken(???)
         can be used (via its usable_power and given power_kwargs (for different
                 versions of the same item)
     """
-    def __init__(self, name='generic_item', item_id=None, spawn_coord=(0, 0), uses=None, 
-                 tile='?', current_location=None, usable_power=None, power_kwargs={}, 
+    def __init__(self, name='generic_item', item_id=None, spawn_coord=(0, 0), uses=None,
+                 tile='?', current_location=None, usable_power=None, power_kwargs={},
                  broken=False, use_message='You use the item.',
                  broken_text=" is broken.", mutable=True):
         self.name = name
@@ -251,22 +253,23 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 
-bw_background_tile_pairs = ((0, ' '),       #dark
+bw_background_tile_pairs = ((0, ' '),        # dark
                             (7, "░"),
-                            (8, "░"), 
+                            (8, "░"),
                             (7, "▒"),
-                            (8, "▒"), 
-                            (7, "▓"), 
-                            (7, "█"), 
+                            (8, "▒"),
+                            (7, "▓"),
+                            (7, "█"),
                           *((8, "▓"),) * 2,
-                          *((8, "█"),) * 6) #bright
+                          *((8, "█"),) * 6)  # bright
 
 bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in bw_background_tile_pairs])
 #defined at top level as a dictionary for fastest lookup time
-bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
- 
+bright_to_dark = {num: val for num, val in enumerate(reversed(bw_gradient))}
+
+
 #Drawing functions--------------------------------------------------------------
-def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
+def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
              tile=".", passable=True):
     """ Draws a box to map_dict at the given coordinates."""
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -287,10 +290,12 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
             for x in [top_left[0], top_left[0] + x_size]:
                 map_dict[(x, y)].tile = tile
 
-def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
+
+def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10,
                   filled=True, tile=".", passable=True):
     top_left = (middle_coord[0] - int(x_size/2), middle_coord[1] - int(y_size/2))
     draw_box(top_left=top_left, x_size=x_size, y_size=10, filled=True, tile=tile)
+
 
 async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
                     passable=True, blocking = False):
@@ -325,7 +330,7 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 actors = map_dict[(x, y)].actors
                 items = map_dict[(x, y)].items
                 # a copy of the animation is made so each tile can have its own instance.
-                map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False, 
+                map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False,
                                             description=None, is_animated=is_animated,
                                             animation=copy(animation), actors=actors, items=items)
 
@@ -333,10 +338,10 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
     """
-    Moves item from player's inventory to another tile at distance 
+    Moves item from player's inventory to another tile at distance
     throw_distance
     """
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    directions = {'n': (0, -1), 'e': (1, 0), 's': (0, 1), 'w': (-1, 0), }
     if direction is None:
         direction_tuple = directions[state_dict['facing']]
     if not thrown_item_id:
@@ -368,8 +373,8 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     item_tile = item_dict[thrown_item_id].tile
     throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
     asyncio.ensure_future(filter_print(throw_text))
-    await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
-                            end_coord=destination, speed=.05, tile=item_tile, 
+    await travel_along_line(name='thrown_item_id', start_coord=starting_point,
+                            end_coord=destination, speed=.05, tile=item_tile,
                             animation=None, debris=None)
     map_dict[destination].items[thrown_item_id] = True
     item_dict[thrown_item_id].current_location = destination
@@ -387,8 +392,8 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
         item_dict[item_id].tile = original_tile
 
 async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25, destroys_terrain=True):
-    await radial_fountain(tile_anchor=center, anchor_actor='player', 
-                          frequency=.001, radius=(radius, radius + 3), speed=(1, 2), 
+    await radial_fountain(tile_anchor=center, anchor_actor='player',
+                          frequency=.001, radius=(radius, radius + 3), speed=(1, 2),
                           collapse=False, debris='`.,\'', deathclock=particle_count,
                           animation=Animation(preset='explosion'))
     if destroys_terrain:
@@ -396,18 +401,18 @@ async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
-async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
-                             direction=None, throw_distance=13, rand_drift=2, 
+async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player',
+                             direction=None, throw_distance=13, rand_drift=2,
                              radius=6, damage=75, particle_count=25):
     await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
-                     direction=direction, throw_distance=throw_distance, 
+                     direction=direction, throw_distance=throw_distance,
                      rand_drift=rand_drift)
     item_location = item_dict[thrown_item_id].current_location
     await display_fuse(fuse_length=fuse_length, item_id=thrown_item_id)
     if thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
-    await explosion_effect(center=item_location, radius=radius, 
+    await explosion_effect(center=item_location, radius=radius,
                            damage=damage, particle_count=particle_count)
 
 async def damage_all_actors_at_coord(exclude=None, coord=(0, 0), damage=10):
@@ -439,7 +444,7 @@ async def damage_actor(actor=None, damage=10, display_above=True,
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
     if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
         root_x, root_y = actor_dict[actor].coords()
-        asyncio.ensure_future(sow_texture(root_x, root_y, palette='/\\|_-,.\'', radius=3, seeds=6, 
+        asyncio.ensure_future(sow_texture(root_x, root_y, palette='/\\|_-,.\'', radius=3, seeds=6,
                               passable=True, stamp=True, paint=False, color_num=8,
                               description='Broken {}.'.format(material),
                               pause_between=.06))
@@ -449,12 +454,12 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
     if not hasattr(actor_dict[actor], 'coords'):
         return
     actor_coords = actor_dict[actor].coords()
-    digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
-                            '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
-                            '-':'⁻', '+':'⁺'}
-    #digit_to_subscript =   {'1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', 
-                            #'6':'₆', '7':'₇', '8':'₈', '9':'₉', '0':'₀',
-                            #'-':'₋', '+':'₊'}
+    digit_to_superscript = {'1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵',
+                            '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '0': '⁰',
+                            '-': '⁻', '+': '⁺'}
+    #digit_to_subscript =   {'1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅',
+                            #'6': '₆', '7': '₇', '8': '₈', '9': '₉', '0': '₀',
+                            #'-': '₋', '+': '₊'}
     if damage >= 0:
         damage = '-' + str(damage)
     else:
@@ -468,7 +473,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
             tile = term.green(digit_to_superscript[digit])
         asyncio.ensure_future(travel_along_line(tile=tile,
                                                 speed=.12,
-                                                start_coord=start_coord, 
+                                                start_coord=start_coord,
                                                 end_coord=end_coord,
                                                 debris=False,
                                                 animation=False))
@@ -491,10 +496,10 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
         print(points_until_wall)
 
 async def unlock_door(actor_key='player', opens='red'):
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    directions = {'n': (0, -1), 'e': (1, 0), 's': (0, 1), 'w': (-1, 0), }
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
-    door_coord = (actor_coord[0] + directions[check_dir][0], 
+    door_coord = (actor_coord[0] + directions[check_dir][0],
                   actor_coord[1] + directions[check_dir][1])
     door_type = map_dict[door_coord].key
     if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
@@ -526,12 +531,12 @@ async def push(direction=None, pusher=None):
         return 0
     else:
         pushed_coords = actor_dict[pushed_name].coords()
-        pushed_destination = (pushed_coords[0] + chosen_dir[0], 
+        pushed_destination = (pushed_coords[0] + chosen_dir[0],
                               pushed_coords[1] + chosen_dir[1])
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(*pushed_destination)
 
-async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
+async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player',
                          offset=(-1,-1), alive=True, tile=" "):
     await asyncio.sleep(refresh_speed)
     follower_id = await generate_id(base_name=name)
@@ -541,36 +546,36 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
             break
         await asyncio.sleep(refresh_speed)
         parent_coords = actor_dict[parent_actor].coords()
-        follow_x, follow_y = (parent_coords[0] + offset[0], 
+        follow_x, follow_y = (parent_coords[0] + offset[0],
                               parent_coords[1] + offset[1])
         actor_dict[follower_id].update(follow_x, follow_y)
 
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
     actor_id = await generate_id(base_name=name)
     loop = asyncio.get_event_loop()
-    loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
+    loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor,
                                  tile=" ", name_key=actor_id, hurtful=True,
                                  is_animated=True, animation=Animation(preset="none")))
     await asyncio.sleep(0)
     range_tuple = (-circle_size, circle_size + 1)
     for x in range(*range_tuple):
         for y in range(*range_tuple):
-            distance_to_center = await point_to_point_distance(point_a=(0, 0), 
+            distance_to_center = await point_to_point_distance(point_a=(0, 0),
                                                                point_b=(x, y))
             if distance_to_center <= circle_size:
-                loop.create_task(follower_actor(parent_actor=actor_id, 
+                loop.create_task(follower_actor(parent_actor=actor_id,
                                                 offset=(x, y)))
                 #shadow in nightmare space
-                loop.create_task(follower_actor(tile=term.on_white(" "), 
-                                                parent_actor=actor_id, 
+                loop.create_task(follower_actor(tile=term.on_white(" "),
+                                                parent_actor=actor_id,
                                                 offset=(1000 + x, 1000 + y)))
             else:
                 pass
     loop.create_task(radial_fountain(anchor_actor=actor_id,
                                      animation=Animation(preset='sparse noise')))
 
-async def spike_trap(base_name='spike_trap', coord=(10, 10), 
-                     directions='n', damage=20, length=5, rate=.25, 
+async def spike_trap(base_name='spike_trap', coord=(10, 10),
+                     directions='n', damage=20, length=5, rate=.25,
                      speed=.1, trigger_key='switch_1'):
     """
     Generate a stationary, actor that periodically puts out spikes in each
@@ -586,7 +591,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
             print('listening to state_dict[{}]. (state: {})'.format(trigger_key, state_dict[trigger_key]))
         if state_dict[trigger_key]:
             for direction in directions:
-                await sword(direction=direction, actor=trap_origin_id, length=length, 
+                await sword(direction=direction, actor=trap_origin_id, length=length,
                             damage=damage, sword_color=7, speed=speed)
 
 async def pressure_plate(appearance='-_', spawn_coord=(4, 0), trigger_key='switch_1', on_time=1, test_rate=.05):
@@ -608,7 +613,7 @@ async def pressure_plate(appearance='-_', spawn_coord=(4, 0), trigger_key='switc
             await asyncio.sleep(on_time)
 
 
-async def sword(direction='n', actor='player', length=5, name='sword', 
+async def sword(direction='n', actor='player', length=5, name='sword',
                 speed=.1, damage=100, sword_color=1):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
@@ -622,7 +627,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     chosen_dir = dir_coords[direction]
     sword_id = await generate_id(base_name=name)
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
-    segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
+    segment_coords = [(starting_coords[0] + chosen_dir[0] * i,
                        starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
     to_damage_names = []
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
@@ -634,7 +639,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
                 to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
-        if segment_name in map_dict[segment_coord].actors: 
+        if segment_name in map_dict[segment_coord].actors:
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(speed)
@@ -653,7 +658,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     does a flash animation of drawing in particles then teleports the player
         to a given location.
     uses 2adial_fountain in collapse mode for the effect
-    upon arrival, a random nova of particles is released (also using 
+    upon arrival, a random nova of particles is released (also using
         radial_fountain but in reverse
     """
     await asyncio.sleep(.25)
@@ -667,7 +672,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
                               deathclock=30, speed=(1, 1))
     else:
         await filter_print(output_text="Something is in the way.")
-    
+
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
     await asyncio.sleep(.2)
@@ -680,7 +685,7 @@ async def random_blink(actor='player', radius=20):
         rand_x = randint(-radius, radius) + current_location[0]
         rand_y = randint(-radius, radius) + current_location[1]
         blink_to = (rand_x, rand_y)
-        distance = await point_to_point_distance(point_a=blink_to, 
+        distance = await point_to_point_distance(point_a=blink_to,
                                                  point_b=current_location)
         if distance > radius:
             continue
@@ -702,45 +707,45 @@ async def random_blink(actor='player', radius=20):
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     #item text:
     wand_broken_text = " is out of charges."
-    shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
+    shift_amulet_kwargs = {'x_offset': 1000, 'y_offset': 1000, 'plane_name': 'nightmare'}
     possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
                       'shiny stone', 'shift amulet', 'red sword', 'vine wand',
                       'eye trinket', 'high explosives', 'red key', 'green key')
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = await generate_id(base_name=instance_of)
-    item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':None},
-                     'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
-                            'power_kwargs':{'thrown_item_id':item_id}},
-            'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
-         'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':1, 
-                                            'radius':15, 'damage':150, 'fuse_length':9,
-                                            'particle_count':30, 'rand_drift':0}},
-             'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
-                            'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-              'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
-                            'total_restored':50}, 'usable_power':health_potion, 
-                            'broken_text':wand_broken_text},
-             'shiny stone':{'uses':9999, 'tile':term.blue('o'), 
-                            'power_kwargs':{'radius':5, 'track_actor':'player'}, 
-                            'usable_power':orbit, 'broken_text':wand_broken_text},
-            'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
-                            'usable_power':pass_between, 'broken_text':"Something went wrong."},
-               'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
-                            'usable_power':sword_item_ability, 'broken_text':"Something went wrong."},
-               'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
-                            'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
-                            'broken_text':wand_broken_text},
-                 'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
-                            'power_kwargs':{'opens':'red'}, 'broken_text':wand_broken_text,
-                            'use_message':''},
-               'green key':{'uses':9999, 'tile':term.green('⚷'), 'usable_power':unlock_door, 
-                            'power_kwargs':{'opens':'green'}, 'broken_text':wand_broken_text,
-                            'use_message':''},
-             'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
-                            'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
+    item_catalog = {'wand': {'uses': 10, 'tile': term.blue('/'), 'usable_power': None},
+                     'nut': {'uses': 9999, 'tile': term.red('⏣'), 'usable_power': throw_item,
+                             'power_kwargs': {'thrown_item_id': item_id}},
+            'fused charge': {'uses': 9999, 'tile': term.green('⏣'), 'usable_power': fused_throw_action,
+                             'power_kwargs': {'thrown_item_id': item_id, 'radius': 6}},
+         'high explosives': {'uses': 9999, 'tile': term.red('\\'), 'usable_power': fused_throw_action,
+                             'power_kwargs': {'thrown_item_id': item_id, 'throw_distance': 1,
+                                            'radius': 15, 'damage': 150, 'fuse_length': 9,
+                                            'particle_count': 30, 'rand_drift': 0}},
+             'shield wand': {'uses': 10, 'tile': term.blue('/'), 'power_kwargs': {'radius': 6},
+                             'usable_power': spawn_bubble, 'broken_text': wand_broken_text},
+              'red potion': {'uses': 1, 'tile': term.red('◉'), 'power_kwargs': {'item_id': item_id,
+                             'total_restored': 50}, 'usable_power': health_potion,
+                             'broken_text': wand_broken_text},
+             'shiny stone': {'uses': 9999, 'tile': term.blue('o'),
+                             'power_kwargs': {'radius': 5, 'track_actor': 'player'},
+                             'usable_power': orbit, 'broken_text': wand_broken_text},
+            'shift amulet': {'uses': 999, 'tile': term.blue('O̧'), 'power_kwargs': shift_amulet_kwargs,
+                             'usable_power': pass_between, 'broken_text': "Something went wrong."},
+               'red sword': {'uses': 9999, 'tile': term.red('ļ'), 'power_kwargs': {'length': 3},
+                             'usable_power': sword_item_ability, 'broken_text': "Something went wrong."},
+               'vine wand': {'uses': 9999, 'tile': term.green('/'), 'usable_power': vine_grow,
+                             'power_kwargs': {'on_actor': 'player', 'start_facing': True},
+                             'broken_text': wand_broken_text},
+                 'red key': {'uses': 9999, 'tile': term.red('⚷'), 'usable_power': unlock_door,
+                             'power_kwargs': {'opens': 'red'}, 'broken_text': wand_broken_text,
+                             'use_message': ''},
+               'green key': {'uses': 9999, 'tile': term.green('⚷'), 'usable_power': unlock_door,
+                             'power_kwargs': {'opens': 'green'}, 'broken_text': wand_broken_text,
+                             'use_message': ''},
+             'eye trinket': {'uses': 9999, 'tile': term.blue('⚭'), 'usable_power': random_blink,
+                             'power_kwargs': {'radius': 50}, 'broken_text': wand_broken_text}}
     #item generation:
     if instance_of in item_catalog:
         item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
@@ -760,7 +765,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
             break
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
-        
+
         await clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1))
         item_list = [item for item in map_dict[player_coords].items]
         for number, item_id in enumerate(item_list):
@@ -782,8 +787,8 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
             with term.location(x_pos, (y_pos + 1) + number):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
-async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
-                       pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
+async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8,
+                       pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1,
                        delay=0, blocking=False):
     #await asyncio.sleep(delay)
     while True:
@@ -797,7 +802,7 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
     state_dict['printing'] = True #get lock on printing
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
-    middle_x, middle_y = (int(term.width / 2 - 2), 
+    middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2),)
     y_location = term.height + y_offset
     x_location = middle_x + x_offset
@@ -820,8 +825,8 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
             asyncio.sleep(pause_fade_out)
     state_dict['printing'] = False #releasing hold on printing to the screen
 
-async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10, 
-                      pause_between_prints=.005, pause_stay_on=3, 
+async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10,
+                      pause_between_prints=.005, pause_stay_on=3,
                       fill_char=term.red('X'), random_order=True):
     coord_list = [(x, y) for x in range(x_size) for y in range(y_size)]
     fill_char = choice('123456789')
@@ -855,6 +860,7 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
+
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
     if segments == 2:
@@ -877,17 +883,20 @@ def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
                 map_dict[(x_coord, y2)].passable = True
                 map_dict[(x_coord, y2)].blocking = False
 
+
 def center_of_box(x_top_left, y_top_left, width_x, height_y):
     x_middle = round(x_top_left + width_x/2)
     y_middle = round(y_top_left + height_y/2)
     return (x_middle, y_middle)
+
 
 def pick_point_in_cone(cone_left_edge, cone_right_edge):
     """returns a point at a given distance range in a clockwise propagating cone
     to be used for map creation"""
     pass
 
-async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
+
+async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
                 passable=False, stamp=True, paint=True, color_num=1, description='',
                 pause_between=.02):
     """ given a root node, picks random points within a radius length and writes
@@ -915,12 +924,14 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         if description:
             map_dict[toss_coord].description = description
 
+
 def clear():
     """
     clears the screen.
     """
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
+
 
 def draw_door(x, y, closed=True, locked=False, description='red', is_door=True):
     """
@@ -943,6 +954,7 @@ def draw_door(x, y, closed=True, locked=False, description='red', is_door=True):
     map_dict[(x, y)].locked = locked
     map_dict[(x, y)].key = description
 
+
 async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     """
     notes for portals/magic doors:
@@ -952,7 +964,7 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     when in darkness, the default tile is a choice from a noise palette
     the next door appears on your screen regardless of distance,
         blinks on edge of field of view at set radius
-    a counter begins once the player enters the darkness. 
+    a counter begins once the player enters the darkness.
     a tentacle creature spawns a few screens away and approaches
     red eyes are visible from slightly beyond the edge of noise
     noise palette is based on distance from tentacle creature
@@ -985,10 +997,12 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
             #map_dict[(x, y)].actors['player'] = True
             actor_dict['player'].just_teleported = True
 
+
 async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
     loop = asyncio.get_event_loop()
     loop.create_task(magic_door(start_coord=(door_a_coords), end_coord=(door_b_coords)))
     loop.create_task(magic_door(start_coord=(door_b_coords), end_coord=(door_a_coords)))
+
 
 async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
                           breakable=True, preset='random'):
@@ -997,9 +1011,10 @@ async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
         contents = [choice(box_choices)]
     container_id = await generate_id(base_name=base_name)
     actor_dict[container_id] = Actor(name=base_name, tile='☐',
-                               x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
+                               x_coord=spawn_coord[0], y_coord=spawn_coord[1],
                                breakable=True, holding_items=contents)
     map_dict[spawn_coord].actors[container_id] = True
+
 
 def map_init():
     clear()
@@ -1012,7 +1027,7 @@ def map_init():
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
+    passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20),
                 (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0),
                 (60, 20, 90, 20)]
     doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
@@ -1021,10 +1036,11 @@ def map_init():
     for door in doors:
         draw_door(*door, locked=True)
     draw_door(*(-5, -5), locked=True, description='green')
-    announcement_at_coord(coord=(0, 17), distance_trigger=5, 
+    announcement_at_coord(coord=(0, 17), distance_trigger=5,
                           announcement="something slithers into the wall as you approach.")
-    announcement_at_coord(coord=(7, 17), distance_trigger=1, 
+    announcement_at_coord(coord=(7, 17), distance_trigger=1,
                           announcement="you hear muffled scratching from the other side")
+
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
@@ -1036,11 +1052,13 @@ def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trig
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
 
+
 def spawn_stairs(coord=(0, 0), direction="down", level_id="b1"):
     """
     creates a new set of stairs at tile
     """
     pass
+
 
 async def use_stairs(direction="down"):
     """
@@ -1048,8 +1066,10 @@ async def use_stairs(direction="down"):
     """
     pass
 
-def isData(): 
-    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
+
+def isData():
+    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
+
 
 async def is_number(number="0"):
     await asyncio.sleep(0)
@@ -1059,8 +1079,9 @@ async def is_number(number="0"):
     except ValueError:
         return False
 
+
 #Top level input----------------------------------------------------------------
-async def get_key(): 
+async def get_key():
     """the closest thing I could get to non-blocking input"""
     await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
@@ -1081,8 +1102,9 @@ async def get_key():
                 print("key is: {}".format(repr(key)))
             if state_dict['halt_input'] == True:
                 break
-    finally: 
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
 
 async def handle_input(key):
     """
@@ -1095,12 +1117,12 @@ async def handle_input(key):
     esc to open inventory
     a variable in state_dict to capture input while in menus?
     """
-    x_shift, y_shift = 0, 0 
+    x_shift, y_shift = 0, 0
     x, y = actor_dict['player'].coords()
-    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
-    hops = {'A':(-15, 0), 'D':(15, 0), 'W':(0, -15), 'S':(0, 15),}
-    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
-                      'i':'n', 'j':'w', 'k':'s', 'l':'e'}
+    directions = {'a': (-1, 0), 'd': (1, 0), 'w': (0, -1), 's': (0, 1),}
+    hops = {'A': (-15, 0), 'D': (15, 0), 'W': (0, -15), 'S': (0, 15),}
+    key_to_compass = {'w': 'n', 'a': 'w', 's': 's', 'd': 'e',
+                      'i': 'n', 'j': 'w', 'k': 's', 'l': 'e'}
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
     fuzz = 20
@@ -1110,8 +1132,8 @@ async def handle_input(key):
     view_angles = dict(zip(compass_directions, view_tuples))
     fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
     fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
-    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
-    await asyncio.sleep(0)  
+    dir_to_name = {'n': 'North', 'e': 'East', 's': 'South', 'w': 'West'}
+    await asyncio.sleep(0)
     if state_dict['in_menu'] == True:
         if await is_number(key):
             if int(key) in state_dict['menu_choices']:
@@ -1120,7 +1142,7 @@ async def handle_input(key):
             state_dict['menu_choice'] = False
             state_dict['in_menu'] = False
     elif state_dict['exiting'] == True:
-        middle_x, middle_y = (int(term.width / 2 - 2), 
+        middle_x, middle_y = (int(term.width / 2 - 2),
                               int(term.height / 2 - 2),)
         quit_question_text = 'Really quit? (y/n)'
         term_location = (middle_x - int(len(quit_question_text)/2), middle_y - 16)
@@ -1142,12 +1164,12 @@ async def handle_input(key):
         if key in hops:
             #TODO: break hops into separate function/ability
             player_coords = actor_dict['player'].coords()
-            destination = (player_coords[0] + hops[key][0], 
+            destination = (player_coords[0] + hops[key][0],
                            player_coords[1] + hops[key][1])
             await flashy_teleport(destination=destination)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if key in '?':
-            await display_help() 
+            await display_help()
         if key in '$':
             asyncio.ensure_future(filter_fill())
         if key in 'h':
@@ -1164,7 +1186,7 @@ async def handle_input(key):
         if key in '@':
             #asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='fused charge', on_actor_id='player'))
             player_coords = actor_dict['player'].coords()
-            asyncio.ensure_future(spawn_item_spray(base_coord=player_coords, 
+            asyncio.ensure_future(spawn_item_spray(base_coord=player_coords,
                                                    items=['nut', 'shield wand']))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
@@ -1186,7 +1208,7 @@ async def handle_input(key):
         if key in 'f':
             await sword_item_ability()
         if key in '7':
-            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
+            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(),
                                   animation=Animation(preset='bars')))
         if key in '8':
             asyncio.ensure_future(print_screen_grid())
@@ -1209,12 +1231,13 @@ async def handle_input(key):
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
     return x, y
 
+
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
     door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
     for door in door_dirs:
         door_coord_tuple = (x + door[0], y + door[1])
-        door_state = map_dict[door_coord_tuple].tile 
+        door_state = map_dict[door_coord_tuple].tile
         if map_dict[door_coord_tuple].locked:
             description = map_dict[door_coord_tuple].key
             output_text="The {} door is locked.".format(description)
@@ -1229,79 +1252,81 @@ async def toggle_doors():
             map_dict[door_coord_tuple].passable = False
             map_dict[door_coord_tuple].blocking = True
 
+
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
-    prints an item's 3x3 icon representation. tiles are stored within this 
+    prints an item's 3x3 icon representation. tiles are stored within this
     function.
     """
-    middle_x, middle_y = (int(term.width / 2 - 2), 
+    middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2),)
     if 'wand' in icon_name:
         icon_name = 'wand'
-    icons = {'wand':('┌───┐',
-                     '│  *│', 
-                     '│ / │',
-                     '│/  │',
-                     '└───┘',),
-        'red sword':('┌───┐',
-                     '│  {}│'.format(term.red('╱')),
-                     '│ {} │'.format(term.red('╱')),
-                     '│{}  │'.format(term.bold(term.red('╳'))),
-                     '└───┘',),
-              'nut':('┌───┐',
-                     '│/ \│', 
-                     '│\_/│',
-                     '│\_/│',
-                     '└───┘',),
-       'red potion':('┌───┐',
-                     '│┌O┐│', 
-                     '│|{}|│'.format(term.red('█')),
-                     '│└─┘│',
-                     '└───┘',),
-     'fused charge':('┌───┐',
-                     '│/*\│', 
-                     '│\_/│',
-                     '│\_/│',
-                     '└───┘',),
-  'high explosives':('┌───┐',
-                     '│ ╭ │', 
-                     '│ {} │'.format(term.red('█')),
-                     '│ {} │'.format(term.red('█')),
-                     '└───┘',),
-     'shift amulet':('┌───┐',
-                     '│╭─╮│', 
-                     '││ ││',
-                     '│╰ʘ╯│',
-                     '└───┘',),
-      'eye trinket':('┌───┐',
-                     '│   │', 
-                     '│<ʘ>│',
-                     '│   │',
-                     '└───┘',),
-          'red key':('┌───┐',
-                     '│ {} │'.format(term.red('╒')),
-                     '│ {} │'.format(term.red('│')),
-                     '│ {} │'.format(term.red('O')),
-                     '└───┘',),
-          'green key':('┌───┐',
-                     '│ {} │'.format(term.green('╒')),
-                     '│ {} │'.format(term.green('│')),
-                     '│ {} │'.format(term.green('O')),
-                     '└───┘',),
-      'shiny stone':('┌───┐',   #effect while equipped: orbit
-                     '│ _ │', 
-                     '│(_)│',
-                     '│   │',
-                     '└───┘',),
-            'empty':('┌───┐',
-                     '│   │', 
-                     '│   │',
-                     '│   │',
-                     '└───┘',),}
+    icons = {'wand': ('┌───┐',
+                      '│  *│',
+                      '│ / │',
+                      '│/  │',
+                      '└───┘',),
+        'red sword': ('┌───┐',
+                      '│  {}│'.format(term.red('╱')),
+                      '│ {} │'.format(term.red('╱')),
+                      '│{}  │'.format(term.bold(term.red('╳'))),
+                      '└───┘',),
+              'nut': ('┌───┐',
+                      '│/ \│',
+                      '│\_/│',
+                      '│\_/│',
+                      '└───┘',),
+       'red potion': ('┌───┐',
+                      '│┌O┐│',
+                      '│|{}|│'.format(term.red('█')),
+                      '│└─┘│',
+                      '└───┘',),
+     'fused charge': ('┌───┐',
+                      '│/*\│',
+                      '│\_/│',
+                      '│\_/│',
+                      '└───┘',),
+  'high explosives': ('┌───┐',
+                      '│ ╭ │',
+                      '│ {} │'.format(term.red('█')),
+                      '│ {} │'.format(term.red('█')),
+                      '└───┘',),
+     'shift amulet': ('┌───┐',
+                      '│╭─╮│',
+                      '││ ││',
+                      '│╰ʘ╯│',
+                      '└───┘',),
+      'eye trinket': ('┌───┐',
+                      '│   │',
+                      '│<ʘ>│',
+                      '│   │',
+                      '└───┘',),
+          'red key': ('┌───┐',
+                      '│ {} │'.format(term.red('╒')),
+                      '│ {} │'.format(term.red('│')),
+                      '│ {} │'.format(term.red('O')),
+                      '└───┘',),
+          'green key': ('┌───┐',
+                        '│ {} │'.format(term.green('╒')),
+                        '│ {} │'.format(term.green('│')),
+                        '│ {} │'.format(term.green('O')),
+                        '└───┘',),
+      'shiny stone': ('┌───┐',   #effect while equipped: orbit
+                      '│ _ │',
+                      '│(_)│',
+                      '│   │',
+                      '└───┘',),
+            'empty': ('┌───┐',
+                      '│   │',
+                      '│   │',
+                      '│   │',
+                      '└───┘',), }
     for (num, line) in enumerate(icons[icon_name]):
         with term.location(x_coord, y_coord + num):
             print(line)
+
 
 async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
     """
@@ -1336,12 +1361,13 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
             if menu_choice in [str(i) for i in range(10)]:
                 menu_choice = int(menu_choice)
         if menu_choice in menu_choices:
-            await clear_screen_region(x_size=2, y_size=len(item_id_choices), 
+            await clear_screen_region(x_size=2, y_size=len(item_id_choices),
                                       screen_coord=(x_pos, y_pos))
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return item_id_choices[int(menu_choice)]
-    
+
+
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
     make it possible to equip each number to an item
@@ -1371,6 +1397,7 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
             print(slot)
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
+
 async def equip_item(slot='q'):
     """
     each slot must also have a coroutine to use the item's abilities.
@@ -1386,12 +1413,14 @@ async def equip_item(slot='q'):
     else:
         await filter_print(output_text="Nothing to equip!")
 
+
 async def use_chosen_item():
     #await asyncio.sleep(0)
     item_id_choice = await choose_item()
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
-    
+
+
 async def use_item_in_slot(slot='q'):
     await asyncio.sleep(0)
     item_id = state_dict['{}_slot'.format(slot)]
@@ -1404,6 +1433,7 @@ async def use_item_in_slot(slot='q'):
             #put custom null action here instead of 'Nothing happens.'
             #as given for each item.
             await filter_print(output_text='Nothing happens.')
+
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -1424,6 +1454,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
         id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
         await get_item(coords=coords, item_id=id_choice)
 
+
 async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
@@ -1435,12 +1466,14 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     asyncio.ensure_future(filter_print(pickup_text))
     return True
 
+
 #Announcement/message handling--------------------------------------------------
 async def parse_announcement(tile_coord_key):
     """ parses an annoucement, with a new printing after each pipe """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for delay, line in enumerate(announcement_sequence):
         asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
+
 
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
     if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
@@ -1455,6 +1488,7 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
     else:
         map_dict[tile_coord_key].seen = True
 
+
 #Geometry functions-------------------------------------------------------------
 async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
@@ -1462,6 +1496,7 @@ async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
+
 
 async def get_circle(center=(0, 0), radius=5):
     radius_range = [i for i in range(-radius, radius + 1)]
@@ -1473,11 +1508,12 @@ async def get_circle(center=(0, 0), radius=5):
                result.append((center[0] + x, center[1] + y))
     return result
 
+
 async def get_line(start, end):
     """Bresenham's Line Algorithm
     Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
     Produces a list of tuples from start and end
- 
+
     >>> points1 = get_line((0, 0), (3, 4))
     >>> points2 = get_line((3, 4), (0, 0))
     >>> assert(set(points1) == set(points2))
@@ -1525,6 +1561,7 @@ async def get_line(start, end):
         points.reverse()
     return points
 
+
 async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     """
     find the angle between two points around a central point,
@@ -1537,20 +1574,21 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     divisor = sqrt(4 * a * b)
     if divisor == 0:
         return 0
-    else:     
+    else:
         result = acos((a+b-c) / divisor)
         if use_degrees:
             return degrees(result)
         else:
             return result
 
-async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
+
+async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0),
                                       reference_point=(0, 5), radius=10,
                                       rounded=True):
     """
     returns a point that lies at distance radius from point
     central_point. a is reference_point, b is central_point, c is returned point
-    
+
         c
        /|
      r/ |y
@@ -1564,6 +1602,7 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     y = sin(radians(angle)) * radius
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
+
 
 async def angle_checker(angle_from_twelve):
     """
@@ -1589,6 +1628,7 @@ async def angle_checker(angle_from_twelve):
 
 #TODO: add timer that displays tooltip for help menu if no keys are pressed for a while.
 
+
 #UI/HUD functions---------------------------------------------------------------
 async def display_help():
     x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
@@ -1609,6 +1649,7 @@ async def display_help():
                               pause_fade_in=.015, pause_fade_out=.015,
                               x_offset=-40, y_offset=-30 + line_number))
 
+
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
     intended to be used for occlusion.
@@ -1626,7 +1667,7 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
             difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
             destination = map_dict[point].magic_destination
             if difference_from_last is not (0, 0):
-                coord_through_door = (destination[0] + difference_from_last[0], 
+                coord_through_door = (destination[0] + difference_from_last[0],
                                       destination[1] + difference_from_last[1])
                 door_points = await get_line(destination, coord_through_door)
                 if len(door_points) >= 2:
@@ -1650,13 +1691,14 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     if map_dict[points[-1]].blocking == True and walls == 1:
         return True
 
+
 async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     """ handles displaying data from map_dict """
     noise_palette = " " * 5
     #absolute distance from player
-    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
+    distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2)
     await asyncio.sleep(random()/5 * distance)
-    middle_x, middle_y = (int(term.width / 2 - 2), 
+    middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2),)
     previous_actor, previous_tile, actor = None, None, None
     print_location = (middle_x + x_offset, middle_y + y_offset)
@@ -1710,6 +1752,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
                 last_printed = print_choice
         #distant tiles update slower than near tiles:
 
+
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
         actor_name = next(iter(map_dict[coord].actors))
@@ -1726,13 +1769,15 @@ async def check_contents_of_tile(coord):
     else:
         return map_dict[coord].tile
 
+
 async def offset_of_center(x_offset=0, y_offset=0):
     await asyncio.sleep(0)
     window_width, window_height = term.width, term.height
-    middle_x, middle_y = (int(window_width / 2 - 2), 
+    middle_x, middle_y = (int(window_width / 2 - 2),
                       int(window_height / 2 - 2),)
     x_print, y_print = middle_x + x_offset, middle_y + y_offset
     return x_print, y_print
+
 
 async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
     await asyncio.sleep(0)
@@ -1740,8 +1785,9 @@ async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
 
-async def ui_box_draw(position="top left", 
-                      box_height=1, box_width=9, 
+
+async def ui_box_draw(position="top left",
+                      box_height=1, box_width=9,
                       x_margin=30, y_margin=4,
                       one_time=False):
     """
@@ -1758,7 +1804,7 @@ async def ui_box_draw(position="top left",
         x_print, y_print = x_margin, y_margin
     if position == "centered":
         window_width, window_height = term.width, term.height
-        middle_x, middle_y = (int(window_width / 2 - 2), 
+        middle_x, middle_y = (int(window_width / 2 - 2),
                           int(window_height / 2 - 2),)
         x_print, y_print = middle_x + x_margin, middle_y + y_margin
     while True:
@@ -1777,10 +1823,12 @@ async def ui_box_draw(position="top left",
         if one_time:
             break
 
+
 async def status_bar_draw(state_dict_key="health", position="top left", bar_height=1, bar_width=10,
                           x_margin=5, y_margin=4):
     asyncio.ensure_future(ui_box_draw(position=position, bar_height=box_height, bar_width=box_width,
                           x_margin=x_margin, y_margin=y_margin))
+
 
 async def directional_damage_alert(direction='n'):
     with term.location(30, 0):
@@ -1789,12 +1837,12 @@ async def directional_damage_alert(direction='n'):
     angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
     arc_width = 90
     dir_arcs = [((int(i - arc_width/2), i), (j, int(j + arc_width/2))) for i, j in angle_pairs]
-    middle_x, middle_y = (int(term.width / 2 - 2), 
+    middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2),)
     angle_pair = dir_arcs[angle_pair_index]
     warning_ui_points = [await point_at_distance_and_angle(
-                                 radius=17 + randint(0, 3), 
-                                 central_point=(middle_x, middle_y), 
+                                 radius=17 + randint(0, 3),
+                                 central_point=(middle_x, middle_y),
                                  angle_from_twelve=randint(*choice(angle_pair)))
                          for _ in range(40)]
     for tile in [term.red("█"), ' ']:
@@ -1804,12 +1852,13 @@ async def directional_damage_alert(direction='n'):
             with term.location(*point):
                 print(tile)
 
+
 async def find_damage_direction(attacker_key):
     """
     TODO: fix to pull from an angle instead
     four possible outputs.
         N
-       
+
     W       E
 
         S
@@ -1825,12 +1874,13 @@ async def find_damage_direction(attacker_key):
         return 'n'
     elif attacker_location[0] > player_location[0]: #E
         return 'e'
-    elif attacker_location[1] > player_location[1]: #S 
+    elif attacker_location[1] > player_location[1]: #S
         return 's'
     elif attacker_location[0] < player_location[0]: #W
         return 'w'
     else:
         return 'n'
+
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
     await asyncio.sleep(0)
@@ -1854,6 +1904,7 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             break
         timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
 
+
 async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
@@ -1863,11 +1914,12 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
+
 async def async_map_init():
     """
     a map function that makes two different features, one with a normal small
     number coordinate and the other with an unreachably large number.
-    
+
     a map that generates as the player gets close to its existing nodes
 
     when a node is approached, spawn a new chunk while still out of sight
@@ -1875,7 +1927,7 @@ async def async_map_init():
     The player can teleport between the two areas with an item and they are set
     up 1 to 1 with one another with differences between the two areas.
 
-    One is barren except for a few very scary monsters? 
+    One is barren except for a few very scary monsters?
     """
     #scary nightmare land
     loop = asyncio.get_event_loop()
@@ -1897,6 +1949,7 @@ async def async_map_init():
     #      function so that they don't fall out of phase.
     loop.create_task(spike_trap(coord=(4, -4), directions='s'))
 
+
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
     shift from default area to alternate area and vice versa.
@@ -1915,6 +1968,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         state_dict['plane'] = plane
     else:
         await filter_print(output_text="Something is in the way.")
+
 
 async def printing_testing(distance=0):
     await asyncio.sleep(0)
@@ -1951,8 +2005,9 @@ async def printing_testing(distance=0):
     else:
         return " "
 
-async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
-                  actor_name=None, attribute=None, title=None, bar=False, 
+
+async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
+                  actor_name=None, attribute=None, title=None, bar=False,
                   bar_length=20, is_actor=True, is_state=False):
     """Create a status bar for the health of the 'player' actor"""
     await asyncio.sleep(0)
@@ -1979,6 +2034,7 @@ async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3,
             with term.location(x_coord, y_coord):
                 print("{}".format(key_value))
 
+
 async def ui_setup():
     """
     lays out UI elements to the screen at the start of the program.
@@ -1993,9 +2049,10 @@ async def ui_setup():
     loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
     loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
 
+
 #Actor behavior functions-------------------------------------------------------
 async def wander(x_current=0, y_current=0, name_key=None):
-    """ 
+    """
     randomly increments or decrements x_current and y_current
     if square to be moved to is passable
     """
@@ -2007,18 +2064,20 @@ async def wander(x_current=0, y_current=0, name_key=None):
     else:
         return x_current, y_current
 
+
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
     await asyncio.sleep(0)
     attacker_strength = actor_dict[attacker_key].strength
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
-        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
+        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
                           seeds=randint(1, spatter_num), description="blood.")
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
     direction = await find_damage_direction(attacker_key)
     asyncio.ensure_future(directional_damage_alert(direction=direction))
+
 
 async def seek_actor(name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
@@ -2037,7 +2096,7 @@ async def seek_actor(name_key=None, seek_key='player'):
         next_x = active_x - 1
     elif diff_x < 0:
         next_x = active_x + 1
-    if diff_y > 0: 
+    if diff_y > 0:
         next_y = active_y - 1
     elif diff_y < 0:
         next_y = active_y + 1
@@ -2046,17 +2105,21 @@ async def seek_actor(name_key=None, seek_key='player'):
     else:
         return (x_current, y_current)
 
+
 async def damage_door():
     """ allows actors to break down doors"""
     pass
+
 
 #misc utility functions---------------------------------------------------------
 async def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
+
 async def facing_dir_to_num(direction="n"):
-    dir_to_num = {'n':2, 'e':1, 's':0, 'w':3}
+    dir_to_num = {'n': 2, 'e': 1, 's': 0, 'w': 3}
     return dir_to_num[direction]
+
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
     while True:
@@ -2065,6 +2128,7 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
         await asyncio.sleep(sec_interval)
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
+
 
 async def track_actor_location(state_dict_key="player", actor_dict_key="player", update_speed=.1, length=10):
     await asyncio.sleep(0)
@@ -2075,6 +2139,7 @@ async def track_actor_location(state_dict_key="player", actor_dict_key="player",
         await asyncio.sleep(update_speed)
         actor_coords = actor_dict[actor_dict_key].coords()
         state_dict[state_dict_key] = actor_coords
+
 
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
@@ -2098,13 +2163,14 @@ async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3
         if current_coord:
             actor_dict[tentacled_mass_id].update(*current_coord)
         tentacle_color = int(choice(tentacle_colors))
-        asyncio.ensure_future(vine_grow(start_x=current_coord[0], 
-                start_y=current_coord[1], actor_key="tentacle", 
+        asyncio.ensure_future(vine_grow(start_x=current_coord[0],
+                start_y=current_coord[1], actor_key="tentacle",
                 rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
                 behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                 extend_wait=.025, retract_wait=.25 ))
         actor_dict[tentacled_mass_id].update(*current_coord)
-    
+
+
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
     X a set core that moves around and an outer shroud of random moving tiles
@@ -2151,11 +2217,12 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         core_location = actor_dict[core_name_key].coords()
         if wait > 0:
             wait -= 1
-            pass 
+            pass
         else:
             new_core_location = await choose_core_move(core_name_key=core_name_key)
         if new_core_location:
             actor_dict[core_name_key].update(*new_core_location)
+
 
 async def choose_core_move(core_name_key='', tentacles=True):
     """
@@ -2176,6 +2243,7 @@ async def choose_core_move(core_name_key='', tentacles=True):
         new_core_location = await seek_actor(name_key=core_name_key, seek_key="player")
     return new_core_location
 
+
 async def choose_shroud_move(shroud_name_key='', core_name_key=''):
     """
     breaks out random movement of core into separate function
@@ -2191,7 +2259,8 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
         new_shroud_location = await seek_actor(name_key=shroud_name_key, seek_key=core_name_key)
     return new_shroud_location
 
-async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
+
+async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
         movement_function=wander, name_key="test", hurtful=False,
         strength=5, is_animated=False, animation=" ", holding_items=[]):
     """ A coroutine that creates a randomly wandering '*' """
@@ -2204,9 +2273,9 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
     exist for a set number of turns
     """
     await asyncio.sleep(0)
-    actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, 
-                                   speed=speed, tile=tile, hurtful=hurtful, 
-                                   leaves_body=True, strength=strength, 
+    actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y,
+                                   speed=speed, tile=tile, hurtful=hurtful,
+                                   leaves_body=True, strength=strength,
                                    is_animated=is_animated, animation=animation,
                                    holding_items=holding_items)
     coords = actor_dict[name_key].coords()
@@ -2225,6 +2294,7 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(*next_coords)
 
+
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
@@ -2233,13 +2303,14 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
-        await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
+        await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True,
                           seeds=5, description="blood.")
     if leaves_body:
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
     await spawn_item_spray(base_coord=coords, items=holding_items)
     return
+
 
 async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
     if items is None:
@@ -2250,7 +2321,8 @@ async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         item_coord = choice(coord_choices)
         loop.create_task(spawn_item_at_coords(coord=item_coord, instance_of=item))
 
-async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
+
+async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                     rate=.1, vine_length=20, rounded=True,
                     behavior="retract", speed=.01, damage=20,
                     extend_wait=.025, retract_wait=.25,
@@ -2262,16 +2334,16 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     if on_actor:
         start_x, start_y = actor_dict[on_actor].coords()
     if not rounded:
-        vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
-                (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
+        vine_picks = {(1, 2): '┌', (4, 3): '┌', (2, 3): '┐', (1, 4): '┐', (1, 1): '│', (3, 3): '│',
+                (3, 4): '┘', (2, 1): '┘', (3, 2): '└', (4, 1): '└', (2, 2): '─', (4, 4): '─', }
     else:
-        vine_picks = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
-                (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
+        vine_picks = {(1, 2): '╭', (4, 3): '╭', (2, 3): '╮', (1, 4): '╮', (1, 1): '│', (3, 3): '│',
+                (3, 4): '╯', (2, 1): '╯', (3, 2): '╰', (4, 1): '╰', (2, 2): '─', (4, 4): '─', }
     behaviors = ["grow", "retract", "bolt"]
     exclusions = {(2, 4), (4, 2), (1, 3), (3, 1), }
     vines = [term.green(i) for i in "┌┐└┘─│"]
     prev_dir, next_dir = randint(1, 4), randint(1, 4)
-    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
+    movement_tuples = {1: (0, -1), 2: (1, 0), 3: (0, 1), 4: (-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
     vine_id = await generate_id(base_name='')
@@ -2285,7 +2357,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     for vine_name in vine_actor_names:
         while (prev_dir, next_dir) in exclusions:
             next_dir = randint(1, 4)
-        next_tuple, vine_tile = (movement_tuples[next_dir], 
+        next_tuple, vine_tile = (movement_tuples[next_dir],
                                  vine_picks[(prev_dir, next_dir)])
         actor_dict[vine_name] = Actor(name=vine_name, x_coord=current_coord[0],
                                       y_coord=current_coord[1],
@@ -2307,8 +2379,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         if behavior == "retract" or "bolt":
             map_dict[coord].actors[vine_name] = True
         if damage:
-            await damage_all_actors_at_coord(exclude=vine_name, 
-                                             coord=coord, 
+            await damage_all_actors_at_coord(exclude=vine_name,
+                                             coord=coord,
                                              damage=damage)
     if behavior == "retract":
         end_loop = reversed(vine_actor_names)
@@ -2321,7 +2393,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         del map_dict[coord].actors[vine_name]
         del actor_dict[vine_name]
 
-async def health_potion(item_id=None, actor_key='player', total_restored=25, 
+
+async def health_potion(item_id=None, actor_key='player', total_restored=25,
                         duration=2, sub_second_step=.1):
     await asyncio.sleep(0)
     if item_id:
@@ -2335,6 +2408,7 @@ async def health_potion(item_id=None, actor_key='player', total_restored=25,
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
         else:
             actor_dict[actor_key].health += health_per_step
+
 
 async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     """
@@ -2354,21 +2428,23 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     state_dict['bubble_cooldown'] = True
     for num, point in enumerate(points_at_distance):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
-        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point), 
+        asyncio.ensure_future(timed_actor(name=actor_name, coords=(point),
                               rand_delay=.3, death_clock=duration))
     await asyncio.sleep(duration)
     state_dict['bubble_cooldown'] = False
     return True
 
+
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
     points = []
     for angle in every_five:
-        point = await point_at_distance_and_angle(radius=radius, 
-                                                  central_point=player_coords, 
+        point = await point_at_distance_and_angle(radius=radius,
+                                                  central_point=player_coords,
                                                   angle_from_twelve=angle)
         points.append(point)
     return set(points)
+
 
 async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
                       rand_delay=0, solid=True):
@@ -2379,7 +2455,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
         name = name + await generate_id(base_name='')
     if rand_delay:
         await asyncio.sleep(random() * rand_delay)
-    actor_dict[name] = Actor(name=name, moveable=False, x_coord=coords[0], y_coord=coords[1], 
+    actor_dict[name] = Actor(name=name, moveable=False, x_coord=coords[0], y_coord=coords[1],
                              tile=str(death_clock), is_animated=True,
                              animation=Animation(preset='water'))
     map_dict[coords].actors[name] = True
@@ -2396,6 +2472,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
+
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='fire'),
                             debris=None):
@@ -2406,7 +2483,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
         is_animated = True
     else:
         is_animated = False
-    actor_dict[particle_id] = Actor(name=particle_id, x_coord=start_coord[0], y_coord=start_coord[1], 
+    actor_dict[particle_id] = Actor(name=particle_id, x_coord=start_coord[0], y_coord=start_coord[1],
                                     tile=tile, moveable=False, is_animated=is_animated,
                                     animation=animation)
     map_dict[start_coord].actors[particle_id] = True
@@ -2425,9 +2502,10 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
     del map_dict[last_location].actors[particle_id]
     del actor_dict[particle_id]
 
-async def radial_fountain(anchor_actor='player', tile_anchor=None, 
+
+async def radial_fountain(anchor_actor='player', tile_anchor=None,
                           angle_range=(0, 360), frequency=.1, radius=(3, 30),
-                          speed=(1, 7), collapse=True, debris=None, 
+                          speed=(1, 7), collapse=True, debris=None,
                           deathclock=None, animation=Animation(preset='water')):
     """
     creates a number of short lived actors that move towards or away from a
@@ -2445,7 +2523,7 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
     angle_range, radius and speed are given in the range that will be passed
     to randint. Speed is divided by 100 so that randint can be used easily.
 
-    angle_range can be defined as a cone (example: (45, 135)) for a cone shaped 
+    angle_range can be defined as a cone (example: (45, 135)) for a cone shaped
     effect.
     """
     await asyncio.sleep(0)
@@ -2461,15 +2539,15 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
         reference = (origin_coord[0], origin_coord[1] + 5)
         rand_radius = randint(*radius)
         rand_speed = randint(*speed) / 100
-        point = await point_at_distance_and_angle(angle_from_twelve=rand_angle, 
+        point = await point_at_distance_and_angle(angle_from_twelve=rand_angle,
                                                   central_point=origin_coord,
-                                                  reference_point=reference, 
+                                                  reference_point=reference,
                                                   radius=rand_radius)
         if collapse:
             start_coord, end_coord = point, origin_coord
         else:
             start_coord, end_coord = origin_coord, point
-        asyncio.ensure_future(travel_along_line(start_coord=start_coord, 
+        asyncio.ensure_future(travel_along_line(start_coord=start_coord,
                                                 end_coord=end_coord,
                                                 debris=debris,
                                                 animation=animation))
@@ -2478,8 +2556,9 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
             if deathclock <= 0:
                 break
 
-async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0), 
-                rand_speed=False, track_actor=None, 
+
+async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
+                rand_speed=False, track_actor=None,
                 sin_radius=False, sin_radius_amplitude=3):
     """
     generates an actor that orbits about a point
@@ -2488,7 +2567,7 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
     await asyncio.sleep(0)
     angle = randint(0, 360)
     particle_id = await generate_id(base_name=name)
-    actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
+    actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1],
                                     moveable=False, is_animated=True,
                                     animation=Animation(base_tile='◉', preset='shimmer'))
     map_dict[on_center].actors[particle_id] = True
@@ -2518,10 +2597,11 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
         map_dict[last_location].actors[particle_id] = True
         angle = (angle + degrees_per_step) % 360
 
+
 async def death_check():
     await asyncio.sleep(0)
     player_health = actor_dict["player"].health
-    middle_x, middle_y = (int(term.width / 2 - 2), 
+    middle_x, middle_y = (int(term.width / 2 - 2),
                           int(term.height / 2 - 2),)
     death_message = "You have died."
     while True:
@@ -2535,10 +2615,11 @@ async def death_check():
             await asyncio.sleep(3)
             state_dict['killall'] = True
 
+
 async def environment_check(rate=.1):
     """
     checks actors that share a space with the player and applies status effects
-    and/or damage over time for obstacle-type actors such as tentacles from 
+    and/or damage over time for obstacle-type actors such as tentacles from
     vine_grow().
     """
     await asyncio.sleep(0)
@@ -2552,6 +2633,8 @@ async def environment_check(rate=.1):
         with term.location(40, 0):
             print(len([i for i in map_dict[player_coords].actors.items()]))
 #
+
+
 async def kill_all_tasks():
     await asyncio.sleep(0)
     pending = asyncio.Task.all_tasks()
@@ -2561,6 +2644,7 @@ async def kill_all_tasks():
         # Cancelled task raises asyncio.CancelledError that we can suppress:
         with suppress(asyncio.CancelledError):
             loop.run_until_complete(task)
+
 
 async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_items=[]):
     """
@@ -2575,7 +2659,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     start_coord = coords
     if preset == 'blob':
         item_drops = ['red potion']
-        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
+        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor,
                                      tile='ö', name_key=name, hurtful=True, strength=30,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
@@ -2584,11 +2668,13 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     else:
         pass
 
+
 async def spawn_breakable(coords=(0, 0), preset='crate', holding_items=['red potion'], health=10):
     pass
-    #def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
+    #def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1,
                  #health=health, hurtful=False, moveable=True, is_animated=False,
                  #animation="", holding_items={}, leaves_body=False):
+
 
 async def quitter_daemon():
     while True:
@@ -2598,12 +2684,13 @@ async def quitter_daemon():
             loop.stop()
             loop.close()
 
+
 def main():
     map_init()
     state_dict["player_health"] = 100
     state_dict['view_angles'] = (315, 360, 0, 45)
     state_dict['fuzzy_view_angles'] = (315, 360, 0, 45)
-    old_settings = termios.tcgetattr(sys.stdin) 
+    old_settings = termios.tcgetattr(sys.stdin)
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
@@ -2631,6 +2718,6 @@ with term.hidden_cursor():
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         main()
-    finally: 
+    finally:
         clear()
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
