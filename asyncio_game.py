@@ -569,10 +569,12 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     loop.create_task(radial_fountain(anchor_actor=actor_id,
                                      animation=Animation(preset='sparse noise')))
 
+#TODO: make a function to trigger doors shutting or opening on pressure plate press
+
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
-                           nodes=((-1, -3, 's'), (0, -3, 's'), (1, -3, 's')),
-                           damage=20, length=5, rate=.25,
-                           speed=.1, trigger_key='switch_1'):
+                           nodes=[(i, -5, 's') for i in range(-5, 5)],
+                           damage=200, length=7, rate=.25,
+                           speed=1, retract_speed=.1, trigger_key='switch_1'):
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -587,7 +589,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         with term.location(20, number):
             print(number, node)
     for number, node in enumerate(nodes):
-        node_coord = node[1:]
+        node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(name=node_name, moveable=False,
@@ -598,13 +600,12 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         if state_dict[trigger_key]:
             for node in node_data:
                 with term.location(0, 0):
-                    print('node: {}'.format(node))
+                    print('node: {}'.format((node[1], node[0], length, damage, 7, speed)))
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
-                                            damage=damage, sword_color=7, speed=speed))
+                                            damage=damage, sword_color=7, speed=speed, 
+                                            retract_speed=retract_speed))
 
-
-
-async def spike_trap(base_name='spike_trap', coord=(10, 10), y_print_debug_offset=0,
+async def spike_trap(base_name='spike_trap', coord=(10, 10), 
                      direction='n', damage=20, length=5, rate=.25, 
                      speed=.1, trigger_key='switch_1'):
     """
@@ -618,8 +619,6 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10), y_print_debug_offse
     while True:
         await asyncio.sleep(rate)
         if state_dict[trigger_key]:
-            with term.location(25, 0 + y_print_debug_offset):
-                print('triggered {}'.format(trap_origin_id))
             asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
                                         damage=damage, sword_color=7, speed=speed))
 
@@ -644,11 +643,11 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
         if not is_sword and relevant_actor:
             map_dict[spawn_coord].tile = appearance[1]
             with term.location(30, 7):
-                print('triggered {}! (on)    ')
+                print('triggered {}! (on)    '.format(trigger_key))
             state_dict[trigger_key] = True
         else:
             with term.location(30, 7):
-                print('triggered {}! (off)    ')
+                print('triggered {}! (off)        ')
             state_dict[trigger_key] = False
             map_dict[spawn_coord].tile = appearance[0]
         if state_dict[trigger_key] == True:
@@ -656,7 +655,7 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
 
 
 async def sword(direction='n', actor='player', length=5, name='sword', 
-                speed=.1, damage=100, sword_color=1):
+                speed=.1, retract_speed=.1, damage=100, sword_color=1):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
@@ -686,7 +685,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
-        await asyncio.sleep(speed)
+        await asyncio.sleep(retract_speed)
     state_dict['sword_out'] = False
     for actor in to_damage_names:
         with term.location(40, 5):
@@ -1054,14 +1053,11 @@ async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
-    #actor_dict['box'] = Actor(name='box', x_coord=7, y_coord=5, tile='☐',
-                              #breakable=True, holding_items=['red potion', 'nut'])
-    #map_dict[(7, 5)].actors['box'] = True
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
-    draw_box(top_left=(30, 15), x_size=10, y_size=10, tile="░")
+    draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
     passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
                 (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0),
@@ -1069,8 +1065,8 @@ def map_init():
     doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
-    for door in doors:
-        draw_door(*door, locked=True)
+    #for door in doors:
+        #draw_door(*door, locked=True)
     draw_door(*(-5, -5), locked=True, description='green')
     announcement_at_coord(coord=(0, 17), distance_trigger=5, 
                           announcement="something slithers into the wall as you approach.")
@@ -1938,13 +1934,19 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
-    loop.create_task(spawn_container(spawn_coord=(5, -4)))
-    loop.create_task(spawn_container(spawn_coord=(5, -5)))
-    loop.create_task(spawn_container(spawn_coord=(5, -6)))
+    loop.create_task(spawn_container(spawn_coord=(3, -2)))
+    loop.create_task(spawn_container(spawn_coord=(3, -3)))
+    loop.create_task(spawn_container(spawn_coord=(3, -4)))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
+    loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     start_coord = (10, 10)
     #TODO: create predictable spike hallway, keeping timing all in the same
     #      function so that they don't fall out of phase.
-    loop.create_task(multi_spike_trap())
+    node_offsets = ((-6, 's'), (6, 'n'))
+    nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
+    loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
+            
+#TODO: create a map editor mode, accessible with a keystroke??
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
@@ -2656,12 +2658,10 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
-    loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
     loop.create_task(death_check())
