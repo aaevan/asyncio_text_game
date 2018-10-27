@@ -569,8 +569,43 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     loop.create_task(radial_fountain(anchor_actor=actor_id,
                                      animation=Animation(preset='sparse noise')))
 
-async def spike_trap(base_name='spike_trap', coord=(10, 10), 
-                     directions='n', damage=20, length=5, rate=.25, 
+async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
+                           nodes=((-1, -3, 's'), (0, -3, 's'), (1, -3, 's')),
+                           damage=20, length=5, rate=.25,
+                           speed=.1, trigger_key='switch_1'):
+    """
+    pressure plate is centered, nodes are arrayed in offsets around
+    the pressure plate. all nodes trigger at once when pressure plate is
+    activated.
+    """
+    loop = asyncio.get_event_loop()
+    trap_base_node_id = await generate_id(base_name=base_name)
+    loop.create_task(pressure_plate(spawn_coord=base_coord, trigger_key='switch_1'))
+    node_data = []
+    #need ID for each trap.
+    for number, node in enumerate(nodes):
+        with term.location(20, number):
+            print(number, node)
+    for number, node in enumerate(nodes):
+        node_coord = node[1:]
+        node_name = '{}_{}'.format(base_name, str(number))
+        node_data.append((node_name, node[2]))
+        actor_dict[node_name] = Actor(name=node_name, moveable=False,
+                                           tile=term.color(7)('◘'))
+        actor_dict[node_name].update(*node_coord)
+    while True:
+        await asyncio.sleep(rate)
+        if state_dict[trigger_key]:
+            for node in node_data:
+                with term.location(0, 0):
+                    print('node: {}'.format(node))
+                asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
+                                            damage=damage, sword_color=7, speed=speed))
+
+
+
+async def spike_trap(base_name='spike_trap', coord=(10, 10), y_print_debug_offset=0,
+                     direction='n', damage=20, length=5, rate=.25, 
                      speed=.1, trigger_key='switch_1'):
     """
     Generate a stationary, actor that periodically puts out spikes in each
@@ -582,29 +617,41 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     actor_dict[trap_origin_id].update(*coord)
     while True:
         await asyncio.sleep(rate)
-        with term.location(30, 6):
-            print('listening to state_dict[{}]. (state: {})'.format(trigger_key, state_dict[trigger_key]))
         if state_dict[trigger_key]:
-            for direction in directions:
-                await sword(direction=direction, actor=trap_origin_id, length=length, 
-                            damage=damage, sword_color=7, speed=speed)
+            with term.location(25, 0 + y_print_debug_offset):
+                print('triggered {}'.format(trap_origin_id))
+            asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
+                                        damage=damage, sword_color=7, speed=speed))
 
-async def pressure_plate(appearance='-_', spawn_coord=(4, 0), trigger_key='switch_1', on_time=1, test_rate=.05):
+async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
+                         trigger_key='switch_1', on_time=1, 
+                         tile_color=7, test_rate=.05):
+
+    appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     state_dict[trigger_key] = False
     while True:
         await asyncio.sleep(test_rate)
-        if map_dict[spawn_coord].actors.items():
+        is_sword = False
+        relevant_actor = False
+        for actor in map_dict[spawn_coord].actors.items():
+            if 'sword' in actor:
+                with term.location(25, 3):
+                    print('found a sword on {}'.format(trigger_key))
+                is_sword = True
+            elif 'player' in actor:
+                relevant_actor = True
+        if not is_sword and relevant_actor:
             map_dict[spawn_coord].tile = appearance[1]
             with term.location(30, 7):
                 print('triggered {}! (on)    ')
             state_dict[trigger_key] = True
-        if not map_dict[spawn_coord].actors.items():
+        else:
             with term.location(30, 7):
                 print('triggered {}! (off)    ')
             state_dict[trigger_key] = False
             map_dict[spawn_coord].tile = appearance[0]
-        if state_dict[trigger_key]:
+        if state_dict[trigger_key] == True:
             await asyncio.sleep(on_time)
 
 
@@ -621,6 +668,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = await generate_id(base_name=name)
+    with term.location(20, 20):
+        print("starting sword_id:{}   ".format(sword_id))
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
@@ -643,6 +692,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         with term.location(40, 5):
             print(actor)
         await damage_actor(actor=actor, damage=damage)
+    with term.location(20, 20):
+        print("exiting sword_id:{}    ".format(sword_id))
 
 async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
@@ -1150,8 +1201,6 @@ async def handle_input(key):
             await display_help() 
         if key in '$':
             asyncio.ensure_future(filter_fill())
-        if key in 'h':
-            asyncio.ensure_future(unlock_door())
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1895,7 +1944,7 @@ async def async_map_init():
     start_coord = (10, 10)
     #TODO: create predictable spike hallway, keeping timing all in the same
     #      function so that they don't fall out of phase.
-    loop.create_task(spike_trap(coord=(4, -4), directions='s'))
+    loop.create_task(multi_spike_trap())
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
@@ -2607,7 +2656,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -2618,7 +2667,6 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
-    loop.create_task(pressure_plate())
     #loop.create_task(circle_of_darkness())
     #for i in range(3):
         #rand_coord = (randint(-25, 25), randint(-25, 25))
