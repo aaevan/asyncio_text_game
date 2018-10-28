@@ -27,7 +27,7 @@ class Map_tile:
                  is_door=False, locked=False, key=''):
         """ create a new map tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
-        The tile representation of Map_tile at coordinate (0, 0) is accesed 
+        The tile representation of Map_tile at coordinate (0, 0) is accessed 
         with map_dict[(0, 0)].tile.
         actors is a dictionary of actor names with value == True if 
                 occupied by that actor, otherwise the key is deleted.
@@ -574,7 +574,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 5)],
                            damage=200, length=7, rate=.25,
-                           speed=1, retract_speed=.1, trigger_key='switch_1'):
+                           speed=.1, retract_speed=1, trigger_key='switch_1'):
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -582,6 +582,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
     """
     loop = asyncio.get_event_loop()
     trap_base_node_id = await generate_id(base_name=base_name)
+    state_dict[trigger_key] = False
     loop.create_task(pressure_plate(spawn_coord=base_coord, trigger_key='switch_1'))
     node_data = []
     #need ID for each trap.
@@ -624,7 +625,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          trigger_key='switch_1', on_time=1, 
-                         tile_color=7, test_rate=.05):
+                         tile_color=7, test_rate=.1):
 
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
@@ -635,23 +636,16 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
         relevant_actor = False
         for actor in map_dict[spawn_coord].actors.items():
             if 'sword' in actor:
-                with term.location(25, 3):
-                    print('found a sword on {}'.format(trigger_key))
                 is_sword = True
             elif 'player' in actor:
                 relevant_actor = True
         if not is_sword and relevant_actor:
             map_dict[spawn_coord].tile = appearance[1]
-            with term.location(30, 7):
-                print('triggered {}! (on)    '.format(trigger_key))
             state_dict[trigger_key] = True
-        else:
-            with term.location(30, 7):
-                print('triggered {}! (off)        ')
-            state_dict[trigger_key] = False
-            map_dict[spawn_coord].tile = appearance[0]
-        if state_dict[trigger_key] == True:
             await asyncio.sleep(on_time)
+            state_dict[trigger_key] = False
+        else:
+            map_dict[spawn_coord].tile = appearance[0]
 
 
 async def sword(direction='n', actor='player', length=5, name='sword', 
@@ -681,18 +675,16 @@ async def sword(direction='n', actor='player', length=5, name='sword',
             if 'sword' not in actor[0]:
                 to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
+    for actor in to_damage_names:
+        with term.location(40, 5):
+            print(actor)
+        asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(retract_speed)
     state_dict['sword_out'] = False
-    for actor in to_damage_names:
-        with term.location(40, 5):
-            print(actor)
-        await damage_actor(actor=actor, damage=damage)
-    with term.location(20, 20):
-        print("exiting sword_id:{}    ".format(sword_id))
 
 async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
@@ -708,13 +700,13 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
-        await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
+        #await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
         await asyncio.sleep(.2)
         actor_dict[actor].update(1000, 1000)
         await asyncio.sleep(.8)
         actor_dict[actor].update(*destination)
-        await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
-                              deathclock=30, speed=(1, 1))
+        #await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
+                              #deathclock=30, speed=(1, 1))
     else:
         await filter_print(output_text="Something is in the way.")
     
@@ -1944,6 +1936,11 @@ async def async_map_init():
     #      function so that they don't fall out of phase.
     node_offsets = ((-6, 's'), (6, 'n'))
     nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
+    base_coord = (35, 20)
+    rand_coords = {(randint(-5, 5) + base_coord[0], 
+                    randint(-5, 5) + base_coord[1]) for _ in range(20)}
+    for coord in rand_coords:
+       loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
             
 #TODO: create a map editor mode, accessible with a keystroke??
