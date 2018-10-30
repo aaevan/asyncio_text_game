@@ -585,10 +585,6 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
     state_dict[trigger_key] = False
     loop.create_task(pressure_plate(spawn_coord=base_coord, trigger_key='switch_1'))
     node_data = []
-    #need ID for each trap.
-    for number, node in enumerate(nodes):
-        with term.location(20, number):
-            print(number, node)
     for number, node in enumerate(nodes):
         node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
         node_name = '{}_{}'.format(base_name, str(number))
@@ -600,8 +596,6 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         await asyncio.sleep(rate)
         if state_dict[trigger_key]:
             for node in node_data:
-                with term.location(0, 0):
-                    print('node: {}'.format((node[1], node[0], length, damage, 7, speed)))
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
                                             damage=damage, sword_color=7, speed=speed, 
                                             retract_speed=retract_speed))
@@ -646,7 +640,22 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
             state_dict[trigger_key] = False
         else:
             map_dict[spawn_coord].tile = appearance[0]
-
+            
+async def trigger_door(trigger_key='switch_1', door_coord=(0, 0), default_state='closed'):
+    draw_door(*door_coord, description='iron', locked=True)
+    while True:
+        await asyncio.sleep(.25)
+        trigger_state = state_dict[trigger_key]
+        if trigger_state == True:
+            if default_state == 'closed':
+                await open_door(door_coord)
+            else:
+                await close_door(door_coord)
+        else:
+            if default_state == 'closed':
+                await close_door(door_coord)
+            else:
+                await open_door(door_coord)
 
 async def sword(direction='n', actor='player', length=5, name='sword', 
                 speed=.1, retract_speed=.1, damage=100, sword_color=1):
@@ -661,8 +670,6 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = await generate_id(base_name=name)
-    with term.location(20, 20):
-        print("starting sword_id:{}   ".format(sword_id))
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
@@ -676,8 +683,6 @@ async def sword(direction='n', actor='player', length=5, name='sword',
                 to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
     for actor in to_damage_names:
-        with term.location(40, 5):
-            print(actor)
         asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -830,8 +835,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
     #await asyncio.sleep(delay)
     while True:
         if state_dict['printing'] == True:
-            with term.location(30, 0):
-                print('waiting for lock...')
             await asyncio.sleep(.1)
         else:
             break
@@ -964,7 +967,7 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def draw_door(x, y, closed=True, locked=False, description='red', is_door=True):
+def draw_door(x, y, closed=True, locked=False, description='wooden', is_door=True):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
@@ -1057,8 +1060,8 @@ def map_init():
     doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
-    #for door in doors:
-        #draw_door(*door, locked=True)
+    for door in doors:
+        draw_door(*door, locked=False)
     draw_door(*(-5, -5), locked=True, description='green')
     announcement_at_coord(coord=(0, 17), distance_trigger=5, 
                           announcement="something slithers into the wall as you approach.")
@@ -1229,10 +1232,6 @@ async def handle_input(key):
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
             asyncio.ensure_future(orbit(track_actor='player'))
-        if key in '6':
-            with term.location(5, 5):
-                print("trying to blink...")
-            await random_blink()
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
@@ -1246,27 +1245,40 @@ async def handle_input(key):
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
     return x, y
 
+#TODO: make different colored doors able to be toggled.
+
+async def open_door(door_coord):
+    map_dict[door_coord].tile = '▯'
+    map_dict[door_coord].passable = True
+    map_dict[door_coord].blocking = False
+
+async def close_door(door_coord):
+    #TODO: make close door either kill/damage any actors present
+    #      or push to a random adjacent open space.
+    map_dict[door_coord].tile = '▮'
+    map_dict[door_coord].passable = False
+    map_dict[door_coord].blocking = True
+
+async def toggle_door(door_coord):
+    door_state = map_dict[door_coord].tile 
+    if map_dict[door_coord].locked:
+        description = map_dict[door_coord].key
+        output_text="The {} door is locked.".format(description)
+        asyncio.ensure_future(filter_print(output_text=output_text))
+        return
+    if door_state == "▮":
+        await open_door(door_coord)
+    elif door_state == '▯':
+        await close_door(door_coord)
+
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
     door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
     for door in door_dirs:
-        door_coord_tuple = (x + door[0], y + door[1])
-        door_state = map_dict[door_coord_tuple].tile 
-        if map_dict[door_coord_tuple].locked:
-            description = map_dict[door_coord_tuple].key
-            output_text="The {} door is locked.".format(description)
-            asyncio.ensure_future(filter_print(output_text=output_text))
-            continue
-        if door_state == "▮":
-            map_dict[door_coord_tuple].tile = '▯'
-            map_dict[door_coord_tuple].passable = True
-            map_dict[door_coord_tuple].blocking = False
-        elif door_state == '▯':
-            map_dict[door_coord_tuple].tile = '▮'
-            map_dict[door_coord_tuple].passable = False
-            map_dict[door_coord_tuple].blocking = True
+        door_coord = (x + door[0], y + door[1])
+        await toggle_door(door_coord)
 
-#Item Interaction---------------------------------------------------------------
+        #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
@@ -1870,6 +1882,7 @@ async def find_damage_direction(attacker_key):
         return 'n'
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
+    #TODO: apply timer to pressure plates.
     await asyncio.sleep(0)
     timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     while True:
@@ -1942,6 +1955,9 @@ async def async_map_init():
     for coord in rand_coords:
        loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
+    loop.create_task(trigger_door(door_coord=(20, 17), trigger_key='switch_2'))
+    loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
+
             
 #TODO: create a map editor mode, accessible with a keystroke??
 
