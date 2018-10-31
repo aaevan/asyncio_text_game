@@ -511,7 +511,7 @@ async def unlock_door(actor_key='player', opens='red'):
 async def push(direction=None, pusher=None):
     """
     basic pushing behavior for single-tile actors.
-    TODO: implement multi-tile pushable actors. a bookshelf? large crates?▧
+    TODO: implement multi-tile moveable actors. a bookshelf? large crates?▧
     run if something that has moveable flag has an actor push into it.
     """
     await asyncio.sleep(0)
@@ -618,28 +618,37 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
                                         damage=damage, sword_color=7, speed=speed))
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
-                         trigger_key='switch_1', on_time=1, 
+                         trigger_key='switch_1', off_delay=0, 
                          tile_color=7, test_rate=.1):
 
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     state_dict[trigger_key] = False
+    exclusions = ('sword', 'particle')
+    weights = ('player', 'weight', 'crate', 'static')
     while True:
         await asyncio.sleep(test_rate)
-        is_sword = False
+        is_exclusion = False
         relevant_actor = False
-        for actor in map_dict[spawn_coord].actors.items():
-            if 'sword' in actor:
-                is_sword = True
-            elif 'player' in actor:
-                relevant_actor = True
-        if not is_sword and relevant_actor:
+        actors_on_square = [actor for actor in map_dict[spawn_coord].actors.items()]
+        for actor in actors_on_square:
+            for exclusion in exclusions:
+                if exclusion in actor[0]:
+                    is_exclusion = True
+                    break
+            for weight in weights:
+                if weight in actor[0]:
+                    relevant_actor = True
+                    break
+        if not is_exclusion and relevant_actor:
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[trigger_key] = True
-            await asyncio.sleep(on_time)
-            state_dict[trigger_key] = False
+            if off_delay:
+                await asyncio.sleep(off_delay)
+            #state_dict[trigger_key] = False
         else:
             map_dict[spawn_coord].tile = appearance[0]
+            state_dict[trigger_key] = False
             
 async def trigger_door(trigger_key='switch_1', door_coord=(0, 0), default_state='closed'):
     draw_door(*door_coord, description='iron', locked=True)
@@ -1040,11 +1049,37 @@ async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
-    container_id = await generate_id(base_name=base_name)
-    actor_dict[container_id] = Actor(name=base_name, tile='☐',
+    #container_id = await generate_id(base_name=base_name)
+    container_id = await spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
+                                      tile=tile, breakable=breakable)
+    #actor_dict[container_id] = Actor(name=base_name, tile='☐',
+                               #x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
+                               #breakable=True, holding_items=contents)
+    #map_dict[spawn_coord].actors[container_id] = True
+    actor_dict[container_id].holding_items = contents
+    #add holding_items after container is spawned.
+
+async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
+    """
+    spawns a pushable box to trigger pressure plates or other puzzle elements.
+    """
+    weight_id = await spawn_static_actor(base_name=base_name, 
+                                         spawn_coord=spawn_coord,
+                                         tile=tile, breakable=False, 
+                                         moveable=False)
+
+async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
+                             breakable=True, moveable=False):
+    """
+    Spawns a static (non-controlled) actor at coordinates spawn_coord
+    and returns the static actor's id.
+    """
+    actor_id = await generate_id(base_name=base_name)
+    actor_dict[actor_id] = Actor(name=actor_id, tile=tile,
                                x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
-                               breakable=True, holding_items=contents)
-    map_dict[spawn_coord].actors[container_id] = True
+                               breakable=breakable, moveable=moveable)
+    map_dict[spawn_coord].actors[actor_id] = True
+    return actor_id
 
 def map_init():
     clear()
@@ -1057,7 +1092,7 @@ def map_init():
     passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
                 (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0),
                 (60, 20, 90, 20)]
-    doors = [(7, 16), (0, 5), (14, 17), (25, 20), (29, 20), (41, 20)]
+    doors = [(7, 16), (0, 5), (14, 17), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
     for door in doors:
@@ -1119,8 +1154,8 @@ async def get_key():
                     state_dict['exiting'] = True
                 if key is not None:
                     await handle_input(key)
-            with term.location(0, 1):
-                print("key is: {}".format(repr(key)))
+            #with term.location(0, 1):
+                #print("key is: {}".format(repr(key)))
             if state_dict['halt_input'] == True:
                 break
     finally: 
@@ -1223,6 +1258,8 @@ async def handle_input(key):
         if key in 'u':
             loop = asyncio.get_event_loop()
             loop.create_task(use_chosen_item())
+        if key in '#':
+            actor_dict['player'].update(21, 20) #jump to debug
         if key in 'f':
             await sword_item_ability()
         if key in '7':
@@ -1955,8 +1992,10 @@ async def async_map_init():
     for coord in rand_coords:
        loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
-    loop.create_task(trigger_door(door_coord=(20, 17), trigger_key='switch_2'))
+    loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
+    loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
+    #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
             
 #TODO: create a map editor mode, accessible with a keystroke??
@@ -1978,7 +2017,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         actor_dict['player'].update(*destination)
         state_dict['plane'] = plane
     else:
-        await filter_print(output_text="Something is in the way.")
+        asyncio.ensure_future(filter_print(output_text="Something is in the way."))
 
 async def printing_testing(distance=0):
     await asyncio.sleep(0)
