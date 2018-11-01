@@ -569,8 +569,6 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     loop.create_task(radial_fountain(anchor_actor=actor_id,
                                      animation=Animation(preset='sparse noise')))
 
-#TODO: make a function to trigger doors shutting or opening on pressure plate press
-
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 5)],
                            damage=200, length=7, rate=.25,
@@ -753,9 +751,18 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(*line_of_sight_result)
             return
 
+async def temporary_block(spawn_coord=(0, 0), duration=5, animation='water'):
+    pass
+    #incomplete. TODO: fix.
+    #await timed_actor
+    #block_id = await generate_id(base_name='weight')
+    #await timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
+                      #rand_delay=0, solid=False, moveable=True)
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
+    #TODO: create an item to temporarily spawn a pushable box. Animate its tile.
+    # ▢ ▧ ▨ as the animation?
     #item text:
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
@@ -1260,6 +1267,9 @@ async def handle_input(key):
             loop.create_task(use_chosen_item())
         if key in '#':
             actor_dict['player'].update(21, 20) #jump to debug
+        if key in '%':
+            player_coord = actor_dict['player'].coords()
+            asyncio.ensure_future(temporary_block(spawn_coord=(player_coord[0], player_coord[1] + 1)))
         if key in 'f':
             await sword_item_ability()
         if key in '7':
@@ -1677,6 +1687,9 @@ async def angle_checker(angle_from_twelve):
 
 #UI/HUD functions---------------------------------------------------------------
 async def display_help():
+    """
+    TODO: broken right now. Fix by adding option to ignore filter_print's lock.
+    """
     x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
     help_text = ( " wasd: move               ",
                   "space: open/close doors   ",
@@ -2474,7 +2487,7 @@ async def points_at_distance(radius=5, central_point=(0, 0)):
     return set(points)
 
 async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
-                      rand_delay=0, solid=True):
+                      rand_delay=0, solid=True, moveable=False):
     """
     spawns an actor at given coords that disappears after a number of turns.
     """
@@ -2482,7 +2495,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
         name = name + await generate_id(base_name='')
     if rand_delay:
         await asyncio.sleep(random() * rand_delay)
-    actor_dict[name] = Actor(name=name, moveable=False, x_coord=coords[0], y_coord=coords[1], 
+    actor_dict[name] = Actor(name=name, moveable=moveable, x_coord=coords[0], y_coord=coords[1], 
                              tile=str(death_clock), is_animated=True,
                              animation=Animation(preset='water'))
     map_dict[coords].actors[name] = True
