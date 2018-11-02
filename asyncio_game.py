@@ -107,7 +107,6 @@ class Animation:
                   'mouth':{'animation':('▲▸▼◀'),
                            'behavior':'loop tile',
                            'color_choices':('456')},
-                  #'noise':{'animation':('            ▒▓█▓▒'), 
                   'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
                            'behavior':'loop tile', 
                            'color_choices':'1'},
@@ -117,6 +116,9 @@ class Animation:
                 'shimmer':{'animation':(base_tile), 
                            'behavior':'random', 
                            'color_choices':'1234567'},
+            'energy block':{'animation':'▤▥▦▧▨▩', 
+                           'behavior':'random', 
+                           'color_choices':'456'},
                   'blank':{'animation':' ', 
                            'behavior':'random', 
                            'color_choices':'0'},
@@ -646,6 +648,7 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
             #state_dict[trigger_key] = False
         else:
             map_dict[spawn_coord].tile = appearance[0]
+            #TODO: does not handle multiple triggers well. is constantly setting to False
             state_dict[trigger_key] = False
             
 async def trigger_door(trigger_key='switch_1', door_coord=(0, 0), default_state='closed'):
@@ -751,13 +754,16 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(*line_of_sight_result)
             return
 
-async def temporary_block(spawn_coord=(0, 0), duration=5, animation='water'):
-    pass
-    #incomplete. TODO: fix.
-    #await timed_actor
-    #block_id = await generate_id(base_name='weight')
-    #await timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
-                      #rand_delay=0, solid=False, moveable=True)
+async def temporary_block(duration=10, animation_preset='energy block'):
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    facing_dir_offset = directions[state_dict['facing']]
+    actor_coords = actor_dict['player'].coords()
+    spawn_coord = (actor_coords[0] + facing_dir_offset[0],
+                   actor_coords[1] + facing_dir_offset[1])
+    block_id = await generate_id(base_name='weight')
+    await timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
+                      rand_delay=0, solid=False, moveable=True, 
+                      animation_preset=animation_preset)
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
@@ -772,7 +778,8 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = await generate_id(base_name=instance_of)
-    item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':None},
+    item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':temporary_block,
+                            'power_kwargs':{'duration':5}},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
@@ -1269,7 +1276,7 @@ async def handle_input(key):
             actor_dict['player'].update(21, 20) #jump to debug
         if key in '%':
             player_coord = actor_dict['player'].coords()
-            asyncio.ensure_future(temporary_block(spawn_coord=(player_coord[0], player_coord[1] + 1)))
+            asyncio.ensure_future(temporary_block())
         if key in 'f':
             await sword_item_ability()
         if key in '7':
@@ -1992,6 +1999,7 @@ async def async_map_init():
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
+    loop.create_task(spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     start_coord = (10, 10)
@@ -2005,9 +2013,9 @@ async def async_map_init():
     for coord in rand_coords:
        loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
-    loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
-    loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
-    loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
+    #loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
+    #loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
+    #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
     #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
             
@@ -2487,7 +2495,8 @@ async def points_at_distance(radius=5, central_point=(0, 0)):
     return set(points)
 
 async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
-                      rand_delay=0, solid=True, moveable=False):
+                      rand_delay=0, solid=True, moveable=False, 
+                      animation_preset='shimmer'):
     """
     spawns an actor at given coords that disappears after a number of turns.
     """
@@ -2497,7 +2506,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
         await asyncio.sleep(random() * rand_delay)
     actor_dict[name] = Actor(name=name, moveable=moveable, x_coord=coords[0], y_coord=coords[1], 
                              tile=str(death_clock), is_animated=True,
-                             animation=Animation(preset='water'))
+                             animation=Animation(preset=animation_preset))
     map_dict[coords].actors[name] = True
     #TODO: model of passable spaces is flawed. multiple things change whether a space is passable.
     #map_tiles should register a default state to return to or have multiple properties (is_wall)
@@ -2508,6 +2517,8 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     while death_clock >= 1:
         await asyncio.sleep(1)
         death_clock -= 1
+    #because the block may have moved, update coordinates.
+    coords = actor_dict[name].coords() 
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
