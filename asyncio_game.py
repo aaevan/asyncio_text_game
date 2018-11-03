@@ -510,7 +510,7 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     asyncio.ensure_future(filter_print(output_text=output_text))
 
-async def push(direction=None, pusher=None):
+async def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
     TODO: implement multi-tile moveable actors. a bookshelf? large crates?▧
@@ -525,7 +525,7 @@ async def push(direction=None, pusher=None):
         return
     pushed_name = next(iter(map_dict[destination_coords].actors))
     if not actor_dict[pushed_name].moveable:
-        return 0
+        return
     else:
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = (pushed_coords[0] + chosen_dir[0], 
@@ -617,8 +617,24 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
             asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
                                         damage=damage, sword_color=7, speed=speed))
 
+async def check_actors_on_tile(coords=(0, 0), exclusions='', weights=''):
+    is_exclusion = False
+    relevant_actor = False
+    actors_on_square = [actor for actor in map_dict[coords].actors.items()]
+    for actor in actors_on_square:
+        for exclusion in exclusions:
+            if exclusion in actor[0]:
+                is_exclusion = True
+                break
+        for weight in weights:
+            if weight in actor[0]:
+                relevant_actor = True
+                break
+    return is_exclusion, relevant_actor
+
+
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
-                         trigger_key='switch_1', off_delay=0, 
+                         trigger_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1):
 
     appearance = [term.color(tile_color)(char) for char in appearance]
@@ -626,30 +642,33 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
     state_dict[trigger_key] = False
     exclusions = ('sword', 'particle')
     weights = ('player', 'weight', 'crate', 'static')
+    #TODO: implement better means of triggering using incrementing numbers
+    #      check any() against a dictionary of triggering devices. Triggers
+    #      that are talking to a particular trap do so by setting their boolean
+    #      inside state_dict's entry for that trigger.
+    #      using any() and all() can be used for logic puzzles?
+    #initialize trigger_dict as empty dict:
+    #state_dict[trigger_key] = {}
+    #state_dict[trigger_key][id] = True
     while True:
         await asyncio.sleep(test_rate)
         is_exclusion = False
         relevant_actor = False
-        actors_on_square = [actor for actor in map_dict[spawn_coord].actors.items()]
-        for actor in actors_on_square:
-            for exclusion in exclusions:
-                if exclusion in actor[0]:
-                    is_exclusion = True
-                    break
-            for weight in weights:
-                if weight in actor[0]:
-                    relevant_actor = True
-                    break
+        is_exclusion, relevant_actor = await check_actors_on_tile(
+                                                    coords=spawn_coord,
+                                                    exclusions=exclusions,
+                                                    weights=weights)
         if not is_exclusion and relevant_actor:
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[trigger_key] = True
+            #state_dict[trigger_key] = (state_dict[trigger_key] + 1) % 100
             if off_delay:
                 await asyncio.sleep(off_delay)
-            #state_dict[trigger_key] = False
+        elif not relevant_actor:
+            state_dict[trigger_key] = False
+            map_dict[spawn_coord].tile = appearance[0]
         else:
             map_dict[spawn_coord].tile = appearance[0]
-            #TODO: does not handle multiple triggers well. is constantly setting to False
-            state_dict[trigger_key] = False
             
 async def trigger_door(trigger_key='switch_1', door_coord=(0, 0), default_state='closed'):
     draw_door(*door_coord, description='iron', locked=True)
@@ -854,13 +873,14 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
 
 async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
                        pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
-                       delay=0, blocking=False):
+                       delay=0, blocking=False, hold_for_lock=True):
     #await asyncio.sleep(delay)
-    while True:
-        if state_dict['printing'] == True:
-            await asyncio.sleep(.1)
-        else:
-            break
+    if hold_for_lock:
+        while True:
+            if state_dict['printing'] == True:
+                await asyncio.sleep(.1)
+            else:
+                break
     #TODO: lock solves overlap of messages but causes delay. FIX.
     state_dict['printing'] = True #get lock on printing
     if x_offset == 0:
@@ -1168,8 +1188,8 @@ async def get_key():
                     state_dict['exiting'] = True
                 if key is not None:
                     await handle_input(key)
-            #with term.location(0, 1):
-                #print("key is: {}".format(repr(key)))
+            with term.location(0, 1):
+                print("key is: {}".format(repr(key)))
             if state_dict['halt_input'] == True:
                 break
     finally: 
@@ -1306,9 +1326,12 @@ async def open_door(door_coord):
     map_dict[door_coord].passable = True
     map_dict[door_coord].blocking = False
 
-async def close_door(door_coord):
+async def close_door(door_coord, push_aside=False):
     #TODO: make close door either kill/damage any actors present
     #      or push to a random adjacent open space.
+    #if not push_aside and map_dict[door_coord].actors:
+        #for actor in map_dict[door_coord].actors.items():
+            #await kill_actor(name_key=actor)
     map_dict[door_coord].tile = '▮'
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
@@ -1713,7 +1736,8 @@ async def display_help():
         x_print_coord, y_print_coord = 0, 0
         asyncio.ensure_future(filter_print(output_text=line, pause_stay_on=5,
                               pause_fade_in=.015, pause_fade_out=.015,
-                              x_offset=-40, y_offset=-30 + line_number))
+                              x_offset=-40, y_offset=-30 + line_number,
+                              hold_for_lock=False))
 
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
@@ -2013,8 +2037,8 @@ async def async_map_init():
     for coord in rand_coords:
        loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
-    #loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
-    #loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
+    loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
+    loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
     #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
     #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
@@ -2734,7 +2758,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -2743,11 +2767,9 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
-    #loop.create_task(circle_of_darkness())
     #for i in range(3):
         #rand_coord = (randint(-25, 25), randint(-25, 25))
         #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    #loop.create_task(travel_along_line())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
