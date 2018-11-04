@@ -581,9 +581,8 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
     activated.
     """
     loop = asyncio.get_event_loop()
-    trap_base_node_id = await generate_id(base_name=base_name)
-    state_dict[patch_to_key][trap_base_node_id] = False
-    loop.create_task(pressure_plate(spawn_coord=base_coord, patch_to_key='switch_1'))
+    state_dict[patch_to_key] = {}
+    loop.create_task(pressure_plate(spawn_coord=base_coord, patch_to_key=patch_to_key))
     node_data = []
     for number, node in enumerate(nodes):
         node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
@@ -594,7 +593,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         actor_dict[node_name].update(*node_coord)
     while True:
         await asyncio.sleep(rate)
-        if state_dict[patch_to_key]:
+        if await any_true(trigger_key=patch_to_key):
             for node in node_data:
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
                                             damage=damage, sword_color=7, speed=speed, 
@@ -613,7 +612,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     actor_dict[trap_origin_id].update(*coord)
     while True:
         await asyncio.sleep(rate)
-        if any(state_dict[patch_to_key]):
+        if await any_true(trigger_key=patch_to_key):
             asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
                                         damage=damage, sword_color=7, speed=speed))
 
@@ -634,6 +633,8 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     plate_id = await generate_id(base_name='pressure_plate')
+    with term.location(50, 0):
+        print('plate_id:{}'.format(plate_id))
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
     positives = ('player', 'weight', 'crate', 'static')
@@ -648,8 +649,6 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
     count = 0
     while True:
         count = (count + 1) % 100
-        with term.location(50, 0):
-            print('count:{}, state:{}'.format(count, state_dict[patch_to_key][plate_id]))
         await asyncio.sleep(test_rate)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
@@ -661,13 +660,16 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
             
+async def any_true(trigger_key):
+    return any(i for i in state_dict[trigger_key].values())
+
 async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed'):
     draw_door(*door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
         with term.location(50, 2):
             print(state_dict[patch_to_key])
-        trigger_state = any(i for i in state_dict[patch_to_key].values())
+        trigger_state = await any_true(trigger_key=patch_to_key)
         with term.location(50, 3):
             print('trigger_state:{}    '.format(trigger_state))
         with term.location(50, 4):
@@ -2023,17 +2025,23 @@ async def async_map_init():
     loop.create_task(spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
-    start_coord = (10, 10)
+    loop.create_task(trap_init())
     #TODO: create predictable spike hallway, keeping timing all in the same
     #      function so that they don't fall out of phase.
+    #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
+    #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
+
+async def trap_init():
+    loop = asyncio.get_event_loop()
     node_offsets = ((-6, 's'), (6, 'n'))
     nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
     base_coord = (35, 20)
     rand_coords = {(randint(-5, 5) + base_coord[0], 
                     randint(-5, 5) + base_coord[1]) for _ in range(20)}
-    #for coord in rand_coords:
-       #loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
-    #loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
+    state_dict['switch_1'] = {}
+    for coord in rand_coords:
+       loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
+    loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20), patch_to_key='switch_1'))
     state_dict['switch_2'] = {}
     with term.location(50, 1):
         print(state_dict['switch_2'])
@@ -2041,8 +2049,6 @@ async def async_map_init():
     loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
     loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
-    #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
-    #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
             
 #TODO: create a map editor mode, accessible with a keystroke??
