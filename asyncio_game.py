@@ -574,7 +574,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 5)],
                            damage=200, length=7, rate=.25,
-                           speed=.1, retract_speed=1, trigger_key='switch_1'):
+                           speed=.1, retract_speed=1, patch_to_key='switch_1'):
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -582,8 +582,8 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
     """
     loop = asyncio.get_event_loop()
     trap_base_node_id = await generate_id(base_name=base_name)
-    state_dict[trigger_key] = False
-    loop.create_task(pressure_plate(spawn_coord=base_coord, trigger_key='switch_1'))
+    state_dict[patch_to_key][trap_base_node_id] = False
+    loop.create_task(pressure_plate(spawn_coord=base_coord, patch_to_key='switch_1'))
     node_data = []
     for number, node in enumerate(nodes):
         node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
@@ -594,7 +594,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         actor_dict[node_name].update(*node_coord)
     while True:
         await asyncio.sleep(rate)
-        if state_dict[trigger_key]:
+        if state_dict[patch_to_key]:
             for node in node_data:
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
                                             damage=damage, sword_color=7, speed=speed, 
@@ -602,7 +602,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
 
 async def spike_trap(base_name='spike_trap', coord=(10, 10), 
                      direction='n', damage=20, length=5, rate=.25, 
-                     speed=.1, trigger_key='switch_1'):
+                     speed=.1, patch_to_key='switch_1'):
     """
     Generate a stationary, actor that periodically puts out spikes in each
     direction given at rate spike_rate.
@@ -613,68 +613,65 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     actor_dict[trap_origin_id].update(*coord)
     while True:
         await asyncio.sleep(rate)
-        if state_dict[trigger_key]:
+        if any(state_dict[patch_to_key]):
             asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
                                         damage=damage, sword_color=7, speed=speed))
 
-async def check_actors_on_tile(coords=(0, 0), exclusions='', weights=''):
-    is_exclusion = False
-    relevant_actor = False
+async def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
     for actor in actors_on_square:
-        for exclusion in exclusions:
-            if exclusion in actor[0]:
-                is_exclusion = True
-                break
-        for weight in weights:
+        for weight in positives:
             if weight in actor[0]:
-                relevant_actor = True
+                return True
                 break
-    return is_exclusion, relevant_actor
+    return False
 
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
-                         trigger_key='switch_1', off_delay=.5, 
+                         patch_to_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1):
 
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
-    state_dict[trigger_key] = False
+    plate_id = await generate_id(base_name='pressure_plate')
+    state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
-    weights = ('player', 'weight', 'crate', 'static')
+    positives = ('player', 'weight', 'crate', 'static')
     #TODO: implement better means of triggering using incrementing numbers
     #      check any() against a dictionary of triggering devices. Triggers
     #      that are talking to a particular trap do so by setting their boolean
     #      inside state_dict's entry for that trigger.
     #      using any() and all() can be used for logic puzzles?
     #initialize trigger_dict as empty dict:
-    #state_dict[trigger_key] = {}
-    #state_dict[trigger_key][id] = True
+    #state_dict[patch_to_key] = {i:False for i in range(10)}
+    #state_dict[patch_to_key][id] = True
+    count = 0
     while True:
+        count = (count + 1) % 100
+        with term.location(50, 0):
+            print('count:{}, state:{}'.format(count, state_dict[patch_to_key][plate_id]))
         await asyncio.sleep(test_rate)
-        is_exclusion = False
-        relevant_actor = False
-        is_exclusion, relevant_actor = await check_actors_on_tile(
-                                                    coords=spawn_coord,
-                                                    exclusions=exclusions,
-                                                    weights=weights)
-        if not is_exclusion and relevant_actor:
+        positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
+        if positive_result:
             map_dict[spawn_coord].tile = appearance[1]
-            state_dict[trigger_key] = True
-            #state_dict[trigger_key] = (state_dict[trigger_key] + 1) % 100
+            state_dict[patch_to_key][plate_id] = True
             if off_delay:
                 await asyncio.sleep(off_delay)
-        elif not relevant_actor:
-            state_dict[trigger_key] = False
-            map_dict[spawn_coord].tile = appearance[0]
         else:
+            state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
             
-async def trigger_door(trigger_key='switch_1', door_coord=(0, 0), default_state='closed'):
+async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed'):
     draw_door(*door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
-        trigger_state = state_dict[trigger_key]
+        with term.location(50, 2):
+            print(state_dict[patch_to_key])
+        trigger_state = any(i for i in state_dict[patch_to_key].values())
+        with term.location(50, 3):
+            print('trigger_state:{}    '.format(trigger_state))
+        with term.location(50, 4):
+            print(trigger_state)
         if trigger_state == True:
             if default_state == 'closed':
                 await open_door(door_coord)
@@ -2034,11 +2031,16 @@ async def async_map_init():
     base_coord = (35, 20)
     rand_coords = {(randint(-5, 5) + base_coord[0], 
                     randint(-5, 5) + base_coord[1]) for _ in range(20)}
-    for coord in rand_coords:
-       loop.create_task(pressure_plate(spawn_coord=coord, trigger_key='switch_1'))
-    loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
-    loop.create_task(trigger_door(door_coord=(25, 20), trigger_key='switch_2'))
-    loop.create_task(pressure_plate(spawn_coord=(20, 20), trigger_key='switch_2'))
+    #for coord in rand_coords:
+       #loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
+    #loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20)))
+    state_dict['switch_2'] = {}
+    with term.location(50, 1):
+        print(state_dict['switch_2'])
+    loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
+    loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
+    loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
+    loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
     #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
     #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
