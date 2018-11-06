@@ -1,17 +1,17 @@
 import asyncio
+import os
 import sys
 import select 
 import tty 
 import termios
-from copy import copy, deepcopy
 from blessings import Terminal
+from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
-from random import randint, choice, random, shuffle
-from math import acos, cos, degrees, pi, radians, sin, sqrt
 from itertools import cycle
+from math import acos, cos, degrees, pi, radians, sin, sqrt
+from random import randint, choice, random, shuffle
 from subprocess import call
-import os
 
 #Class definitions--------------------------------------------------------------
 
@@ -573,7 +573,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 5)],
-                           damage=200, length=7, rate=.25,
+                           damage=75, length=7, rate=.25,
                            speed=.1, retract_speed=1, patch_to_key='switch_1'):
     """
     pressure plate is centered, nodes are arrayed in offsets around
@@ -633,19 +633,9 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     plate_id = await generate_id(base_name='pressure_plate')
-    with term.location(50, 0):
-        print('plate_id:{}'.format(plate_id))
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
     positives = ('player', 'weight', 'crate', 'static')
-    #TODO: implement better means of triggering using incrementing numbers
-    #      check any() against a dictionary of triggering devices. Triggers
-    #      that are talking to a particular trap do so by setting their boolean
-    #      inside state_dict's entry for that trigger.
-    #      using any() and all() can be used for logic puzzles?
-    #initialize trigger_dict as empty dict:
-    #state_dict[patch_to_key] = {i:False for i in range(10)}
-    #state_dict[patch_to_key][id] = True
     count = 0
     while True:
         count = (count + 1) % 100
@@ -667,13 +657,7 @@ async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state
     draw_door(*door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
-        with term.location(50, 2):
-            print(state_dict[patch_to_key])
         trigger_state = await any_true(trigger_key=patch_to_key)
-        with term.location(50, 3):
-            print('trigger_state:{}    '.format(trigger_state))
-        with term.location(50, 4):
-            print(trigger_state)
         if trigger_state == True:
             if default_state == 'closed':
                 await open_door(door_coord)
@@ -695,6 +679,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     await asyncio.sleep(0)
     state_dict['sword_out'] = True
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
+    opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = await generate_id(base_name=name)
@@ -711,6 +696,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
                 to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
     for actor in to_damage_names:
+        asyncio.ensure_future(directional_damage_alert(direction=opposite_directions[direction]))
         asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -772,7 +758,7 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(*line_of_sight_result)
             return
 
-async def temporary_block(duration=10, animation_preset='energy block'):
+async def temporary_block(duration=3, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
@@ -785,9 +771,6 @@ async def temporary_block(duration=10, animation_preset='energy block'):
 
 #Item interaction---------------------------------------------------------------
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
-    #TODO: create an item to temporarily spawn a pushable box. Animate its tile.
-    # ▢ ▧ ▨ as the animation?
-    #item text:
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
     possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
@@ -1326,11 +1309,14 @@ async def open_door(door_coord):
     map_dict[door_coord].blocking = False
 
 async def close_door(door_coord, push_aside=False):
-    #TODO: make close door either kill/damage any actors present
-    #      or push to a random adjacent open space.
-    #if not push_aside and map_dict[door_coord].actors:
-        #for actor in map_dict[door_coord].actors.items():
-            #await kill_actor(name_key=actor)
+    #TODO: make close door push actors to a random adjacent open space.
+    if not push_aside and map_dict[door_coord].actors:
+        actors = map_dict[door_coord].actors.items()
+        for actor in actors:
+            actor_name = actor[0]
+            if actor_name == 'player':
+                await filter_print(output_text='You are caught underneath.')
+            await damage_actor(actor_name, damage=100)
     map_dict[door_coord].tile = '▮'
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
@@ -2107,47 +2093,37 @@ async def printing_testing(distance=0):
     else:
         return " "
 
-async def readout(x_coord=50, y_coord=35, update_rate=.1, float_len=3, 
-                  actor_name=None, attribute=None, title=None, bar=False, 
-                  bar_length=20, is_actor=True, is_state=False):
-    """Create a status bar for the health of the 'player' actor"""
-    await asyncio.sleep(0)
+async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offset=0, centered=True, 
+                     bar_length=20, title=None, refresh_time=.1,
+                     max_value=100, bar_color=1):
+    if centered:
+        middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
+        x_print_coord = int(bar_length / 2)
+        y_print_coord = y_offset
+        print_coord = (middle_x - x_print_coord, middle_y + y_print_coord)
     while True:
+        attr_value = getattr(actor_dict[actor_name], attribute)
+        bar_filled = round((int(attr_value)/max_value) * bar_length)
+        bar_unfilled = bar_length - bar_filled
+        bar_characters = "█" * bar_filled + "░" * bar_unfilled
+        await asyncio.sleep(refresh_time)
         if state_dict['killall'] == True:
             break
-        await asyncio.sleep(0)
-        if attribute == 'coords':
-            key_value = str((getattr(actor_dict[actor_name], 'x_coord'), getattr(actor_dict[actor_name], 'y_coord')))
-        else:
-            key_value = getattr(actor_dict[actor_name], attribute)
-        max_value = getattr(actor_dict[actor_name], "max_health")
-        if bar:
-            bar_filled = round((int(key_value)/max_value) * bar_length)
-            bar_unfilled = bar_length - bar_filled
-            bar_characters = "█" * bar_filled + "░" * bar_unfilled
-        if title:
-            with term.location(x_coord, y_coord):
-                if not bar:
-                    print("{}{}".format(title, key_value))
-                else:
-                    print("{}{}".format(title, term.red(bar_characters)))
-        else:
-            with term.location(x_coord, y_coord):
-                print("{}".format(key_value))
+        with term.location(*print_coord):
+            print("{}{}".format(title, term.color(bar_color)(bar_characters)))
 
 async def ui_setup():
     """
     lays out UI elements to the screen at the start of the program.
     """
     await asyncio.sleep(0)
-    asyncio.ensure_future(ui_box_draw(x_margin=49, y_margin=35, box_width=23))
+    #asyncio.ensure_future(ui_box_draw(position='centered', x_margin=49, y_margin=35, box_width=23))
     loop = asyncio.get_event_loop()
     loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
-    loop.create_task(readout(is_actor=True, actor_name="player", attribute='coords', title="coords:"))
-    loop.create_task(readout(bar=True, y_coord=36, actor_name='player', attribute='health', title="♥:"))
+    loop.create_task(status_bar(y_offset=10, actor_name='player', attribute='health', title="♥:"))
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(x_current=0, y_current=0, name_key=None):
@@ -2766,7 +2742,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
