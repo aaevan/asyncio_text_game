@@ -572,7 +572,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
                                      animation=Animation(preset='sparse noise')))
 
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
-                           nodes=[(i, -5, 's') for i in range(-5, 5)],
+                           nodes=[(i, -5, 's') for i in range(-5, 4)],
                            damage=75, length=7, rate=.25,
                            speed=.1, retract_speed=1, patch_to_key='switch_1'):
     """
@@ -863,7 +863,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
                 await asyncio.sleep(.1)
             else:
                 break
-    #TODO: lock solves overlap of messages but causes delay. FIX.
     state_dict['printing'] = True #get lock on printing
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
@@ -1243,6 +1242,9 @@ async def handle_input(key):
             await display_help() 
         if key in '$':
             asyncio.ensure_future(filter_fill())
+        if key in 'T':
+            direction = state_dict['facing']
+            asyncio.ensure_future(dash_along_direction(direction=direction))
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1703,7 +1705,7 @@ async def angle_checker(angle_from_twelve):
 #UI/HUD functions---------------------------------------------------------------
 async def display_help():
     """
-    TODO: broken right now. Fix by adding option to ignore filter_print's lock.
+    displays controls at an unused part of the screen.
     """
     x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
     help_text = ( " wasd: move               ",
@@ -1919,7 +1921,7 @@ async def directional_damage_alert(direction='n'):
             with term.location(*point):
                 print(tile)
 
-async def find_damage_direction(attacker_key):
+async def find_damage_direction(attacker_key, source_coord=None):
     """
     TODO: fix to pull from an angle instead
     four possible outputs.
@@ -1934,7 +1936,10 @@ async def find_damage_direction(attacker_key):
     S: y value is greater than player y
     W: x value of attacker is less than player x
     """
-    attacker_location = actor_dict[attacker_key].coords()
+    if source_coord is not None:
+        attacker_location = source_coord
+    else:
+        attacker_location = actor_dict[attacker_key].coords()
     player_location = actor_dict['player'].coords()
     if attacker_location[1] < player_location[1]: #N
         return 'n'
@@ -2612,6 +2617,69 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
             deathclock -= 1
             if deathclock <= 0:
                 break
+
+async def dash_along_direction(actor_key='player', direction='n',
+                               distance=10):
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    current_coord = actor_dict[actor_key].coords()
+    direction_step = directions[direction]
+    destination = (current_coord[0] + direction_step[0] * distance,
+                   current_coord[1] + direction_step[1] * distance)
+    coord_list = await get_line(current_coord, destination)
+    with term.location(50, 6):
+        print(coord_list)
+    await drag_along_coords(actor_key=actor_key, coord_list=coord_list,
+                            time_between_steps=.1)
+
+async def drag_along_coords(actor_key=None, coord_list=[(i, i) for i in range(10)],
+                            drag_through_solid=False, time_between_steps=.5):
+    """
+    Takes a list of coords and moves the actor along them.
+    if apply_offset is True, the path starts at actor's current location.
+    drag_through solid toggles whether solid obstacles stop the motion.
+    """
+    steps = await path_into_steps(coord_list)
+    for step in steps:
+        with term.location(50, 5):
+            print('step is: {}'.format(step))
+        actor_coords = actor_dict[actor_key].coords()
+        new_position = (actor_coords[0] + step[0], 
+                        actor_coords[0] + step[1])
+        if map_dict[new_position].passable and not drag_through_solid:
+            if not map_dict[actor_coords].passable:
+                map_dict[actor_coords].passable = True
+            actor_dict[actor_key].update(*new_position)
+        else:
+            with term.location(50, 6):
+                print("WELP! THAT'S A WALL!")
+            await asyncio.sleep(1)
+            with term.location(50, 6):
+                print("                    ")
+            return
+        await asyncio.sleep(time_between_steps)
+
+async def path_into_steps(coord_list):
+    """
+    takes a list of coordinates and returns a series of piecewise steps to 
+    shift something along that line. 
+
+    Useful for working with multiple competing movement sources.
+
+    input:((0, 0), (1, 1), (2, 2), (4, 4), (8, 8))
+                  |       |       |       |
+                  V       V       V       V
+        output:((1, 1), (1, 1), (2, 2), (4, 4))
+
+    """
+    steps = []
+    for index, coord in enumerate(coord_list):
+        if index < len(coord_list) - 1:
+            next_coord = coord_list[index + 1]
+            current_step = (next_coord[0] - coord[0], 
+                            next_coord[1] - coord[1])
+            steps.append(current_step)
+        else:
+            return steps
 
 async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0), 
                 rand_speed=False, track_actor=None, 
