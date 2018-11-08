@@ -2619,7 +2619,7 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
                 break
 
 async def dash_along_direction(actor_key='player', direction='n',
-                               distance=10):
+                               distance=10, time_between_steps=.03):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     current_coord = actor_dict[actor_key].coords()
     direction_step = directions[direction]
@@ -2629,22 +2629,24 @@ async def dash_along_direction(actor_key='player', direction='n',
     with term.location(50, 6):
         print(coord_list)
     await drag_along_coords(actor_key=actor_key, coord_list=coord_list,
-                            time_between_steps=.1)
+                            time_between_steps=time_between_steps)
 
 async def drag_along_coords(actor_key=None, coord_list=[(i, i) for i in range(10)],
-                            drag_through_solid=False, time_between_steps=.5):
+                            drag_through_solid=False, time_between_steps=.1):
     """
     Takes a list of coords and moves the actor along them.
     if apply_offset is True, the path starts at actor's current location.
     drag_through solid toggles whether solid obstacles stop the motion.
     """
     steps = await path_into_steps(coord_list)
+    with term.location(50, 7):
+        print('steps:{}'.format(steps))
     for step in steps:
         with term.location(50, 5):
             print('step is: {}'.format(step))
         actor_coords = actor_dict[actor_key].coords()
         new_position = (actor_coords[0] + step[0], 
-                        actor_coords[0] + step[1])
+                        actor_coords[1] + step[1])
         if map_dict[new_position].passable and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
