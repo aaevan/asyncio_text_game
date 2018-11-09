@@ -230,7 +230,7 @@ class Item:
 
     async def use(self):
         await asyncio.sleep(0)
-        if self.uses != None and not self.broken:
+        if self.uses is not None and not self.broken:
             await self.usable_power(**self.power_kwargs)
             if self.uses is not None:
                 self.uses -= 1
@@ -709,6 +709,10 @@ async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
     asyncio.ensure_future(sword(facing_dir, length=length))
 
+async def dash_item_ability(dash_length=20):
+    direction = state_dict['facing']
+    asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction))
+
 async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     does a flash animation of drawing in particles then teleports the player
@@ -758,6 +762,7 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(*line_of_sight_result)
             return
 
+
 async def temporary_block(duration=3, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
@@ -770,6 +775,13 @@ async def temporary_block(duration=3, animation_preset='energy block'):
                       animation_preset=animation_preset)
 
 #Item interaction---------------------------------------------------------------
+
+#TODO: an item to form a temporary wall ahead of the player.
+
+#TODO: create a weight that can be picked up and stored in one's inventory.
+#      alternatively: an item that disappears when used and returns when the
+#      cooldown expires.
+
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
@@ -804,6 +816,8 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             'broken_text':wand_broken_text},
+            'dash trinket':{'uses':9999, 'tile':term.blue('⥌'), 'usable_power':dash_item_ability, 
+                            'power_kwargs':{'dash_length':20}, 'broken_text':wand_broken_text},
                  'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
                             'power_kwargs':{'opens':'red'}, 'broken_text':wand_broken_text,
                             'use_message':''},
@@ -1255,10 +1269,9 @@ async def handle_input(key):
         if key in ' ':
             asyncio.ensure_future(toggle_doors()),
         if key in '@':
-            #asyncio.ensure_future(spawn_item_at_coords(coord=(2, 3), instance_of='fused charge', on_actor_id='player'))
             player_coords = actor_dict['player'].coords()
-            asyncio.ensure_future(spawn_item_spray(base_coord=player_coords, 
-                                                   items=['nut', 'shield wand']))
+            asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
+                        instance_of='dash trinket', on_actor_id='player'))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -1366,6 +1379,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│/ \│', 
                      '│\_/│',
                      '│\_/│',
+                     '└───┘',),
+     'dash trinket':('┌───┐',
+                     '│ ║╲│', 
+                     '│ ║ │',
+                     '│╲║ │',
                      '└───┘',),
        'red potion':('┌───┐',
                      '│┌O┐│', 
@@ -2626,12 +2644,10 @@ async def dash_along_direction(actor_key='player', direction='n',
     destination = (current_coord[0] + direction_step[0] * distance,
                    current_coord[1] + direction_step[1] * distance)
     coord_list = await get_line(current_coord, destination)
-    with term.location(50, 6):
-        print(coord_list)
-    await drag_along_coords(actor_key=actor_key, coord_list=coord_list,
+    await move_through_coords(actor_key=actor_key, coord_list=coord_list,
                             time_between_steps=time_between_steps)
 
-async def drag_along_coords(actor_key=None, coord_list=[(i, i) for i in range(10)],
+async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(10)],
                             drag_through_solid=False, time_between_steps=.1):
     """
     Takes a list of coords and moves the actor along them.
@@ -2639,11 +2655,7 @@ async def drag_along_coords(actor_key=None, coord_list=[(i, i) for i in range(10
     drag_through solid toggles whether solid obstacles stop the motion.
     """
     steps = await path_into_steps(coord_list)
-    with term.location(50, 7):
-        print('steps:{}'.format(steps))
     for step in steps:
-        with term.location(50, 5):
-            print('step is: {}'.format(step))
         actor_coords = actor_dict[actor_key].coords()
         new_position = (actor_coords[0] + step[0], 
                         actor_coords[1] + step[1])
@@ -2652,11 +2664,6 @@ async def drag_along_coords(actor_key=None, coord_list=[(i, i) for i in range(10
                 map_dict[actor_coords].passable = True
             actor_dict[actor_key].update(*new_position)
         else:
-            with term.location(50, 6):
-                print("WELP! THAT'S A WALL!")
-            await asyncio.sleep(1)
-            with term.location(50, 6):
-                print("                    ")
             return
         await asyncio.sleep(time_between_steps)
 
