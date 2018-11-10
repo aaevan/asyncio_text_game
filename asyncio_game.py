@@ -412,16 +412,15 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
     await explosion_effect(center=item_location, radius=radius, 
                            damage=damage, particle_count=particle_count)
 
-async def damage_all_actors_at_coord(exclude=None, coord=(0, 0), damage=10):
-    for actor in map_dict[coord].actors.items():
-        if actor == exclude:
-            continue
+async def damage_all_actors_at_coord(coord=(0, 0), damage=10):
+    actor_list = map_dict[coord].actors.items()
+    for actor in actor_list:
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     area_of_effect = await get_circle(center=center, radius=radius)
     for coord in area_of_effect:
-        await damage_all_actors_at_coord(coord=coord, damage=damage)
+        await samage_all_actors_at_coord(coord=coord, damage=damage)
 
 async def damage_actor(actor=None, damage=10, display_above=True,
                        leaves_body=False, material='wood'):
@@ -547,7 +546,11 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
                               parent_coords[1] + offset[1])
         actor_dict[follower_id].update(follow_x, follow_y)
 
+async def spawn_turret(name='turret', open_tile='◫', closed_tile='◼', shot_range=10):
+    pass
+
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
+    #TODO: make the outermost edge of the circle flicker between different fuzzy states
     actor_id = await generate_id(base_name=name)
     loop = asyncio.get_event_loop()
     loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
@@ -1112,7 +1115,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1257,8 +1260,8 @@ async def handle_input(key):
         if key in '$':
             asyncio.ensure_future(filter_fill())
         if key in 'T':
-            direction = state_dict['facing']
-            asyncio.ensure_future(dash_along_direction(direction=direction))
+            for i in range(5):
+                asyncio.ensure_future(fire_projectile())
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1674,6 +1677,30 @@ async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
             return degrees(result)
         else:
             return result
+
+async def point_angle_from_facing(actor_key='player', facing_dir=None, 
+                                  offset_angle=0, radius=5):
+    """
+    returns a point nearest to the given radius at angle offset_angle degrees 
+    from the given direction.
+
+    -20 degrees from 'n' is 340 degrees.
+     25 degrees from 'e' is 115 degrees.
+    """
+    if facing_dir is None:
+        facing_dir = state_dict['facing']
+    dir_to_base_angle = {'n':180, 'e':90, 's':0, 'w':270}
+    #negative numbers into modulo wrap back around the other way.
+    point_angle = (dir_to_base_angle[facing_dir] + offset_angle) % 360
+    actor_coords = actor_dict[actor_key].coords()
+    reference_point = (actor_coords[0], actor_coords[0] + 5)
+    point = await point_at_distance_and_angle(angle_from_twelve=point_angle,
+                                              central_point=actor_coords,
+                                              reference_point=reference_point,
+                                              radius=radius)
+    with term.location(50, 0):
+        print('facing: {}, point_angle: {}'.format(facing_dir, point_angle))
+    return point
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
                                       reference_point=(0, 5), radius=10,
@@ -2462,9 +2489,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         if behavior == "retract" or "bolt":
             map_dict[coord].actors[vine_name] = True
         if damage:
-            await damage_all_actors_at_coord(exclude=vine_name, 
-                                             coord=coord, 
-                                             damage=damage)
+            await damage_all_actors_at_coord(coord=coord, damage=damage)
     if behavior == "retract":
         end_loop = reversed(vine_actor_names)
         end_wait = retract_wait
@@ -2554,9 +2579,23 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
+async def fire_projectile(actor_key='player', radius_spread=(10, 14), degree_spread=(-20, 20),
+                          facing_dir=None):
+    radius_shift, degree_shift= randint(*radius_spread), randint(*degree_spread)
+    end_coord = await point_angle_from_facing(radius=radius_shift, offset_angle=degree_shift)
+    directions_to_shift = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    if facing_dir is None:
+        facing_dir = state_dict['facing']
+    dir_offsets = directions_to_shift[facing_dir]
+    actor_coords = actor_dict[actor_key].coords()
+    start_coords = (actor_coords[0] + dir_offsets[0],
+                    actor_coords[1] + dir_offsets[1])
+    await travel_along_line(name='particle', start_coord=start_coords, 
+                            end_coord=end_coord, damage=10)
+
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
-                            speed=.05, tile="X", animation=Animation(preset='fire'),
-                            debris=None):
+                            speed=.05, tile="X", animation=Animation(preset='explosion'),
+                            debris=None, damage=None):
     asyncio.sleep(0)
     points = await get_line(start_coord, end_coord)
     particle_id = await generate_id(base_name=name)
@@ -2575,6 +2614,8 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
             del map_dict[last_location].actors[particle_id]
         map_dict[point].actors[particle_id] = True
         actor_dict[particle_id].update(*point)
+        if damage is not None:
+            await damage_all_actors_at_coord(coord=point, damage=10)
         last_location = actor_dict[particle_id].coords()
     if debris:
         if random() > .8:
@@ -2828,9 +2869,9 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
-    #for i in range(3):
-        #rand_coord = (randint(-25, 25), randint(-25, 25))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-25, 25), randint(-25, 25))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
