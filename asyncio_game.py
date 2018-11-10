@@ -15,7 +15,6 @@ from subprocess import call
 
 #Class definitions--------------------------------------------------------------
 
-
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile="⣿", blocking=True, 
@@ -95,9 +94,9 @@ class Animation:
         presets = {'fire':{'animation':'^∧', 
                            'behavior':'random', 
                            'color_choices':'3331'},
-                  'water':{'animation':'▒▓▓▓████', 
-                           'behavior':'random',
-                           'color_choices':('4'*10 + '6')},
+                  'water':{'animation':'███████▒▓▒', 
+                           'behavior':'walk both',
+                           'color_choices':('446')},
                   'grass':{'animation':('▒' * 20 + '▓'), 
                            'behavior':'random',
                            'color_choices':('2'),},
@@ -130,14 +129,14 @@ class Animation:
                            'behavior':'walk both', 
                            'color_choices':'33333344444'},
                    'bars':{'animation':(' ▁▂▃▄▅▆▇█'), 
-                           'behavior':'loop both', 
+                           'behavior':'walk both', 
                            'color_choices':'2'},
                  'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
                            'behavior':'loop both', 
                            'color_choices':'7'},
-                   'none':{'animation':(' '), 
+                   'door':{'animation':('▯'), 
                            'behavior':'random', 
-                           'color_choices':'1'}}
+                           'color_choices':'78888'}}
         #TODO: have color choices tied to a background/foreground color combination?
         if preset:
             preset_kwargs = presets[preset]
@@ -173,8 +172,6 @@ class Animation:
         elif current_behavior['color'] == 'walk':
             self.color_frame_number = (self.color_frame_number + randint(-1, 1)) % len(self.color_choices)
             color_choice = int(list(self.color_choices)[self.color_frame_number])
-        #elif current_behavior['color'] == 'breathe':
-            #TODO: implement forward and back looping
         else:
             color_choice = 5 #purple
         #tile behavior
@@ -550,7 +547,6 @@ async def spawn_turret(name='turret', open_tile='◫', closed_tile='◼', shot_r
     pass
 
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
-    #TODO: make the outermost edge of the circle flicker between different fuzzy states
     actor_id = await generate_id(base_name=name)
     loop = asyncio.get_event_loop()
     loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
@@ -577,7 +573,8 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 4)],
                            damage=75, length=7, rate=.25,
-                           speed=.1, retract_speed=1, patch_to_key='switch_1'):
+                           speed=.1, retract_speed=1, patch_to_key='switch_1',
+                           mid_trap_delay_time=.1):
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -601,6 +598,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
                                             damage=damage, sword_color=7, speed=speed, 
                                             retract_speed=retract_speed))
+                #await asyncio.sleep(mid_trap_delay_time)
 
 async def spike_trap(base_name='spike_trap', coord=(10, 10), 
                      direction='n', damage=20, length=5, rate=.25, 
@@ -766,7 +764,7 @@ async def random_blink(actor='player', radius=20):
             return
 
 
-async def temporary_block(duration=3, animation_preset='energy block'):
+async def temporary_block(duration=5, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
@@ -780,10 +778,10 @@ async def temporary_block(duration=3, animation_preset='energy block'):
 #Item interaction---------------------------------------------------------------
 
 #TODO: an item to form a temporary wall ahead of the player.
-
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #      alternatively: an item that disappears when used and returns when the
 #      cooldown expires.
+#TODO: items that are used immediately upon pickup
 
 async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     wand_broken_text = " is out of charges."
@@ -873,7 +871,6 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
 async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
                        pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
                        delay=0, blocking=False, hold_for_lock=True):
-    #await asyncio.sleep(delay)
     if hold_for_lock:
         while True:
             if state_dict['printing'] == True:
@@ -919,10 +916,6 @@ async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10,
         print_coord = pair[0] + x_offset, pair[1] + y_offset
         with term.location(*print_coord):
             print(fill_char)
-    #await asyncio.sleep
-    #if random_order:
-        #shuffle(coord_list)
-
 
 async def print_screen_grid():
     """
@@ -986,7 +979,7 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         while throw_dist >= radius:
             x_toss, y_toss = (randint(-radius, radius),
                               randint(-radius, radius),)
-            throw_dist = sqrt(x_toss**2 + y_toss**2) #euclidean distance
+            throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
         toss_coord = (root_x + x_toss, root_y + y_toss)
         if paint:
             if map_dict[toss_coord].tile not in "▮▯":
@@ -995,7 +988,6 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         else:
             random_tile = choice(palette)
             map_dict[toss_coord].tile = term.color(color_num)(random_tile)
-        #map_dict[toss_coord].tile = random_tile
         if not stamp:
             map_dict[toss_coord].passable = passable
         if description:
@@ -1029,6 +1021,18 @@ def draw_door(x, y, closed=True, locked=False, description='wooden', is_door=Tru
     map_dict[(x, y)].locked = locked
     map_dict[(x, y)].key = description
 
+async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10), 
+                      hallway_offset=(-1000, -1000), hallway_length=15):
+    #draw hallway
+    draw_box(top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░")
+    coord_a_hallway = hallway_offset
+    coord_b_hallway = await add_coords(hallway_offset, (hallway_length, 0))
+    #create magic doors:
+    await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway)
+    await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway)
+
+#TODO: create a mirror
+
 async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     """
     notes for portals/magic doors:
@@ -1051,7 +1055,7 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
     #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
     #map_dict[start_coord].blocking = True
-    animation = Animation(base_tile='▮', preset='shimmer')
+    animation = Animation(base_tile='▮', preset='door')
                           #color_choices="1234567", preset=None)
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
                                      magic=True, magic_destination=end_coord,
@@ -1063,12 +1067,10 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
         player_coords = actor_dict['player'].coords()
         just_teleported = actor_dict['player'].just_teleported
         if player_coords == start_coord and not just_teleported:
-            asyncio.ensure_future(filter_print(output_text="You are teleported."))
+            #asyncio.ensure_future(filter_print(output_text="You are teleported."))
             map_dict[player_coords].passable=True
-            #del map_dict[player_coords].actors['player']
             actor_dict['player'].update(*end_coord)
             x, y = actor_dict['player'].coords()
-            #map_dict[(x, y)].actors['player'] = True
             actor_dict['player'].just_teleported = True
 
 async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
@@ -1293,7 +1295,7 @@ async def handle_input(key):
             loop = asyncio.get_event_loop()
             loop.create_task(use_chosen_item())
         if key in '#':
-            actor_dict['player'].update(21, 20) #jump to debug
+            actor_dict['player'].update(49, 21) #jump to debug
         if key in '%':
             player_coord = actor_dict['player'].coords()
             asyncio.ensure_future(temporary_block())
@@ -1301,7 +1303,7 @@ async def handle_input(key):
             await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='bars')))
+                                  animation=Animation(preset='water')))
         if key in '8':
             asyncio.ensure_future(print_screen_grid())
         if key in 'o':
@@ -2084,6 +2086,9 @@ async def trap_init():
     loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
+    state_dict['switch_3'] = {}
+    loop.create_task(pressure_plate(spawn_coord=(54, 23), patch_to_key='switch_3'))
+    loop.create_task(spawn_turret())
     loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
 
             
@@ -2161,6 +2166,8 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
             break
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
+        with term.location(*await add_coords(print_coord, (0, 1))):
+            print("coords: {}".format(actor_dict['player'].coords()))
 
 async def ui_setup():
     """
@@ -2173,7 +2180,7 @@ async def ui_setup():
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
-    loop.create_task(status_bar(y_offset=10, actor_name='player', attribute='health', title="♥:"))
+    loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(x_current=0, y_current=0, name_key=None):
@@ -2233,6 +2240,11 @@ async def damage_door():
     pass
 
 #misc utility functions---------------------------------------------------------
+async def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
+    output = (coord_a[0] + coord_b[0],
+              coord_a[1] + coord_b[1])
+    return output
+
 async def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
@@ -2579,6 +2591,26 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
+async def spawn_turret(spawn_coord=(54, 16), trigger_key='switch_3', 
+                       facing='e', spread=20, damage=10, radius=12, rate=.01):
+    turret_id = await generate_id(base_name='turret')
+    closed_tile = term.on_color(7)(term.color(0)('◫'))
+    open_tile = term.on_color(7)(term.color(0)('◼'))
+    actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
+                                       tile=closed_tile)
+    map_dict[spawn_coord].actors[turret_id] = True
+    while True:
+        if state_dict['killall'] == True:
+            break
+        await asyncio.sleep(rate)
+        if await any_true(trigger_key=trigger_key):
+            with term.location(60, 3):
+                print(random())
+            asyncio.ensure_future(fire_projectile(actor_key=turret_id,
+                                                  radius_spread=(radius - 2, radius + 2), 
+                                                  degree_spread=(-spread, spread),
+                                                  facing_dir=facing))
+
 async def fire_projectile(actor_key='player', radius_spread=(10, 14), degree_spread=(-20, 20),
                           facing_dir=None):
     radius_shift, degree_shift= randint(*radius_spread), randint(*degree_spread)
@@ -2869,9 +2901,10 @@ def main():
     loop.create_task(death_check())
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
-    for i in range(3):
-        rand_coord = (randint(-25, 25), randint(-25, 25))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    loop.create_task(fake_stairs())
+    #for i in range(30):
+        #rand_coord = (randint(-25, 25), randint(-25, 25))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
