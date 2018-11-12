@@ -368,7 +368,7 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
     asyncio.ensure_future(filter_print(throw_text))
     await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
-                            end_coord=destination, speed=.05, tile=item_tile, 
+                            end_coords=destination, speed=.05, tile=item_tile, 
                             animation=None, debris=None)
     map_dict[destination].items[thrown_item_id] = True
     item_dict[thrown_item_id].current_location = destination
@@ -459,7 +459,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
         damage = '+' + str(damage)[1:]
     for x_pos, digit in enumerate(damage):
         start_coord = actor_coords[0] + (x_pos - 1), actor_coords[1] - 1
-        end_coord = start_coord[0], start_coord[1] - squares_above
+        end_coords = start_coord[0], start_coord[1] - squares_above
         if damage[0] == '-':
             tile = term.red(digit_to_superscript[digit])
         else:
@@ -467,7 +467,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
         asyncio.ensure_future(travel_along_line(tile=tile,
                                                 speed=.12,
                                                 start_coord=start_coord, 
-                                                end_coord=end_coord,
+                                                end_coords=end_coords,
                                                 debris=False,
                                                 animation=False))
 
@@ -542,9 +542,6 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
         follow_x, follow_y = (parent_coords[0] + offset[0], 
                               parent_coords[1] + offset[1])
         actor_dict[follower_id].update(follow_x, follow_y)
-
-async def spawn_turret(name='turret', open_tile='◫', closed_tile='◼', shot_range=10):
-    pass
 
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
     actor_id = await generate_id(base_name=name)
@@ -1033,7 +1030,7 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10),
 
 #TODO: create a mirror
 
-async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
+async def magic_door(start_coord=(5, 5), end_coords=(-22, 18)):
     """
     notes for portals/magic doors:
     either gapless teleporting doors or gapped by darkness doors.
@@ -1058,7 +1055,7 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
     animation = Animation(base_tile='▮', preset='door')
                           #color_choices="1234567", preset=None)
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
-                                     magic=True, magic_destination=end_coord,
+                                     magic=True, magic_destination=end_coords,
                                      is_animated=True, animation=animation)
     while(True):
         if state_dict['killall'] == True:
@@ -1069,14 +1066,14 @@ async def magic_door(start_coord=(5, 5), end_coord=(-22, 18)):
         if player_coords == start_coord and not just_teleported:
             #asyncio.ensure_future(filter_print(output_text="You are teleported."))
             map_dict[player_coords].passable=True
-            actor_dict['player'].update(*end_coord)
+            actor_dict['player'].update(*end_coords)
             x, y = actor_dict['player'].coords()
             actor_dict['player'].just_teleported = True
 
 async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
     loop = asyncio.get_event_loop()
-    loop.create_task(magic_door(start_coord=(door_a_coords), end_coord=(door_b_coords)))
-    loop.create_task(magic_door(start_coord=(door_b_coords), end_coord=(door_a_coords)))
+    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords)))
+    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords)))
 
 async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
                           breakable=True, preset='random'):
@@ -1262,8 +1259,7 @@ async def handle_input(key):
         if key in '$':
             asyncio.ensure_future(filter_fill())
         if key in 'T':
-            for i in range(5):
-                asyncio.ensure_future(fire_projectile())
+            asyncio.ensure_future(beam_spire(spawn_coord=actor_dict['player'].coords()))
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1695,7 +1691,7 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
     #negative numbers into modulo wrap back around the other way.
     point_angle = (dir_to_base_angle[facing_dir] + offset_angle) % 360
     actor_coords = actor_dict[actor_key].coords()
-    reference_point = (actor_coords[0], actor_coords[0] + 5)
+    reference_point = (actor_coords[0], actor_coords[1] + 5)
     point = await point_at_distance_and_angle(angle_from_twelve=point_angle,
                                               central_point=actor_coords,
                                               reference_point=reference_point,
@@ -2592,44 +2588,65 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     map_dict[coords].passable = prev_passable_state
 
 async def spawn_turret(spawn_coord=(54, 16), trigger_key='switch_3', 
-                       facing='e', spread=20, damage=10, radius=12, rate=.01):
+                       facing='e', spread=20, damage=10, radius=12, rate=.1):
     turret_id = await generate_id(base_name='turret')
     closed_tile = term.on_color(7)(term.color(0)('◫'))
     open_tile = term.on_color(7)(term.color(0)('◼'))
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
                                        tile=closed_tile)
+    actor_dict[turret_id].update(*spawn_coord)
     map_dict[spawn_coord].actors[turret_id] = True
     while True:
+        with term.location(50, 3):
+            print("turret_location: {}".format(actor_dict[turret_id].coords()))
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(rate)
         if await any_true(trigger_key=trigger_key):
-            with term.location(60, 3):
-                print(random())
-            asyncio.ensure_future(fire_projectile(actor_key=turret_id,
-                                                  radius_spread=(radius - 2, radius + 2), 
-                                                  degree_spread=(-spread, spread),
-                                                  facing_dir=facing))
+            with term.location(60, 2):
+                print("turret_id: {}".format(turret_id))
+            asyncio.ensure_future(fire_projectile())
 
-async def fire_projectile(actor_key='player', radius_spread=(10, 14), degree_spread=(-20, 20),
-                          facing_dir=None):
-    radius_shift, degree_shift= randint(*radius_spread), randint(*degree_spread)
-    end_coord = await point_angle_from_facing(radius=radius_shift, offset_angle=degree_shift)
-    directions_to_shift = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    if facing_dir is None:
-        facing_dir = state_dict['facing']
-    dir_offsets = directions_to_shift[facing_dir]
+async def beam_spire(spawn_coord=(0, 0)):
+    """
+    spawns a rotating flame source
+    """
+    turret_id = await generate_id(base_name='turret')
+    closed_tile = term.on_color(7)(term.color(0)('◫'))
+    open_tile = term.on_color(7)(term.color(0)('◼'))
+    actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
+                                       tile=closed_tile)
+    actor_dict[turret_id].update(*spawn_coord)
+    map_dict[spawn_coord].actors[turret_id] = True
+    while True:
+        for angle in [i * 5 for i in range(72)]:
+            for i in range(10):
+                asyncio.ensure_future(fire_projectile(actor_key=turret_id,
+                                                      at_angle=angle))
+            await asyncio.sleep(.05)
+
+async def fire_projectile(actor_key='player', at_angle=45, radius=10, 
+                          radius_spread=(10, 14), degree_spread=(-20, 20),
+                          damage=1):
+    radius = randint(*radius_spread) + radius
+    angle = randint(*degree_spread) + at_angle
     actor_coords = actor_dict[actor_key].coords()
-    start_coords = (actor_coords[0] + dir_offsets[0],
-                    actor_coords[1] + dir_offsets[1])
+    x_shift = round(cos(radians(at_angle)) * radius)
+    y_shift = round(sin(radians(at_angle)) * radius)
+    end_coords = (actor_coords[0] + x_shift, 
+                  actor_coords[1] + y_shift)
+    actor_coords = actor_dict[actor_key].coords()
+    start_coords = actor_coords
+    with term.location(50, 0):
+        print("end_coords: {}".format(end_coords))
     await travel_along_line(name='particle', start_coord=start_coords, 
-                            end_coord=end_coord, damage=10)
+                            end_coords=end_coords, damage=damage, ignore_head=True)
 
-async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 10),
+async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
-                            debris=None, damage=None):
+                            debris=None, damage=None, ignore_head=False):
     asyncio.sleep(0)
-    points = await get_line(start_coord, end_coord)
+    points = await get_line(start_coord, end_coords)
     particle_id = await generate_id(base_name=name)
     if animation:
         is_animated = True
@@ -2640,6 +2657,8 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
                                     animation=animation)
     map_dict[start_coord].actors[particle_id] = True
     last_location = points[0]
+    if ignore_head:
+        points = points[1:]
     for point in points:
         await asyncio.sleep(speed)
         if particle_id in map_dict[last_location].actors:
@@ -2647,7 +2666,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coord=(10, 
         map_dict[point].actors[particle_id] = True
         actor_dict[particle_id].update(*point)
         if damage is not None:
-            await damage_all_actors_at_coord(coord=point, damage=10)
+            await damage_all_actors_at_coord(coord=point, damage=damage)
         last_location = actor_dict[particle_id].coords()
     if debris:
         if random() > .8:
@@ -2697,11 +2716,11 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
                                                   reference_point=reference, 
                                                   radius=rand_radius)
         if collapse:
-            start_coord, end_coord = point, origin_coord
+            start_coord, end_coords = point, origin_coord
         else:
-            start_coord, end_coord = origin_coord, point
+            start_coord, end_coords = origin_coord, point
         asyncio.ensure_future(travel_along_line(start_coord=start_coord, 
-                                                end_coord=end_coord,
+                                                end_coords=end_coords,
                                                 debris=debris,
                                                 animation=animation))
         if deathclock:
