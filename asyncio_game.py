@@ -450,9 +450,6 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
     digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
                             '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
                             '-':'⁻', '+':'⁺'}
-    #digit_to_subscript =   {'1':'₁', '2':'₂', '3':'₃', '4':'₄', '5':'₅', 
-                            #'6':'₆', '7':'₇', '8':'₈', '9':'₉', '0':'₀',
-                            #'-':'₋', '+':'₊'}
     if damage >= 0:
         damage = '-' + str(damage)
     else:
@@ -473,9 +470,6 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
 
 async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
     points = await get_line(coord_a, coord_b)
-    with term.location(55, 0):
-        print(points)
-    print
     for index, point in enumerate(points[1:]):
         await asyncio.sleep(speed)
         if map_dict[point].passable:
@@ -485,15 +479,12 @@ async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
             break
     for point in points_until_wall:
         map_dict[point].tile = term.red(choice(palette))
-    with term.location(55, 10):
-        print(points_until_wall)
 
 async def unlock_door(actor_key='player', opens='red'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
-    door_coord = (actor_coord[0] + directions[check_dir][0], 
-                  actor_coord[1] + directions[check_dir][1])
+    door_coord = await add_coords(actor_coord, directions[check_dir])
     door_type = map_dict[door_coord].key
     if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
@@ -1169,12 +1160,17 @@ async def is_number(number="0"):
 
 #Top level input----------------------------------------------------------------
 async def get_key(): 
-    """the closest thing I could get to non-blocking input"""
+    """handles raw keyboard data, passes to handle_input if its interesting.
+    Also, displays help tooltip if no input for a time."""
+    debug_text = "key is: {}, same_count is: {}           "
+    help_text = 'Press ? for help menu.'
     await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
         key = None
+        same_count = 0
+        old_key = None
         while True:
             if state_dict['killall'] == True:
                 break
@@ -1186,9 +1182,15 @@ async def get_key():
                 if key is not None:
                     await handle_input(key)
             with term.location(0, 1):
-                print("key is: {}".format(repr(key)))
-            if state_dict['halt_input'] == True:
-                break
+                print(debug_text.format(repr(key), same_count))
+            if old_key == key:
+                same_count += 1
+            else:
+                same_count = 0
+            old_key = key
+            if same_count >= 600:
+                same_count = 0
+                asyncio.ensure_future(filter_print(output_text=help_text, pause_stay_on=2))
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -1272,7 +1274,7 @@ async def handle_input(key):
         if key in '@':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
-                        instance_of='dash trinket', on_actor_id='player'))
+                        instance_of='green key', on_actor_id='player'))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -1316,8 +1318,6 @@ async def handle_input(key):
             state_dict['view_angles'] = view_angles[key_to_compass[key]]
             state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
     return x, y
-
-#TODO: make different colored doors able to be toggled.
 
 async def open_door(door_coord):
     map_dict[door_coord].tile = '▯'
@@ -1687,9 +1687,9 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
     """
     if facing_dir is None:
         facing_dir = state_dict['facing']
-    dir_to_base_angle = {'n':180, 'e':90, 's':0, 'w':270}
+    dir_to_angle = {'n':180, 'e':90, 's':0, 'w':270}
     #negative numbers into modulo wrap back around the other way.
-    point_angle = (dir_to_base_angle[facing_dir] + offset_angle) % 360
+    point_angle = (dir_to_angle[facing_dir] + offset_angle) % 360
     actor_coords = actor_dict[actor_key].coords()
     reference_point = (actor_coords[0], actor_coords[1] + 5)
     point = await point_at_distance_and_angle(angle_from_twelve=point_angle,
@@ -2083,11 +2083,10 @@ async def trap_init():
     loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
     state_dict['switch_3'] = {}
-    loop.create_task(pressure_plate(spawn_coord=(54, 23), patch_to_key='switch_3'))
+    loop.create_task(pressure_plate(spawn_coord=(54, 19), patch_to_key='switch_3'))
     loop.create_task(spawn_turret())
     loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
 
-            
 #TODO: create a map editor mode, accessible with a keystroke??
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
@@ -2572,9 +2571,6 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
                              tile=str(death_clock), is_animated=True,
                              animation=Animation(preset=animation_preset))
     map_dict[coords].actors[name] = True
-    #TODO: model of passable spaces is flawed. multiple things change whether a space is passable.
-    #map_tiles should register a default state to return to or have multiple properties (is_wall)
-    #or perhaps check for actors that are solid?
     prev_passable_state = map_dict[coords].passable
     if solid:
         map_dict[coords].passable = False
@@ -2587,8 +2583,9 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
 
-async def spawn_turret(spawn_coord=(54, 16), trigger_key='switch_3', 
-                       facing='e', spread=20, damage=10, radius=12, rate=.1):
+async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='switch_3', 
+                       facing='e', spread=20, damage=10, radius=12, rate=.02):
+    firing_angle = (firing_angle - 90) % 360
     turret_id = await generate_id(base_name='turret')
     closed_tile = term.on_color(7)(term.color(0)('◫'))
     open_tile = term.on_color(7)(term.color(0)('◼'))
@@ -2597,15 +2594,17 @@ async def spawn_turret(spawn_coord=(54, 16), trigger_key='switch_3',
     actor_dict[turret_id].update(*spawn_coord)
     map_dict[spawn_coord].actors[turret_id] = True
     while True:
-        with term.location(50, 3):
-            print("turret_location: {}".format(actor_dict[turret_id].coords()))
+        with term.location(20, 0):
+            print(firing_angle, state_dict[trigger_key])
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(rate)
         if await any_true(trigger_key=trigger_key):
-            with term.location(60, 2):
-                print("turret_id: {}".format(turret_id))
-            asyncio.ensure_future(fire_projectile())
+            with term.location(20, 2):
+                print(random())
+            asyncio.ensure_future(fire_projectile(actor_key=turret_id, 
+                                                  firing_angle=firing_angle,
+                                                  radius_spread=(5, 8)))
 
 async def beam_spire(spawn_coord=(0, 0)):
     """
@@ -2622,25 +2621,27 @@ async def beam_spire(spawn_coord=(0, 0)):
         for angle in [i * 5 for i in range(72)]:
             for i in range(10):
                 asyncio.ensure_future(fire_projectile(actor_key=turret_id,
-                                                      at_angle=angle))
+                                                      firing_angle=angle))
             await asyncio.sleep(.05)
 
-async def fire_projectile(actor_key='player', at_angle=45, radius=10, 
+async def fire_projectile(actor_key='player', firing_angle=45, radius=10, 
                           radius_spread=(10, 14), degree_spread=(-20, 20),
-                          damage=1):
-    radius = randint(*radius_spread) + radius
-    angle = randint(*degree_spread) + at_angle
+                          damage=5):
+    rand_radius = randint(*radius_spread) + radius
+    rand_angle = randint(*degree_spread) + firing_angle
     actor_coords = actor_dict[actor_key].coords()
-    x_shift = round(cos(radians(at_angle)) * radius)
-    y_shift = round(sin(radians(at_angle)) * radius)
-    end_coords = (actor_coords[0] + x_shift, 
-                  actor_coords[1] + y_shift)
+    x_shift, y_shift = await point_given_angle_and_radius(angle=rand_angle,
+                                                          radius=rand_radius)
+    end_coords = await add_coords(actor_coords, (x_shift, y_shift))
     actor_coords = actor_dict[actor_key].coords()
     start_coords = actor_coords
-    with term.location(50, 0):
-        print("end_coords: {}".format(end_coords))
     await travel_along_line(name='particle', start_coord=start_coords, 
                             end_coords=end_coords, damage=damage, ignore_head=True)
+
+async def point_given_angle_and_radius(angle=0, radius=10):
+    x = round(cos(radians(angle)) * radius)
+    y = round(sin(radians(angle)) * radius)
+    return x, y
 
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
@@ -2666,6 +2667,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
         map_dict[point].actors[particle_id] = True
         actor_dict[particle_id].update(*point)
         if damage is not None:
+            #TODO: provide indicator of direction of damage
             await damage_all_actors_at_coord(coord=point, damage=damage)
         last_location = actor_dict[particle_id].coords()
     if debris:
@@ -2749,8 +2751,7 @@ async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(
     steps = await path_into_steps(coord_list)
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
-        new_position = (actor_coords[0] + step[0], 
-                        actor_coords[1] + step[1])
+        new_position = await add_coords(actor_coords, step)
         if map_dict[new_position].passable and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
