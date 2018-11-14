@@ -1261,7 +1261,9 @@ async def handle_input(key):
         if key in '$':
             asyncio.ensure_future(filter_fill())
         if key in 'T':
-            asyncio.ensure_future(beam_spire(spawn_coord=actor_dict['player'].coords()))
+            test_angle = await angle_actor_to_actor(actor_a='player', actor_b='TEST')
+            with term.location(30, 3):
+                print('test_angle: {}            '.format(test_angle))
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -2060,6 +2062,10 @@ async def async_map_init():
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     loop.create_task(trap_init())
+
+    actor_dict['TEST'] = Actor(name='TEST', moveable=False,
+                                       tile=term.green('$'))
+    actor_dict['TEST'].update(0, 0)
     #TODO: create predictable spike hallway, keeping timing all in the same
     #      function so that they don't fall out of phase.
     #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
@@ -2605,6 +2611,10 @@ async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='swit
             asyncio.ensure_future(fire_projectile(actor_key=turret_id, 
                                                   firing_angle=firing_angle,
                                                   radius_spread=(5, 8)))
+            actor_dict[turret_id].tile = open_tile
+        else:
+            actor_dict[turret_id].tile = closed_tile
+
 
 async def beam_spire(spawn_coord=(0, 0)):
     """
@@ -2616,7 +2626,7 @@ async def beam_spire(spawn_coord=(0, 0)):
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
                                        tile=closed_tile)
     actor_dict[turret_id].update(*spawn_coord)
-    map_dict[spawn_coord].actors[turret_id] = True
+    #map_dict[spawn_coord].actors[turret_id] = True
     while True:
         for angle in [i * 5 for i in range(72)]:
             for i in range(10):
@@ -2642,6 +2652,33 @@ async def point_given_angle_and_radius(angle=0, radius=10):
     x = round(cos(radians(angle)) * radius)
     y = round(sin(radians(angle)) * radius)
     return x, y
+
+async def angle_actor_to_actor(actor_a='player', actor_b=None):
+    """
+    returns degrees as measured clockwise from 12 o'clock
+    with actor_a at the center of the clock and actor_b along 
+    the circumference.
+
+    12
+    |  B (3, 3)
+    | /
+    |/
+    A (0, 0)
+
+    ... would return an angle of 45 degrees.
+    """
+    if actor_b is None:
+        return 0
+    else:
+        actor_a_coords = actor_dict[actor_a].coords()
+        actor_b_coords = actor_dict[actor_b].coords()
+        x_run, y_run = (actor_a_coords[0] - actor_b_coords[0],
+                        actor_a_coords[1] - actor_b_coords[1])
+        hypotenuse = sqrt(x_run ** 2 + y_run ** 2)
+        a_angle = degrees(acos(y_run/hypotenuse))
+    if x_run > 0:
+        a_angle = 360 - a_angle
+    return a_angle
 
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
