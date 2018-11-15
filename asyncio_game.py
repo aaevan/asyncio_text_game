@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import cycle
 from math import acos, cos, degrees, pi, radians, sin, sqrt
-from random import randint, choice, random, shuffle
+from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 
 #Class definitions--------------------------------------------------------------
@@ -685,7 +685,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
                 to_damage_names.append(actor[0])
         await asyncio.sleep(speed)
     for actor in to_damage_names:
-        asyncio.ensure_future(directional_damage_alert(direction=opposite_directions[direction]))
+        damage_direction = opposite_directions[direction]
+        asyncio.ensure_future(directional_damage_alert(source_direction=damage_direction))
         asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -1264,6 +1265,7 @@ async def handle_input(key):
             test_angle = await angle_actor_to_actor(actor_a='player', actor_b='TEST')
             with term.location(30, 3):
                 print('test_angle: {}            '.format(test_angle))
+            asyncio.ensure_future(directional_damage_alert(source_angle=test_angle))
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1944,21 +1946,36 @@ async def status_bar_draw(state_dict_key="health", position="top left", bar_heig
     asyncio.ensure_future(ui_box_draw(position=position, bar_height=box_height, bar_width=box_width,
                           x_margin=x_margin, y_margin=y_margin))
 
-async def directional_damage_alert(direction='n'):
-    with term.location(30, 0):
-        print(direction)
-    angle_pair_index = await facing_dir_to_num(direction)
-    angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
-    arc_width = 90
-    dir_arcs = [((int(i - arc_width/2), i), (j, int(j + arc_width/2))) for i, j in angle_pairs]
+async def random_angle(centered_on_angle=0, total_cone_angle=60):
+    rand_shift = round(randint(0, total_cone_angle) - (total_cone_angle / 2))
+    return (centered_on_angle + rand_shift) % 360
+
+async def directional_damage_alert(source_angle=None, source_actor=None, source_direction=None,
+                                   warning_ui_radius=17, warning_ui_radius_spread=3):
+    """
+
+    """
+    if source_actor:
+        source_angle = await angle_actor_to_actor(actor_a='player', actor_b=source_actor)
+    elif source_direction is not None:
+        source_directions = {'n':0, 'ne':45, 'e':90, 'se':135,
+                             's':180, 'sw':225, 'w':270, 'nw':315}
+        if source_direction in source_directions:
+            source_angle = source_directions[source_direction]
+    elif source_angle is None:
+        return
+    source_angle = 180 - source_angle
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    angle_pair = dir_arcs[angle_pair_index]
-    warning_ui_points = [await point_at_distance_and_angle(
-                                 radius=17 + randint(0, 3), 
-                                 central_point=(middle_x, middle_y), 
-                                 angle_from_twelve=randint(*choice(angle_pair)))
-                         for _ in range(40)]
+    warning_ui_points = []
+    for _ in range(40):
+        radius = warning_ui_radius + randint(0, warning_ui_radius_spread)
+        central_point = (middle_x, middle_y)
+        angle = await random_angle(centered_on_angle=source_angle)
+        point = await point_at_distance_and_angle(radius=radius,
+                                                  central_point=central_point,
+                                                  angle_from_twelve=angle,)
+        warning_ui_points.append(point)
     for tile in [term.red("█"), ' ']:
         shuffle(warning_ui_points)
         for point in warning_ui_points:
@@ -2202,13 +2219,12 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     attacker_strength = actor_dict[attacker_key].strength
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
-        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True, 
+        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
                           seeds=randint(1, spatter_num), description="blood.")
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
-    direction = await find_damage_direction(attacker_key)
-    asyncio.ensure_future(directional_damage_alert(direction=direction))
+    asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
 async def seek_actor(name_key=None, seek_key='player'):
     """ Standardize format to pass movement function.  """
@@ -2654,6 +2670,8 @@ async def point_given_angle_and_radius(angle=0, radius=10):
     return x, y
 
 async def angle_actor_to_actor(actor_a='player', actor_b=None):
+    #TODO: use inside directional warning function. 
+    #      requires damage source actor.
     """
     returns degrees as measured clockwise from 12 o'clock
     with actor_a at the center of the clock and actor_b along 
@@ -2675,6 +2693,8 @@ async def angle_actor_to_actor(actor_a='player', actor_b=None):
         x_run, y_run = (actor_a_coords[0] - actor_b_coords[0],
                         actor_a_coords[1] - actor_b_coords[1])
         hypotenuse = sqrt(x_run ** 2 + y_run ** 2)
+        if hypotenuse == 0:
+            return 0
         a_angle = degrees(acos(y_run/hypotenuse))
     if x_run > 0:
         a_angle = 360 - a_angle
@@ -2918,7 +2938,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     if preset == 'blob':
         item_drops = ['red potion']
         loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
-                                     tile='ö', name_key=name, hurtful=True, strength=30,
+                                     tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
     #elif preset == 'crate':
@@ -2959,9 +2979,9 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
-    #for i in range(30):
-        #rand_coord = (randint(-25, 25), randint(-25, 25))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-25, 25), randint(-25, 25))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
