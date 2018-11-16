@@ -713,13 +713,13 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
-        #await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
+        await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
         await asyncio.sleep(.2)
         actor_dict[actor].update(1000, 1000)
         await asyncio.sleep(.8)
         actor_dict[actor].update(*destination)
-        #await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
-                              #deathclock=30, speed=(1, 1))
+        await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
+                              deathclock=30, speed=(1, 1))
     else:
         await filter_print(output_text="Something is in the way.")
     
@@ -1213,14 +1213,7 @@ async def handle_input(key):
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
-    fov = 120
-    fuzz = 20
-    #angles are given in a pair to resolve problems with the split at 360 and 0 degrees.
-    angle_pairs = [(360, 0), (90, 90), (180, 180), (270, 270)]
-    view_tuples = [(i - fov/2, i, j, j + fov/2) for i, j in angle_pairs]
-    view_angles = dict(zip(compass_directions, view_tuples))
-    fuzzy_edges = [((i - fuzz), (j - fov/2), (k + fov/2), (l + fuzz)) for i, j, k, l in view_tuples]
-    fuzzy_view_angles = dict(zip(compass_directions, fuzzy_edges))
+    fov = 140
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
@@ -1261,11 +1254,6 @@ async def handle_input(key):
             await display_help() 
         if key in '$':
             asyncio.ensure_future(filter_fill())
-        if key in 'T':
-            test_angle = await angle_actor_to_actor(actor_a='player', actor_b='TEST')
-            with term.location(30, 3):
-                print('test_angle: {}            '.format(test_angle))
-            asyncio.ensure_future(directional_damage_alert(source_angle=test_angle))
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in 'Vv':
@@ -1319,8 +1307,6 @@ async def handle_input(key):
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijkl":
             state_dict['facing'] = key_to_compass[key]
-            state_dict['view_angles'] = view_angles[key_to_compass[key]]
-            state_dict['fuzzy_view_angles'] = fuzzy_view_angles[key_to_compass[key]]
     return x, y
 
 async def open_door(door_coord):
@@ -1725,27 +1711,25 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
-async def angle_checker(angle_from_twelve):
+async def angle_checker(angle_from_twelve=0, fov=120):
     """
     breaks out angle_checking code used in view_tile()
     Determines whether the currently checked view tile is in the
-    main clear range or the fuzzy edge.
+    main field of view.
     """
-    angle_min_max = state_dict['view_angles']
-    fuzzy_angle_min_max = state_dict['fuzzy_view_angles']
-    #check if view_tile is in main cone of view:
-    if (angle_min_max[0] <= angle_from_twelve <= angle_min_max[1] or
-            angle_min_max[2] <= angle_from_twelve <= angle_min_max[3]):
-        display = True
+    angle_from_twelve += 360
+    direction_to_degrees = {'n':0, 'e':90, 's':180, 'w':270}
+    direction_angle = direction_to_degrees[state_dict['facing']] + 360
+    half_fov = int(fov / 2)
+    left_max = (direction_angle - half_fov)
+    right_max = (direction_angle + half_fov)
+    with term.location(50, 4):
+        print(left_max <= angle_from_twelve, left_max, direction_angle, right_max, angle_from_twelve <= right_max, "          ")
+    if (left_max <= angle_from_twelve <= right_max or 
+            angle_from_twelve == direction_angle):
+        return True
     else:
-        display = False
-    #check if view_tile is in fuzzy edges of view:
-    if (fuzzy_angle_min_max[0] <= angle_from_twelve <= fuzzy_angle_min_max[1] or
-        fuzzy_angle_min_max[2] <= angle_from_twelve <= fuzzy_angle_min_max[3]):
-        fuzzy = True
-    else:
-        fuzzy = False
-    return fuzzy, display
+        return False
 
 #TODO: add timer that displays tooltip for help menu if no keys are pressed for a while.
 
@@ -1830,17 +1814,16 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
-    fuzzy = False
     while True:
         #await asyncio.sleep(distance * .015)
         await asyncio.sleep(1 / 10)
         if state_dict['killall'] == True:
             break
         #pull up the most recent viewing angles based on recent inputs:
-        fuzzy, display = await angle_checker(angle_from_twelve)
+        display = await angle_checker(angle_from_twelve=angle_from_twelve,
+                                      fov=120)
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.red('@')
-        #elif display or fuzzy:
         elif display:
             player_x, player_y = actor_dict['player'].coords()
             #add a line in here for different levels/dimensions:
@@ -2079,14 +2062,6 @@ async def async_map_init():
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
     loop.create_task(trap_init())
-
-    actor_dict['TEST'] = Actor(name='TEST', moveable=False,
-                                       tile=term.green('$'))
-    actor_dict['TEST'].update(0, 0)
-    #TODO: create predictable spike hallway, keeping timing all in the same
-    #      function so that they don't fall out of phase.
-    #loop.create_task(spawn_static_actor(spawn_coord=(18, 20), moveable=True))
-    #loop.create_task(spawn_weight(spawn_coord=(18, 20)))
 
 async def trap_init():
     loop = asyncio.get_event_loop()
@@ -2463,7 +2438,7 @@ async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
-                    behavior="retract", speed=.01, damage=20,
+                    behavior="retract", speed=.01, damage=0,
                     extend_wait=.025, retract_wait=.25,
                     color_num=2, on_actor=None, start_facing=False):
     """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
@@ -2670,8 +2645,6 @@ async def point_given_angle_and_radius(angle=0, radius=10):
     return x, y
 
 async def angle_actor_to_actor(actor_a='player', actor_b=None):
-    #TODO: use inside directional warning function. 
-    #      requires damage source actor.
     """
     returns degrees as measured clockwise from 12 o'clock
     with actor_a at the center of the clock and actor_b along 
@@ -2702,9 +2675,16 @@ async def angle_actor_to_actor(actor_a='player', actor_b=None):
 
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
-                            debris=None, damage=None, ignore_head=False):
+                            debris=None, damage=None, ignore_head=False, no_clip=True):
     asyncio.sleep(0)
     points = await get_line(start_coord, end_coords)
+    if no_clip:
+        for index, point in enumerate(points):
+            if not map_dict[point].passable:
+                points = points[:index]
+                break
+        if len(points) < 1:
+            return
     particle_id = await generate_id(base_name=name)
     if animation:
         is_animated = True
@@ -2963,8 +2943,6 @@ async def quitter_daemon():
 def main():
     map_init()
     state_dict["player_health"] = 100
-    state_dict['view_angles'] = (315, 360, 0, 45)
-    state_dict['fuzzy_view_angles'] = (315, 360, 0, 45)
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
@@ -2979,9 +2957,9 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
-    for i in range(3):
-        rand_coord = (randint(-25, 25), randint(-25, 25))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(3):
+        #rand_coord = (randint(-25, 25), randint(-25, 25))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
