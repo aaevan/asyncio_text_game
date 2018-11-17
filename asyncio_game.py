@@ -1711,28 +1711,17 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
-async def angle_checker(angle_from_twelve=0, fov=120):
-    """
-    breaks out angle_checking code used in view_tile()
-    Determines whether the currently checked view tile is in the
-    main field of view.
-    """
-    angle_from_twelve += 360
-    direction_to_degrees = {'n':0, 'e':90, 's':180, 'w':270}
-    direction_angle = direction_to_degrees[state_dict['facing']] + 360
-    half_fov = int(fov / 2)
-    left_max = (direction_angle - half_fov)
-    right_max = (direction_angle + half_fov)
-    with term.location(50, 4):
-        print(left_max <= angle_from_twelve, left_max, direction_angle, right_max, angle_from_twelve <= right_max, "          ")
-    if (left_max <= angle_from_twelve <= right_max or 
-            angle_from_twelve == direction_angle):
-        return True
-    else:
-        return False
-
-#TODO: add timer that displays tooltip for help menu if no keys are pressed for a while.
-
+#async def angle_checker(angle_from_twelve=0, fov=120):
+    #"""
+    #breaks out angle_checking code used in view_tile()
+    #Determines whether the currently checked view tile is in the
+    #main field of view.
+    #"""
+    #half_fov = fov // 2
+    #angle_from_twelve = int(angle_from_twelve)
+    #direction_to_degrees = {'n':0, 'e':90, 's':180, 'w':270}
+    #facing = state_dict['facing']
+    
 #UI/HUD functions---------------------------------------------------------------
 async def display_help():
     """
@@ -1816,12 +1805,13 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
     display = False
     while True:
         #await asyncio.sleep(distance * .015)
-        await asyncio.sleep(1 / 10)
+        #await asyncio.sleep(1 / 10)
+        await asyncio.sleep(1)
         if state_dict['killall'] == True:
             break
         #pull up the most recent viewing angles based on recent inputs:
-        display = await angle_checker(angle_from_twelve=angle_from_twelve,
-                                      fov=120)
+        display = True
+        #display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=120)
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.red('@')
         elif display:
