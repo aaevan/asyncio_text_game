@@ -250,17 +250,17 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 
-bw_background_tile_pairs = ((0, ' '),       #dark
-                            (7, "░"),
-                            (8, "░"), 
-                            (7, "▒"),
-                            (8, "▒"), 
-                            (7, "▓"), 
-                            (7, "█"), 
-                          *((8, "▓"),) * 2,
-                          *((8, "█"),) * 6) #bright
+gradient_tile_pairs = ((0, ' '),        #dark
+                       (7, "░"),
+                       (8, "░"), 
+                       (7, "▒"),
+                       (8, "▒"), 
+                       (7, "▓"), 
+                       (7, "█"), 
+                      *((8, "▓"),) * 2,
+                      *((8, "█"),) * 6) #bright
 
-bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in bw_background_tile_pairs])
+bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
 #defined at top level as a dictionary for fastest lookup time
 bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
  
@@ -268,28 +268,30 @@ bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
     """ Draws a box to map_dict at the given coordinates."""
-    x_tuple = (top_left[0], top_left[0] + x_size)
-    y_tuple = (top_left[1], top_left[1] + y_size)
+    x_min, y_min = top_left[0], top_left[1]
+    x_max, y_max = x_min + x_size, y_min + y_size
+    x_values = (x_min, x_max)
+    y_values = (y_min, y_max)
     if filled:
-        for x in range(*x_tuple):
-            for y in range(*y_tuple):
+        for x in range(*x_values):
+            for y in range(*y_values):
                 map_dict[(x, y)].tile = tile
                 map_dict[(x, y)].passable = passable
                 map_dict[(x, y)].blocking = False
     else:
-        map_dict[top_left].tile = tile
-        map_dict[(x_tuple[1], y_tuple[1])].tile = tile
-        for x in range(top_left[0], top_left[0] + x_size):
-            for y in [top_left[1], top_left[1] + y_size]:
+        map_dict[x_min, y_min].tile = tile
+        map_dict[(x_max, y_max)].tile = tile
+        for x in range(x_min, x_max):
+            for y in (y_min, y_max):
                 map_dict[(x, y)].tile = tile
-        for y in range(top_left[1], top_left[1] + y_size):
-            for x in [top_left[0], top_left[0] + x_size]:
+        for y in range(y_min, y_max):
+            for x in (x_min, x_max):
                 map_dict[(x, y)].tile = tile
 
 def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
                   filled=True, tile=".", passable=True):
-    top_left = (middle_coord[0] - int(x_size/2), middle_coord[1] - int(y_size/2))
-    draw_box(top_left=top_left, x_size=x_size, y_size=10, filled=True, tile=tile)
+    top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
+    draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, tile=tile)
 
 async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
                     passable=True, blocking = False):
@@ -305,13 +307,16 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].blocking = blocking
 
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
-                passable=True, blocking=False, animation=None, delay=0):
+                passable=True, blocking=False, animation=None, delay=0,
+                description=None):
     """
     draws a circle in real time. eats actors right now
     """
     await asyncio.sleep(0)
-    for x in range(center_coord[0] - radius, center_coord[0] + radius):
-        for y in range(center_coord[1] - radius, center_coord[1] + radius):
+    x_bounds = center_coord[0] - radius, center_coord[0] + radius
+    y_bounds = center_coord[1] - radius, center_coord[1] + radius
+    for x in range(*x_bounds):
+        for y in range(*y_bounds):
             await asyncio.sleep(delay)
             if not map_dict[(x, y)].mutable:
                 continue
@@ -321,13 +326,17 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
             else:
                 is_animated = False
             if distance_to_center <= radius:
-                actors = map_dict[(x, y)].actors
-                items = map_dict[(x, y)].items
+                actors = copy(map_dict[(x, y)].actors)
+                items = copy(map_dict[(x, y)].items)
                 # a copy of the animation is made so each tile can have its own instance.
-                map_dict[(x, y)] = Map_tile(passable=True, tile=choice(palette), blocking=False, 
-                                            description=None, is_animated=is_animated,
-                                            animation=copy(animation), actors=actors, items=items)
-
+                map_dict[x, y].passable = passable
+                map_dict[x, y].tile = choice(palette)
+                map_dict[x, y].blocking = blocking 
+                map_dict[x, y].description = description
+                map_dict[x, y].is_animated = is_animated
+                map_dict[x, y].animation = copy(animation)
+                map_dict[x, y].actors = actors
+                map_dict[x, y].items = items
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -1711,18 +1720,28 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
-#async def angle_checker(angle_from_twelve=0, fov=120):
-    #"""
-    #breaks out angle_checking code used in view_tile()
-    #Determines whether the currently checked view tile is in the
-    #main field of view.
-    #"""
-    #half_fov = fov // 2
-    #angle_from_twelve = int(angle_from_twelve)
-    #direction_to_degrees = {'n':0, 'e':90, 's':180, 'w':270}
-    #facing = state_dict['facing']
+async def angle_checker(angle_from_twelve=0, fov=120):
+    """
+    breaks out angle_checking code used in view_tile()
+    Determines whether the currently checked view tile is in the
+    main field of view.
+    """
+    angle_from_twelve = int(angle_from_twelve)
+    half_fov = fov // 2
+    directions = ('n', 'e', 's', 'w')
+    angle_pairs = ((360, 0), (90, 90), (180, 180), (270, 270))
+    dir_to_angle_pair = dict(zip(directions, angle_pairs))
+    facing = state_dict['facing'] 
+    arc_pair = dir_to_angle_pair[facing] #of the format (angle, angle)
+    is_in_left = (arc_pair[0] - half_fov) <= angle_from_twelve <= arc_pair[0] + half_fov
+    is_in_right = (arc_pair[1] - half_fov) <= angle_from_twelve <= arc_pair[1] + half_fov
+    if is_in_left or is_in_right:
+        return True
+    else:
+        return False
     
 #UI/HUD functions---------------------------------------------------------------
+
 async def display_help():
     """
     displays controls at an unused part of the screen.
@@ -1787,31 +1806,27 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     if map_dict[points[-1]].blocking == True and walls == 1:
         return True
 
-async def view_tile(x_offset=1, y_offset=1, threshold = 12):
+async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     """ handles displaying data from map_dict """
-    noise_palette = " " * 5
-    #absolute distance from player
+    #distance from center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
-    await asyncio.sleep(random()/5 * distance)
+    await asyncio.sleep(random()/5 * distance) #stagger starting_time
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    previous_actor, previous_tile, actor = None, None, None
+    previous_tile = None
     print_location = (middle_x + x_offset, middle_y + y_offset)
-    last_printed = ' '
+    last_print_choice = ' '
     #view angle setup
     angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
     while True:
-        #await asyncio.sleep(distance * .015)
-        #await asyncio.sleep(1 / 10)
-        await asyncio.sleep(1)
+        await asyncio.sleep(distance * .015) #update speed
         if state_dict['killall'] == True:
             break
-        #pull up the most recent viewing angles based on recent inputs:
-        display = True
-        #display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=120)
+        #check whether the current tile is within the current field of view
+        display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.red('@')
         elif display:
@@ -1840,12 +1855,11 @@ async def view_tile(x_offset=1, y_offset=1, threshold = 12):
             print_choice = ' '
         with term.location(*print_location):
             # only print something if it has changed:
-            if last_printed != print_choice:
+            if last_print_choice != print_choice:
                 if print_choice == "░":
                     print_choice = bright_to_dark[int(distance)]
                 print(print_choice)
-                last_printed = print_choice
-        #distant tiles update slower than near tiles:
+                last_print_choice = print_choice
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
