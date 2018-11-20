@@ -240,6 +240,7 @@ class Item:
 #Global state setup-------------------------------------------------------------
 term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
+room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
@@ -326,17 +327,13 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
             else:
                 is_animated = False
             if distance_to_center <= radius:
-                actors = copy(map_dict[(x, y)].actors)
-                items = copy(map_dict[(x, y)].items)
-                # a copy of the animation is made so each tile can have its own instance.
+                #assigned as separate attributes to preserve items and actors on each tile.
                 map_dict[x, y].passable = passable
                 map_dict[x, y].tile = choice(palette)
                 map_dict[x, y].blocking = blocking 
                 map_dict[x, y].description = description
                 map_dict[x, y].is_animated = is_animated
                 map_dict[x, y].animation = copy(animation)
-                map_dict[x, y].actors = actors
-                map_dict[x, y].items = items
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -426,10 +423,10 @@ async def damage_all_actors_at_coord(coord=(0, 0), damage=10):
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     area_of_effect = await get_circle(center=center, radius=radius)
     for coord in area_of_effect:
-        await samage_all_actors_at_coord(coord=coord, damage=damage)
+        await damage_all_actors_at_coord(coord=coord, damage=damage)
 
 async def damage_actor(actor=None, damage=10, display_above=True,
-                       leaves_body=False, material='wood'):
+                       leaves_body=False, blood=False, material='wood'):
     if hasattr(actor_dict[actor], 'health'):
         current_health = actor_dict[actor].health
     else:
@@ -446,11 +443,11 @@ async def damage_actor(actor=None, damage=10, display_above=True,
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
     if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
         root_x, root_y = actor_dict[actor].coords()
-        asyncio.ensure_future(sow_texture(root_x, root_y, palette='/\\|_-,.\'', radius=3, seeds=6, 
+        asyncio.ensure_future(sow_texture(root_x, root_y, palette=',.\'', radius=3, seeds=6, 
                               passable=True, stamp=True, paint=False, color_num=8,
                               description='Broken {}.'.format(material),
                               pause_between=.06))
-        await kill_actor(name_key=actor, blood=False, leaves_body=False)
+        await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     if not hasattr(actor_dict[actor], 'coords'):
@@ -476,18 +473,6 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
                                                 end_coords=end_coords,
                                                 debris=False,
                                                 animation=False))
-
-async def laser(coord_a=(0, 0), coord_b=(5, 5), palette="*", speed=.05):
-    points = await get_line(coord_a, coord_b)
-    for index, point in enumerate(points[1:]):
-        await asyncio.sleep(speed)
-        if map_dict[point].passable:
-            continue
-        else:
-            points_until_wall = points[:index+1]
-            break
-    for point in points_until_wall:
-        map_dict[point].tile = term.red(choice(palette))
 
 async def unlock_door(actor_key='player', opens='red'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -595,7 +580,6 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
                 asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
                                             damage=damage, sword_color=7, speed=speed, 
                                             retract_speed=retract_speed))
-                #await asyncio.sleep(mid_trap_delay_time)
 
 async def spike_trap(base_name='spike_trap', coord=(10, 10), 
                      direction='n', damage=20, length=5, rate=.25, 
@@ -623,11 +607,35 @@ async def check_actors_on_tile(coords=(0, 0), positives=''):
                 break
     return False
 
+async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5), 
+                              on_grid=(7, 7), room_size=(5, 5), origin=(0, 0)):
+    room_centers.add(listen_tile)
+    map_dict[on_grid].tile = 'X'
+    while True:
+        await asyncio.sleep(.1)
+        if 'player' in map_dict[listen_tile].actors:
+            break
+    with term.location(70, 0):
+        print(room_centers)
+    map_dict[on_grid].tile = 'O'
+    loop = asyncio.get_event_loop()
+    doors = {(randint(-1, 1) * on_grid[0] + listen_tile[0], 
+              randint(-1, 1) * on_grid[1] + listen_tile[1]) 
+             for i in range(randint(2, 4))}
+    with term.location(70, 2):
+        print(doors)
+    for door in doors:
+        if door not in room_centers:
+            with term.location(70, 0):
+                print("new room at {}!".format(door))
+            draw_centered_box(middle_coord=door, x_size=room_size[0], y_size=room_size[1], tile="░")
+            map_dict[door].tile = 'x'
+            loop.create_task(trigger_on_presence(listen_tile=door, on_grid=on_grid, room_size=room_size))
+            connect_with_passage(*door, *listen_tile, segments=2, palette="░")
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1):
-
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     plate_id = await generate_id(base_name='pressure_plate')
@@ -683,7 +691,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     sword_id = await generate_id(base_name=name)
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
-                       starting_coords[1] + chosen_dir[1] * i) for i in range(1, length)]
+                       starting_coords[1] + chosen_dir[1] * i) 
+                      for i in range(1, length)]
     to_damage_names = []
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(name=segment_name, moveable=False,
@@ -760,7 +769,6 @@ async def random_blink(actor='player', radius=20):
         else:
             actor_dict[actor].update(*line_of_sight_result)
             return
-
 
 async def temporary_block(duration=5, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -924,7 +932,6 @@ async def print_screen_grid():
             with term.location(x * 5, y * 5):
                 print(".")
 
-
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
     x_tuple = (top_left[0], top_left[0] + x_size)
     y_tuple = (top_left[1], top_left[1] + y_size)
@@ -1008,10 +1015,6 @@ def draw_door(x, y, closed=True, locked=False, description='wooden', is_door=Tru
         tile, passable, blocking = states[0]
     else:
         tile, passable, blocking = states[1]
-    #if description == 'red':
-        #map_dict[(x, y)].tile = term.red(tile)
-    #elif description == 'green':
-        #map_dict[(x, y)].tile = term.green(tile)
     map_dict[(x, y)].tile = tile
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
@@ -1031,7 +1034,8 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10),
 
 #TODO: create a mirror
 
-async def magic_door(start_coord=(5, 5), end_coords=(-22, 18)):
+async def magic_door(start_coord=(5, 5), end_coords=(-22, 18), 
+                     horizon_orientation='vertical', silent=False):
     """
     notes for portals/magic doors:
     either gapless teleporting doors or gapped by darkness doors.
@@ -1050,11 +1054,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18)):
     red within view distance and only you and the tentacle monster are visible
     """
     await asyncio.sleep(0)
-    #an interesting thematic option: when blocking, view is entirely blotted out until you move a second time.o
-    #teleport temporarily to a pocket dimension (another mini map_dict for each door pair)
-    #map_dict[start_coord].blocking = True
     animation = Animation(base_tile='▮', preset='door')
-                          #color_choices="1234567", preset=None)
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
                                      magic=True, magic_destination=end_coords,
                                      is_animated=True, animation=animation)
@@ -1064,11 +1064,12 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18)):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         just_teleported = actor_dict['player'].just_teleported
+        # add an option for non-player actors to go through.
         if player_coords == start_coord and not just_teleported:
-            #asyncio.ensure_future(filter_print(output_text="You are teleported."))
+            if not silent:
+                asyncio.ensure_future(filter_print(output_text="You are teleported."))
             map_dict[player_coords].passable=True
             actor_dict['player'].update(*end_coords)
-            x, y = actor_dict['player'].coords()
             actor_dict['player'].just_teleported = True
 
 async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
@@ -1325,13 +1326,13 @@ async def open_door(door_coord):
 
 async def close_door(door_coord, push_aside=False):
     #TODO: make close door push actors to a random adjacent open space.
-    if not push_aside and map_dict[door_coord].actors:
-        actors = map_dict[door_coord].actors.items()
-        for actor in actors:
-            actor_name = actor[0]
-            if actor_name == 'player':
-                await filter_print(output_text='You are caught underneath.')
-            await damage_actor(actor_name, damage=100)
+    #if not push_aside and map_dict[door_coord].actors:
+        #actors = map_dict[door_coord].actors.items()
+        #for actor in actors:
+            #actor_name = actor[0]
+            #if actor_name == 'player':
+                #await filter_print(output_text='You are caught underneath.')
+            #await damage_actor(actor_name, damage=100)
     map_dict[door_coord].tile = '▮'
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
@@ -1776,25 +1777,8 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
     reference_point = coord_a[0], coord_a[1] + 5
     for point in points:
-        # if there is a magic door between, start another check_line_of_sight of length remaining
         if map_dict[point].magic == True:
-            last_point = points[-1]
-            difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
-            destination = map_dict[point].magic_destination
-            if difference_from_last is not (0, 0):
-                coord_through_door = (destination[0] + difference_from_last[0], 
-                                      destination[1] + difference_from_last[1])
-                door_points = await get_line(destination, coord_through_door)
-                if len(door_points) >= 2:
-                    line_of_sight_result = await check_line_of_sight(door_points[1], coord_through_door)
-                else:
-                    line_of_sight_result = True
-                if line_of_sight_result != False and line_of_sight_result != None:
-                    #catches tiles beyond magic doors:
-                    return coord_through_door
-                else:
-                    return line_of_sight_result
-                #return await check_contents_of_tile(coord_through_door)
+            return await handle_magic_door(point=point, last_point=points[-1])
         if map_dict[point].blocking == False:
             open_space += 1
         else:
@@ -1806,9 +1790,29 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     if map_dict[points[-1]].blocking == True and walls == 1:
         return True
 
+async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
+    """
+    TODO: if standing on the magic tile, display nothing to the left and right or
+    above and below depending on the orientation of the magic door.
+    """
+    difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
+    destination = map_dict[point].magic_destination
+    if difference_from_last is not (0, 0):
+        coord_through_door = (destination[0] + difference_from_last[0], 
+                              destination[1] + difference_from_last[1])
+        door_points = await get_line(destination, coord_through_door)
+        if len(door_points) >= 2:
+            line_of_sight_result = await check_line_of_sight(door_points[1], coord_through_door)
+        else:
+            line_of_sight_result = True
+        if line_of_sight_result != False and line_of_sight_result != None:
+            return coord_through_door
+        else:
+            return line_of_sight_result
+
 async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     """ handles displaying data from map_dict """
-    #distance from center of field of view
+    #distance from offsets to center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
     await asyncio.sleep(random()/5 * distance) #stagger starting_time
     middle_x, middle_y = (int(term.width / 2 - 2), 
@@ -1816,7 +1820,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     previous_tile = None
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_print_choice = ' '
-    #view angle setup
     angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
@@ -2961,6 +2964,7 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
+    loop.create_task(trigger_on_presence())
     #for i in range(3):
         #rand_coord = (randint(-25, 25), randint(-25, 25))
         #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
