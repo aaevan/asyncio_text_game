@@ -478,7 +478,7 @@ async def unlock_door(actor_key='player', opens='red'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
-    door_coord = await add_coords(actor_coord, directions[check_dir])
+    door_coord = add_coords(actor_coord, directions[check_dir])
     door_type = map_dict[door_coord].key
     if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
@@ -608,30 +608,38 @@ async def check_actors_on_tile(coords=(0, 0), positives=''):
     return False
 
 async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5), 
-                              on_grid=(7, 7), room_size=(5, 5), origin=(0, 0)):
+                              on_grid=(11, 11), room_size=(10, 10), origin=(0, 0)):
     room_centers.add(listen_tile)
-    map_dict[on_grid].tile = 'X'
+    map_dict[listen_tile].tile = 'X'
     while True:
         await asyncio.sleep(.1)
         if 'player' in map_dict[listen_tile].actors:
             break
     with term.location(70, 0):
         print(room_centers)
-    map_dict[on_grid].tile = 'O'
+    map_dict[listen_tile].tile = 'O'
     loop = asyncio.get_event_loop()
-    doors = {(randint(-1, 1) * on_grid[0] + listen_tile[0], 
-              randint(-1, 1) * on_grid[1] + listen_tile[1]) 
-             for i in range(randint(2, 4))}
+    coord_dirs = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    door_dirs = [(coord[0] * on_grid[0],
+                  coord[1] * on_grid[1]) 
+                 for coord in coord_dirs]
+    unexplored = [add_coords(listen_tile, door_dir) for door_dir in door_dirs]
+    with term.location(0, 2):
+        print(unexplored)
+    direction_choices = []
+    for location in unexplored:
+        if location not in room_centers:
+            direction_choices.append(location)
     with term.location(70, 2):
-        print(doors)
-    for door in doors:
-        if door not in room_centers:
+        print(direction_choices)
+    for direction_choice in direction_choices:
+        if direction_choice not in room_centers:
             with term.location(70, 0):
-                print("new room at {}!".format(door))
-            draw_centered_box(middle_coord=door, x_size=room_size[0], y_size=room_size[1], tile="░")
-            map_dict[door].tile = 'x'
-            loop.create_task(trigger_on_presence(listen_tile=door, on_grid=on_grid, room_size=room_size))
-            connect_with_passage(*door, *listen_tile, segments=2, palette="░")
+                print("new room at {}!".format(direction_choice))
+            draw_centered_box(middle_coord=direction_choice, x_size=room_size[0], y_size=room_size[1], tile="░")
+            map_dict[direction_choice].tile = 'x'
+            loop.create_task(trigger_on_presence(listen_tile=direction_choice, on_grid=on_grid, room_size=room_size))
+            await draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -1027,7 +1035,7 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10),
     #draw hallway
     draw_box(top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░")
     coord_a_hallway = hallway_offset
-    coord_b_hallway = await add_coords(hallway_offset, (hallway_length, 0))
+    coord_b_hallway = add_coords(hallway_offset, (hallway_length, 0))
     #create magic doors:
     await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway)
     await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway)
@@ -2166,7 +2174,7 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
             break
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
-        with term.location(*await add_coords(print_coord, (0, 1))):
+        with term.location(*add_coords(print_coord, (0, 1))):
             print("coords: {}".format(actor_dict['player'].coords()))
 
 async def ui_setup():
@@ -2239,7 +2247,7 @@ async def damage_door():
     pass
 
 #misc utility functions---------------------------------------------------------
-async def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
+def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
     output = (coord_a[0] + coord_b[0],
               coord_a[1] + coord_b[1])
     return output
@@ -2640,7 +2648,7 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
     actor_coords = actor_dict[actor_key].coords()
     x_shift, y_shift = await point_given_angle_and_radius(angle=rand_angle,
                                                           radius=rand_radius)
-    end_coords = await add_coords(actor_coords, (x_shift, y_shift))
+    end_coords = add_coords(actor_coords, (x_shift, y_shift))
     actor_coords = actor_dict[actor_key].coords()
     start_coords = actor_coords
     await travel_along_line(name='particle', start_coord=start_coords, 
@@ -2795,7 +2803,7 @@ async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(
     steps = await path_into_steps(coord_list)
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
-        new_position = await add_coords(actor_coords, step)
+        new_position = add_coords(actor_coords, step)
         if map_dict[new_position].passable and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
