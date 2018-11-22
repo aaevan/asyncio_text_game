@@ -637,9 +637,24 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
             with term.location(70, 0):
                 print("new room at {}!".format(direction_choice))
             draw_centered_box(middle_coord=direction_choice, x_size=room_size[0], y_size=room_size[1], tile="░")
-            map_dict[direction_choice].tile = 'x'
             loop.create_task(trigger_on_presence(listen_tile=direction_choice, on_grid=on_grid, room_size=room_size))
             await draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
+            map_dict[direction_choice].tile = 'x'
+
+async def export_map(width=100, height=100):
+    filename = "{}.txt".format(await generate_id(base_name='exported_map'))
+    player_location = actor_dict['player'].coords()
+    x_spread = (-width // 2 + player_location[0], 
+                 width // 2 + player_location[0])
+    y_spread = (-height // 2 + player_location[1], 
+                 height // 2 + player_location[1])
+    with open(filename, 'a') as the_file:
+        for y_pos, y in enumerate(range(*y_spread)):
+            with term.location(60, y_pos):
+                line_output = "{}\n".format("".join([map_dict[i, y].tile for i in range(*x_spread)]))
+                the_file.write(line_output)
+    with term.location(80, 0):
+        print("finished writing map segment to {}.".format(filename))
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -1274,6 +1289,8 @@ async def handle_input(key):
             asyncio.ensure_future(filter_fill())
         if key in '3':
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
+        if key in '8':
+            asyncio.ensure_future(export_map())
         if key in 'Vv':
             asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
         if key in 'Xx':
@@ -1312,8 +1329,8 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
-        if key in '8':
-            asyncio.ensure_future(print_screen_grid())
+        #if key in '8':
+            #asyncio.ensure_future(print_screen_grid())
         if key in 'o':
             asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
