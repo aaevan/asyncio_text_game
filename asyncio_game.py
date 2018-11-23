@@ -744,13 +744,16 @@ async def dash_item_ability(dash_length=20):
     direction = state_dict['facing']
     asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction))
 
-async def teleport_in_direction(key='A', distance=15):
-    #TODO: replace with facing offset multiplied by distance
-    hops = {'A':(-distance, 0), 'D':(distance, 0), 
-            'W':(0, -distance), 'S':(0, distance),}
+async def teleport_in_direction(facing_direction=None, distance=15, flashy=True):
+    if facing_direction is None:
+        facing_direction = state_dict['facing']
+    directions_to_offsets = {'n':(0, -distance), 'e':(distance, 0), 
+                             's':(0, distance), 'w':(-distance, 0),}
     player_coords = actor_dict['player'].coords()
-    destination = add_coords(player_coords, hops[key])
-    await flashy_teleport(destination=destination)
+    destination_offset = directions_to_offsets[facing_direction]
+    destination = add_coords(player_coords, destination_offset)
+    if flashy:
+        await flashy_teleport(destination=destination)
 
 async def flashy_teleport(destination=(0, 0), actor='player'):
     """
@@ -1284,7 +1287,7 @@ async def handle_input(key):
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
         if key in 'WASD':
-            asyncio.ensure_future(teleport_in_direction(key=key, distance=15))
+            asyncio.ensure_future(teleport_in_direction(distance=15))
         if key in '?':
             await display_help() 
         if key in '$':
