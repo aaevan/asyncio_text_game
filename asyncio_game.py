@@ -744,6 +744,14 @@ async def dash_item_ability(dash_length=20):
     direction = state_dict['facing']
     asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction))
 
+async def teleport_in_direction(key='A', distance=15):
+    #TODO: replace with facing offset multiplied by distance
+    hops = {'A':(-distance, 0), 'D':(distance, 0), 
+            'W':(0, -distance), 'S':(0, distance),}
+    player_coords = actor_dict['player'].coords()
+    destination = add_coords(player_coords, hops[key])
+    await flashy_teleport(destination=destination)
+
 async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     does a flash animation of drawing in particles then teleports the player
@@ -1242,7 +1250,6 @@ async def handle_input(key):
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
-    hops = {'A':(-15, 0), 'D':(15, 0), 'W':(0, -15), 'S':(0, 15),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
@@ -1276,13 +1283,8 @@ async def handle_input(key):
             if key in 'wasd':
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
-        if key in hops:
-            #TODO: break hops into separate function/ability
-            player_coords = actor_dict['player'].coords()
-            destination = (player_coords[0] + hops[key][0], 
-                           player_coords[1] + hops[key][1])
-            await flashy_teleport(destination=destination)
-        shifted_x, shifted_y = x + x_shift, y + y_shift
+        if key in 'WASD':
+            asyncio.ensure_future(teleport_in_direction(key=key, distance=15))
         if key in '?':
             await display_help() 
         if key in '$':
@@ -1329,12 +1331,11 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
-        #if key in '8':
-            #asyncio.ensure_future(print_screen_grid())
         if key in 'o':
             asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
+        shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             map_dict[(x, y)].passable = True #make previous space passable
             actor_dict['player'].update(x + x_shift, y + y_shift)
