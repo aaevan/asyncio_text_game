@@ -69,8 +69,10 @@ class Actor:
         self.leaves_body = leaves_body
         self.holding_items = holding_items
         self.breakable = breakable
+        self.last_location = (x_coord, y_coord)
 
     def update(self, x, y):
+        self.last_location = (self.x_coord, self.y_coord)
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -1063,8 +1065,8 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10),
     coord_a_hallway = hallway_offset
     coord_b_hallway = add_coords(hallway_offset, (hallway_length, 0))
     #create magic doors:
-    await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway)
-    await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway)
+    await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway, silent=True)
+    await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway, silent=True)
 
 #TODO: create a mirror
 
@@ -1087,6 +1089,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
     when within a short distance, the entire field flickers (mostly) red to black
     red within view distance and only you and the tentacle monster are visible
     """
+    direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     await asyncio.sleep(0)
     animation = Animation(base_tile='▮', preset='door')
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
@@ -1100,16 +1103,21 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
         just_teleported = actor_dict['player'].just_teleported
         # add an option for non-player actors to go through.
         if player_coords == start_coord and not just_teleported:
-            if not silent:
-                asyncio.ensure_future(filter_print(output_text="You are teleported."))
-            map_dict[player_coords].passable=True
-            actor_dict['player'].update(*end_coords)
-            actor_dict['player'].just_teleported = True
+            last_location = state_dict['last_location']
+            difference_from_door_coords = (start_coord[0] - last_location[0], 
+                                           start_coord[1] - last_location[1])
+            destination = add_coords(end_coords, difference_from_door_coords)
+            if map_dict[destination].passable:
+                if not silent:
+                    asyncio.ensure_future(filter_print(output_text="You are teleported."))
+                map_dict[player_coords].passable=True
+                actor_dict['player'].update(*destination)
+                actor_dict['player'].just_teleported = True
 
-async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25)):
+async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25), silent=False):
     loop = asyncio.get_event_loop()
-    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords)))
-    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords)))
+    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords), silent=silent))
+    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords), silent=silent))
 
 async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
                           breakable=True, preset='random'):
@@ -1343,6 +1351,7 @@ async def handle_input(key):
             asyncio.ensure_future(spawn_bubble())
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
+            state_dict['last_location'] = (x, y)
             map_dict[(x, y)].passable = True #make previous space passable
             actor_dict['player'].update(x + x_shift, y + y_shift)
             x, y = actor_dict['player'].coords()
@@ -1356,15 +1365,7 @@ async def open_door(door_coord):
     map_dict[door_coord].passable = True
     map_dict[door_coord].blocking = False
 
-async def close_door(door_coord, push_aside=False):
-    #TODO: make close door push actors to a random adjacent open space.
-    #if not push_aside and map_dict[door_coord].actors:
-        #actors = map_dict[door_coord].actors.items()
-        #for actor in actors:
-            #actor_name = actor[0]
-            #if actor_name == 'player':
-                #await filter_print(output_text='You are caught underneath.')
-            #await damage_actor(actor_name, damage=100)
+async def close_door(door_coord):
     map_dict[door_coord].tile = '▮'
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
