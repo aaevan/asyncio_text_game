@@ -296,11 +296,10 @@ def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10,
     top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
     draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, tile=tile)
 
-async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
-                    passable=True, blocking = False):
+def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
+                    passable=True, blocking=False):
     """draws a line to the map_dict connecting the two given points."""
-    await asyncio.sleep(0)
-    points = await get_line(coord_a, coord_b)
+    points = get_line(coord_a, coord_b)
     for point in points:
         if len(palette) > 1:
             map_dict[point].tile = choice(palette)
@@ -308,6 +307,18 @@ async def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
             map_dict[point].tile = palette
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
+
+def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
+                   passable=True, blocking=False, width=2):
+    if width == 0:
+        return
+    offsets = [(x, y) for x in range(width) 
+                      for y in range(width)]
+    for offset in offsets:
+        offset_coord_a = add_coords(coord_a, offset)
+        offset_coord_b = add_coords(coord_b, offset)
+        draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
+                  passable=passable, blocking=blocking)
 
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 passable=True, blocking=False, animation=None, delay=0,
@@ -323,7 +334,7 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
             await asyncio.sleep(delay)
             if not map_dict[(x, y)].mutable:
                 continue
-            distance_to_center = await point_to_point_distance(point_a=center_coord, point_b=(x, y))
+            distance_to_center = point_to_point_distance(point_a=center_coord, point_b=(x, y))
             if animation:
                 is_animated = True
             else:
@@ -364,7 +375,7 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     #find last open tile before wall and place item there.
     if not line_of_sight_result:
         last_open = None
-        points = await get_line(starting_point, destination)
+        points = get_line(starting_point, destination)
         #ignore the first point, that's where the player is standing.
         for point in points[1:]:
             if map_dict[point].passable:
@@ -540,8 +551,8 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     range_tuple = (-circle_size, circle_size + 1)
     for x in range(*range_tuple):
         for y in range(*range_tuple):
-            distance_to_center = await point_to_point_distance(point_a=(0, 0), 
-                                                               point_b=(x, y))
+            distance_to_center = point_to_point_distance(point_a=(0, 0), 
+                                                         point_b=(x, y))
             if distance_to_center <= circle_size:
                 loop.create_task(follower_actor(parent_actor=actor_id, 
                                                 offset=(x, y)))
@@ -640,7 +651,7 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
                 print("new room at {}!".format(direction_choice))
             draw_centered_box(middle_coord=direction_choice, x_size=room_size[0], y_size=room_size[1], tile="░")
             loop.create_task(trigger_on_presence(listen_tile=direction_choice, on_grid=on_grid, room_size=room_size))
-            await draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
+            draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
             map_dict[direction_choice].tile = 'x'
 
 async def export_map(width=100, height=100):
@@ -789,8 +800,8 @@ async def random_blink(actor='player', radius=20):
         rand_x = randint(-radius, radius) + current_location[0]
         rand_y = randint(-radius, radius) + current_location[1]
         blink_to = (rand_x, rand_y)
-        distance = await point_to_point_distance(point_a=blink_to, 
-                                                 point_b=current_location)
+        distance = point_to_point_distance(point_a=blink_to, 
+                                           point_b=current_location)
         if distance > radius:
             continue
         line_of_sight_result = await check_line_of_sight(coord_a=current_location, coord_b=blink_to)
@@ -1345,10 +1356,10 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
-        if key in 'o':
-            asyncio.ensure_future(orbit(track_actor='player'))
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
+        if key in '1':
+            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░▒", width=3)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             state_dict['last_location'] = (x, y)
@@ -1610,7 +1621,7 @@ async def parse_announcement(tile_coord_key):
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
     if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
         if map_dict[tile_coord_key].distance_trigger:
-            distance = await point_to_point_distance(tile_coord_key, player_coords)
+            distance = point_to_point_distance(tile_coord_key, player_coords)
             if distance <= map_dict[tile_coord_key].distance_trigger:
                 await parse_announcement(tile_coord_key)
                 map_dict[tile_coord_key].seen = True
@@ -1621,9 +1632,8 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
         map_dict[tile_coord_key].seen = True
 
 #Geometry functions-------------------------------------------------------------
-async def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     """ finds 2d distance between two points """
-    await asyncio.sleep(0)
     x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
@@ -1638,7 +1648,7 @@ async def get_circle(center=(0, 0), radius=5):
                result.append((center[0] + x, center[1] + y))
     return result
 
-async def get_line(start, end):
+def get_line(start, end):
     """Bresenham's Line Algorithm
     Copied from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm
     Produces a list of tuples from start and end
@@ -1651,7 +1661,6 @@ async def get_line(start, end):
     >>> print(points2)
     [(3, 4), (2, 3), (1, 2), (1, 1), (0, 0)]
     """
-    await asyncio.sleep(0)
     x1, y1 = start
     # Setup initial conditions
     x2, y2 = end
@@ -1806,7 +1815,7 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
     await asyncio.sleep(.01)
     open_space, walls, history = 0, 0, []
-    points = await get_line(coord_a, coord_b)
+    points = get_line(coord_a, coord_b)
     change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
     reference_point = coord_a[0], coord_a[1] + 5
     for point in points:
@@ -1833,7 +1842,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
     if difference_from_last is not (0, 0):
         coord_through_door = (destination[0] + difference_from_last[0], 
                               destination[1] + difference_from_last[1])
-        door_points = await get_line(destination, coord_through_door)
+        door_points = get_line(destination, coord_through_door)
         if len(door_points) >= 2:
             line_of_sight_result = await check_line_of_sight(door_points[1], coord_through_door)
         else:
@@ -2717,7 +2726,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
                             debris=None, damage=None, ignore_head=False, no_clip=True):
     asyncio.sleep(0)
-    points = await get_line(start_coord, end_coords)
+    points = get_line(start_coord, end_coords)
     if no_clip:
         for index, point in enumerate(points):
             if not map_dict[point].passable:
@@ -2814,7 +2823,7 @@ async def dash_along_direction(actor_key='player', direction='n',
     direction_step = directions[direction]
     destination = (current_coord[0] + direction_step[0] * distance,
                    current_coord[1] + direction_step[1] * distance)
-    coord_list = await get_line(current_coord, destination)
+    coord_list = get_line(current_coord, destination)
     await move_through_coords(actor_key=actor_key, coord_list=coord_list,
                             time_between_steps=time_between_steps)
 
