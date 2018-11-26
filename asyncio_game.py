@@ -308,6 +308,8 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
+#TODO: a function to make a bumpy passage of randomly oscillating size
+
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
                    passable=True, blocking=False, width=2):
     if width == 0:
@@ -320,6 +322,32 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
         draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
                   passable=passable, blocking=blocking)
 
+def square_cave_room(center_coord=(0, 0), width=10, height=10, iterations=5):
+    #TODO: unfinished. 
+    neighbors = [(x, y) for x in (-1, 0, 1)
+                        for y in (-1, 0, 1) 
+                        if (x, y) != (0, 0)]
+    print('neighbors is: {}'.format(neighbors))
+    #initialize the room
+    cave_room = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
+    adjacency = {(x, y):0 for x in range(width) for y in range(height)}
+    check_coords = [(x, y) for x in range(width)
+                           for y in range(height)]
+    for iteration_number in range(iterations):
+        print('iteration_number: {}'.format(iteration_number))
+        for coord in check_coords:
+            neighbor_count = 0
+            for neighbor in neighbors:
+                print('coord is: {}, neighbor: {}, neighbor type:{}'.format(coord, neighbor, type(neighbor)))
+                check_cell_coords = add_coords(coord_a=cave_room[coord], coord_b=neighbor)
+                if coord not in cave_room:
+                    continue
+                if cave_room[check_cell_coords] == '#':
+                    neighbor_count += 1
+            adjacency[row,column] = neighbor_count
+    return adjacency
+
+#TODO: convert draw_circle to syncronous.
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 passable=True, blocking=False, animation=None, delay=0,
                 description=None):
@@ -2014,37 +2042,6 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
             await asyncio.sleep(random()/70)
             with term.location(*point):
                 print(tile)
-
-async def find_damage_direction(attacker_key, source_coord=None):
-    """
-    TODO: fix to pull from an angle instead
-    four possible outputs.
-        N
-       
-    W       E
-
-        S
-
-    N: y value of attacker is less than player Y
-    E: x value is greater than player x
-    S: y value is greater than player y
-    W: x value of attacker is less than player x
-    """
-    if source_coord is not None:
-        attacker_location = source_coord
-    else:
-        attacker_location = actor_dict[attacker_key].coords()
-    player_location = actor_dict['player'].coords()
-    if attacker_location[1] < player_location[1]: #N
-        return 'n'
-    elif attacker_location[0] > player_location[0]: #E
-        return 'e'
-    elif attacker_location[1] > player_location[1]: #S 
-        return 's'
-    elif attacker_location[0] < player_location[0]: #W
-        return 'w'
-    else:
-        return 'n'
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
     #TODO: apply timer to pressure plates.
