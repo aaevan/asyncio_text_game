@@ -327,7 +327,6 @@ def square_cave_room(center_coord=(0, 0), width=10, height=10, iterations=5):
     neighbors = [(x, y) for x in (-1, 0, 1)
                         for y in (-1, 0, 1) 
                         if (x, y) != (0, 0)]
-    print('neighbors is: {}'.format(neighbors))
     #initialize the room
     cave_room = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
@@ -338,13 +337,14 @@ def square_cave_room(center_coord=(0, 0), width=10, height=10, iterations=5):
         for coord in check_coords:
             neighbor_count = 0
             for neighbor in neighbors:
-                print('coord is: {}, neighbor: {}, neighbor type:{}'.format(coord, neighbor, type(neighbor)))
-                check_cell_coords = add_coords(coord_a=cave_room[coord], coord_b=neighbor)
-                if coord not in cave_room:
+                check_cell_coord = add_coords(coord_a=coord, coord_b=neighbor)
+                if check_cell_coord not in cave_room:
                     continue
-                if cave_room[check_cell_coords] == '#':
+                if cave_room[check_cell_coord] == '#':
                     neighbor_count += 1
-            adjacency[row,column] = neighbor_count
+            adjacency[coord] = neighbor_count
+        for y in range(height):
+            print(''.join([str(adjacency[x, y]) for x in range(width)]))
     return adjacency
 
 #TODO: convert draw_circle to syncronous.
