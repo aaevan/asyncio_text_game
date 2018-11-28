@@ -24,22 +24,21 @@ def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
 
-def cave_room(input_space=None, trim_radius=20, width=50, height=50, iterations=20):
+def cave_room(input_space=None, trim_radius=20, width=50, height=50, 
+              iterations=20, debug=False):
     #TODO: unfinished. 
     neighbors = [(x, y) for x in (-1, 0, 1)
                         for y in (-1, 0, 1)]
     #initialize the room
     input_space = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
     if trim_radius:
-        center_coord = width // 2, height // 2
-        for coord in input_space:
-            distance_from_center = point_to_point_distance(point_a=coord, point_b=center_coord)
-            if distance_from_center > trim_radius:
-                input_space[coord] = ' '
+        input_space = trim_outside_circle(input_dict=input_space, width=width,
+                                         height=height, trim_radius=trim_radius)
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
     check_coords = [(x, y) for x in range(width)
                            for y in range(height)]
     for iteration_number in range(iterations):
+        #build adjacency map
         for coord in check_coords:
             neighbor_count = 0
             for neighbor in neighbors:
@@ -49,21 +48,35 @@ def cave_room(input_space=None, trim_radius=20, width=50, height=50, iterations=
                 if input_space[check_cell_coord] == '#':
                     neighbor_count += 1
             adjacency[coord] = neighbor_count
-        for y in range(height):
-            for x in range(width):
-                if adjacency[x, y] >= 5:
-                    input_space[x, y] = '#'
-                else:
-                    input_space[x, y] = ' '
-        for y in range(height):
-            print(''.join([input_space[x, y] for x in range(width)]))
-        print("iteration: {}".format(iteration_number))
-        sleep(.05)
-        os.system('clear')
+        #step through adjacency map, apply changes
+        for coord in check_coords:
+            if adjacency[coord] >= 5:
+                input_space[coord] = '#'
+            else:
+                input_space[coord] = ' '
+        if debug:
+            preview_space(input_space=input_space, height=height, width=width)
+    return input_space
+
+def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outside_radius_char=' '):
+    center_coord = width // 2, height // 2
+    for coord in input_dict:
+        distance_from_center = point_to_point_distance(point_a=coord, point_b=center_coord)
+        if distance_from_center >= trim_radius:
+            input_dict[coord] = outside_radius_char
+    return input_dict
+
+def preview_space(input_space=None, height=30, width=30):
+    os.system('clear')
+    if input_space is None:
+        return
+    for y in range(height):
+        print(''.join([input_space[x, y] for x in range(width)]))
+    sleep(.05)
 
 def main():
     while(True):
-        cave_room()
+        cave_room(debug=True)
 
 if __name__ == '__main__':
     main()
