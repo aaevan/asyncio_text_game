@@ -322,30 +322,70 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
         draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
                   passable=passable, blocking=blocking)
 
-def square_cave_room(center_coord=(0, 0), width=10, height=10, iterations=5):
+def cave_room(trim_radius=20, width=50, height=50, 
+              iterations=20, debug=False):
     #TODO: unfinished. 
     neighbors = [(x, y) for x in (-1, 0, 1)
-                        for y in (-1, 0, 1) 
-                        if (x, y) != (0, 0)]
+                        for y in (-1, 0, 1)]
     #initialize the room
-    cave_room = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
+    input_space = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
+    if trim_radius:
+        input_space = trim_outside_circle(input_dict=input_space, width=width,
+                                         height=height, trim_radius=trim_radius)
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
     check_coords = [(x, y) for x in range(width)
                            for y in range(height)]
     for iteration_number in range(iterations):
-        print('iteration_number: {}'.format(iteration_number))
+        #build adjacency map
         for coord in check_coords:
             neighbor_count = 0
             for neighbor in neighbors:
                 check_cell_coord = add_coords(coord_a=coord, coord_b=neighbor)
-                if check_cell_coord not in cave_room:
+                if check_cell_coord not in input_space:
                     continue
-                if cave_room[check_cell_coord] == '#':
+                if input_space[check_cell_coord] == '#':
                     neighbor_count += 1
             adjacency[coord] = neighbor_count
-        for y in range(height):
-            print(''.join([str(adjacency[x, y]) for x in range(width)]))
-    return adjacency
+        #step through adjacency map, apply changes
+        for coord in check_coords:
+            if adjacency[coord] >= 5:
+                input_space[coord] = '#'
+            else:
+                input_space[coord] = ' '
+        if debug:
+            preview_space(input_space=input_space, height=height, width=width)
+    return input_space
+
+def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outside_radius_char=' '):
+    center_coord = width // 2, height // 2
+    for coord in input_dict:
+        distance_from_center = point_to_point_distance(point_a=coord, point_b=center_coord)
+        if distance_from_center >= trim_radius:
+            input_dict[coord] = outside_radius_char
+    return input_dict
+
+def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='X'): #hash_char='░'):
+    for coord, value in room.items():
+        write_coord = add_coords(coord, top_left_coord)
+        with term.location(80, 0):
+            print(write_coord, value)
+        if value == ' ':
+            continue
+            #map_dict[write_coord].passable = False
+            #map_dict[write_coord].blocking = True
+            #map_dict[write_coord].tile = space_char
+        if value == '#':
+            map_dict[write_coord].passable = True
+            map_dict[write_coord].blocking = False
+            map_dict[write_coord].tile = hash_char
+
+def preview_space(input_space=None, height=30, width=30):
+    os.system('clear')
+    if input_space is None:
+        return
+    for y in range(height):
+        print(''.join([input_space[x, y] for x in range(width)]))
+    sleep(.05)
 
 #TODO: convert draw_circle to syncronous.
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
@@ -1384,6 +1424,10 @@ async def handle_input(key):
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
+        if key in 'R':
+            player_coord = actor_dict['player'].coords()
+            test_room = cave_room()
+            write_room_to_map(room=test_room, top_left_coord=player_coord)
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if key in '1':

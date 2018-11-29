@@ -8,6 +8,12 @@ def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
               coord_a[1] + coord_b[1])
     return output
 
+def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+    """ finds 2d distance between two points """
+    x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
+    distance = round(sqrt(x_run ** 2 + y_run ** 2))
+    return distance
+
 def get_circle(center=(0, 0), radius=5):
     radius_range = [i for i in range(-radius, radius + 1)]
     result = []
@@ -17,12 +23,6 @@ def get_circle(center=(0, 0), radius=5):
            if distance <= radius:
                result.append((center[0] + x, center[1] + y))
     return result
-
-def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
-    """ finds 2d distance between two points """
-    x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
-    distance = round(sqrt(x_run ** 2 + y_run ** 2))
-    return distance
 
 def cave_room(input_space=None, trim_radius=20, width=50, height=50, 
               iterations=20, debug=False):
@@ -65,6 +65,20 @@ def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outsi
         if distance_from_center >= trim_radius:
             input_dict[coord] = outside_radius_char
     return input_dict
+
+async def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'):
+    for coord, value in room.items():
+        with term.location(80, 0):
+            print(coord, value)
+        await asyncio.sleep(.1)
+        if value == ' ':
+            map_dict[coord].passable = False
+            map_dict[coord].blocking = True
+            map_dict[coord].tile = space_char
+        if value == '#':
+            map_dict[coord].passable = True
+            map_dict[coord].blocking = False
+            map_dict[coord].tile = hash_char
 
 def preview_space(input_space=None, height=30, width=30):
     os.system('clear')
