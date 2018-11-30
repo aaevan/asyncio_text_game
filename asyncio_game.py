@@ -311,18 +311,24 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
 #TODO: a function to make a bumpy passage of randomly oscillating size
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
-                   passable=True, blocking=False, width=2):
+                   passable=True, blocking=False, width=5):
+    origin = (0, 0)
     if width == 0:
         return
-    offsets = [(x, y) for x in range(width) 
-                      for y in range(width)]
-    for offset in offsets:
+    offsets = ((x, y) for x in range(-width, width + 1) 
+                      for y in range(-width, width + 1))
+    trimmed_offsets = [offset for offset in offsets if
+                       point_to_point_distance(point_a=offset, point_b=origin) <= width / 2]
+    for offset in trimmed_offsets:
         offset_coord_a = add_coords(coord_a, offset)
         offset_coord_b = add_coords(coord_b, offset)
         draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
                   passable=passable, blocking=blocking)
 
-def cave_room(trim_radius=20, width=50, height=50, 
+#TODO: make passage that chains n_wide_passages of set length along a randomly walking angle.
+#      The passage will follow a snakelike pattern.
+
+def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False):
     #TODO: unfinished. 
     neighbors = [(x, y) for x in (-1, 0, 1)
@@ -364,16 +370,13 @@ def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outsi
             input_dict[coord] = outside_radius_char
     return input_dict
 
-def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='X'): #hash_char='░'):
+def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='X'):
     for coord, value in room.items():
         write_coord = add_coords(coord, top_left_coord)
         with term.location(80, 0):
             print(write_coord, value)
         if value == ' ':
             continue
-            #map_dict[write_coord].passable = False
-            #map_dict[write_coord].blocking = True
-            #map_dict[write_coord].tile = space_char
         if value == '#':
             map_dict[write_coord].passable = True
             map_dict[write_coord].blocking = False
@@ -1237,7 +1240,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1425,13 +1428,13 @@ async def handle_input(key):
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
         if key in 'R':
-            player_coord = actor_dict['player'].coords()
+            player_coord = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
             write_room_to_map(room=test_room, top_left_coord=player_coord)
         if key in 'b':
             asyncio.ensure_future(spawn_bubble())
         if key in '1':
-            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░▒", width=3)
+            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░▒", width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             state_dict['last_location'] = (x, y)
