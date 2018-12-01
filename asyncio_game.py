@@ -330,7 +330,6 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False):
-    #TODO: unfinished. 
     neighbors = [(x, y) for x in (-1, 0, 1)
                         for y in (-1, 0, 1)]
     #initialize the room
@@ -390,7 +389,6 @@ def preview_space(input_space=None, height=30, width=30):
         print(''.join([input_space[x, y] for x in range(width)]))
     sleep(.05)
 
-#TODO: convert draw_circle to syncronous.
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 passable=True, blocking=False, animation=None, delay=0,
                 description=None):
