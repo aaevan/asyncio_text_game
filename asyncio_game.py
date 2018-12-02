@@ -309,6 +309,17 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].blocking = blocking
 
 #TODO: a function to make a bumpy passage of randomly oscillating size
+def multi_segment_line(start_point=(0, 0), end_point=(10, 10), 
+                       segments=5, width=3):
+    """
+    Writes a jagged passage between two points of a variable number of segments
+    to map_dict.
+
+    Uses np.interp
+
+    returns nothing
+    """
+    pass
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
                    passable=True, blocking=False, width=5):
