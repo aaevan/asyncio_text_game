@@ -393,7 +393,7 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
                 passable=True, blocking=False, animation=None, delay=0,
                 description=None):
     """
-    draws a circle in real time. eats actors right now
+    draws a filled circle onto map_dict.
     """
     await asyncio.sleep(0)
     x_bounds = center_coord[0] - radius, center_coord[0] + radius
@@ -899,7 +899,6 @@ async def temporary_block(duration=5, animation_preset='energy block'):
 
 #Item interaction---------------------------------------------------------------
 
-#TODO: an item to form a temporary wall ahead of the player.
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #      alternatively: an item that disappears when used and returns when the
 #      cooldown expires.
