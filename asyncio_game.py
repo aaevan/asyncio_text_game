@@ -308,18 +308,40 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-#TODO: a function to make a bumpy passage of randomly oscillating size
-def multi_segment_line(start_point=(0, 0), end_point=(10, 10), 
-                       segments=5, width=3):
+#TODO: a function to make a bumpy passage of randomly oscillating size?
+
+def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), 
+                          num_points=5):
     """
     Writes a jagged passage between two points of a variable number of segments
     to map_dict.
 
-    Uses np.interp
+    Uses np.linspace, np.astype and .tolist()
 
     returns nothing
     """
-    pass
+    x_values = np.linspace(start_point[0], end_point[0], num=num_points).astype(int)
+    y_values = np.linspace(start_point[1], end_point[1], num=num_points).astype(int)
+    points = list(zip(x_values.tolist(), y_values.tolist()))
+    return points
+
+def add_jitter_to_middle(cells=[], jitter=2):
+    """
+    takes a list of points and returns the same head and tail but with randomly
+    shifted points in the middle.
+
+    TODO: broken, needs fixing.
+    """
+    if cells:
+        head, *body, tail = cells #tuple unpacking
+        new_body = []
+        for point in body:
+            jitter = [randint(-jitter, jitter) for i in range(2)]
+            print('jitter: {}, point: {}'.format(jitter))
+            new_body.append(add_coords(jitter, point))
+        return head + new_body + cells
+    else:
+        return []
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
                    passable=True, blocking=False, width=5):
