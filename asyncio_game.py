@@ -4,6 +4,7 @@ import sys
 import select 
 import tty 
 import termios
+import numpy as np
 from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
@@ -320,26 +321,30 @@ def get_cells_along_line(start_point=(0, 0), end_point=(10, 10),
 
     returns nothing
     """
-    x_values = np.linspace(start_point[0], end_point[0], num=num_points).astype(int)
-    y_values = np.linspace(start_point[1], end_point[1], num=num_points).astype(int)
+    x_value_range = (start_point[0], end_point[0])
+    y_value_range = (start_point[1], end_point[1])
+    x_values = np.linspace(*x_value_range, num=num_points).astype(int)
+    y_values = np.linspace(*y_value_range, num=num_points).astype(int)
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
-def add_jitter_to_middle(cells=[], jitter=2):
+async def add_jitter_to_middle(cells=None, jitter=2):
     """
     takes a list of points and returns the same head and tail but with randomly
     shifted points in the middle.
 
     TODO: broken, needs fixing.
     """
-    if cells:
+    if cells is not None:
         head, *body, tail = cells #tuple unpacking
         new_body = []
+        print(head, body, tail)
         for point in body:
-            jitter = [randint(-jitter, jitter) for i in range(2)]
-            print('jitter: {}, point: {}'.format(jitter))
-            new_body.append(add_coords(jitter, point))
-        return head + new_body + cells
+            rand_shift = [randint(-jitter, jitter) for i in range(2)]
+            new_body.append(add_coords(rand_shift, point))
+        output = head, *new_body, tail #pack tuples back into one list o
+        print(output)
+        return output
     else:
         return []
 
@@ -1429,7 +1434,16 @@ async def handle_input(key):
         if key in '@':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
-                        instance_of='green key', on_actor_id='player'))
+                        instance_of='fused charge', on_actor_id='player'))
+        if key in '^':
+            player_coords = actor_dict['player'].coords()
+            cells = get_cells_along_line(start_point=player_coords, end_point=(0, 0))
+            print(cells)
+            print(cells)
+            print(cells)
+            print(cells)
+            print(cells)
+            asyncio.ensure_future(add_jitter_to_middle(cells=cells))
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
@@ -3070,7 +3084,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
