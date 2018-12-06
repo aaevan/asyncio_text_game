@@ -328,7 +328,7 @@ def get_cells_along_line(start_point=(0, 0), end_point=(10, 10),
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
-async def add_jitter_to_middle(cells=None, jitter=2):
+def add_jitter_to_middle(cells=None, jitter=5):
     """
     takes a list of points and returns the same head and tail but with randomly
     shifted points in the middle.
@@ -338,18 +338,37 @@ async def add_jitter_to_middle(cells=None, jitter=2):
     if cells is not None:
         head, *body, tail = cells #tuple unpacking
         new_body = []
-        print(head, body, tail)
         for point in body:
             rand_shift = [randint(-jitter, jitter) for i in range(2)]
             new_body.append(add_coords(rand_shift, point))
         output = head, *new_body, tail #pack tuples back into one list o
-        print(output)
+        with term.location(20, 5):
+            print(head, body, tail, "|", output)
         return output
     else:
         return []
 
+def chained_pairs_of_items(pairs=None):
+    """
+    Used for taking a list of points and returning pairs of points for drawing
+    lines.
+
+    input: ((1, 1), (2, 2), (3, 3), (4, 4))
+    output: (((1, 1), (2, 2)), ((2, 2), (3, 3)), ((3, 3), (4, 4)))
+    """
+    if pairs is None:
+        pairs = [(i, i * 2) for i in range(10)]
+    return [(pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1)]
+
+def multi_segment_passage(points=None, palette="░▒", width=3, 
+                          passable=True, blocking=False):
+    coord_pairs = chained_pairs_of_items(pairs=points)
+    for coord_pair in coord_pairs:
+        n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
+                       width=width, passable=passable, blocking=blocking)
+
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
-                   passable=True, blocking=False, width=5):
+                   passable=True, blocking=False, width=3):
     origin = (0, 0)
     if width == 0:
         return
@@ -363,8 +382,10 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
         draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
                   passable=passable, blocking=blocking)
 
-#TODO: make passage that chains n_wide_passages of set length along a randomly walking angle.
-#      The passage will follow a snakelike pattern.
+#TODO: make a function to batch writes to map_dict and filter for duplicates.
+
+#TODO: make passage that chains n_wide_passages of set length along a randomly 
+#      walking angle. The passage will follow a snakelike pattern.
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False):
@@ -1437,13 +1458,14 @@ async def handle_input(key):
                         instance_of='fused charge', on_actor_id='player'))
         if key in '^':
             player_coords = actor_dict['player'].coords()
-            cells = get_cells_along_line(start_point=player_coords, end_point=(0, 0))
-            print(cells)
-            print(cells)
-            print(cells)
-            print(cells)
-            print(cells)
-            asyncio.ensure_future(add_jitter_to_middle(cells=cells))
+            cells = get_cells_along_line(num_points=10, end_point=(0, 0),
+                                         start_point=player_coords)
+            #asyncio.ensure_future(add_jitter_to_middle(cells=cells))
+            points = add_jitter_to_middle(cells=cells)
+            chained_pairs = chained_pairs_of_items(points)
+            with term.location(20, 6):
+                print(chained_pairs)
+            multi_segment_passage(points)
         if key in 'g':
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q':
