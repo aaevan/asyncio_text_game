@@ -428,7 +428,7 @@ def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outsi
             input_dict[coord] = outside_radius_char
     return input_dict
 
-def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='X'):
+def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'):
     for coord, value in room.items():
         write_coord = add_coords(coord, top_left_coord)
         with term.location(80, 0):
@@ -796,6 +796,20 @@ async def export_map(width=100, height=100):
                 the_file.write(line_output)
     with term.location(80, 0):
         print("finished writing map segment to {}.".format(filename))
+
+async def display_current_tile():
+    #TODO: a larger problem: store colors not on the tiles themselves but
+    #      numbers to be retrievedn when the tile or actor or item is accessed?
+    while True:
+        await asyncio.sleep(.1)
+        current_coords = actor_dict['player'].coords()
+        current_tile = map_dict[current_coords].tile
+        with term.location(80, 0):
+            print("current tile: {}".format(current_tile))
+        with term.location(80, 1):
+            print("repr() of tile: {}                     ".format(repr(current_tile)))
+        with term.location(80, 2):
+            print("'normal' tile: {}                     ".format(term.normal(current_tile)))
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -3106,7 +3120,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -3116,10 +3130,11 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
+    loop.create_task(display_current_tile())
     loop.create_task(trigger_on_presence())
-    #for i in range(3):
-        #rand_coord = (randint(-25, 25), randint(-25, 25))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
