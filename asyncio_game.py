@@ -388,9 +388,17 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
 #      walking angle. The passage will follow a snakelike pattern.
 
 def cave_room(trim_radius=40, width=100, height=100, 
-              iterations=20, debug=False):
+              iterations=20, debug=False, 
+              kernel=True, kernel_offset=(0, 0), kernel_radius=3):
     neighbors = [(x, y) for x in (-1, 0, 1)
                         for y in (-1, 0, 1)]
+    #get kernel cells:
+    #the kernel is a round open space in the middle of the room.
+    if kernel:
+        middle_coord = (width // 2, height // 2)
+        kernel_base_coord = add_coords(kernel_offset, middle_coord)
+        kernel_cells = {coord:'#' for coord in 
+                        get_circle(center=kernel_base_coord, radius=kernel_radius)}
     #initialize the room
     input_space = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
     if trim_radius:
@@ -399,6 +407,10 @@ def cave_room(trim_radius=40, width=100, height=100,
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
     check_coords = [(x, y) for x in range(width)
                            for y in range(height)]
+    if kernel:
+        for coord, value in kernel_cells.items():
+            #input_space[coord] = value
+            input_space[coord] = '#'
     for iteration_number in range(iterations):
         #build adjacency map
         for coord in check_coords:
@@ -562,7 +574,7 @@ async def damage_all_actors_at_coord(coord=(0, 0), damage=10):
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
-    area_of_effect = await get_circle(center=center, radius=radius)
+    area_of_effect = get_circle(center=center, radius=radius)
     for coord in area_of_effect:
         await damage_all_actors_at_coord(coord=coord, damage=damage)
 
@@ -782,8 +794,11 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
             draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
             map_dict[direction_choice].tile = 'x'
 
-async def export_map(width=100, height=100):
-    filename = "{}.txt".format(await generate_id(base_name='exported_map'))
+async def export_map(width=100, height=55):
+    #filename = "{}.txt".format(await generate_id(base_name='exported_map'))
+    filename = "{}.txt".format('exported_map')
+    if os.path.exists(filename): 
+        os.remove(filename)
     player_location = actor_dict['player'].coords()
     x_spread = (-width // 2 + player_location[0], 
                  width // 2 + player_location[0])
@@ -799,7 +814,8 @@ async def export_map(width=100, height=100):
 
 async def display_current_tile():
     #TODO: a larger problem: store colors not on the tiles themselves but
-    #      numbers to be retrievedn when the tile or actor or item is accessed?
+    #      numbers to be retrieved when the tile or actor or item is accessed?
+    await asyncio.sleep(1)
     while True:
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
@@ -807,9 +823,7 @@ async def display_current_tile():
         with term.location(80, 0):
             print("current tile: {}".format(current_tile))
         with term.location(80, 1):
-            print("repr() of tile: {}                     ".format(repr(current_tile)))
-        with term.location(80, 2):
-            print("'normal' tile: {}                     ".format(term.normal(current_tile)))
+            print("repr() of tile: {}".format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -1386,8 +1400,8 @@ async def get_key():
                     state_dict['exiting'] = True
                 if key is not None:
                     await handle_input(key)
-            with term.location(0, 1):
-                print(debug_text.format(repr(key), same_count))
+            #with term.location(0, 1):
+                #print(debug_text.format(repr(key), same_count))
             if old_key == key:
                 same_count += 1
             else:
@@ -1793,7 +1807,7 @@ def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
     return distance
 
-async def get_circle(center=(0, 0), radius=5):
+def get_circle(center=(0, 0), radius=5):
     radius_range = [i for i in range(-radius, radius + 1)]
     result = []
     for x in radius_range:
@@ -2248,8 +2262,6 @@ async def trap_init():
        loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
     loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20), patch_to_key='switch_1'))
     state_dict['switch_2'] = {}
-    with term.location(50, 1):
-        print(state_dict['switch_2'])
     loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
@@ -2604,7 +2616,7 @@ async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
     if items is None:
         return
     loop = asyncio.get_event_loop()
-    coord_choices = await get_circle(center=base_coord, radius=radius)
+    coord_choices = get_circle(center=base_coord, radius=radius)
     for item in items:
         item_coord = choice(coord_choices)
         loop.create_task(spawn_item_at_coords(coord=item_coord, instance_of=item))
@@ -2764,14 +2776,12 @@ async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='swit
     actor_dict[turret_id].update(*spawn_coord)
     map_dict[spawn_coord].actors[turret_id] = True
     while True:
-        with term.location(20, 0):
-            print(firing_angle, state_dict[trigger_key])
+        #with term.location(20, 0):
+            #print(firing_angle, state_dict[trigger_key])
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(rate)
         if await any_true(trigger_key=trigger_key):
-            with term.location(20, 2):
-                print(random())
             asyncio.ensure_future(fire_projectile(actor_key=turret_id, 
                                                   firing_angle=firing_angle,
                                                   radius_spread=(5, 8)))
@@ -3132,9 +3142,9 @@ def main():
     loop.create_task(fake_stairs())
     loop.create_task(display_current_tile())
     loop.create_task(trigger_on_presence())
-    for i in range(3):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(3):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
