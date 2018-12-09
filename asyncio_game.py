@@ -311,6 +311,25 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
 
 #TODO: a function to make a bumpy passage of randomly oscillating size?
 
+def find_halfway_point(point_a=(0, 0), point_b=(10, 10)):
+    """
+    returns the point halfway between two points.
+    """
+
+def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10))
+    """
+    arranges a number of points randomly in a space.
+    each point must be unique (put it in a set?)
+    A list of points and whether they have circles drawn around them (as radius)
+    a zero means no circle has been drawn.
+    The two nearest-together points draw equal circles until the circles kiss.
+    All connections to those points, (the distance to their other neighbor points)
+    are decremented by the radius of the halfway point.
+    with the first two circles drawn, and the known distances accounted for,
+    the next smallest distance is closed by drawing a circle up to the edge of the
+    next closest point's edge.
+    """
+
 def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), 
                           num_points=5):
     """
