@@ -315,6 +315,9 @@ def find_halfway_point(point_a=(0, 0), point_b=(10, 10)):
     """
     returns the point halfway between two points.
     """
+    x_diff = point_b[0] - point_a[0]
+    y_diff = point_b[1] - point_a[1]
+    return add_coords(point_a, (x_diff//2, y_diff//2))
 
 def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10))
     """
