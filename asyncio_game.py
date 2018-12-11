@@ -311,7 +311,7 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
 
 #TODO: a function to make a bumpy passage of randomly oscillating size?
 
-def find_halfway_point(point_a=(0, 0), point_b=(10, 10)):
+def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     """
     returns the point halfway between two points.
     """
@@ -319,7 +319,7 @@ def find_halfway_point(point_a=(0, 0), point_b=(10, 10)):
     y_diff = point_b[1] - point_a[1]
     return add_coords(point_a, (x_diff//2, y_diff//2))
 
-def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10))
+def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10)):
     """
     arranges a number of points randomly in a space.
     each point must be unique (put it in a set?)
@@ -332,9 +332,9 @@ def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10))
     the next smallest distance is closed by drawing a circle up to the edge of the
     next closest point's edge.
     """
+    pass
 
-def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), 
-                          num_points=5):
+def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     """
     Writes a jagged passage between two points of a variable number of segments
     to map_dict.
@@ -1312,13 +1312,8 @@ async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
-    #container_id = await generate_id(base_name=base_name)
     container_id = await spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
                                       tile=tile, breakable=breakable)
-    #actor_dict[container_id] = Actor(name=base_name, tile='☐',
-                               #x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
-                               #breakable=True, holding_items=contents)
-    #map_dict[spawn_coord].actors[container_id] = True
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
@@ -1375,18 +1370,6 @@ def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trig
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
-
-def spawn_stairs(coord=(0, 0), direction="down", level_id="b1"):
-    """
-    creates a new set of stairs at tile
-    """
-    pass
-
-async def use_stairs(direction="down"):
-    """
-    called from handle_input to use stair tiles.
-    """
-    pass
 
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
@@ -1453,7 +1436,7 @@ async def handle_input(key):
                       'W':'n', 'A':'w', 'S':'s', 'D':'e', 
                       'i':'n', 'j':'w', 'k':'s', 'l':'e'}
     compass_directions = ('n', 'e', 's', 'w')
-    fov = 140
+    fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
@@ -1471,38 +1454,33 @@ async def handle_input(key):
         with term.location(*term_location):
             print(quit_question_text)
         if key in 'yY':
-            state_dict['killall'] = True
-        elif key in 'nN':
+            state_dict['killall'] = True #trigger shutdown condition
+        elif key in 'nN': #exit menus
             with term.location(*term_location):
                 print(' ' * len(quit_question_text))
             state_dict['exiting'] = False
-
     else:
         if key in directions:
             x_shift, y_shift = directions[key]
-            if key in 'wasd':
+            if key in 'wasd': #try to push adjacent things given movement keys
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
-        if key in 'WASD':
+        if key in 'WASD': #jump 15 tiles away in indicated direction
             asyncio.ensure_future(teleport_in_direction(
                                    direction=key_to_compass[key],
                                    distance=15))
         if key in '?':
             await display_help() 
-        if key in '$':
-            asyncio.ensure_future(filter_fill())
-        if key in '3':
+        if key in '3': #shift dimensions
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
-        if key in '8':
+        if key in '8': #export map
             asyncio.ensure_future(export_map())
-        if key in 'Vv':
-            asyncio.ensure_future(vine_grow(start_x=x, start_y=y)),
-        if key in 'Xx':
+        if key in 'Xx': #examine
             description = map_dict[(x, y)].description
             asyncio.ensure_future(filter_print(output_text=description)),
-        if key in ' ':
+        if key in ' ': #toggle doors
             asyncio.ensure_future(toggle_doors()),
-        if key in '@':
+        if key in '@': #spawn debug items in player inventory
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
                         instance_of='fused charge', on_actor_id='player'))
@@ -1510,46 +1488,42 @@ async def handle_input(key):
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
                                          start_point=player_coords)
-            #asyncio.ensure_future(add_jitter_to_middle(cells=cells))
             points = add_jitter_to_middle(cells=cells)
             chained_pairs = chained_pairs_of_items(points)
-            with term.location(20, 6):
-                print(chained_pairs)
             multi_segment_passage(points)
-        if key in 'g':
+        if key in 'g': #pick up an item from the ground
             asyncio.ensure_future(item_choices(coords=(x, y)))
-        if key in 'Q':
+        if key in 'Q': #equip an item to slot q
             asyncio.ensure_future(equip_item(slot='q'))
-        if key in 'E':
+        if key in 'E': #equip an item to slot e
             asyncio.ensure_future(equip_item(slot='e'))
-        if key in 't':
+        if key in 't': #throw a chosen item
             asyncio.ensure_future(throw_item())
-        if key in 'q':
+        if key in 'q': #use item in slot q
             asyncio.ensure_future(use_item_in_slot(slot='q'))
-        if key in 'e':
+        if key in 'e': #use item in slot e
             asyncio.ensure_future(use_item_in_slot(slot='e'))
-        if key in 'h':
+        if key in 'h': #debug health restore
             asyncio.ensure_future(health_potion())
         if key in 'u':
-            loop = asyncio.get_event_loop()
-            loop.create_task(use_chosen_item())
+            asyncio.ensure_future(use_chosen_item())
         if key in '#':
-            actor_dict['player'].update(49, 21) #jump to debug
-        if key in '%':
+            actor_dict['player'].update(49, 21) #jump to debug location
+        if key in '%': #place a temporary pushable block
             player_coord = actor_dict['player'].coords()
             asyncio.ensure_future(temporary_block())
-        if key in 'f':
+        if key in 'f': #use sword in facing direction
             await sword_item_ability()
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
-        if key in 'R':
+        if key in 'R': #generate a random cave room around the player
             player_coord = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
             write_room_to_map(room=test_room, top_left_coord=player_coord)
-        if key in 'b':
+        if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(spawn_bubble())
-        if key in '1':
+        if key in '1': #draw a passage on the map back to (0, 0).
             n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░▒", width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
@@ -1558,9 +1532,8 @@ async def handle_input(key):
             actor_dict['player'].update(x + x_shift, y + y_shift)
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
-        if key in "ijkl":
+        if key in "ijkl": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
-    return x, y
 
 async def open_door(door_coord):
     map_dict[door_coord].tile = '▯'
@@ -3099,16 +3072,6 @@ async def environment_check(rate=.1):
         with term.location(40, 0):
             print(len([i for i in map_dict[player_coords].actors.items()]))
 #
-async def kill_all_tasks():
-    await asyncio.sleep(0)
-    pending = asyncio.Task.all_tasks()
-    for task in pending:
-        task.cancel()
-        # Now we should await task to execute it's cancellation.
-        # Cancelled task raises asyncio.CancelledError that we can suppress:
-        with suppress(asyncio.CancelledError):
-            loop.run_until_complete(task)
-
 async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_items=[]):
     """
     spawns an entity with various presets based on preset given.
@@ -3126,16 +3089,8 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
-    #elif preset == 'crate':
-        #item_drops = ['red potion', 'red potion']
     else:
         pass
-
-async def spawn_breakable(coords=(0, 0), preset='crate', holding_items=['red potion'], health=10):
-    pass
-    #def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
-                 #health=health, hurtful=False, moveable=True, is_animated=False,
-                 #animation="", holding_items={}, leaves_body=False):
 
 async def quitter_daemon():
     while True:
@@ -3162,7 +3117,7 @@ def main():
     loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
-    loop.create_task(display_current_tile())
+    #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #for i in range(3):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
