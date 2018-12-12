@@ -229,12 +229,15 @@ class Item:
         self.mutable = mutable
 
     async def use(self):
-        await asyncio.sleep(0)
+        with term.location(50, 5):
+            print("entering .use()")
+        #await asyncio.sleep(0)
         if self.uses is not None and not self.broken:
-            await self.usable_power(**self.power_kwargs)
+            if self.use_message is not None:
+                asyncio.ensure_future(filter_print(output_text=self.use_message))
+            asyncio.ensure_future(self.usable_power(**self.power_kwargs))
             if self.uses is not None:
                 self.uses -= 1
-            await filter_print(output_text=self.use_message)
             if self.uses <= 0:
                 self.broken = True
         else:
@@ -253,6 +256,7 @@ map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
+state_dict['printing'] = False
 
 gradient_tile_pairs = ((0, ' '),        #dark
                        (7, "░"),
@@ -590,9 +594,11 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
     await explosion_effect(center=item_location, radius=radius, 
                            damage=damage, particle_count=particle_count)
 
-async def damage_all_actors_at_coord(coord=(0, 0), damage=10):
+async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
     actor_list = map_dict[coord].actors.items()
     for actor in actor_list:
+        if actor[0] == 'player' and source_actor is not None:
+            asyncio.ensure_future(directional_damage_alert(source_actor=source_actor))
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
@@ -650,6 +656,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
                                                 animation=False))
 
 async def unlock_door(actor_key='player', opens='red'):
+    #TODO: add message for things that aren't a door.
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
@@ -1002,9 +1009,9 @@ async def temporary_block(duration=5, animation_preset='energy block'):
     spawn_coord = (actor_coords[0] + facing_dir_offset[0],
                    actor_coords[1] + facing_dir_offset[1])
     block_id = await generate_id(base_name='weight')
-    await timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
-                      rand_delay=0, solid=False, moveable=True, 
-                      animation_preset=animation_preset)
+    asyncio.ensure_future(timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
+                          rand_delay=0, solid=False, moveable=True, 
+                          animation_preset=animation_preset))
 
 #Item interaction---------------------------------------------------------------
 
@@ -1019,11 +1026,12 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
     possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
                       'shiny stone', 'shift amulet', 'red sword', 'vine wand',
                       'eye trinket', 'high explosives', 'red key', 'green key')
+    block_wand_text = "A shimmering block appears."
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = await generate_id(base_name=instance_of)
     item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':temporary_block,
-                            'power_kwargs':{'duration':5}},
+                            'power_kwargs':{'duration':5}, 'use_message':block_wand_text},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
@@ -1054,7 +1062,7 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                             'use_message':''},
                'green key':{'uses':9999, 'tile':term.green('⚷'), 'usable_power':unlock_door, 
                             'power_kwargs':{'opens':'green'}, 'broken_text':wand_broken_text,
-                            'use_message':''},
+                            'use_message':None},
              'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
                             'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
     #item generation:
@@ -1102,12 +1110,19 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
                        pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
                        delay=0, blocking=False, hold_for_lock=True):
     if hold_for_lock:
+        count = 0
         while True:
+            #with term.location(50, 6):
+                #print("({})holding for lock... (output_text:{})".format(count, output_text))
             if state_dict['printing'] == True:
                 await asyncio.sleep(.1)
             else:
                 break
-    state_dict['printing'] = True #get lock on printing
+    #with term.location(50, 6):
+        #print(" " * 100)
+    #state_dict['printing'] = True #get lock on printing
+    #with term.location(50, 7):
+        #print("lock being held for output text:\"{}\"".format(output_text))
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
     middle_x, middle_y = (int(term.width / 2 - 2), 
@@ -1132,6 +1147,11 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
         else:
             asyncio.sleep(pause_fade_out)
     state_dict['printing'] = False #releasing hold on printing to the screen
+    #with term.location(50, 7):
+        #print("lock released for output text:\"{}\"      ".format(output_text))
+    await asyncio.sleep(1)
+    with term.location(50, 7):
+        print(" " * 100)
 
 async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10, 
                       pause_between_prints=.005, pause_stay_on=3, 
@@ -1504,6 +1524,7 @@ async def handle_input(key):
         if key in 'e': #use item in slot e
             asyncio.ensure_future(use_item_in_slot(slot='e'))
         if key in 'h': #debug health restore
+            #TODO: add damage numbers to health_potion().
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
@@ -1733,13 +1754,12 @@ async def use_chosen_item():
         asyncio.ensure_future(item_dict[item_id_choice].use())
     
 async def use_item_in_slot(slot='q'):
-    await asyncio.sleep(0)
     item_id = state_dict['{}_slot'.format(slot)]
     if item_id is 'empty':
         pass
     else:
         if item_dict[item_id].power_kwargs:
-            await item_dict[item_id].use()
+            asyncio.ensure_future(item_dict[item_id].use())
         else:
             #put custom null action here instead of 'Nothing happens.'
             #as given for each item.
@@ -2149,7 +2169,8 @@ async def random_angle(centered_on_angle=0, total_cone_angle=60):
 async def directional_damage_alert(source_angle=None, source_actor=None, source_direction=None,
                                    warning_ui_radius=17, warning_ui_radius_spread=3):
     """
-
+    generates a spray of red tiles beyond the normal sight radius in the
+    direction of a damage source.
     """
     if source_actor:
         source_angle = await angle_actor_to_actor(actor_a='player', actor_b=source_actor)
@@ -2815,7 +2836,8 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
     actor_coords = actor_dict[actor_key].coords()
     start_coords = actor_coords
     await travel_along_line(name='particle', start_coord=start_coords, 
-                            end_coords=end_coords, damage=damage, ignore_head=True)
+                            end_coords=end_coords, damage=damage, 
+                            ignore_head=True, source_actor=actor_key)
 
 async def point_given_angle_and_radius(angle=0, radius=10):
     x = round(cos(radians(angle)) * radius)
@@ -2853,7 +2875,8 @@ async def angle_actor_to_actor(actor_a='player', actor_b=None):
 
 async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10, 10),
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
-                            debris=None, damage=None, ignore_head=False, no_clip=True):
+                            debris=None, damage=None, ignore_head=False, no_clip=True,
+                            source_actor=None):
     asyncio.sleep(0)
     points = get_line(start_coord, end_coords)
     if no_clip:
@@ -2883,7 +2906,8 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
         actor_dict[particle_id].update(*point)
         if damage is not None:
             #TODO: provide indicator of direction of damage
-            await damage_all_actors_at_coord(coord=point, damage=damage)
+            await damage_all_actors_at_coord(coord=point, damage=damage, 
+                                             source_actor=source_actor)
         last_location = actor_dict[particle_id].coords()
     if debris:
         if random() > .8:
