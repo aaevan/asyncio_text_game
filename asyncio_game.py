@@ -358,8 +358,6 @@ def add_jitter_to_middle(cells=None, jitter=5):
     """
     takes a list of points and returns the same head and tail but with randomly
     shifted points in the middle.
-
-    TODO: broken, needs fixing.
     """
     if cells is not None:
         head, *body, tail = cells #tuple unpacking
