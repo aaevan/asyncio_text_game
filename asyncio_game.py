@@ -1544,6 +1544,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_item_in_slot(slot='e'))
         if key in 'h': #debug health restore
             #TODO: add damage numbers to health_potion().
+            with term.location(80, 0):
+                print("health!")
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
@@ -2727,13 +2729,17 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
 
 async def health_potion(item_id=None, actor_key='player', total_restored=25, 
                         duration=2, sub_second_step=.1):
+    #add damage_numbers
     await asyncio.sleep(0)
     if item_id:
         del item_dict[item_id]
         del actor_dict['player'].holding_items[item_id]
     num_steps = duration / sub_second_step
     health_per_step = total_restored / num_steps
+    asyncio.ensure_future(damage_numbers(actor='player', damage=-total_restored))
     for i in range(int(num_steps)):
+        with term.location(80, 0):
+            print(i)
         await asyncio.sleep(sub_second_step)
         if (actor_dict[actor_key].health + health_per_step >= actor_dict[actor_key].max_health):
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
@@ -2849,8 +2855,8 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
     rand_radius = randint(*radius_spread) + radius
     rand_angle = randint(*degree_spread) + firing_angle
     actor_coords = actor_dict[actor_key].coords()
-    x_shift, y_shift = await point_given_angle_and_radius(angle=rand_angle,
-                                                          radius=rand_radius)
+    x_shift, y_shift = point_given_angle_and_radius(angle=rand_angle,
+                                                    radius=rand_radius)
     end_coords = add_coords(actor_coords, (x_shift, y_shift))
     actor_coords = actor_dict[actor_key].coords()
     start_coords = actor_coords
