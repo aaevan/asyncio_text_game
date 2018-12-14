@@ -338,6 +338,22 @@ def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10)):
     """
     pass
 
+def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0), 
+                        in_cone=(0, 90), num_points=5):
+    """
+    returns a number of points fanned out around a middle point.
+    given radius_spread values, the points will be at a random radius.
+    if in_cone is not None, the returned points are restricted to an arc.
+    """
+    points = []
+    radius_range = (radius - radius_spread, radius + radius_spread)
+    for _ in range(num_points):
+        rand_angle = randint(*in_cone)
+        rand_radius = randint(*radius_range)
+        points.append(point_given_angle_and_radius(angle=rand_angle, 
+                                                   radius=rand_radius))
+    return points
+
 def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     """
     Writes a jagged passage between two points of a variable number of segments
@@ -1502,6 +1518,11 @@ async def handle_input(key):
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
                         instance_of='fused charge', on_actor_id='player'))
+        if key in 'Z': #test out points_around_point and write result to map_dict
+            points = points_around_point()
+            player_coord = actor_dict['player'].coords()
+            for point in points:
+                map_dict[add_coords(point, player_coord)].tile = '$'
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
@@ -2837,7 +2858,7 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
                             end_coords=end_coords, damage=damage, 
                             ignore_head=True, source_actor=actor_key)
 
-async def point_given_angle_and_radius(angle=0, radius=10):
+def point_given_angle_and_radius(angle=0, radius=10):
     x = round(cos(radians(angle)) * radius)
     y = round(sin(radians(angle)) * radius)
     return x, y
