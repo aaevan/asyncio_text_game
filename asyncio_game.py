@@ -382,8 +382,6 @@ def add_jitter_to_middle(cells=None, jitter=5):
             rand_shift = [randint(-jitter, jitter) for i in range(2)]
             new_body.append(add_coords(rand_shift, point))
         output = head, *new_body, tail #pack tuples back into one list o
-        with term.location(20, 5):
-            print(head, body, tail, "|", output)
         return output
     else:
         return []
@@ -416,11 +414,24 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
                       for y in range(-width, width + 1))
     trimmed_offsets = [offset for offset in offsets if
                        point_to_point_distance(point_a=offset, point_b=origin) <= width / 2]
+    points_to_write = set()
     for offset in trimmed_offsets:
         offset_coord_a = add_coords(coord_a, offset)
         offset_coord_b = add_coords(coord_b, offset)
-        draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
-                  passable=passable, blocking=blocking)
+        line_points = get_line(offset_coord_a, offset_coord_b)
+        for point in line_points:
+            points_to_write.add(point)
+    with term.location(0, 1):
+        print("len(points_to_write) is: {}".format(len(points_to_write)))
+    for point in points_to_write:
+        if len(palette) > 1:
+            map_dict[point].tile = choice(palette)
+        else:
+            map_dict[point].tile = palette[0]
+        map_dict[point].passable = passable
+        map_dict[point].blocking = blocking
+        #draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
+                  #passable=passable, blocking=blocking)
 
 #TODO: make a function to batch writes to map_dict and filter for duplicates.
 
@@ -838,7 +849,12 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
             map_dict[direction_choice].tile = 'x'
 
 async def export_map(width=100, height=55):
+    #give a unique timestamped filename: 
     #filename = "{}.txt".format(await generate_id(base_name='exported_map'))
+    #store the current tile at the player's location:
+    temp_tile = map_dict[actor_dict['player'].coords()].tile
+    #temporary lay down a '@':
+    map_dict[actor_dict['player'].coords()].tile = '@'
     filename = "{}.txt".format('exported_map')
     if os.path.exists(filename): 
         os.remove(filename)
@@ -854,6 +870,8 @@ async def export_map(width=100, height=55):
                 the_file.write(line_output)
     with term.location(80, 0):
         print("finished writing map segment to {}.".format(filename))
+    #return the tile to its original state:
+    map_dict[actor_dict['player'].coords()].tile = temp_tile
 
 async def display_current_tile():
     #TODO: a larger problem: store colors not on the tiles themselves but
