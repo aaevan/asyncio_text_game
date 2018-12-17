@@ -430,13 +430,26 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
             map_dict[point].tile = palette[0]
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
-        #draw_line(coord_a=offset_coord_a, coord_b=offset_coord_b, palette=palette,
-                  #passable=passable, blocking=blocking)
-
-#TODO: make a function to batch writes to map_dict and filter for duplicates.
 
 #TODO: make passage that chains n_wide_passages of set length along a randomly 
 #      walking angle. The passage will follow a snakelike pattern.
+
+def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=10, 
+                  segment_angle_increment=5, segments=20, squiggle=True,
+                  squiggle_choices=(-10, 10)):
+    last_point, last_angle = start_coord, starting_angle
+    output_points = [start_coord]
+    for _ in range(segment_length):
+        coord_shift = point_given_angle_and_radius(angle=last_angle,
+                                                        radius=segment_length)
+        next_point = add_coords(last_point, coord_shift)
+        output_points.append(next_point)
+        last_point = next_point
+        if squiggle:
+            last_angle += choice(squiggle_choices)
+        else:
+            last_angle += segment_angle_increment
+    return output_points
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
@@ -1541,6 +1554,15 @@ async def handle_input(key):
             player_coord = actor_dict['player'].coords()
             for point in points:
                 map_dict[add_coords(point, player_coord)].tile = '$'
+        if key in '9': #creates a passage in a random direction from the player
+            starting_angle = randint(0, 360)
+            player_coord = actor_dict['player'].coords()
+            points = arc_of_points(starting_angle=starting_angle, start_coord=player_coord)
+            chained_pairs = chained_pairs_of_items(points)
+            multi_segment_passage(points)
+            #test_room = cave_room()
+            #center_coord = add_coords(points[-1], (-50, -50))
+            #write_room_to_map(room=test_room, top_left_coord=center_coord)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
@@ -2883,6 +2905,7 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
                             ignore_head=True, source_actor=actor_key)
 
 def point_given_angle_and_radius(angle=0, radius=10):
+    #TODO: add starting coordinate
     x = round(cos(radians(angle)) * radius)
     y = round(sin(radians(angle)) * radius)
     return x, y
