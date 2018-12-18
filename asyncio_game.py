@@ -1406,7 +1406,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large ebug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1560,9 +1560,6 @@ async def handle_input(key):
             points = arc_of_points(starting_angle=starting_angle, start_coord=player_coord)
             chained_pairs = chained_pairs_of_items(points)
             multi_segment_passage(points)
-            #test_room = cave_room()
-            #center_coord = add_coords(points[-1], (-50, -50))
-            #write_room_to_map(room=test_room, top_left_coord=center_coord)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
@@ -1583,9 +1580,6 @@ async def handle_input(key):
         if key in 'e': #use item in slot e
             asyncio.ensure_future(use_item_in_slot(slot='e'))
         if key in 'h': #debug health restore
-            #TODO: add damage numbers to health_potion().
-            with term.location(80, 0):
-                print("health!")
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
@@ -2422,7 +2416,7 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("coords: {}".format(actor_dict['player'].coords()))
+            print("coords: {}      ".format(actor_dict['player'].coords()))
 
 async def ui_setup():
     """
@@ -2673,6 +2667,27 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(*next_coords)
 
+def distance_to_actor(actor_a=None, actor_b='player'):
+    if actor_a is None:
+        return 0
+    a_coord = actor_dict[actor_a].coords()
+    b_coord = actor_dict[actor_b].coords()
+    return point_to_point_distance(point_a=a_coord, point_b=b_coord)
+
+async def actor_turret(track_to_actor=None, fire_rate=.5, reach=10):
+    #TODO: broken right now. fix. 
+    #spawning multiple control loops both looking at the same actor causes problems
+    if track_to_actor == None:
+        return
+    while True:
+        await asyncio.sleep(fire_rate)
+        actor_health = actor_dict[track_to_actor].health
+        if actor_health <= 0:
+            break
+        distance_to_player = distance_to_actor(actor_a=track_to_actor, actor_b='player')
+        if distance_to_player <= reach:
+            fire_projectile(actor_key=track_to_actor, firing_angle=randint(0, 360))
+        
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
@@ -2857,8 +2872,6 @@ async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='swit
     actor_dict[turret_id].update(*spawn_coord)
     map_dict[spawn_coord].actors[turret_id] = True
     while True:
-        #with term.location(20, 0):
-            #print(firing_angle, state_dict[trigger_key])
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(rate)
@@ -3179,6 +3192,14 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
+    if preset == 'test':
+        item_drops = ['nut']
+        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
+                                     tile='?', name_key=name, hurtful=True, strength=33,
+                                     is_animated=True, animation=Animation(preset="mouth"),
+                                     holding_items=item_drops))
+        loop.create_task(actor_turret(track_to_actor=actor_id, fire_rate=.5, reach=10))
+
     else:
         pass
 
@@ -3209,9 +3230,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    #for i in range(3):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(3):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
