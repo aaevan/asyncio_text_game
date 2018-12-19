@@ -137,6 +137,9 @@ class Animation:
                  'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
                            'behavior':'loop both', 
                            'color_choices':'7'},
+                 'bullet':{'animation':('◦◦◦○'),
+                           'behavior':'random',
+                           'color_choices':'446'},
                    'door':{'animation':('▯'), 
                            'behavior':'random', 
                            'color_choices':'78888'}}
@@ -2228,7 +2231,7 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
     direction of a damage source.
     """
     if source_actor:
-        source_angle = await angle_actor_to_actor(actor_a='player', actor_b=source_actor)
+        source_angle = angle_actor_to_actor(actor_a='player', actor_b=source_actor)
     elif source_direction is not None:
         source_directions = {'n':0, 'ne':45, 'e':90, 'se':135,
                              's':180, 'sw':225, 'w':270, 'nw':315}
@@ -2674,7 +2677,7 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     b_coord = actor_dict[actor_b].coords()
     return point_to_point_distance(point_a=a_coord, point_b=b_coord)
 
-async def actor_turret(track_to_actor=None, fire_rate=.5, reach=10):
+async def actor_turret(track_to_actor=None, fire_rate=.0, reach=15):
     #TODO: broken right now. fix. 
     #spawning multiple control loops both looking at the same actor causes problems
     if track_to_actor == None:
@@ -2686,7 +2689,11 @@ async def actor_turret(track_to_actor=None, fire_rate=.5, reach=10):
             break
         distance_to_player = distance_to_actor(actor_a=track_to_actor, actor_b='player')
         if distance_to_player <= reach:
-            fire_projectile(actor_key=track_to_actor, firing_angle=randint(0, 360))
+            firing_angle = angle_actor_to_actor(actor_a=track_to_actor, actor_b='player') - 90
+            asyncio.ensure_future(fire_projectile(actor_key=track_to_actor, 
+                                                  firing_angle=firing_angle,
+                                                  degree_spread=(-5, 5),
+                                                  animation_preset='bullet'))
         
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
@@ -2904,7 +2911,7 @@ async def beam_spire(spawn_coord=(0, 0)):
 
 async def fire_projectile(actor_key='player', firing_angle=45, radius=10, 
                           radius_spread=(10, 14), degree_spread=(-20, 20),
-                          damage=5):
+                          damage=5, animation_preset='bullet'):
     rand_radius = randint(*radius_spread) + radius
     rand_angle = randint(*degree_spread) + firing_angle
     actor_coords = actor_dict[actor_key].coords()
@@ -2915,6 +2922,7 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
     start_coords = actor_coords
     await travel_along_line(name='particle', start_coord=start_coords, 
                             end_coords=end_coords, damage=damage, 
+                            animation=Animation(preset=animation_preset), 
                             ignore_head=True, source_actor=actor_key)
 
 def point_given_angle_and_radius(angle=0, radius=10):
@@ -2923,7 +2931,7 @@ def point_given_angle_and_radius(angle=0, radius=10):
     y = round(sin(radians(angle)) * radius)
     return x, y
 
-async def angle_actor_to_actor(actor_a='player', actor_b=None):
+def angle_actor_to_actor(actor_a='player', actor_b=None):
     """
     returns degrees as measured clockwise from 12 o'clock
     with actor_a at the center of the clock and actor_b along 
@@ -3198,7 +3206,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      tile='?', name_key=name, hurtful=True, strength=33,
                                      is_animated=True, animation=Animation(preset="mouth"),
                                      holding_items=item_drops))
-        loop.create_task(actor_turret(track_to_actor=actor_id, fire_rate=.5, reach=10))
+        loop.create_task(actor_turret(track_to_actor=name, fire_rate=.5, reach=10))
 
     else:
         pass
@@ -3230,7 +3238,7 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(3):
+    for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
     asyncio.set_event_loop(loop)
