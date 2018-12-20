@@ -437,9 +437,9 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
 #TODO: make passage that chains n_wide_passages of set length along a randomly 
 #      walking angle. The passage will follow a snakelike pattern.
 
-def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=10, 
-                  segment_angle_increment=5, segments=20, squiggle=True,
-                  squiggle_choices=(-10, 10)):
+def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
+                  segment_angle_increment=5, segments=10, random_shift=True,
+                  shift_choices=(-10, 10)):
     last_point, last_angle = start_coord, starting_angle
     output_points = [start_coord]
     for _ in range(segment_length):
@@ -448,11 +448,23 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=10,
         next_point = add_coords(last_point, coord_shift)
         output_points.append(next_point)
         last_point = next_point
-        if squiggle:
-            last_angle += choice(squiggle_choices)
+        if random_shift:
+            last_angle += choice(shift_choices)
         else:
             last_angle += segment_angle_increment
-    return output_points
+    return output_points, last_angle
+
+def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90):
+    arc_start = start_coord
+    for _ in range(num_arcs):
+        rand_segment_angle = choice((-20, -10, 10, 20))
+        points, starting_angle = arc_of_points(starting_angle=starting_angle, 
+                                               segment_angle_increment=rand_segment_angle,
+                                               start_coord=arc_start,
+                                               random_shift=False)
+        chained_pairs = chained_pairs_of_items(points)
+        multi_segment_passage(points)
+        arc_start = points[-1]
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
@@ -1409,7 +1421,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large ebug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large ebug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1558,11 +1570,13 @@ async def handle_input(key):
             for point in points:
                 map_dict[add_coords(point, player_coord)].tile = '$'
         if key in '9': #creates a passage in a random direction from the player
-            starting_angle = randint(0, 360)
             player_coord = actor_dict['player'].coords()
-            points = arc_of_points(starting_angle=starting_angle, start_coord=player_coord)
-            chained_pairs = chained_pairs_of_items(points)
-            multi_segment_passage(points)
+            chain_of_arcs(start_coord=player_coord, num_arcs=50)
+            #starting_angle = randint(0, 360)
+            #player_coord = actor_dict['player'].coords()
+            #points = arc_of_points(starting_angle=starting_angle, start_coord=player_coord)
+            #chained_pairs = chained_pairs_of_items(points)
+            #multi_segment_passage(points)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
@@ -3238,9 +3252,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(1):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
+    #for i in range(1):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
