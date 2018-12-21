@@ -434,9 +434,6 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒",
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-#TODO: make passage that chains n_wide_passages of set length along a randomly 
-#      walking angle. The passage will follow a snakelike pattern.
-
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
                   segment_angle_increment=5, segments=10, random_shift=True,
                   shift_choices=(-10, 10)):
@@ -454,7 +451,7 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
             last_angle += segment_angle_increment
     return output_points, last_angle
 
-def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90):
+def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, width=4):
     arc_start = start_coord
     for _ in range(num_arcs):
         rand_segment_angle = choice((-20, -10, 10, 20))
@@ -463,7 +460,7 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90):
                                                start_coord=arc_start,
                                                random_shift=False)
         chained_pairs = chained_pairs_of_items(points)
-        multi_segment_passage(points)
+        multi_segment_passage(points=points, width=width)
         arc_start = points[-1]
 
 def cave_room(trim_radius=40, width=100, height=100, 
@@ -478,7 +475,7 @@ def cave_room(trim_radius=40, width=100, height=100,
         kernel_base_coord = add_coords(kernel_offset, middle_coord)
         kernel_cells = {coord:'#' for coord in 
                         get_circle(center=kernel_base_coord, radius=kernel_radius)}
-    #initialize the room
+    #initialize the room:
     input_space = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
     if trim_radius:
         input_space = trim_outside_circle(input_dict=input_space, width=width,
@@ -709,7 +706,6 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
                                                 animation=False))
 
 async def unlock_door(actor_key='player', opens='red'):
-    #TODO: add message for things that aren't a door.
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
@@ -722,6 +718,8 @@ async def unlock_door(actor_key='player', opens='red'):
         elif not map_dict[door_coord].locked:
             output_text = "You lock the {} door.".format(opens)
             map_dict[door_coord].locked = True
+    elif not map_dict[door_coord].is_door:
+        output_text = "That isn't a door."
     else:
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     asyncio.ensure_future(filter_print(output_text=output_text))
@@ -924,16 +922,21 @@ async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0),
     exclusions = ('sword', 'particle')
     positives = ('player', 'weight', 'crate', 'static')
     count = 0
+    triggered = False
     while True:
         count = (count + 1) % 100
         await asyncio.sleep(test_rate)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
+            if not triggered:
+                asyncio.ensure_future(filter_print(output_text="click"))
+            triggered = True
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
+            triggered = False
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
             
@@ -1167,7 +1170,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
 
 async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8, 
-                       pause_fade_in=.01, pause_fade_out=.002, pause_stay_on=1, 
+                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, 
                        delay=0, blocking=False, hold_for_lock=True):
     if hold_for_lock:
         count = 0
@@ -1572,18 +1575,13 @@ async def handle_input(key):
         if key in '9': #creates a passage in a random direction from the player
             player_coord = actor_dict['player'].coords()
             chain_of_arcs(start_coord=player_coord, num_arcs=50)
-            #starting_angle = randint(0, 360)
-            #player_coord = actor_dict['player'].coords()
-            #points = arc_of_points(starting_angle=starting_angle, start_coord=player_coord)
-            #chained_pairs = chained_pairs_of_items(points)
-            #multi_segment_passage(points)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
                                          start_point=player_coords)
-            points = add_jitter_to_middle(cells=cells)
-            chained_pairs = chained_pairs_of_items(points)
-            multi_segment_passage(points)
+            cells = add_jitter_to_middle(cells=cells)
+            chained_pairs = chained_pairs_of_items(cells)
+            multi_segment_passage(cells)
         if key in 'g': #pick up an item from the ground
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q': #equip an item to slot q
@@ -2692,8 +2690,6 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     return point_to_point_distance(point_a=a_coord, point_b=b_coord)
 
 async def actor_turret(track_to_actor=None, fire_rate=.0, reach=15):
-    #TODO: broken right now. fix. 
-    #spawning multiple control loops both looking at the same actor causes problems
     if track_to_actor == None:
         return
     while True:
