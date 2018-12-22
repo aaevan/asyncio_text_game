@@ -461,7 +461,23 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, width=4):
                                                random_shift=False)
         chained_pairs = chained_pairs_of_items(points)
         multi_segment_passage(points=points, width=width)
-        arc_start = points[-1]
+        #arc_start = points[-1]
+
+def bumpy_chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, width_range=(2, 4)):
+    """
+    TODO: fix so it isn't a messy tangle.
+    """
+    arc_start = start_coord
+    for _ in range(num_arcs):
+        rand_segment_angle = choice((-20, -10, 10, 20))
+        points, starting_angle = arc_of_points(starting_angle=starting_angle, 
+                                               segment_angle_increment=rand_segment_angle,
+                                               start_coord=arc_start,
+                                               random_shift=False)
+        chained_pairs = chained_pairs_of_items(points)
+        for coord_pair in coord_pairs:
+            n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1], width=randint(*width_range))
+
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
@@ -1575,6 +1591,9 @@ async def handle_input(key):
         if key in '9': #creates a passage in a random direction from the player
             player_coord = actor_dict['player'].coords()
             chain_of_arcs(start_coord=player_coord, num_arcs=50)
+        if key in '0': 
+            player_coord = actor_dict['player'].coords()
+            bumpy_chain_of_arcs(start_coord=player_coord, num_arcs=50)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
