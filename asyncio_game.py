@@ -404,9 +404,12 @@ def chained_pairs_of_items(pairs=None):
 def multi_segment_passage(points=None, palette="░▒", width=3, 
                           passable=True, blocking=False):
     coord_pairs = chained_pairs_of_items(pairs=points)
+    with term.location(30, 4):
+        print("coord_pairs: {}".format(coord_pairs))
     for coord_pair in coord_pairs:
         n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
-                       width=width, passable=passable, blocking=blocking)
+                       width=width, passable=passable, blocking=blocking,
+                       palette=palette)
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
                    passable=True, blocking=False, width=3):
@@ -451,21 +454,18 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
             last_angle += segment_angle_increment
     return output_points, last_angle
 
-def chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, width=4):
-    arc_start = start_coord
-    for _ in range(num_arcs):
-        rand_segment_angle = choice((-20, -10, 10, 20))
-        points, starting_angle = arc_of_points(starting_angle=starting_angle, 
-                                               segment_angle_increment=rand_segment_angle,
-                                               start_coord=arc_start,
-                                               random_shift=False)
-        chained_pairs = chained_pairs_of_items(points)
-        multi_segment_passage(points=points, width=width)
-        #arc_start = points[-1]
+def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
+                  width=(3, 7), palette="░▒"):
+    """
+    chain of arcs creates a chain of curved passages of optionally variable width.
 
-def bumpy_chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, width_range=(2, 4)):
-    """
-    TODO: fix so it isn't a messy tangle.
+    if width is given as a single number, width is fixed.
+    if width is given as a 2-length tuple, width is a random number
+
+    TODO: option to taper width or increase width based on segment.
+          a passage that starts wide and ends narrow
+          a passage that starts narrow and ends wide
+          a passage that does a random walk of passage widths
     """
     arc_start = start_coord
     for _ in range(num_arcs):
@@ -474,9 +474,16 @@ def bumpy_chain_of_arcs(start_coord=(0, 0), num_arcs=50, starting_angle=90, widt
                                                segment_angle_increment=rand_segment_angle,
                                                start_coord=arc_start,
                                                random_shift=False)
-        chained_pairs = chained_pairs_of_items(points)
-        for coord_pair in coord_pairs:
-            n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1], width=randint(*width_range))
+        with term.location(30, 2):
+            print("POINTS: {}".format(points))
+        for point in points:
+            map_dict[point].tile = term.red("X")
+        arc_start = points[-1] #set the start point of the next passage.
+        if type(width) is tuple and len(width) == 2:
+            passage_width = randint(*width)
+        else:
+            passage_width = width
+        multi_segment_passage(points=points, width=passage_width, palette=palette)
 
 
 def cave_room(trim_radius=40, width=100, height=100, 
@@ -1440,7 +1447,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large ebug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1590,10 +1597,7 @@ async def handle_input(key):
                 map_dict[add_coords(point, player_coord)].tile = '$'
         if key in '9': #creates a passage in a random direction from the player
             player_coord = actor_dict['player'].coords()
-            chain_of_arcs(start_coord=player_coord, num_arcs=50)
-        if key in '0': 
-            player_coord = actor_dict['player'].coords()
-            bumpy_chain_of_arcs(start_coord=player_coord, num_arcs=50)
+            chain_of_arcs(start_coord=player_coord, num_arcs=5)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
