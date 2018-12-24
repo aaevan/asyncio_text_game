@@ -455,20 +455,23 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
     return output_points, last_angle
 
 def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
-                  width=(3, 7), palette="░▒"):
+                  width=(2, 20), draw_mode='taper', palette="░▒"):
     """
     chain of arcs creates a chain of curved passages of optionally variable width.
 
     if width is given as a single number, width is fixed.
     if width is given as a 2-length tuple, width is a random number
 
-    TODO: option to taper width or increase width based on segment.
-          a passage that starts wide and ends narrow
-          a passage that starts narrow and ends wide
-          a passage that does a random walk of passage widths
+    draw_mode controls the width of the passage
     """
     arc_start = start_coord
-    for _ in range(num_arcs):
+    if draw_mode == 'even': #same passage length throughout
+        segment_widths = [width[0]] * num_arcs
+    elif draw_mode == 'random': #passage width is random
+        segment_widths = [randint(*width) for _ in range(num_arcs)]
+    elif draw_mode == 'taper': #passage starts at width[0], ends at width[1]
+        segment_widths = np.linspace(*width, num=num_arcs).astype(int)
+    for segment_width in segment_widths:
         rand_segment_angle = choice((-20, -10, 10, 20))
         points, starting_angle = arc_of_points(starting_angle=starting_angle, 
                                                segment_angle_increment=rand_segment_angle,
@@ -479,11 +482,7 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
         for point in points:
             map_dict[point].tile = term.red("X")
         arc_start = points[-1] #set the start point of the next passage.
-        if type(width) is tuple and len(width) == 2:
-            passage_width = randint(*width)
-        else:
-            passage_width = width
-        multi_segment_passage(points=points, width=passage_width, palette=palette)
+        multi_segment_passage(points=points, width=segment_width, palette=palette)
 
 
 def cave_room(trim_radius=40, width=100, height=100, 
@@ -897,7 +896,7 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
             draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
             map_dict[direction_choice].tile = 'x'
 
-async def export_map(width=100, height=55):
+async def export_map(width=140, height=45):
     #give a unique timestamped filename: 
     #filename = "{}.txt".format(await generate_id(base_name='exported_map'))
     #store the current tile at the player's location:
@@ -1253,7 +1252,7 @@ async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10,
         with term.location(*print_coord):
             print(fill_char)
 
-async def print_screen_grid():
+def print_screen_grid():
     """
     prints an overlay for finding positions of text
     """
@@ -1447,8 +1446,8 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
-    draw_box(top_left=(-5, -5), x_size=10, y_size=10, tile="░")
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
@@ -1595,9 +1594,15 @@ async def handle_input(key):
             player_coord = actor_dict['player'].coords()
             for point in points:
                 map_dict[add_coords(point, player_coord)].tile = '$'
+        if key in '$':
+            print_screen_grid() 
         if key in '9': #creates a passage in a random direction from the player
             player_coord = actor_dict['player'].coords()
-            chain_of_arcs(start_coord=player_coord, num_arcs=5)
+            dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
+            facing_angle = dir_to_angle[state_dict['facing']]
+            with term.location(30, 6):
+                print('Facing angle: {}'.format(facing_angle))
+            chain_of_arcs(starting_angle=facing_angle, start_coord=player_coord, num_arcs=5)
         if key in '^':
             player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
