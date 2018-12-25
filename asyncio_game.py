@@ -746,6 +746,33 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     asyncio.ensure_future(filter_print(output_text=output_text))
 
+def multi_tile_entity(mode='stamp', starting_top_left=(-4, -4), preset='2x2'):
+    """
+    when the new location is checked as passable, it has to do so for each element
+    if any of the four pieces would be somewhere that is impassable, the whole does not move
+    each pushable actor has a parent that tracks locations of each of the children
+    if any piece would be pushed, the push command is forwarded to the parent node.
+        the parent node checks the new possible locations.
+        if none of the new locations have actors or impassable cells, 
+            update the location for each of the children nodes
+        else:
+            nothing happens and nothing is pushed.
+    """
+    if preset == '2x2':
+        tiles = (('┏', '┓'),
+                 ('┗', '┛ '))
+    #initialize actors to map
+    for y in range(len(tiles)):
+        for x in range(len(tiles[0])):
+            write_coord = add_coords((x, y), starting_top_left)
+            if tiles[y][x] != ' ':
+                if mode == 'stamp':
+                    map_dict[write_coord].tile = tiles[y][x]
+
+#TODO: an entity that moves around with momentum,
+#      others that follow the last n moves
+#      billiard balls?
+
 async def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
@@ -1565,8 +1592,10 @@ async def handle_input(key):
                 print(' ' * len(quit_question_text))
             state_dict['exiting'] = False
     else:
+        player_coords = actor_dict['player'].coords()
         if key in directions:
             x_shift, y_shift = directions[key]
+            #TODO: a separate push function for multi tile entities
             if key in 'wasd': #try to push adjacent things given movement keys
                 await push(pusher='player', direction=key_to_compass[key])
             actor_dict['player'].just_teleported = False
@@ -1586,25 +1615,23 @@ async def handle_input(key):
         if key in ' ': #toggle doors
             asyncio.ensure_future(toggle_doors()),
         if key in '@': #spawn debug items in player inventory
-            player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
                         instance_of='fused charge', on_actor_id='player'))
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
-            player_coord = actor_dict['player'].coords()
             for point in points:
-                map_dict[add_coords(point, player_coord)].tile = '$'
+                map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
             print_screen_grid() 
+        if key in '(':
+            multi_tile_entity(starting_top_left=player_coords)
         if key in '9': #creates a passage in a random direction from the player
-            player_coord = actor_dict['player'].coords()
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
             with term.location(30, 6):
                 print('Facing angle: {}'.format(facing_angle))
-            chain_of_arcs(starting_angle=facing_angle, start_coord=player_coord, num_arcs=5)
+            chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
         if key in '^':
-            player_coords = actor_dict['player'].coords()
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
                                          start_point=player_coords)
             cells = add_jitter_to_middle(cells=cells)
@@ -1629,7 +1656,6 @@ async def handle_input(key):
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in '%': #place a temporary pushable block
-            player_coord = actor_dict['player'].coords()
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
             await sword_item_ability()
@@ -1637,9 +1663,9 @@ async def handle_input(key):
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
         if key in 'R': #generate a random cave room around the player
-            player_coord = add_coords(actor_dict['player'].coords(), (-50, -50))
+            player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
-            write_room_to_map(room=test_room, top_left_coord=player_coord)
+            write_room_to_map(room=test_room, top_left_coord=player_coords)
         if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(spawn_bubble())
         if key in '1': #draw a passage on the map back to (0, 0).
@@ -3264,7 +3290,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
