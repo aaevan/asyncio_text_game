@@ -401,7 +401,7 @@ def chained_pairs_of_items(pairs=None):
         pairs = [(i, i * 2) for i in range(10)]
     return [(pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1)]
 
-def multi_segment_passage(points=None, palette="░▒", width=3, 
+def multi_segment_passage(points=None, palette="░", width=3, 
                           passable=True, blocking=False):
     coord_pairs = chained_pairs_of_items(pairs=points)
     with term.location(30, 4):
@@ -411,7 +411,7 @@ def multi_segment_passage(points=None, palette="░▒", width=3,
                        width=width, passable=passable, blocking=blocking,
                        palette=palette)
 
-def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░▒", 
+def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░", 
                    passable=True, blocking=False, width=3):
     origin = (0, 0)
     if width == 0:
@@ -455,7 +455,7 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
     return output_points, last_angle
 
 def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
-                  width=(2, 20), draw_mode='taper', palette="░▒"):
+                  width=(2, 20), draw_mode='taper', palette="░"):
     """
     chain of arcs creates a chain of curved passages of optionally variable width.
 
@@ -558,7 +558,7 @@ def preview_space(input_space=None, height=30, width=30):
         print(''.join([input_space[x, y] for x in range(width)]))
     sleep(.05)
 
-async def draw_circle(center_coord=(0, 0), radius=5, palette="░▒",
+async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                 passable=True, blocking=False, animation=None, delay=0,
                 description=None):
     """
@@ -961,7 +961,7 @@ async def display_current_tile():
         with term.location(80, 1):
             print("repr() of tile: {}".format(repr(current_tile)))
 
-async def pressure_plate(appearance='▓▒', spawn_coord=(4, 0), 
+async def pressure_plate(appearance='▓', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1):
     appearance = [term.color(tile_color)(char) for char in appearance]
@@ -1473,7 +1473,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1669,7 +1669,7 @@ async def handle_input(key):
         if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(spawn_bubble())
         if key in '1': #draw a passage on the map back to (0, 0).
-            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░▒", width=5)
+            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░", width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             state_dict['last_location'] = (x, y)
@@ -2176,6 +2176,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     display = False
     while True:
         await asyncio.sleep(distance * .015) #update speed
+        player_x, player_y = actor_dict['player'].coords()
+        x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
         if state_dict['killall'] == True:
             break
         #check whether the current tile is within the current field of view
@@ -2183,9 +2185,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.red('@')
         elif display:
-            player_x, player_y = actor_dict['player'].coords()
             #add a line in here for different levels/dimensions:
-            x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
             tile_coord_key = (x_display_coord, y_display_coord)
             if randint(0, round(distance)) < threshold:
                 line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
@@ -2202,6 +2202,15 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                     print_choice = ' '
             else:
                 #catches fuzzy fringe starting at threshold:
+                print_choice = ' '
+        elif not display and map_dict[x_display_coord, y_display_coord].seen:
+            if random() < .95:
+                #TODO: evaluate whether imperfect memory of the map is interesting
+                #fuzzy_x = x_display_coord + randint(-2, 2)
+                #fuzzy_y = y_display_coord + randint(-2, 2)
+                print_choice = term.on_color(0)(term.red(map_dict[x_display_coord, y_display_coord].tile))
+                #print_choice = term.on_color(0)(term.red(map_dict[fuzzy_x, fuzzy_y].tile))
+            else:
                 print_choice = ' '
         else:
             #catches tiles that are not within current FOV
@@ -3290,7 +3299,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -3302,7 +3311,7 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    #for i in range(1):
+    #for i in range(5):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
         #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
     asyncio.set_event_loop(loop)
