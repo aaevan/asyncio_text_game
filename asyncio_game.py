@@ -2364,6 +2364,11 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
+    #minimap init:
+    for x in range(-20, 20, 2):
+        for y in range(-20, 20, 2):
+            loop.create_task(minimap_tile(player_position_offset=(x, y),
+                                          display_coord=(add_coords((20, 20), (x//2, y//2)))))
 
 async def async_map_init():
     """
@@ -3284,6 +3289,43 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     else:
         pass
 
+async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
+    """
+    displays a miniaturized representation of the seen map using 
+
+    conversion from decimal to binary to block elements:
+
+    01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
+
+    01 10 11 00 01 10 11 00 01 10 11 00 01 10 11
+    00 00 00 01 01 01 01 10 10 10 10 11 11 11 11
+
+    .# #. ## .. .# #. ## .. .# #. ## .. .# #. ##
+    .. .. .. .# .# .# .# #. #. #. #. ## ## ## ##
+
+    ▝  ▘  ▀  ▗  ▐  ▚  ▜  ▖  ▞  ▌  ▛  ▄  ▟  ▙  █ 
+    """
+    blocks = (' ', '▝', '▘', '▀', '▗', '▐', '▚', '▜', 
+              '▖', '▞', '▌', '▛', '▄', '▟', '▙', '█',)
+    #offsets = ((0, 0), (1, 0), (0, 1), (1, 1))
+    offsets = ((0, 1), (1, 1), (0, 0), (1, 0))
+    listen_coords = [add_coords(offset, player_position_offset) for offset in offsets]
+    with term.location(50, 0):
+        print('listen_coords: {}'.format(listen_coords))
+    while True:
+        await asyncio.sleep(.1)
+        player_coord = actor_dict['player'].coords()
+        #convert the bool values of passable coords into 4 ones and zeros:
+        bin_string = ''.join([str(int(map_dict[add_coords(player_coord, coord)].passable)) for coord in listen_coords])
+        #bin_string = ''.join([int(map_dict[coord].passable) for coord in listen_coords])
+        with term.location(50, 1):
+            print('bin_string: {}'.format(bin_string))
+        #bin string is of format '1010':
+        state_index = int(bin_string, 2)
+        print_char = blocks[state_index]
+        with term.location(*display_coord):
+            print(print_char)
+
 async def quitter_daemon():
     while True:
         await asyncio.sleep(0.1)
@@ -3299,7 +3341,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup())
+    #loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -3313,7 +3355,7 @@ def main():
     loop.create_task(trigger_on_presence())
     #for i in range(5):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='test'))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
