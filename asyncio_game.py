@@ -961,7 +961,7 @@ async def display_current_tile():
         with term.location(80, 1):
             print("repr() of tile: {}".format(repr(current_tile)))
 
-async def pressure_plate(appearance='▓', spawn_coord=(4, 0), 
+async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1):
     appearance = [term.color(tile_color)(char) for char in appearance]
@@ -1473,7 +1473,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -2356,7 +2356,7 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             break
         timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
 
-async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radius = 15):
+async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
     await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -2365,10 +2365,13 @@ async def view_init(loop, term_x_radius = 15, term_y_radius = 15, max_view_radiu
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
     #minimap init:
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
+                                      box_width=20, box_height=20))
     for x in range(-20, 20, 2):
         for y in range(-20, 20, 2):
             loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((20, 20), (x//2, y//2)))))
+                                          display_coord=(add_coords((126, 13), (x//2, y//2)))))
+    
 
 async def async_map_init():
     """
@@ -2506,7 +2509,6 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     await asyncio.sleep(0)
-    #asyncio.ensure_future(ui_box_draw(position='centered', x_margin=49, y_margin=35, box_width=23))
     loop = asyncio.get_event_loop()
     loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
@@ -3312,8 +3314,10 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
     listen_coords = [add_coords(offset, player_position_offset) for offset in offsets]
     with term.location(50, 0):
         print('listen_coords: {}'.format(listen_coords))
+    await asyncio.sleep(random())
+    blink_switch = 0
     while True:
-        await asyncio.sleep(.1)
+        await asyncio.sleep(1)
         player_coord = actor_dict['player'].coords()
         #convert the bool values of passable coords into 4 ones and zeros:
         bin_string = ''.join([str(int(map_dict[add_coords(player_coord, coord)].passable)) for coord in listen_coords])
@@ -3324,7 +3328,15 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
         state_index = int(bin_string, 2)
         print_char = blocks[state_index]
         with term.location(*display_coord):
-            print(print_char)
+            if player_position_offset == (0, 0):
+                if blink_switch == 1:
+                    blink_switch = 0
+                elif blink_switch == 0:
+                    blink_switch = 1
+            if blink_switch:
+                print(term.on_color(1)(term.green(print_char)))
+            else:
+                print(term.green(print_char))
 
 async def quitter_daemon():
     while True:
@@ -3341,7 +3353,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup())
+    loop.create_task(ui_setup())
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
