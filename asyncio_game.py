@@ -404,8 +404,8 @@ def chained_pairs_of_items(pairs=None):
 def multi_segment_passage(points=None, palette="░", width=3, 
                           passable=True, blocking=False):
     coord_pairs = chained_pairs_of_items(pairs=points)
-    with term.location(30, 4):
-        print("coord_pairs: {}".format(coord_pairs))
+    #with term.location(30, 4):
+        #print("coord_pairs: {}".format(coord_pairs))
     for coord_pair in coord_pairs:
         n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
                        width=width, passable=passable, blocking=blocking,
@@ -1628,8 +1628,6 @@ async def handle_input(key):
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
-            with term.location(30, 6):
-                print('Facing angle: {}'.format(facing_angle))
             chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
         if key in '^':
             cells = get_cells_along_line(num_points=10, end_point=(0, 0),
@@ -2365,8 +2363,9 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
     #minimap init:
-    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-17, 
                                       box_width=20, box_height=20))
+    asyncio.ensure_future(radar_timing())
     for x in range(-20, 20, 2):
         for y in range(-20, 20, 2):
             loop.create_task(minimap_tile(player_position_offset=(x, y),
@@ -3287,11 +3286,23 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      is_animated=True, animation=Animation(preset="mouth"),
                                      holding_items=item_drops))
         loop.create_task(actor_turret(track_to_actor=name, fire_rate=.5, reach=10))
+    #TODO: an enemy that carves a path through explored 
+    #      map tiles and causes it to be forgotten.
 
     else:
         pass
 
-async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
+async def radar_timing(state_dict_key='radar distance', loop_size=30):
+    state_dict[state_dict_key] = 0
+    while True:
+        await asyncio.sleep(.1)
+        state_dict[state_dict_key] = (state_dict[state_dict_key] + 1) % loop_size
+        with term.location(50, 0):
+            print('radar_timing: {}/{} '.format(state_dict[state_dict_key], loop_size))
+
+
+async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0), 
+                       state_dict_key='radar distance'):
     """
     displays a miniaturized representation of the seen map using 
 
@@ -3307,40 +3318,36 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
 
     ▝  ▘  ▀  ▗  ▐  ▚  ▜  ▖  ▞  ▌  ▛  ▄  ▟  ▙  █ 
     """
+    await asyncio.sleep(random())
     blocks = (' ', '▝', '▘', '▀', '▗', '▐', '▚', '▜', 
               '▖', '▞', '▌', '▛', '▄', '▟', '▙', '█',)
-    #offsets = ((0, 0), (1, 0), (0, 1), (1, 1))
     offsets = ((0, 1), (1, 1), (0, 0), (1, 0))
     listen_coords = [add_coords(offset, player_position_offset) for offset in offsets]
-    with term.location(50, 0):
-        print('listen_coords: {}'.format(listen_coords))
-    await asyncio.sleep(random())
-    blink_switch = 0
+    await asyncio.sleep(random()) #stagger update times
+    if player_position_offset == (0, 0):
+        blink_switch = cycle((0, 1))
+    else:
+        blink_switch = False
     while True:
         await asyncio.sleep(1)
         player_coord = actor_dict['player'].coords()
         #convert the bool values of passable coords into 4 ones and zeros:
+        #TODO: clean up this next line:
         bin_string = ''.join([str(int(map_dict[add_coords(player_coord, coord)].passable)) for coord in listen_coords])
-        #bin_string = ''.join([int(map_dict[coord].passable) for coord in listen_coords])
-        with term.location(50, 1):
-            print('bin_string: {}'.format(bin_string))
-        #bin string is of format '1010':
+        actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
         state_index = int(bin_string, 2)
         print_char = blocks[state_index]
         with term.location(*display_coord):
-            if player_position_offset == (0, 0):
-                if blink_switch == 1:
-                    blink_switch = 0
-                elif blink_switch == 0:
-                    blink_switch = 1
-            if blink_switch:
+            if player_position_offset == (0, 0) and next(blink_switch):
                 print(term.on_color(1)(term.green(print_char)))
+            elif actor_presence and player_position_offset != (0, 0):
+                print(term.red(print_char))
             else:
                 print(term.green(print_char))
 
 async def quitter_daemon():
     while True:
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
             loop.stop()
@@ -3365,9 +3372,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    #for i in range(5):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(5):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
