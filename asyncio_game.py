@@ -3333,7 +3333,7 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0),
         player_coord = actor_dict['player'].coords()
         #convert the bool values of passable coords into 4 ones and zeros:
         #TODO: clean up this next line:
-        bin_string = ''.join([str(int(map_dict[add_coords(player_coord, coord)].passable)) for coord in listen_coords])
+        bin_string = ''.join([one_for_passable(add_coords(player_coord, coord)) for coord in listen_coords])
         actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
         state_index = int(bin_string, 2)
         print_char = blocks[state_index]
@@ -3344,6 +3344,9 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0),
                 print(term.red(print_char))
             else:
                 print(term.green(print_char))
+
+def one_for_passable(map_coords=(0, 0)):
+    return str(int(map_dict[add_coords(map_coords)].passable))
 
 async def quitter_daemon():
     while True:
