@@ -2365,10 +2365,10 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-17, 
                                       box_width=20, box_height=20))
-    asyncio.ensure_future(radar_timing())
+    #asyncio.ensure_future(radar_timing())
     for x in range(-20, 20, 2):
         for y in range(-20, 20, 2):
-            loop.create_task(minimap_tile(player_position_offset=(x, y),
+            loop.create_task(minimap_tile(player_position_offset=(x - 10, y - 10),
                                           display_coord=(add_coords((126, 13), (x//2, y//2)))))
     
 
@@ -3292,17 +3292,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     else:
         pass
 
-async def radar_timing(state_dict_key='radar distance', loop_size=30):
-    state_dict[state_dict_key] = 0
-    while True:
-        await asyncio.sleep(.1)
-        state_dict[state_dict_key] = (state_dict[state_dict_key] + 1) % loop_size
-        with term.location(50, 0):
-            print('radar_timing: {}/{} '.format(state_dict[state_dict_key], loop_size))
-
-
-async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0), 
-                       state_dict_key='radar distance'):
+async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
     """
     displays a miniaturized representation of the seen map using 
 
@@ -3340,8 +3330,8 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0),
         with term.location(*display_coord):
             if player_position_offset == (0, 0) and next(blink_switch):
                 print(term.on_color(1)(term.green(print_char)))
-            elif actor_presence and player_position_offset != (0, 0):
-                print(term.red(print_char))
+            elif actor_presence:
+                print(term.on_color(1)(term.green(print_char)))
             else:
                 print(term.green(print_char))
 
@@ -3375,9 +3365,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(5):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(5):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
