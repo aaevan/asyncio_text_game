@@ -9,7 +9,7 @@ from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
-from itertools import cycle
+from itertools import cycle, repeat
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
@@ -2364,11 +2364,11 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
                loop.create_task(view_tile(x_offset=x, y_offset=y))
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-17, 
-                                      box_width=20, box_height=20))
+                                      box_width=21, box_height=21))
     #asyncio.ensure_future(radar_timing())
-    for x in range(-20, 20, 2):
-        for y in range(-20, 20, 2):
-            loop.create_task(minimap_tile(player_position_offset=(x - 10, y - 10),
+    for x in range(-20, 21, 2):
+        for y in range(-20, 21, 2):
+            loop.create_task(minimap_tile(player_position_offset=(x, y),
                                           display_coord=(add_coords((126, 13), (x//2, y//2)))))
     
 
@@ -3317,26 +3317,27 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
     if player_position_offset == (0, 0):
         blink_switch = cycle((0, 1))
     else:
-        blink_switch = False
+        blink_switch = repeat(1)
     while True:
-        await asyncio.sleep(1)
+        if random() > .9:
+            await asyncio.sleep(1)
+        else:
+            await asyncio.sleep(random())
         player_coord = actor_dict['player'].coords()
-        #convert the bool values of passable coords into 4 ones and zeros:
-        #TODO: clean up this next line:
         bin_string = ''.join([one_for_passable(add_coords(player_coord, coord)) for coord in listen_coords])
         actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
         state_index = int(bin_string, 2)
         print_char = blocks[state_index]
         with term.location(*display_coord):
-            if player_position_offset == (0, 0) and next(blink_switch):
-                print(term.on_color(1)(term.green(print_char)))
-            elif actor_presence:
+            blink_state = next(blink_switch)
+            if (player_position_offset == (0, 0) or actor_presence) and blink_state:
                 print(term.on_color(1)(term.green(print_char)))
             else:
                 print(term.green(print_char))
 
 def one_for_passable(map_coords=(0, 0)):
-    return str(int(map_dict[add_coords(map_coords)].passable))
+    #return str(int(map_dict[add_coords(map_coords)].passable))
+    return str(int(map_dict[map_coords].passable))
 
 async def quitter_daemon():
     while True:
