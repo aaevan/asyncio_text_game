@@ -326,6 +326,15 @@ def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     y_diff = point_b[1] - point_a[1]
     return add_coords(point_a, (x_diff//2, y_diff//2))
 
+def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
+    sum_x = sum(point[0] for point in points)
+    sum_y = sum(point[1] for point in points)
+    result = (sum_x / len(points), sum_y / len(points))
+    if rounded:
+        return (round(result[0]), round(result[1]))
+    else:
+        return result
+
 def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10)):
     """
     arranges a number of points randomly in a space.
