@@ -9,7 +9,7 @@ from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
-from itertools import cycle, repeat
+from itertools import cycle, repeat, combinations
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
@@ -143,7 +143,6 @@ class Animation:
                    'door':{'animation':('▯'), 
                            'behavior':'random', 
                            'color_choices':'78888'}}
-        #TODO: have color choices tied to a background/foreground color combination?
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -334,6 +333,29 @@ def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
         return (round(result[0]), round(result[1]))
     else:
         return result
+
+def point_within_radius(radius=20, center=(0, 0)):
+    while True:
+        point = randint(-radius, radius), randint(-radius, radius)
+        distance_from_center = point_to_point_distance(point_a=point, point_b=center)
+        if distance_from_center <= radius:
+            break
+    return point
+
+def draw_net(radius=50, points=200, cull_connections_of_distance=10, center=(0, 0)):
+    net_points = [point_within_radius(radius=radius, center=center) for _ in range(points)]
+    with term.location(0, 2):
+        print(net_points)
+    lines = list(combinations(net_points, 2))
+    with term.location(0, 0):
+        print(len(lines))
+    for line in lines:
+        line_length = point_to_point_distance(point_a=line[0], point_b=line[1])
+        if line_length < cull_connections_of_distance:
+            n_wide_passage(coord_a=line[0], coord_b=line[1],
+                           width=2, passable=True, blocking=False,
+                           palette='.')
+    #cull points that are too close together?
 
 def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10)):
     """
@@ -1487,7 +1509,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1619,6 +1641,10 @@ async def handle_input(key):
             await display_help() 
         if key in '3': #shift dimensions
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
+        if key in '4':
+            with term.location(50, 0):
+                #print("point_within_radius: {}".format(point_within_radius()))
+                draw_net()
         if key in '8': #export map
             asyncio.ensure_future(export_map())
         if key in 'Xx': #examine
