@@ -342,34 +342,47 @@ def point_within_radius(radius=20, center=(0, 0)):
             break
     return point
 
-def draw_net(radius=50, points=200, cull_connections_of_distance=10, center=(0, 0)):
+def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
     net_points = [point_within_radius(radius=radius, center=center) for _ in range(points)]
-    with term.location(0, 2):
-        print(net_points)
-    lines = list(combinations(net_points, 2))
-    with term.location(0, 0):
-        print(len(lines))
+    lines = combinations(net_points, 2)
     for line in lines:
         line_length = point_to_point_distance(point_a=line[0], point_b=line[1])
         if line_length < cull_connections_of_distance:
             n_wide_passage(coord_a=line[0], coord_b=line[1],
                            width=2, passable=True, blocking=False,
-                           palette='.')
+                           palette="░")
     #cull points that are too close together?
 
-def bumping_circles(num_points=10, x_range=(-10, 10), y_range=(-10, 10)):
+def bumping_circles(num_points=10, center=(0, 0), radius=50, circle_size_range=(10, 20),
+                    try_n_times=30):
     """
-    arranges a number of points randomly in a space.
-    each point must be unique (put it in a set?)
-    A list of points and whether they have circles drawn around them (as radius)
-    a zero means no circle has been drawn.
-    The two nearest-together points draw equal circles until the circles kiss.
-    All connections to those points, (the distance to their other neighbor points)
-    are decremented by the radius of the halfway point.
-    with the first two circles drawn, and the known distances accounted for,
-    the next smallest distance is closed by drawing a circle up to the edge of the
-    next closest point's edge.
+    draws a number of circles that just barely touch but do not overlap
     """
+    points = {}
+    starting_point = point_within_radius(radius=radius, center=center)
+    rand_radius = randint(*circle_size_range)
+    points[starting_point] = rand_radius
+    for _ in range(num_points):
+        failures = 0
+        while True:
+            fail = False
+            temp_point = point_within_radius(radius=radius, center=center)
+            min_radius = radius * 2
+            for point in points:
+                distance_from_point = point_to_point_distance(point_a=point, point_b=temp_point)
+                if distance_from_point < points[point]:
+                    fail = True
+                    break
+                elif distance_from_point < min_radius:
+                    min_radius = distance_from_point
+            if fail:
+                failures += 1
+                if failures >= try_n_times:
+                    return points
+                continue
+            else:
+                break
+        points[temp_point] = min_radius
     pass
 
 def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0), 
