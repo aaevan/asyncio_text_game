@@ -31,7 +31,7 @@ when flashlight changes directions, it sweeps through neutral if passing from on
 
 press buttons or toggle doors with spacebar, 
 
-traps that trigger on floor tile
+[X]traps that trigger on floor tile
 
 ░     ░░░░░░░░░░  `    
       ░░░░░░░░░░  '  '░
@@ -75,17 +75,6 @@ map tiles that return different things each time
   ░   ░░░░░░░░░░       
 
 a center core that 
-
-def random_unicode(length):
-    # Create a list of unicode characters within the range 0000-D7FF
-    random_unicodes = [chr(randrange(0xD7FF)) for _ in range(0, length)] 
-    return u"".join(random_unicodes)
-
-while True:
-    sleep(.01)
-    a = random_unicode(1)
-    if len(repr(a)) == 3:
-       print(a)
 
 if a seeker is near a door, bash the door
 do a random amount of damage to the door, when the door health reaches 0, replace the tile with a broken door (an X)o
