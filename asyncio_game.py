@@ -2205,6 +2205,28 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
         else:
             return line_of_sight_result
 
+#TODO: add view distance limiting based on light level of current cell.
+#      [ ]the tile displayed by gradient_tile_pairs is modified by the light level of the tile
+#      [ ]actors have a chance to not display based on the light level of the tile they are sitting on.
+#      [ ]actors which stay in darkness until lit up or a condition is met and then they change behavior
+#             seek or flee
+#      [ ]implement flee behavior
+#      [ ]an enemy that switches between:
+                #flee behavior, 
+                #seeking behavior
+                #a random orbit at random distance (at random radial speed)
+                #path of orbit changes when direction is in cone of view,
+                #tries to escape when visible, seeks quickly when not visible
+                #when clear line of sight of player and not within ijkl cone of vision
+                #seek player, else, stand still.
+#an enemy that can push the player
+#an enemy that cannot be killed
+#an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
+#if completely surrounded, a air clock begins.
+#a fatigue bar?? (souls-like?)
+#a between move timeout clock (decremented n times a second, must wait to move again.
+#    if move is received during timeout, clock does not change, player does not move.
+
 async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
