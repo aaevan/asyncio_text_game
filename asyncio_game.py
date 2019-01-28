@@ -1522,7 +1522,7 @@ async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -2606,9 +2606,13 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
-async def seek_actor(name_key=None, seek_key='player'):
+async def seek_actor(name_key=None, seek_key='player', repel=False):
     """ Standardize format to pass movement function.  """
-    await asyncio.sleep(0)
+    #await asyncio.sleep(0)
+    if not repel:
+        polarity = 1
+    else:
+        polarity = -1
     x_current, y_current = actor_dict[name_key].coords()
     target_x, target_y = actor_dict[seek_key].coords()
     active_x, active_y = x_current, y_current
@@ -2620,13 +2624,13 @@ async def seek_actor(name_key=None, seek_key='player'):
     if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         await attack(attacker_key=name_key, defender_key="player")
     if diff_x > 0:
-        next_x = active_x - 1
+        next_x = active_x + (polarity * -1)
     elif diff_x < 0:
-        next_x = active_x + 1
+        next_x = active_x + (polarity * 1)
     if diff_y > 0: 
-        next_y = active_y - 1
+        next_y = active_y + (polarity * -1)
     elif diff_y < 0:
-        next_y = active_y + 1
+        next_y = active_y + (polarity * 1)
     if map_dict[(next_x, next_y)].passable:
         return (next_x, next_y)
     else:
@@ -2776,7 +2780,8 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
 
 async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
-        strength=5, is_animated=False, animation=" ", holding_items=[]):
+        strength=5, is_animated=False, animation=" ", holding_items=[],
+        movement_function_kwargs={}):
     """ A coroutine that creates a randomly wandering '*' """
     """
     actors can:
@@ -2798,7 +2803,7 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
             await kill_actor(name_key=name_key)
             return
         await asyncio.sleep(speed)
-        next_coords = await movement_function(name_key=name_key)
+        next_coords = await movement_function(name_key=name_key, **movement_function_kwargs)
         current_coords = actor_dict[name_key].coords() #checked again here because actors can be pushed around
         if current_coords != next_coords:
             if name_key in map_dict[current_coords].actors:
@@ -3323,7 +3328,8 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
         loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
                                      tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
-                                     holding_items=item_drops))
+                                     holding_items=item_drops, 
+                                     movement_function_kwargs={'repel':True}))
     if preset == 'test':
         item_drops = ['nut']
         loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
@@ -3399,7 +3405,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup()) #UI_SETUP
+    loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
@@ -3411,9 +3417,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    #for i in range(5):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(5):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
