@@ -2212,12 +2212,12 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #             seek or flee
 #      [ ]implement flee behavior
 #      [ ]an enemy that switches between:
-                #flee behavior, 
-                #seeking behavior
-                #a random orbit at random distance (at random radial speed)
-                #path of orbit changes when direction is in cone of view,
-                #tries to escape when visible, seeks quickly when not visible
-                #when clear line of sight of player and not within ijkl cone of vision
+                #[X]flee behavior, 
+                #[X]seeking behavior
+                #[ ]a random orbit at random distance (at random radial speed)
+                #[ ]path of orbit changes when direction is in cone of view,
+                #[ ]tries to escape when visible, seeks quickly when not visible
+                #[ ]when clear line of sight of player and not within ijkl cone of vision
                 #seek player, else, stand still.
 #an enemy that can push the player
 #an enemy that cannot be killed
@@ -2635,6 +2635,11 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
         return (next_x, next_y)
     else:
         return (x_current, y_current)
+
+async def waver(name_key=None, seek_key='player', repel_draws=(True, False, False), **kwargs):
+    repel_choice = choice(repel_draws)
+    movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=repel_choice)
+    return movement_choice
 
 async def damage_door():
     """ allows actors to break down doors"""
@@ -3325,11 +3330,10 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     start_coord = coords
     if preset == 'blob':
         item_drops = ['red potion']
-        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
+        loop.create_task(basic_actor(*coords, speed=.75, movement_function=waver, 
                                      tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
-                                     holding_items=item_drops, 
-                                     movement_function_kwargs={'repel':True}))
+                                     holding_items=item_drops))
     if preset == 'test':
         item_drops = ['nut']
         loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
