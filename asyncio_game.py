@@ -2639,7 +2639,16 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
 async def waver(name_key=None, seek_key='player', repel_draws=(True, False, False), **kwargs):
     repel_choice = choice(repel_draws)
     movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=repel_choice)
+    fuzzy_forget(name_key=name_key)
     return movement_choice
+
+#TODO: for the forgetting enemy, only display it when it is within 2 squares
+#      otherwise, it does not display a symbol 
+#TODO: implement an invisible attribute for actors
+def fuzzy_forget(name_key=None, radius=3, forget_count=5):
+    actor_location = actor_dict[name_key].coords()
+    #rand_point = point_within_radius(radius=radius, center=actor_location)
+    map_dict[actor_location].seen = False
 
 async def damage_door():
     """ allows actors to break down doors"""
