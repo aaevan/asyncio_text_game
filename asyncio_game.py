@@ -13,6 +13,7 @@ from itertools import cycle, repeat, combinations
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
+from time import sleep
 
 #Class definitions--------------------------------------------------------------
 
@@ -334,13 +335,32 @@ def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
     else:
         return result
 
+def point_within_square(radius=20, center=(0, 0)):
+    point_in_square = randint(-radius, radius), randint(-radius, radius)
+    return add_coords(center, point_in_square)
+
 def point_within_radius(radius=20, center=(0, 0)):
+    stuck_count = 0
     while True:
-        point = randint(-radius, radius), randint(-radius, radius)
-        distance_from_center = point_to_point_distance(point_a=point, point_b=center)
+        stuck_count += 1
+        point = point_within_square(radius=radius, center=center)
+        distance_from_center = abs(point_to_point_distance(point_a=point, point_b=center))
         if distance_from_center <= radius:
             break
+        if stuck_count >= 50:
+            with term.location(15, 0):
+                print(radius, center, distance_from_center, point)
+            sleep(1)
     return point
+
+def check_point_within_arc(facing_angle=90, arc_width=90, center=(0, 0), twelve_reference=(0, 5)):
+    """
+    checks whether a point falls within an arc sighted from another point.
+    """
+    half_arc = arc_width / 2
+    arc_range = ((facing_angle + half_arc) % 360,
+                 (facing_angle - half_arc) % 360)
+    #TODO: finish writing
 
 def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
     net_points = [point_within_radius(radius=radius, center=center) for _ in range(points)]
@@ -2052,12 +2072,11 @@ def get_line(start, end):
         points.reverse()
     return points
 
-async def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
+def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
     """
     find the angle between two points around a central point,
     as if the edges of a triangle
     """
-    await asyncio.sleep(0)
     a = (p1[0] - p0[0])**2 + (p1[1] - p0[1])**2
     b = (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2
     c = (p2[0] - p0[0])**2 + (p2[1] - p0[1])**2
@@ -2237,7 +2256,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     previous_tile = None
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_print_choice = ' '
-    angle_from_twelve = await find_angle(p2=(x_offset, y_offset))
+    angle_from_twelve = find_angle(p2=(x_offset, y_offset))
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
@@ -2647,8 +2666,9 @@ async def waver(name_key=None, seek_key='player', repel_draws=(True, False, Fals
 #TODO: implement an invisible attribute for actors
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     actor_location = actor_dict[name_key].coords()
-    #rand_point = point_within_radius(radius=radius, center=actor_location)
-    map_dict[actor_location].seen = False
+    for _ in range(forget_count):
+        rand_point = point_within_radius(radius=radius, center=actor_location)
+        map_dict[rand_point].seen = False
 
 async def damage_door():
     """ allows actors to break down doors"""
