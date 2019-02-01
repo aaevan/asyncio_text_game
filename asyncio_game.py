@@ -353,13 +353,17 @@ def point_within_radius(radius=20, center=(0, 0)):
             sleep(1)
     return point
 
-def check_point_within_arc(facing_angle=90, arc_width=90, center=(0, 0), twelve_reference=(0, 5)):
+def check_point_within_arc(checked_point=(-5, 5), facing_angle=90, arc_width=90, center=(0, 0)):
     """
     checks whether a point falls within an arc sighted from another point.
     """
     half_arc = arc_width / 2
+    twelve_reference = (center[0], center[1] + 5)
     arc_range = ((facing_angle + half_arc) % 360,
                  (facing_angle - half_arc) % 360)
+    with term.location(0, 0):
+        found_angle = find_angle(p0=twelve_reference, p1=center, p2=checked_point)
+        print(found_angle, facing_angle, arc_range)
     #TODO: finish writing
 
 def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
@@ -1724,6 +1728,12 @@ async def handle_input(key):
             asyncio.ensure_future(use_chosen_item())
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
+        if key in 'Y':
+            dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
+            facing_angle = dir_to_angle[state_dict['facing']]
+            player_location = actor_dict['player'].coords()
+            check_point_within_arc(checked_point=(-5, 5), facing_angle=facing_angle, 
+                                   arc_width=90, center=player_location)
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
