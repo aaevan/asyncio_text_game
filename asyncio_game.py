@@ -358,11 +358,16 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=90, arc_width=90,
     checks whether a point falls within an arc sighted from another point.
     """
     half_arc = arc_width / 2
-    twelve_reference = (center[0], center[1] + 5)
-    arc_range = ((facing_angle + half_arc) % 360,
-                 (facing_angle - half_arc) % 360)
+    twelve_reference = (center[0], center[1] - 5)
+    map_dict[center].tile = term.green('@')
+    map_dict[twelve_reference].tile = term.green('R')
+    draw_line(coord_a=center, coord_b=twelve_reference, palette="*")
+    draw_line(coord_a=center, coord_b=checked_point, palette="*")
+    #def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
+    arc_range = ((facing_angle - half_arc) % 360,
+                 (facing_angle + half_arc) % 360)
     with term.location(0, 0):
-        found_angle = find_angle(p0=twelve_reference, p1=center, p2=checked_point)
+        found_angle = 360 - find_angle(p0=twelve_reference, p1=center, p2=checked_point)
         print(found_angle, facing_angle, arc_range)
     #TODO: finish writing
 
@@ -1729,7 +1734,7 @@ async def handle_input(key):
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
-            dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
+            dir_to_angle = {'n':0, 'e':90, 's':180, 'w':270}
             facing_angle = dir_to_angle[state_dict['facing']]
             player_location = actor_dict['player'].coords()
             check_point_within_arc(checked_point=(-5, 5), facing_angle=facing_angle, 
