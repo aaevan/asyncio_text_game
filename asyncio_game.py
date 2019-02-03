@@ -353,25 +353,27 @@ def point_within_radius(radius=20, center=(0, 0)):
             sleep(1)
     return point
 
-def check_point_within_arc(checked_point=(-5, 5), facing_angle=90, arc_width=90, center=(0, 0)):
+def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=90, center=None):
     """
     checks whether a point falls within an arc sighted from another point.
     """
+    if facing_angle is None:
+        dir_to_angle = {'n':0, 'e':90, 's':180, 'w':270}
+        facing_angle = dir_to_angle[state_dict['facing']]
+        center = actor_dict['player'].coords()
+    if center is None:
+        center = (0, 0)
     half_arc = arc_width / 2
     twelve_reference = (center[0], center[1] - 5)
-    map_dict[center].tile = term.green('@')
-    map_dict[twelve_reference].tile = term.green('R')
-    draw_line(coord_a=center, coord_b=twelve_reference, palette="*")
-    draw_line(coord_a=center, coord_b=checked_point, palette="*")
-    #def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
     arc_range = ((facing_angle - half_arc) % 360,
                  (facing_angle + half_arc) % 360)
     with term.location(0, 0):
         found_angle = 360 - find_angle(p0=twelve_reference, p1=center, p2=checked_point)
         print(found_angle, facing_angle, arc_range)
+    result = arc_range[0] + 360 < found_angle + 360 < arc_range[1] + 360
     with term.location(0, 1):
-        print(arc_range[0] + 360 < found_angle + 360 < arc_range[1] + 360)
-    #TODO: finish writing
+        print(result)
+    return result
 
 def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
     net_points = [point_within_radius(radius=radius, center=center) for _ in range(points)]
@@ -1736,11 +1738,7 @@ async def handle_input(key):
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
-            dir_to_angle = {'n':0, 'e':90, 's':180, 'w':270}
-            facing_angle = dir_to_angle[state_dict['facing']]
-            player_location = actor_dict['player'].coords()
-            check_point_within_arc(checked_point=(-5, 5), facing_angle=facing_angle, 
-                                   arc_width=90, center=player_location)
+            check_point_within_arc(checked_point=(-5, 5), arc_width=120)
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
@@ -2202,6 +2200,7 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
     """
+    #TODO: make not async
     await asyncio.sleep(.01)
     open_space, walls, history = 0, 0, []
     points = get_line(coord_a, coord_b)
@@ -2284,7 +2283,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         #check whether the current tile is within the current field of view
         display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
         if (x_offset, y_offset) == (0, 0):
-            print_choice=term.red('@')
+            print_choice=term.color(6)('@')
         elif display:
             #add a line in here for different levels/dimensions:
             tile_coord_key = (x_display_coord, y_display_coord)
@@ -2673,9 +2672,15 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
         return (x_current, y_current)
 
 async def waver(name_key=None, seek_key='player', repel_draws=(True, False, False), **kwargs):
-    repel_choice = choice(repel_draws)
+    actor_location = actor_dict[name_key].coords()
+    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
+    #seek_key_location = actor_dict[seek_key].coords()
+    if within_fov:
+        repel_choice = True
+    else:
+        repel_choice = False
     movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=repel_choice)
-    fuzzy_forget(name_key=name_key)
+    #fuzzy_forget(name_key=name_key) #for use in a different context
     return movement_choice
 
 #TODO: for the forgetting enemy, only display it when it is within 2 squares
@@ -3467,7 +3472,7 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(5):
+    for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
