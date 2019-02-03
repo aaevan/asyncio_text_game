@@ -369,6 +369,8 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=90, arc_width=90,
     with term.location(0, 0):
         found_angle = 360 - find_angle(p0=twelve_reference, p1=center, p2=checked_point)
         print(found_angle, facing_angle, arc_range)
+    with term.location(0, 1):
+        print(arc_range[0] + 360 < found_angle + 360 < arc_range[1] + 360)
     #TODO: finish writing
 
 def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
