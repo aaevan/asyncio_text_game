@@ -372,10 +372,20 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
         if checked_point[0] < center[0]:
             found_angle = 360 - found_angle
         print("found: {}, facing: {}, arc_range: {}".format(found_angle, facing_angle, arc_range))
-    if facing_angle != 0:
-        result = arc_range[0] < found_angle < arc_range[1]
+        result = in_angle_bracket(given_angle=found_angle,
+                                  arc_begin=arc_range[0], arc_end=arc_range[1])
+    return result
+
+def in_angle_bracket(given_angle, arc_begin=45, arc_end=135):
+    if arc_begin > arc_end:
+        if given_angle < 90:
+            result = given_angle <= arc_end
+        elif given_angle > 270:
+            result = arc_begin <= given_angle
+        else:
+            result = False
     else:
-        result = (arc_range[0] < found_angle + 360) and (found_angle < arc_range[1])
+        result = arc_begin < given_angle < arc_end
     return result
 
 def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
@@ -2254,7 +2264,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
                 #[X]seeking behavior
                 #[ ]a random orbit at random distance (at random radial speed)
                 #[ ]path of orbit changes when direction is in cone of view,
-                #[ ]tries to escape when visible, seeks quickly when not visible
+                #[X]tries to escape when visible, seeks quickly when not visible
                 #[ ]when clear line of sight of player and not within ijkl cone of vision
                 #seek player, else, stand still.
 #an enemy that can push the player
@@ -2674,16 +2684,37 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
     else:
         return (x_current, y_current)
 
-async def waver(name_key=None, seek_key='player', repel_draws=(True, False, False), **kwargs):
+async def wait(name_key=None, **kwargs):
+    """
+    Takes no action. Stays in place.
+    """
+    actor_location = actor_dict[name_key].coords()
+    return actor_location
+
+async def waver(name_key=None, seek_key='player', **kwargs):
+    """
+    Seeks player if out of sight, flees if within fov of player
+    """
     actor_location = actor_dict[name_key].coords()
     within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
-    #seek_key_location = actor_dict[seek_key].coords()
     if within_fov:
         repel_choice = True
     else:
         repel_choice = False
     movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=repel_choice)
     #fuzzy_forget(name_key=name_key) #for use in a different context
+    return movement_choice
+
+async def angel_seek(name_key=None, seek_key='player'):
+    """
+    Seeks only when the player isn't looking.
+    """
+    actor_location = actor_dict[name_key].coords()
+    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
+    if within_fov:
+        movement_choice = actor_location
+    else:
+        movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
     return movement_choice
 
 #TODO: for the forgetting enemy, only display it when it is within 2 squares
@@ -3388,6 +3419,11 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      tile='ö', name_key=name, hurtful=True, strength=20,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
+    if preset == 'angel':
+        item_drops = ['dash trinket']
+        loop.create_task(basic_actor(*coords, speed=.15, movement_function=angel_seek, 
+                                     tile='A', name_key=name, hurtful=True, strength=20,
+                                     is_animated=None, holding_items=item_drops))
     if preset == 'test':
         item_drops = ['nut']
         loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
@@ -3477,7 +3513,7 @@ def main():
     loop.create_task(trigger_on_presence())
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
