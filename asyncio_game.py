@@ -2318,11 +2318,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                 print_choice = ' '
         elif not display and map_dict[x_display_coord, y_display_coord].seen:
             if random() < .95:
-                #TODO: evaluate whether imperfect memory of the map is interesting
-                #fuzzy_x = x_display_coord + randint(-2, 2)
-                #fuzzy_y = y_display_coord + randint(-2, 2)
                 print_choice = term.on_color(0)(term.red(map_dict[x_display_coord, y_display_coord].tile))
-                #print_choice = term.on_color(0)(term.red(map_dict[fuzzy_x, fuzzy_y].tile))
             else:
                 print_choice = ' '
         else:
