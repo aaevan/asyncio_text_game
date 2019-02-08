@@ -24,7 +24,7 @@ class Map_tile:
                  announcement="", distance_trigger=None, is_animated=False,
                  animation="", actors=None, items=None, 
                  magic=False, magic_destination=False, 
-                 mutable=True, 
+                 mutable=True, override_view=False,
                  is_door=False, locked=False, key=''):
         """ create a new map tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
@@ -48,6 +48,7 @@ class Map_tile:
         self.is_animated, self.animation = is_animated, animation
         self.magic, self.magic_destination = magic, magic_destination
         self.mutable = mutable
+        self.override_view = override_view
         self.is_door = is_door
         self.locked = locked
         self.key = key
@@ -232,9 +233,6 @@ class Item:
         self.mutable = mutable
 
     async def use(self):
-        with term.location(50, 5):
-            print("entering .use()")
-        #await asyncio.sleep(0)
         if self.uses is not None and not self.broken:
             if self.use_message is not None:
                 asyncio.ensure_future(filter_print(output_text=self.use_message))
@@ -1226,10 +1224,19 @@ async def temporary_block(duration=5, animation_preset='energy block'):
                           rand_delay=0, solid=False, moveable=True, 
                           animation_preset=animation_preset))
 
+async def temp_view_circle(duration=5, radius=5, center_coord=(0, 0)):
+    """
+    carves out a temporary zone of the map that can be viewed regardless
+    of whether it's through a wall or behind the player's fov arc.
+    """
+    pass
+
 #Item interaction---------------------------------------------------------------
 
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #      alternatively: an item that disappears when used and returns when the
+#TODO: an item that when thrown, temporarily creates a circle of overriden_view == True
+#      acts like a security camera?
 #      cooldown expires.
 #TODO: items that are used immediately upon pickup
 
@@ -1751,7 +1758,17 @@ async def handle_input(key):
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
-            check_point_within_arc(checked_point=(-5, 5), arc_width=120)
+            #check_point_within_arc(checked_point=(-5, 5), arc_width=120)
+            player_coords = actor_dict['player'].coords()
+            surroundings = [(-1, 1), (0, 1), (1, 1),
+                            (-1, 0), (0, 0), (1, 0),
+                            (-1,-1), (0,-1), (1,-1)]
+            for offset in surroundings:
+                check_coord = add_coords(offset, player_coords)
+                with term.location(80, 0):
+                    print(check_coord)
+                #map_dict[check_coord].tile = str(len(map_dict[check_coord].actors))
+                map_dict[check_coord].override_view = True
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
@@ -2254,11 +2271,12 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
             return line_of_sight_result
 
 #TODO: add view distance limiting based on light level of current cell.
+#      an enemy that carves a path through explored map tiles and causes it to be forgotten.
 #      [ ]the tile displayed by gradient_tile_pairs is modified by the light level of the tile
 #      [ ]actors have a chance to not display based on the light level of the tile they are sitting on.
 #      [ ]actors which stay in darkness until lit up or a condition is met and then they change behavior
 #             seek or flee
-#      [ ]implement flee behavior
+#      [X]implement flee behavior
 #      [ ]an enemy that switches between:
                 #[X]flee behavior, 
                 #[X]seeking behavior
@@ -2292,9 +2310,12 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     while True:
         await asyncio.sleep(distance * .015) #update speed
         player_x, player_y = actor_dict['player'].coords()
-        x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
+        #x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
+        x_display_coord, y_display_coord = add_coords((player_x, player_y), (x_offset, y_offset))
         #check whether the current tile is within the current field of view
         display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
+        if map_dict[x_display_coord, y_display_coord].override_view:
+            display = True
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.color(6)('@')
         elif display:
@@ -2659,23 +2680,25 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
         polarity = -1
     x_current, y_current = actor_dict[name_key].coords()
     target_x, target_y = actor_dict[seek_key].coords()
-    active_x, active_y = x_current, y_current
     next_x, next_y = x_current, y_current
-    diff_x, diff_y = (active_x - target_x), (active_y - target_y)
-    hurtful = actor_dict[name_key].hurtful
+    diff_x, diff_y = (x_current - target_x), (y_current - target_y)
+    is_hurtful = actor_dict[name_key].hurtful
     player_x, player_y = actor_dict["player"].coords()
-    player_x_diff, player_y_diff = (active_x - player_x), (active_y - player_y)
-    if hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
+    player_x_diff, player_y_diff = (x_current - player_x), (y_current - player_y)
+    if is_hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         await attack(attacker_key=name_key, defender_key="player")
     if diff_x > 0:
-        next_x = active_x + (polarity * -1)
+        next_x = x_current + (polarity * -1)
     elif diff_x < 0:
-        next_x = active_x + (polarity * 1)
+        next_x = x_current + (polarity * 1)
     if diff_y > 0: 
-        next_y = active_y + (polarity * -1)
+        next_y = y_current + (polarity * -1)
     elif diff_y < 0:
-        next_y = active_y + (polarity * 1)
-    if map_dict[(next_x, next_y)].passable:
+        next_y = y_current + (polarity * 1)
+    coord_tuple = next_x, next_y
+    #TODO: flee only within certain distance of the player, chance to wait
+    #      increases towards margin of FOV cone/distance from player
+    if map_dict[coord_tuple].passable and len(map_dict[coord_tuple].actors) == 0:
         return (next_x, next_y)
     else:
         return (x_current, y_current)
@@ -2713,8 +2736,6 @@ async def angel_seek(name_key=None, seek_key='player'):
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
     return movement_choice
 
-#TODO: for the forgetting enemy, only display it when it is within 2 squares
-#      otherwise, it does not display a symbol 
 #TODO: implement an invisible attribute for actors
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     actor_location = actor_dict[name_key].coords()
@@ -3149,7 +3170,6 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
                             ignore_head=True, source_actor=actor_key)
 
 def point_given_angle_and_radius(angle=0, radius=10):
-    #TODO: add starting coordinate
     x = round(cos(radians(angle)) * radius)
     y = round(sin(radians(angle)) * radius)
     return x, y
@@ -3411,8 +3431,8 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     start_coord = coords
     if preset == 'blob':
         item_drops = ['red potion']
-        loop.create_task(basic_actor(*coords, speed=.75, movement_function=waver, 
-                                     tile='ö', name_key=name, hurtful=True, strength=20,
+        loop.create_task(basic_actor(*coords, speed=.3, movement_function=waver, 
+                                     tile='ö', name_key=name, hurtful=True, strength=10,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
     if preset == 'angel':
@@ -3427,8 +3447,6 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
                                      is_animated=True, animation=Animation(preset="mouth"),
                                      holding_items=item_drops))
         loop.create_task(actor_turret(track_to_actor=name, fire_rate=.5, reach=10))
-    #TODO: an enemy that carves a path through explored 
-    #      map tiles and causes it to be forgotten.
 
     else:
         pass
@@ -3507,9 +3525,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(1):
+    for i in range(5):
         rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
