@@ -2646,14 +2646,14 @@ async def ui_setup():
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
 
 #Actor behavior functions-------------------------------------------------------
-async def wander(x_current=0, y_current=0, name_key=None):
+async def wander(name_key=None, **kwargs):
     """ 
     randomly increments or decrements x_current and y_current
     if square to be moved to is passable
     """
-    await asyncio.sleep(0)
+    x_current, y_current = actor_dict[name_key].coords()
     x_move, y_move = randint(-1, 1), randint(-1, 1)
-    next_position = (x_current + x_move, y_current + y_move)
+    next_position = add_coords((x_current, y_current), (x_move, y_move))
     if map_dict[next_position].passable:
         return next_position
     else:
@@ -2696,8 +2696,6 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
     elif diff_y < 0:
         next_y = y_current + (polarity * 1)
     coord_tuple = next_x, next_y
-    #TODO: flee only within certain distance of the player, chance to wait
-    #      increases towards margin of FOV cone/distance from player
     if map_dict[coord_tuple].passable and len(map_dict[coord_tuple].actors) == 0:
         return (next_x, next_y)
     else:
@@ -2716,11 +2714,15 @@ async def waver(name_key=None, seek_key='player', **kwargs):
     """
     actor_location = actor_dict[name_key].coords()
     within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
-    if within_fov:
-        repel_choice = True
+    distance_to_player = distance_to_actor(actor_a=name_key, actor_b='player')
+    #TODO: flee only within certain distance of the player, chance to wait
+    #      increases towards margin of FOV cone/distance from player
+    if distance_to_player >= 15:
+        movement_choice = await wander(name_key=name_key)
+    elif within_fov and distance_to_player < 10:
+        movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=True)
     else:
-        repel_choice = False
-    movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=repel_choice)
+        movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
     #fuzzy_forget(name_key=name_key) #for use in a different context
     return movement_choice
 
