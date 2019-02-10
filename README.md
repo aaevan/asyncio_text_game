@@ -1,8 +1,11 @@
 # asyncio_text_game
-An attempt to make a real-time rogue-adjacent game using ascyncio.
+An attempt to make a real-time rogue-adjacent game using asyncio.
 
+WASD to move, IJKL to look.
 
-(Mostly an excuse to play with lots of interesting language features in a low stakes experimental context.)
+Press ? for help.
+
+Some things run away from you, others don't.
 
 ![](circle_of_darkness.gif)
 
