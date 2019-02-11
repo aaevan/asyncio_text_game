@@ -1400,6 +1400,7 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
             map_dict[(x, y)].description = text
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
+    #TODO: replace with draw_line
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
     if segments == 2:
         if abs(x2-x1) > abs(y2-y1):
@@ -3237,7 +3238,6 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
         map_dict[point].actors[particle_id] = True
         actor_dict[particle_id].update(*point)
         if damage is not None:
-            #TODO: provide indicator of direction of damage
             await damage_all_actors_at_coord(coord=point, damage=damage, 
                                              source_actor=source_actor)
         last_location = actor_dict[particle_id].coords()
