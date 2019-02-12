@@ -1138,7 +1138,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         await asyncio.sleep(speed)
     for actor in to_damage_names:
         damage_direction = opposite_directions[direction]
-        asyncio.ensure_future(directional_damage_alert(source_direction=damage_direction))
+        if actor == 'player':
+            asyncio.ensure_future(directional_damage_alert(source_direction=damage_direction))
         asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
@@ -1400,7 +1401,6 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text="testing..."):
             map_dict[(x, y)].description = text
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette="░"):
-    #TODO: replace with draw_line
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
     if segments == 2:
         if abs(x2-x1) > abs(y2-y1):
@@ -2322,7 +2322,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         elif display:
             #add a line in here for different levels/dimensions:
             tile_coord_key = (x_display_coord, y_display_coord)
-            if randint(0, round(distance)) < threshold:
+            #if randint(0, round(distance)) < threshold:
+            if abs(gauss(distance, distance / 5)) < threshold:
                 line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
                 if type(line_of_sight_result) is tuple: #
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
@@ -2492,14 +2493,12 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
     #minimap init:
-    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-17, 
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
                                       box_width=21, box_height=21))
-    #asyncio.ensure_future(radar_timing())
     for x in range(-20, 21, 2):
         for y in range(-20, 21, 2):
             loop.create_task(minimap_tile(player_position_offset=(x, y),
                                           display_coord=(add_coords((126, 13), (x//2, y//2)))))
-    
 
 async def async_map_init():
     """
@@ -3527,9 +3526,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(5):
+    for i in range(2):
         rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
