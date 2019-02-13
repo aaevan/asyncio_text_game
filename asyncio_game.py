@@ -258,21 +258,8 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 state_dict['printing'] = False
+state_dict['fuzz'] = 8 #sets fuzziness of the edge of vision
 
-gradient_tile_pairs = ((0, ' '),        #dark
-                       (7, "░"),
-                       (8, "░"), 
-                       (7, "▒"),
-                       (8, "▒"), 
-                       (7, "▓"), 
-                       (7, "█"), 
-                      *((8, "▓"),) * 2,
-                      *((8, "█"),) * 6) #bright
-
-bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
-#defined at top level as a dictionary for fastest lookup time
-bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
- 
 #Drawing functions--------------------------------------------------------------
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
@@ -1770,6 +1757,15 @@ async def handle_input(key):
                     print(check_coord)
                 #map_dict[check_coord].tile = str(len(map_dict[check_coord].actors))
                 map_dict[check_coord].override_view = True
+        if key in '+':
+            state_dict['fuzz'] += 1
+            output_text = "+: fuzz set to {}".format(state_dict['fuzz'])
+            asyncio.ensure_future(filter_print(output_text=output_text))
+        if key in '-':
+            if state_dict['fuzz'] > 1:
+                state_dict['fuzz'] -= 1
+                output_text = "-: fuzz set to {}".format(state_dict['fuzz'])
+                asyncio.ensure_future(filter_print(output_text=output_text))
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
@@ -2311,7 +2307,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     while True:
         await asyncio.sleep(distance * .015) #update speed
         player_x, player_y = actor_dict['player'].coords()
-        #x_display_coord, y_display_coord = player_x + x_offset, player_y + y_offset
         x_display_coord, y_display_coord = add_coords((player_x, player_y), (x_offset, y_offset))
         #check whether the current tile is within the current field of view
         display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
@@ -2322,10 +2317,11 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         elif display:
             #add a line in here for different levels/dimensions:
             tile_coord_key = (x_display_coord, y_display_coord)
-            #if randint(0, round(distance)) < threshold:
-            if abs(gauss(distance, distance / 5)) < threshold:
+            #the larger the number, the wider the range of fuzzy tiles
+            fuzz = state_dict['fuzz']
+            if abs(gauss(distance, distance / fuzz)) < threshold: 
                 line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
-                if type(line_of_sight_result) is tuple: #
+                if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
                 elif line_of_sight_result == True:
                     await trigger_announcement(tile_coord_key, player_coords=(player_x, player_y))
@@ -2351,9 +2347,35 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
             # only print something if it has changed:
             if last_print_choice != print_choice:
                 if print_choice == "░":
-                    print_choice = bright_to_dark[int(distance)]
+                    print_choice = find_brightness_tile(distance=distance)
                 print(print_choice)
                 last_print_choice = print_choice
+
+def find_brightness_tile(distance=0, std_dev=.5):
+    """
+    returns the appropriate light-level shifted tile based on distance.
+    """
+    gradient_tile_pairs = ((0, ' '),        #dark
+                           (7, "░"),
+                           (8, "░"), 
+                           (7, "▒"),
+                           (8, "▒"), 
+                           (7, "▓"), 
+                           (7, "█"), 
+                          *((8, "▓"),) * 2,
+                          *((8, "█"),) * 6) #bright
+
+    bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
+    bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
+
+    brightness_index = distance + gauss(1, std_dev) 
+    if brightness_index <= 0:
+        brightness_index = 0
+    elif brightness_index >= 15:
+        brightness_index = 14
+    print_choice = bright_to_dark[int(brightness_index)]
+    return print_choice
+
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
