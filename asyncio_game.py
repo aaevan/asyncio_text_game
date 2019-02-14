@@ -1217,7 +1217,14 @@ async def temp_view_circle(duration=5, radius=5, center_coord=(0, 0)):
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
     """
-    pass
+    temp_circle = get_circle(center=center_coord, radius=radius)
+    for coord in temp_circle:
+        await asyncio.sleep(.1)
+        map_dict[coord].override_view = True
+    await asyncio.sleep(duration)
+    for coord in temp_circle:
+        asyncio.sleep(.1)
+        map_dict[coord].override_view = False
 
 #Item interaction---------------------------------------------------------------
 
@@ -1746,17 +1753,18 @@ async def handle_input(key):
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
-            #check_point_within_arc(checked_point=(-5, 5), arc_width=120)
             player_coords = actor_dict['player'].coords()
-            surroundings = [(-1, 1), (0, 1), (1, 1),
-                            (-1, 0), (0, 0), (1, 0),
-                            (-1,-1), (0,-1), (1,-1)]
-            for offset in surroundings:
-                check_coord = add_coords(offset, player_coords)
-                with term.location(80, 0):
-                    print(check_coord)
-                #map_dict[check_coord].tile = str(len(map_dict[check_coord].actors))
-                map_dict[check_coord].override_view = True
+            asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
+            #check_point_within_arc(checked_point=(-5, 5), arc_width=120)
+            #surroundings = [(-1, 1), (0, 1), (1, 1),
+                            #(-1, 0), (0, 0), (1, 0),
+                            #(-1,-1), (0,-1), (1,-1)]
+            #for offset in surroundings:
+                #check_coord = add_coords(offset, player_coords)
+                #with term.location(80, 0):
+                    #print(check_coord)
+                ##map_dict[check_coord].tile = str(len(map_dict[check_coord].actors))
+                #map_dict[check_coord].override_view = True
         if key in '+':
             state_dict['fuzz'] += 1
             output_text = "+: fuzz set to {}".format(state_dict['fuzz'])
@@ -2319,7 +2327,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
             tile_coord_key = (x_display_coord, y_display_coord)
             #the larger the number, the wider the range of fuzzy tiles
             fuzz = state_dict['fuzz']
-            if abs(gauss(distance, distance / fuzz)) < threshold: 
+            random_distance = abs(gauss(distance, distance / fuzz)) 
+            if random_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
@@ -2766,6 +2775,8 @@ def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     for _ in range(forget_count):
         rand_point = point_within_radius(radius=radius, center=actor_location)
         map_dict[rand_point].seen = False
+
+#TODO: an invisible actor that can still be damaged.
 
 async def damage_door():
     """ allows actors to break down doors"""
