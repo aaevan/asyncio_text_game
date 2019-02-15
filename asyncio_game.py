@@ -259,6 +259,7 @@ state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 state_dict['printing'] = False
 state_dict['fuzz'] = 8 #sets fuzziness of the edge of vision
+state_dict['known location'] = True
 
 #Drawing functions--------------------------------------------------------------
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
@@ -1212,18 +1213,20 @@ async def temporary_block(duration=5, animation_preset='energy block'):
                           rand_delay=0, solid=False, moveable=True, 
                           animation_preset=animation_preset))
 
-async def temp_view_circle(duration=5, radius=5, center_coord=(0, 0)):
+async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
     """
     temp_circle = get_circle(center=center_coord, radius=radius)
+    shuffle(temp_circle)
     for coord in temp_circle:
-        await asyncio.sleep(.1)
+        await asyncio.sleep(.01)
         map_dict[coord].override_view = True
     await asyncio.sleep(duration)
+    shuffle(temp_circle)
     for coord in temp_circle:
-        asyncio.sleep(.1)
+        asyncio.sleep(.01)
         map_dict[coord].override_view = False
 
 #Item interaction---------------------------------------------------------------
@@ -2529,7 +2532,7 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     for x in range(-20, 21, 2):
         for y in range(-20, 21, 2):
             loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((126, 13), (x//2, y//2)))))
+                                          display_coord=(add_coords((126, 12), (x//2, y//2)))))
 
 async def async_map_init():
     """
@@ -2603,10 +2606,16 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         destination, plane = (player_x - x_offset, player_y - y_offset), 'normal'
     else:
         return False
-    map_dict[player_x, player_y].passable = True
     if map_dict[destination].passable:
+        map_dict[player_x, player_y].passable = True
         actor_dict['player'].update(*destination)
         state_dict['plane'] = plane
+        with term.location(0, 0):
+            print('plane: {}, known location: {}'.format(plane, state_dict['known location']))
+        if plane != 'normal':
+            state_dict['known location'] = False
+        else:
+            state_dict['known location'] = True
     else:
         asyncio.ensure_future(filter_print(output_text="Something is in the way."))
 
@@ -2661,8 +2670,15 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
         await asyncio.sleep(refresh_time)
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
+        player_coords = actor_dict['player'].coords()
+        if state_dict['known location']:
+            printed_coords = player_coords
+        else:
+            #TODO: create more convincing noise
+            noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
+            printed_coords = ''.join([choice(noise) for _ in range(10)])
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("coords: {}      ".format(actor_dict['player'].coords()))
+            print("coords: {}      ".format(printed_coords))
 
 async def ui_setup():
     """
@@ -3051,8 +3067,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
         await asyncio.sleep(extend_wait)
         map_tile = actor_dict[vine_name].tile
         coord = actor_dict[vine_name].coord
-        with term.location(0, 3):
-            print(coord)
         if behavior == "grow":
             map_dict[coord].tile = map_tile
         if behavior == "retract" or "bolt":
@@ -3559,9 +3573,9 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
-    for i in range(2):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    #for i in range(2):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
