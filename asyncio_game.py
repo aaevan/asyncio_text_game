@@ -2691,6 +2691,26 @@ async def ui_setup():
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
+    #loop.create_task(screen_noise())
+
+async def screen_noise():
+    """
+    an attempt at creating fake whole-screen noise
+    """
+    x_size, y_size = (term.width - 2, term.height - 2)
+    rand_coords = []
+    old_coords = []
+    noise = '      ▒▓▒ ▒▓▒' 
+    while True:
+        rand_coords = [(randint(0, x_size), randint(0, y_size)) for _ in range(100)]
+        for coord in rand_coords:
+            with term.location(*coord):
+                print(choice(noise))
+        await asyncio.sleep(random()/10)
+        for coord in rand_coords:
+            with term.location(*coord):
+                print(' ')
+        #old_coords = rand_coords
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(name_key=None, **kwargs):
