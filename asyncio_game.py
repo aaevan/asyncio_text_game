@@ -113,7 +113,7 @@ class Animation:
                            'color_choices':('456')},
                   'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
                            'behavior':'loop tile', 
-                           'color_choices':'1'},
+                           'color_choices':'4'},
            'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
                            'behavior':'random', 
                            'color_choices':'1' * 5 + '7'},
@@ -2317,8 +2317,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     display = False
     while True:
         await asyncio.sleep(distance * .015) #update speed
-        player_x, player_y = actor_dict['player'].coords()
-        x_display_coord, y_display_coord = add_coords((player_x, player_y), (x_offset, y_offset))
+        player_coords = actor_dict['player'].coords()
+        x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         #check whether the current tile is within the current field of view
         display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
         if map_dict[x_display_coord, y_display_coord].override_view:
@@ -2332,11 +2332,11 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
             fuzz = state_dict['fuzz']
             random_distance = abs(gauss(distance, distance / fuzz)) 
             if random_distance < threshold: 
-                line_of_sight_result = await check_line_of_sight((player_x, player_y), tile_coord_key)
+                line_of_sight_result = await check_line_of_sight(player_coords, tile_coord_key)
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
                 elif line_of_sight_result == True:
-                    await trigger_announcement(tile_coord_key, player_coords=(player_x, player_y))
+                    await trigger_announcement(tile_coord_key, player_coords=player_coords)
                     print_choice = await check_contents_of_tile(tile_coord_key)
                 elif line_of_sight_result != False and line_of_sight_result != None:
                     #catches tiles beyond magic doors:
@@ -2348,8 +2348,12 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                 #catches fuzzy fringe starting at threshold:
                 print_choice = ' '
         elif not display and map_dict[x_display_coord, y_display_coord].seen:
+            if state_dict['plane'] == 'nightmare':
+                color_choice = 0
+            else:
+                color_choice = 7
             if random() < .95:
-                print_choice = term.on_color(0)(term.red(map_dict[x_display_coord, y_display_coord].tile))
+                print_choice = term.on_color(0)(term.color(color_choice)(map_dict[x_display_coord, y_display_coord].tile))
             else:
                 print_choice = ' '
         else:
@@ -2691,26 +2695,25 @@ async def ui_setup():
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
-    #loop.create_task(screen_noise())
+    loop.create_task(shimmer_text())
 
-async def screen_noise():
+async def shimmer_text(output_text=None, screen_coord=(0, 1)):
     """
     an attempt at creating fake whole-screen noise
     """
+    #TODO: put shimmer text in its own function
     x_size, y_size = (term.width - 2, term.height - 2)
     rand_coords = []
     old_coords = []
     noise = '      ▒▓▒ ▒▓▒' 
     while True:
-        rand_coords = [(randint(0, x_size), randint(0, y_size)) for _ in range(100)]
-        for coord in rand_coords:
-            with term.location(*coord):
-                print(choice(noise))
-        await asyncio.sleep(random()/10)
-        for coord in rand_coords:
-            with term.location(*coord):
-                print(' ')
-        #old_coords = rand_coords
+        if output_text is None:
+            output_text = "the quick brown fox jumps over the lazy dog"
+        rand_color = [term.color(choice((7, 8)))(char) for char in output_text]
+        shimmer_text = ''.join(rand_color)
+        with term.location(*screen_coord):
+            print(shimmer_text)
+        await asyncio.sleep(.1)
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(name_key=None, **kwargs):
