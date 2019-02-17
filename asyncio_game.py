@@ -1037,7 +1037,7 @@ async def display_current_tile():
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
-                         tile_color=7, test_rate=.1):
+                         tile_color=7, test_rate=.1, display_timer=False):
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     plate_id = await generate_id(base_name='pressure_plate')
@@ -1056,6 +1056,11 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             triggered = True
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
+            if display_timer:
+                middle_x, middle_y = (int(term.width / 2 - 2), 
+                                      int(term.height / 2 - 2),)
+                asyncio.ensure_future(timer(x_pos=middle_x, y_pos=middle_y + 15, 
+                                            time_minutes=0, time_seconds=5, resolution=1))
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
@@ -2384,7 +2389,7 @@ def find_brightness_tile(distance=0, std_dev=.5):
     bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
     bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
 
-    brightness_index = distance + gauss(1, std_dev) 
+    brightness_index = distance #+ gauss(1, std_dev) 
     if brightness_index <= 0:
         brightness_index = 0
     elif brightness_index >= 15:
@@ -2515,12 +2520,13 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             time_seconds = 59
             time_minutes -= 1
         elif time_seconds == 0 and time_minutes == 0:
+            await asyncio.sleep(.5)
             x, y = actor_dict['player'].coords()
-            await vine_grow(start_x=x,  start_y=y)
             with term.location(x_pos, y_pos):
                 print(" " * 5)
             break
         timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+    return
 
 async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
     await asyncio.sleep(0)
@@ -2595,6 +2601,9 @@ async def trap_init():
     loop.create_task(flip_sync(trigger_key='test2'))
     loop.create_task(spike_trap(patch_to_key='test'))
     loop.create_task(spike_trap(coord=(12, 10), patch_to_key='test2'))
+    #TODO: state_init option in pressure_plate?
+    state_dict['switch_4'] = {}
+    loop.create_task(pressure_plate(spawn_coord=(3, 3), patch_to_key='switch_4', display_timer=True))
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
