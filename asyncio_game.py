@@ -1057,8 +1057,8 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
             if display_timer:
-                middle_x, middle_y = (int(term.width / 2 - 2), 
-                                      int(term.height / 2 - 2),)
+                x_pos, y_pos = (int(term.width / 2 - 2), 
+                                int(term.height / 2 - 2),)
                 asyncio.ensure_future(timer(x_pos=middle_x, y_pos=middle_y + 15, 
                                             time_minutes=0, time_seconds=5, resolution=1))
             if off_delay:
@@ -2576,6 +2576,8 @@ async def async_map_init():
     loop.create_task(spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
+    loop.create_task(spawn_static_actor(spawn_coord=(5, 5), moveable=True))
+    loop.create_task(spawn_static_actor(spawn_coord=(6, 6), moveable=True))
     loop.create_task(trap_init())
 
 async def trap_init():
