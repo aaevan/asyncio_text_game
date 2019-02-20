@@ -1498,7 +1498,8 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10),
 #TODO: create a mirror
 
 async def magic_door(start_coord=(5, 5), end_coords=(-22, 18), 
-                     horizon_orientation='vertical', silent=False):
+                     horizon_orientation='vertical', silent=False,
+                     destination_plane='normal'):
     """
     notes for portals/magic doors:
     either gapless teleporting doors or gapped by darkness doors.
@@ -1526,7 +1527,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         just_teleported = actor_dict['player'].just_teleported
-        # add an option for non-player actors to go through.
+        #TODO: add an option for non-player actors to go through.
         if player_coords == start_coord and not just_teleported:
             last_location = state_dict['last_location']
             difference_from_door_coords = (start_coord[0] - last_location[0], 
@@ -1538,19 +1539,23 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
                 map_dict[player_coords].passable=True
                 actor_dict['player'].update(*destination)
                 actor_dict['player'].just_teleported = True
+                state_dict['plane'] = destination_plane
 
-async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25), silent=False):
+async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25), silent=False,
+                                 source_plane='normal', destination_plane='normal'):
     loop = asyncio.get_event_loop()
-    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords), silent=silent))
-    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords), silent=silent))
+    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords), silent=silent, 
+                                destination_plane=destination_plane),)
+    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords), silent=silent,
+                                destination_plane=source_plane))
 
 async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
-                          breakable=True, preset='random'):
+                          breakable=True, moveable=True, preset='random'):
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
     container_id = await spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
-                                      tile=tile, breakable=breakable)
+                                            tile=tile, moveable=moveable, breakable=breakable)
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
@@ -2569,7 +2574,8 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
-    loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
+                                            destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
@@ -2686,7 +2692,7 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
         player_coords = actor_dict['player'].coords()
-        if state_dict['known location']:
+        if state_dict['plane'] == 'normal':
             printed_coords = player_coords
         else:
             #TODO: create more convincing noise
@@ -2725,6 +2731,8 @@ async def shimmer_text(output_text=None, screen_coord=(0, 1)):
         with term.location(*screen_coord):
             print(shimmer_text)
         await asyncio.sleep(.1)
+        with term.location(0, 2):
+            print(state_dict['plane'] + '      ')
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(name_key=None, **kwargs):
@@ -3568,11 +3576,17 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
         bin_string = ''.join([one_for_passable(add_coords(player_coord, coord)) for coord in listen_coords])
         actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
         state_index = int(bin_string, 2)
-        print_char = blocks[state_index]
+        if state_dict['plane'] == 'nightmare':
+            print_char = choice('        ▒▓▒')
+        else:
+            print_char = blocks[state_index]
         with term.location(*display_coord):
             blink_state = next(blink_switch)
             if (player_position_offset == (0, 0) or actor_presence) and blink_state:
-                print(term.on_color(1)(term.green(print_char)))
+                if state_dict['plane'] != 'nightmare':
+                    print(term.on_color(1)(term.green(print_char)))
+                else:
+                    print(term.on_color(0)(term.green(print_char)))
             else:
                 print(term.green(print_char))
 
