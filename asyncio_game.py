@@ -645,7 +645,8 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
     y_bounds = center_coord[1] - radius, center_coord[1] + radius
     for x in range(*x_bounds):
         for y in range(*y_bounds):
-            await asyncio.sleep(delay)
+            if delay != 0:
+                await asyncio.sleep(delay)
             if not map_dict[(x, y)].mutable:
                 continue
             distance_to_center = point_to_point_distance(point_a=center_coord, point_b=(x, y))
@@ -859,7 +860,7 @@ async def push(direction='n', pusher='player'):
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
     pusher_coords = actor_dict[pusher].coords()
-    destination_coords = (pusher_coords[0] + chosen_dir[0], pusher_coords[1] + chosen_dir[1])
+    destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
     pushed_name = next(iter(map_dict[destination_coords].actors))
@@ -1059,8 +1060,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             if display_timer:
                 x_pos, y_pos = (int(term.width / 2 - 2), 
                                 int(term.height / 2 - 2),)
-                asyncio.ensure_future(timer(x_pos=middle_x, y_pos=middle_y + 15, 
-                                            time_minutes=0, time_seconds=5, resolution=1))
+                await timer(x_pos=x_pos, y_pos=(y_pos + 15), time_minutes=0, time_seconds=5, resolution=1)
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
@@ -2609,7 +2609,6 @@ async def trap_init():
     loop.create_task(flip_sync(trigger_key='test2'))
     loop.create_task(spike_trap(patch_to_key='test'))
     loop.create_task(spike_trap(coord=(12, 10), patch_to_key='test2'))
-    #TODO: state_init option in pressure_plate?
     state_dict['switch_4'] = {}
     loop.create_task(pressure_plate(spawn_coord=(3, 3), patch_to_key='switch_4', display_timer=True))
 
@@ -2714,11 +2713,10 @@ async def ui_setup():
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
     loop.create_task(shimmer_text())
 
-async def shimmer_text(output_text=None, screen_coord=(0, 1)):
+async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
     an attempt at creating fake whole-screen noise
     """
-    #TODO: put shimmer text in its own function
     x_size, y_size = (term.width - 2, term.height - 2)
     rand_coords = []
     old_coords = []
@@ -2730,9 +2728,7 @@ async def shimmer_text(output_text=None, screen_coord=(0, 1)):
         shimmer_text = ''.join(rand_color)
         with term.location(*screen_coord):
             print(shimmer_text)
-        await asyncio.sleep(.1)
-        with term.location(0, 2):
-            print(state_dict['plane'] + '      ')
+        await asyncio.sleep(speed)
 
 #Actor behavior functions-------------------------------------------------------
 async def wander(name_key=None, **kwargs):
