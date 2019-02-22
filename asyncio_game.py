@@ -850,13 +850,18 @@ def multi_tile_entity(mode='stamp', starting_top_left=(-4, -4), preset='2x2'):
 #      others that follow the last n moves
 #      billiard balls?
 
-async def push(direction='n', pusher='player'):
+def occupied(checked_coords=(0, 0)):
+    if not map_dict[checked_coords].actors and map_dict[checked_coords].passable:
+        return True
+    else:
+        return False
+
+def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
     TODO: implement multi-tile moveable actors. a bookshelf? large crates?▧
     run if something that has moveable flag has an actor push into it.
     """
-    await asyncio.sleep(0)
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
     pusher_coords = actor_dict[pusher].coords()
@@ -868,8 +873,7 @@ async def push(direction='n', pusher='player'):
         return
     else:
         pushed_coords = actor_dict[pushed_name].coords()
-        pushed_destination = (pushed_coords[0] + chosen_dir[0], 
-                              pushed_coords[1] + chosen_dir[1])
+        pushed_destination = add_coords(pushed_coords, chosen_dir)
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(*pushed_destination)
 
@@ -1702,10 +1706,13 @@ async def handle_input(key):
     else:
         player_coords = actor_dict['player'].coords()
         if key in directions:
-            x_shift, y_shift = directions[key]
-            #TODO: a separate push function for multi tile entities
+            push_return_val = None
             if key in 'wasd': #try to push adjacent things given movement keys
-                await push(pusher='player', direction=key_to_compass[key])
+                push(pusher='player', direction=key_to_compass[key])
+                walk_destination = add_coords(player_coords, directions[key])
+                if occupied(walk_destination):
+                    x_shift, y_shift = directions[key]
+            #TODO: a separate push function for multi tile entities
             actor_dict['player'].just_teleported = False
         if key in 'WASD': #jump 15 tiles away in indicated direction
             asyncio.ensure_future(teleport_in_direction(
