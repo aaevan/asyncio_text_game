@@ -859,12 +859,57 @@ def occupied(checked_coords=(0, 0)):
 def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
+    objects do not clip into other objects or other actors.
     TODO: implement multi-tile moveable actors. a bookshelf? large crates?▧
-    run if something that has moveable flag has an actor push into it.
+    TODO: implement pressure plates that only accept certain keys/blocks (colors?)
     """
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
     pusher_coords = actor_dict[pusher].coords()
+    """
+    if we have a 4 tile object, and we name each of the siblings/members of the set:
+
+         | ... if C is pushed from the south
+         V
+         @
+      A->┏┓<-B
+      C->┗┛<-D
+
+    push first sees A. A then needs to check with its parent multi_tile_entity.
+    an actor must then have an attribute for whether it's part of a multi-tile entity.
+    
+    if we check and find that an actor is part of an MTE (the MTE attribute is not None),
+        call the named MTE's location_clear method to figure out whether it will fit in a new orientation
+
+    else:
+        push the actor/entity as normal
+
+    Otherwise, each member of a MTE could have a single pointer/label for a higher
+    level object that it's part of. 
+
+    Each lower level (child) of the parent MTE only tells the parent that it wants to move the cluster.
+    The child sends a proposed location to the parent. The parent can then return True or False
+    to whether the new location would be a viable location.
+
+    If we don't want to clip through things, The actual location of the 
+    MTE is only updated after checking whether the ground is clear.
+
+    If we don't care whether things clip through other things,
+    it can just move and be worked out and rendered by view_tiles.
+
+    TODO: A function to split an MTE into multiple smaller MTEs.
+        If an entity is only one tile, its parent is None.
+
+    TODO: implement a method an actor can call to check whether it will fit at a given location.
+        this checks single-tile presence/open-ness for each member in the set
+        if any fail the test, the method returns False
+        if all pass, the method returns True
+
+    (less important, work with fixed orientation for now)
+    TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
+
+    TODO: a multi-tile entity can either be moved instantaneously or incrementally.
+    """
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
