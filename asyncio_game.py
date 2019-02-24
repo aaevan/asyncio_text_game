@@ -245,8 +245,7 @@ class Item:
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
-class multi_tile_entity(anchor_coord=(-4, -4), preset='2x2',
-                        x_offset=0, y_offset=0,):
+class multi_tile_entity:
     """
     when the new location is checked as passable, it has to do so for each element
     if any of the four pieces would be somewhere that is impassable, the whole does not move
@@ -257,25 +256,76 @@ class multi_tile_entity(anchor_coord=(-4, -4), preset='2x2',
             update the location for each of the children nodes
         else:
             nothing happens and nothing is pushed.
+
+    if we have a 4 tile object, and we name each of the siblings/members of the set:
+
+         | ... if C is pushed from the north to the south
+         V
+         @
+      A->┏┓<-B
+      C->┗┛<-D
+
+    push() first sees A. A then needs to check with its parent multi_tile_entity.
+
+    [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
+    
+    if we check and find that an actor is part of an MTE (the MTE attribute is not None),
+        call the named MTE's location_clear method to figure out whether it will fit in a new orientation
+
+    else:
+        push the actor/entity as normal
+
+    Otherwise, each member of a MTE could have a single pointer/label for a higher
+    level object that it's part of. 
+
+    Each lower level (child) of the parent MTE only tells the parent that it wants to move the cluster.
+    The child sends a proposed location to the parent. The parent can then return True or False
+    to whether the new location would be a viable location.
+
+    If we don't want to clip through things, The actual location of the 
+    MTE is only updated after checking whether the ground is clear.
+
+    If we don't care whether things clip through other things,
+    it can just move and be worked out and rendered by view_tiles.
+
+    TODO: A method to split an MTE into multiple smaller MTEs.
+        If an entity is only one tile, its parent is None.
+
+    TODO: implement a method an actor can call to check whether it will fit at a given location.
+        this checks single-tile presence/open-ness for each member in the set
+        if any fail the test, the method returns False
+        if all pass, the method returns True
+
+    (less important, work with fixed orientation for now)
+    TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
+
+    TODO: a multi-tile entity can either be moved instantaneously or incrementally.
     """
-    #use the MTE as an avatar, we can treat it like a normal actor
-    #except with an added feature to be able to move it around without clipping
-    #and check whether it will fit somewhere.
-    def __init__(self, anchor_coord=anchor_coord, preset=preset):
+ 
+    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3', offset=(-1, -1)):
+        mte_name = generate_id(base_name=name)
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
                    '3x2':(('┏', '━', '┓'),
+                          ('┗', '━', '┛'),),
+                   '3x3':(('┏', '━', '┓'),
+                          ('┃', ' ', '┃'),
                           ('┗', '━', '┛'),),
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
         member_actors = {}
+        tiles = presets[preset]
         for y in range(len(tiles)):
             for x in range(len(tiles[0])):
-                offset_coord = (x, y)
-                write_coord = add_coords(offset_coord, starting_top_left)
-                if tiles[y][x] != ' ':
-                    member_actors[offset_coord]
+                offset_coord = add_coords((x, y), offset)
+                write_coord = add_coords(offset_coord, anchor_coord)
+                member_tile = tiles[y][x]
+                if member_tile != ' ':
+                    member_actors[offset_coord] = (member_tile, write_coord)
+        for member in member_actors.values():
+            spawn_static_actor(base_name='mte_name', spawn_coord=member[1], tile=member[0])
+#async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -878,51 +928,6 @@ def push(direction='n', pusher='player'):
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
     pusher_coords = actor_dict[pusher].coords()
-    """
-    if we have a 4 tile object, and we name each of the siblings/members of the set:
-
-         | ... if C is pushed from the north to the south
-         V
-         @
-      A->┏┓<-B
-      C->┗┛<-D
-
-    push() first sees A. A then needs to check with its parent multi_tile_entity.
-
-    [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
-    
-    if we check and find that an actor is part of an MTE (the MTE attribute is not None),
-        call the named MTE's location_clear method to figure out whether it will fit in a new orientation
-
-    else:
-        push the actor/entity as normal
-
-    Otherwise, each member of a MTE could have a single pointer/label for a higher
-    level object that it's part of. 
-
-    Each lower level (child) of the parent MTE only tells the parent that it wants to move the cluster.
-    The child sends a proposed location to the parent. The parent can then return True or False
-    to whether the new location would be a viable location.
-
-    If we don't want to clip through things, The actual location of the 
-    MTE is only updated after checking whether the ground is clear.
-
-    If we don't care whether things clip through other things,
-    it can just move and be worked out and rendered by view_tiles.
-
-    TODO: A function to split an MTE into multiple smaller MTEs.
-        If an entity is only one tile, its parent is None.
-
-    TODO: implement a method an actor can call to check whether it will fit at a given location.
-        this checks single-tile presence/open-ness for each member in the set
-        if any fail the test, the method returns False
-        if all pass, the method returns True
-
-    (less important, work with fixed orientation for now)
-    TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
-
-    TODO: a multi-tile entity can either be moved instantaneously or incrementally.
-    """
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
@@ -938,7 +943,7 @@ def push(direction='n', pusher='player'):
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
     await asyncio.sleep(refresh_speed)
-    follower_id = await generate_id(base_name=name)
+    follower_id = generate_id(base_name=name)
     actor_dict[follower_id] = Actor(name=follower_id, tile=tile)
     while alive:
         await asyncio.sleep(refresh_speed)
@@ -948,7 +953,7 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
         actor_dict[follower_id].update(follow_x, follow_y)
 
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
-    actor_id = await generate_id(base_name=name)
+    actor_id = generate_id(base_name=name)
     loop = asyncio.get_event_loop()
     loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
                                  tile=" ", name_key=actor_id, hurtful=True,
@@ -1007,7 +1012,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     Generate a stationary, actor that periodically puts out spikes in each
     direction given at rate spike_rate.
     """
-    trap_origin_id = await generate_id(base_name=base_name)
+    trap_origin_id = generate_id(base_name=base_name)
     actor_dict[trap_origin_id] = Actor(name=trap_origin_id, moveable=False,
                                        tile=term.color(7)('◘'))
     actor_dict[trap_origin_id].update(*coord)
@@ -1062,7 +1067,7 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
 
 async def export_map(width=140, height=45):
     #give a unique timestamped filename: 
-    #filename = "{}.txt".format(await generate_id(base_name='exported_map'))
+    #filename = "{}.txt".format(generate_id(base_name='exported_map'))
     #store the current tile at the player's location:
     temp_tile = map_dict[actor_dict['player'].coords()].tile
     #temporary lay down a '@':
@@ -1103,7 +1108,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
                          tile_color=7, test_rate=.1, display_timer=False):
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
-    plate_id = await generate_id(base_name='pressure_plate')
+    plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
     positives = ('player', 'weight', 'crate', 'static')
@@ -1177,7 +1182,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
-    sword_id = await generate_id(base_name=name)
+    sword_id = generate_id(base_name=name)
     sword_segment_names = ["{}_{}_{}".format(name, sword_id, segment) for segment in range(1, length)]
     segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
                        starting_coords[1] + chosen_dir[1] * i) 
@@ -1275,7 +1280,7 @@ async def temporary_block(duration=5, animation_preset='energy block'):
     actor_coords = actor_dict['player'].coords()
     spawn_coord = (actor_coords[0] + facing_dir_offset[0],
                    actor_coords[1] + facing_dir_offset[1])
-    block_id = await generate_id(base_name='weight')
+    block_id = generate_id(base_name='weight')
     asyncio.ensure_future(timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
                           rand_delay=0, solid=False, moveable=True, 
                           animation_preset=animation_preset))
@@ -1314,7 +1319,7 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
     block_wand_text = "A shimmering block appears."
     if instance_of == 'random':
         instance_of = choice(possible_items)
-    item_id = await generate_id(base_name=instance_of)
+    item_id = generate_id(base_name=instance_of)
     item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':temporary_block,
                             'power_kwargs':{'duration':5}, 'use_message':block_wand_text},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
@@ -1616,8 +1621,8 @@ async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
-    container_id = await spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
-                                            tile=tile, moveable=moveable, breakable=breakable)
+    container_id = spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
+                                      tile=tile, moveable=moveable, breakable=breakable)
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
@@ -1625,21 +1630,21 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
     """
     spawns a pushable box to trigger pressure plates or other puzzle elements.
     """
-    weight_id = await spawn_static_actor(base_name=base_name, 
-                                         spawn_coord=spawn_coord,
-                                         tile=tile, breakable=False, 
-                                         moveable=False)
+    weight_id = spawn_static_actor(base_name=base_name, 
+                                   spawn_coord=spawn_coord,
+                                   tile=tile, breakable=False, 
+                                   moveable=False)
 
-async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
-                             breakable=True, moveable=False):
+def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
+                       breakable=True, moveable=False):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
     """
-    actor_id = await generate_id(base_name=base_name)
+    actor_id = generate_id(base_name=base_name)
     actor_dict[actor_id] = Actor(name=actor_id, tile=tile,
-                               x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
-                               breakable=breakable, moveable=moveable)
+                                 x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
+                                 breakable=breakable, moveable=moveable)
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
 
@@ -1801,7 +1806,7 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            multi_tile_entity(starting_top_left=player_coords)
+            multi_tile_entity(anchor_coord=player_coords)
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -2647,8 +2652,8 @@ async def async_map_init():
     loop.create_task(spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
     loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
-    loop.create_task(spawn_static_actor(spawn_coord=(5, 5), moveable=True))
-    loop.create_task(spawn_static_actor(spawn_coord=(6, 6), moveable=True))
+    spawn_static_actor(spawn_coord=(5, 5), moveable=True)
+    spawn_static_actor(spawn_coord=(6, 6), moveable=True)
     loop.create_task(trap_init())
 
 async def trap_init():
@@ -2907,7 +2912,7 @@ def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
               coord_a[1] + coord_b[1])
     return output
 
-async def generate_id(base_name="name"):
+def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
 async def facing_dir_to_num(direction="n"):
@@ -2936,7 +2941,7 @@ async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3
     move away while distance is far, move slowly towards when distance is near, radius = 20?
     """
     await asyncio.sleep(0)
-    tentacled_mass_id = await generate_id(base_name='tentacled_mass')
+    tentacled_mass_id = generate_id(base_name='tentacled_mass')
     actor_dict[tentacled_mass_id] = Actor(name=tentacled_mass_id, moveable=False, tile='*',
                                           is_animated=True, animation=Animation(preset='mouth'))
     actor_dict[tentacled_mass_id].update(*start_coord)
@@ -3144,7 +3149,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
     next_tuple = movement_tuples[next_dir]
     vine_locations = []
-    vine_id = await generate_id(base_name='')
+    vine_id = generate_id(base_name='')
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
     if start_facing:
@@ -3216,7 +3221,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
         return False
     coords = actor_dict[centered_on_actor].coords()
     await asyncio.sleep(0)
-    bubble_id = await generate_id(base_name='')
+    bubble_id = generate_id(base_name='')
     bubble_pieces = {}
     player_coords = actor_dict['player'].coords()
     every_five = [i * 5 for i in range(72)]
@@ -3247,7 +3252,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
     spawns an actor at given coords that disappears after a number of turns.
     """
     if name == 'timed_actor':
-        name = name + await generate_id(base_name='')
+        name = name + generate_id(base_name='')
     if rand_delay:
         await asyncio.sleep(random() * rand_delay)
     actor_dict[name] = Actor(name=name, moveable=moveable, x_coord=coords[0], y_coord=coords[1], 
@@ -3269,7 +3274,7 @@ async def timed_actor(death_clock=10, name='timed_actor', coords=(0, 0),
 async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='switch_3', 
                        facing='e', spread=20, damage=10, radius=12, rate=.02):
     firing_angle = (firing_angle - 90) % 360
-    turret_id = await generate_id(base_name='turret')
+    turret_id = generate_id(base_name='turret')
     closed_tile = term.on_color(7)(term.color(0)('◫'))
     open_tile = term.on_color(7)(term.color(0)('◼'))
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
@@ -3291,7 +3296,7 @@ async def beam_spire(spawn_coord=(0, 0)):
     """
     spawns a rotating flame source
     """
-    turret_id = await generate_id(base_name='turret')
+    turret_id = generate_id(base_name='turret')
     closed_tile = term.on_color(7)(term.color(0)('◫'))
     open_tile = term.on_color(7)(term.color(0)('◼'))
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
@@ -3368,7 +3373,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
                 break
         if len(points) < 1:
             return
-    particle_id = await generate_id(base_name=name)
+    particle_id = generate_id(base_name=name)
     if animation:
         is_animated = True
     else:
@@ -3510,7 +3515,7 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
     """
     await asyncio.sleep(0)
     angle = randint(0, 360)
-    particle_id = await generate_id(base_name=name)
+    particle_id = generate_id(base_name=name)
     actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
                                     moveable=False, is_animated=True,
                                     animation=Animation(base_tile='◉', preset='shimmer'))
@@ -3577,7 +3582,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     """
     asyncio.sleep(0)
     loop = asyncio.get_event_loop()
-    actor_id = await generate_id(base_name=preset)
+    actor_id = generate_id(base_name=preset)
     name = "{}_{}".format(preset, actor_id)
     start_coord = coords
     if preset == 'blob':
@@ -3670,7 +3675,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP
+    #loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
