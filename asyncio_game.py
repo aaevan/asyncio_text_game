@@ -58,7 +58,7 @@ class Actor:
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
                  animation="", holding_items={}, leaves_body=False,
-                 breakable=False):
+                 breakable=False, multi_tile_parent=None):
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
@@ -73,6 +73,7 @@ class Actor:
         self.holding_items = holding_items
         self.breakable = breakable
         self.last_location = (x_coord, y_coord)
+        self.multi_tile_parent = multi_tile_parent
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
@@ -243,6 +244,38 @@ class Item:
                 self.broken = True
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
+
+class multi_tile_entity(anchor_coord=(-4, -4), preset='2x2',
+                        x_offset=0, y_offset=0,):
+    """
+    when the new location is checked as passable, it has to do so for each element
+    if any of the four pieces would be somewhere that is impassable, the whole does not move
+    each pushable actor has a parent that tracks locations of each of the children
+    if any piece would be pushed, the push command is forwarded to the parent node.
+        the parent node checks the new possible locations.
+        if none of the new locations have actors or impassable cells, 
+            update the location for each of the children nodes
+        else:
+            nothing happens and nothing is pushed.
+    """
+    #use the MTE as an avatar, we can treat it like a normal actor
+    #except with an added feature to be able to move it around without clipping
+    #and check whether it will fit somewhere.
+    def __init__(self, anchor_coord=anchor_coord, preset=preset):
+        presets = {'2x2':(('┏', '┓'),
+                          ('┗', '┛'),),
+                   '3x2':(('┏', '━', '┓'),
+                          ('┗', '━', '┛'),),
+              'add_sign':((' ', '╻', ' '),
+                          ('╺', '╋', '╸'),
+                          (' ', '╹', ' '),),}
+        member_actors = {}
+        for y in range(len(tiles)):
+            for x in range(len(tiles[0])):
+                offset_coord = (x, y)
+                write_coord = add_coords(offset_coord, starting_top_left)
+                if tiles[y][x] != ' ':
+                    member_actors[offset_coord]
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -823,28 +856,7 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     asyncio.ensure_future(filter_print(output_text=output_text))
 
-def multi_tile_entity(mode='stamp', starting_top_left=(-4, -4), preset='2x2'):
-    """
-    when the new location is checked as passable, it has to do so for each element
-    if any of the four pieces would be somewhere that is impassable, the whole does not move
-    each pushable actor has a parent that tracks locations of each of the children
-    if any piece would be pushed, the push command is forwarded to the parent node.
-        the parent node checks the new possible locations.
-        if none of the new locations have actors or impassable cells, 
-            update the location for each of the children nodes
-        else:
-            nothing happens and nothing is pushed.
-    """
-    if preset == '2x2':
-        tiles = (('┏', '┓'),
-                 ('┗', '┛ '))
-    #initialize actors to map
-    for y in range(len(tiles)):
-        for x in range(len(tiles[0])):
-            write_coord = add_coords((x, y), starting_top_left)
-            if tiles[y][x] != ' ':
-                if mode == 'stamp':
-                    map_dict[write_coord].tile = tiles[y][x]
+
 
 #TODO: an entity that moves around with momentum,
 #      others that follow the last n moves
@@ -869,14 +881,15 @@ def push(direction='n', pusher='player'):
     """
     if we have a 4 tile object, and we name each of the siblings/members of the set:
 
-         | ... if C is pushed from the south
+         | ... if C is pushed from the north to the south
          V
          @
       A->┏┓<-B
       C->┗┛<-D
 
-    push first sees A. A then needs to check with its parent multi_tile_entity.
-    an actor must then have an attribute for whether it's part of a multi-tile entity.
+    push() first sees A. A then needs to check with its parent multi_tile_entity.
+
+    [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
     
     if we check and find that an actor is part of an MTE (the MTE attribute is not None),
         call the named MTE's location_clear method to figure out whether it will fit in a new orientation
