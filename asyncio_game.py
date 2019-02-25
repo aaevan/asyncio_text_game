@@ -310,11 +310,12 @@ class multi_tile_entity:
                           ('┗', '━', '┛'),),
                    '3x3':(('┏', '━', '┓'),
                           ('┃', ' ', '┃'),
-                          ('┗', '━', '┛'),),
+                          ('┗', ' ', '┛'),),
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
-        member_actors = {}
+        self.member_actors = {}
+        self.member_names = []
         tiles = presets[preset]
         for y in range(len(tiles)):
             for x in range(len(tiles[0])):
@@ -322,10 +323,23 @@ class multi_tile_entity:
                 write_coord = add_coords(offset_coord, anchor_coord)
                 member_tile = tiles[y][x]
                 if member_tile != ' ':
-                    member_actors[offset_coord] = (member_tile, write_coord)
-        for member in member_actors.values():
-            spawn_static_actor(base_name='mte_name', spawn_coord=member[1], tile=member[0])
-#async def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
+                    self.member_actors[offset_coord] = (member_tile, write_coord)
+        for member in self.member_actors.values():
+            #TODO: an animation option to sync frames across multiple member 
+            #actors via a cycling or otherwise changing global number?
+            member_name = spawn_static_actor(base_name='mte_name', spawn_coord=member[1], tile=member[0])
+            self.member_names.append(member_name)
+
+    def check_collision(check_anchor_coord=(0, 0)):
+        """
+        Checks whether all of the member actors can fit into a new configuration
+        """
+        pass
+    
+    def move(self, new_coord=(3, 3)):
+        for member_name, coord in zip(self.member_names, self.member_actors.values()):
+            actor_dict[member_name].update(*add_coords(coord[1], new_coord))
+
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -1806,7 +1820,9 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            multi_tile_entity(anchor_coord=player_coords)
+            mte_test = multi_tile_entity(anchor_coord=player_coords)
+            for i in range(10):
+                mte_test.move(new_coord=(i, i))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
