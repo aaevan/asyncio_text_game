@@ -1822,6 +1822,7 @@ async def handle_input(key):
         if key in '(':
             mte_test = multi_tile_entity(anchor_coord=player_coords)
             for i in range(10):
+                await asyncio.sleep(.3)
                 mte_test.move(new_coord=(i, i))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
