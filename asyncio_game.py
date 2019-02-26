@@ -302,7 +302,7 @@ class multi_tile_entity:
     TODO: a multi-tile entity can either be moved instantaneously or incrementally.
     """
  
-    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3', offset=(-1, -1)):
+    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3', fill_color=3, offset=(-1, -1)):
         mte_name = generate_id(base_name=name)
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
@@ -321,7 +321,7 @@ class multi_tile_entity:
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
                 write_coord = add_coords(offset_coord, anchor_coord)
-                member_tile = tiles[y][x]
+                member_tile = term.color(fill_color)(tiles[y][x])
                 if member_tile != ' ':
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
