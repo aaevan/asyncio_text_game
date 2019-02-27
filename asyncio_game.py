@@ -302,8 +302,9 @@ class multi_tile_entity:
     TODO: a multi-tile entity can either be moved instantaneously or incrementally.
     """
  
-    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3', fill_color=3, offset=(-1, -1)):
+    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3 fire', fill_color=8, offset=(-1, -1)):
         mte_name = generate_id(base_name=name)
+        animation_key = {'E':'explosion')}
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
                    '3x2':(('┏', '━', '┓'),
@@ -311,6 +312,9 @@ class multi_tile_entity:
                    '3x3':(('┏', '━', '┓'),
                           ('┃', ' ', '┃'),
                           ('┗', ' ', '┛'),),
+              '3x3 fire':(('┏', '━', '┓'),
+                          ('┃', 'E', '┃'),
+                          ('┗', '━', '┛'),),
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
@@ -327,7 +331,15 @@ class multi_tile_entity:
         for member in self.member_actors.values():
             #TODO: an animation option to sync frames across multiple member 
             #actors via a cycling or otherwise changing global number?
-            member_name = spawn_static_actor(base_name='mte_name', spawn_coord=member[1], tile=member[0])
+            print(member[0])
+            if member[0] in animation_key:
+                member_name = spawn_static_actor(base_name=mte_name, 
+                                                 spawn_coord=member[1], 
+                                                 animation_preset=animation_key[member[0]])
+            else:
+                member_name = spawn_static_actor(base_name=mte_name, 
+                                                 spawn_coord=member[1], 
+                                                 tile=member[0])
             self.member_names.append(member_name)
 
     def check_collision(check_anchor_coord=(0, 0)):
@@ -337,9 +349,15 @@ class multi_tile_entity:
         pass
     
     def move(self, new_coord=(3, 3)):
-        for member_name, coord in zip(self.member_names, self.member_actors.values()):
-            actor_dict[member_name].update(*add_coords(coord[1], new_coord))
-
+        with term.location (0, 1):
+            print(self.member_names)
+        #with term.location (0, 2):
+            #print(self.member_actors.values())
+        #for member_name, coord in zip(self.member_names, self.member_actors.values()):
+        for member_name in self.member_names:
+            #actor_dict[member_name].update(*add_coords(coord[1], new_coord))
+            current_coord = actor_dict[member_name].coords()
+            actor_dict[member_name].update(*add_coords(current_coord, new_coord))
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -1650,13 +1668,20 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
                                    moveable=False)
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
-                       breakable=True, moveable=False):
+                       animation_preset=None, breakable=True, moveable=False):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
     """
     actor_id = generate_id(base_name=base_name)
+    if animation_preset is not None:
+        is_animated = True
+        animation = Animation(preset=animation_preset)
+    else:
+        is_animated = False
+        animation = None
     actor_dict[actor_id] = Actor(name=actor_id, tile=tile,
+                                 is_animated=is_animated, animation=animation,
                                  x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
                                  breakable=breakable, moveable=moveable)
     map_dict[spawn_coord].actors[actor_id] = True
@@ -1822,8 +1847,8 @@ async def handle_input(key):
         if key in '(':
             mte_test = multi_tile_entity(anchor_coord=player_coords)
             for i in range(10):
-                await asyncio.sleep(.3)
-                mte_test.move(new_coord=(i, i))
+                await asyncio.sleep(.1)
+                mte_test.move(new_coord=(randint(-1, 1), randint(-1, 1)))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -3692,7 +3717,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup()) #UI_SETUP
+    loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
