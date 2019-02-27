@@ -304,7 +304,7 @@ class multi_tile_entity:
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3 fire', fill_color=8, offset=(-1, -1)):
         mte_name = generate_id(base_name=name)
-        animation_key = {'E':'explosion')}
+        animation_key = {'E':'explosion'}
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
                    '3x2':(('┏', '━', '┓'),
@@ -325,14 +325,19 @@ class multi_tile_entity:
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
                 write_coord = add_coords(offset_coord, anchor_coord)
-                member_tile = term.color(fill_color)(tiles[y][x])
+                if tiles[y][x] not in animation_key:
+                    member_tile = term.color(fill_color)(tiles[y][x])
+                else:
+                    member_tile = tiles[y][x]
                 if member_tile != ' ':
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
             #TODO: an animation option to sync frames across multiple member 
             #actors via a cycling or otherwise changing global number?
-            print(member[0])
+            #print(member[0], 'E' in animation_key, member[0] in animation_key)
             if member[0] in animation_key:
+                with term.location(60, 0):
+                    print(member[0])
                 member_name = spawn_static_actor(base_name=mte_name, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]])
