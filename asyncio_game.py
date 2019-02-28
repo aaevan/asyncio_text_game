@@ -145,7 +145,10 @@ class Animation:
                            'color_choices':'446'},
                    'door':{'animation':('▯'), 
                            'behavior':'random', 
-                           'color_choices':'78888'}}
+                           'color_choices':'78888'},
+                 'writhe':{'animation':('─│╭╮╯╰'),
+                           'behavior':'random',
+                           'color_choices':'456'}}
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -302,9 +305,9 @@ class multi_tile_entity:
     TODO: a multi-tile entity can either be moved instantaneously or incrementally.
     """
  
-    def __init__(self, name='mte', anchor_coord=(0, 0), preset='3x3 fire', fill_color=8, offset=(-1, -1)):
+    def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
         mte_name = generate_id(base_name=name)
-        animation_key = {'E':'explosion'}
+        animation_key = {'E':'explosion', 'W':'writhe'}
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
                    '3x2':(('┏', '━', '┓'),
@@ -315,6 +318,10 @@ class multi_tile_entity:
               '3x3 fire':(('┏', '━', '┓'),
                           ('┃', 'E', '┃'),
                           ('┗', '━', '┛'),),
+            'writheball':((' ', 'W', 'W', ' '),
+                          ('W', 'W', 'W', 'W'),
+                          ('W', 'W', 'W', 'W'),
+                          (' ', 'W', 'W', ' '),),
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
@@ -327,17 +334,17 @@ class multi_tile_entity:
                 write_coord = add_coords(offset_coord, anchor_coord)
                 if tiles[y][x] not in animation_key:
                     member_tile = term.color(fill_color)(tiles[y][x])
+                if tiles[y][x] is ' ':
+                    member_tile = None
                 else:
                     member_tile = tiles[y][x]
-                if member_tile != ' ':
+                if member_tile is not None:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
             #TODO: an animation option to sync frames across multiple member 
             #actors via a cycling or otherwise changing global number?
             #print(member[0], 'E' in animation_key, member[0] in animation_key)
             if member[0] in animation_key:
-                with term.location(60, 0):
-                    print(member[0])
                 member_name = spawn_static_actor(base_name=mte_name, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]])
@@ -347,22 +354,30 @@ class multi_tile_entity:
                                                  tile=member[0])
             self.member_names.append(member_name)
 
-    def check_collision(check_anchor_coord=(0, 0)):
+    def check_collision(move_by=(0, 0)):
         """
         Checks whether all of the member actors can fit into a new configuration
         """
-        pass
+        check_position = {}
+        for member_name in self.member_names:
+            current_coord = actor_dict[member_name].coords()
+            check_coord = add_coords(current_coord, move_by)
+            if map_dict[check_coord].actors or not map_dict[check_coord].passable:
+                return False
+        return True
     
     def move(self, new_coord=(3, 3)):
-        with term.location (0, 1):
-            print(self.member_names)
-        #with term.location (0, 2):
-            #print(self.member_actors.values())
-        #for member_name, coord in zip(self.member_names, self.member_actors.values()):
         for member_name in self.member_names:
-            #actor_dict[member_name].update(*add_coords(coord[1], new_coord))
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, new_coord))
+
+async def to_and_fro(spawn_coord=(0, 0)):
+    mte_test = multi_tile_entity(anchor_coord=spawn_coord)
+    while True:
+        await asyncio.sleep(.1)
+        rand_shift = (randint(-1, 1), randint(-1, 1))
+        if mte_test.check_collision(move_by=rand_shift):
+            mte_test.move(new_coord=rand_shift)
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -1850,10 +1865,7 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            mte_test = multi_tile_entity(anchor_coord=player_coords)
-            for i in range(10):
-                await asyncio.sleep(.1)
-                mte_test.move(new_coord=(randint(-1, 1), randint(-1, 1)))
+            asyncio.ensure_future(to_and_fro(spawn_coord=player_coords))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
