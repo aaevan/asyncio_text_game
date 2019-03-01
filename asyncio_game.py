@@ -249,6 +249,8 @@ class Item:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
 class multi_tile_entity:
+    #TODO: fix problems with damaged parts
+    #TODO: option to turn into scenery parts that have no living neighbors
     """
     when the new location is checked as passable, it has to do so for each element
     if any of the four pieces would be somewhere that is impassable, the whole does not move
@@ -347,14 +349,16 @@ class multi_tile_entity:
             if member[0] in animation_key:
                 member_name = spawn_static_actor(base_name=mte_name, 
                                                  spawn_coord=member[1], 
-                                                 animation_preset=animation_key[member[0]])
+                                                 animation_preset=animation_key[member[0]],
+                                                 multi_tile_parent=mte_name)
             else:
                 member_name = spawn_static_actor(base_name=mte_name, 
                                                  spawn_coord=member[1], 
-                                                 tile=member[0])
+                                                 tile=member[0],
+                                                 multi_tile_parent=mte_name)
             self.member_names.append(member_name)
 
-    def check_collision(move_by=(0, 0)):
+    def check_collision(self, move_by=(0, 0)):
         """
         Checks whether all of the member actors can fit into a new configuration
         """
@@ -362,7 +366,8 @@ class multi_tile_entity:
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
-            if map_dict[check_coord].actors or not map_dict[check_coord].passable:
+            #if map_dict[check_coord].actors or not map_dict[check_coord].passable:
+            if not map_dict[check_coord].passable:
                 return False
         return True
     
@@ -371,13 +376,19 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, new_coord))
 
-async def to_and_fro(spawn_coord=(0, 0)):
+async def multi_wander(spawn_coord=(0, 0)):
     mte_test = multi_tile_entity(anchor_coord=spawn_coord)
     while True:
-        await asyncio.sleep(.1)
+        await asyncio.sleep(.2)
         rand_shift = (randint(-1, 1), randint(-1, 1))
         if mte_test.check_collision(move_by=rand_shift):
             mte_test.move(new_coord=rand_shift)
+
+async def multi_push():
+    """
+    pushes a multi_tile entity.
+    """
+    pass
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -1688,7 +1699,8 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
                                    moveable=False)
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
-                       animation_preset=None, breakable=True, moveable=False):
+                       animation_preset=None, breakable=True, moveable=False,
+                       multi_tile_parent=None):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
@@ -1703,7 +1715,8 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
     actor_dict[actor_id] = Actor(name=actor_id, tile=tile,
                                  is_animated=is_animated, animation=animation,
                                  x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
-                                 breakable=breakable, moveable=moveable)
+                                 breakable=breakable, moveable=moveable,
+                                 multi_tile_parent=multi_tile_parent)
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
 
@@ -1865,7 +1878,7 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            asyncio.ensure_future(to_and_fro(spawn_coord=player_coords))
+            asyncio.ensure_future(multi_wander(spawn_coord=player_coords))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -3734,7 +3747,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP
+    #loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
