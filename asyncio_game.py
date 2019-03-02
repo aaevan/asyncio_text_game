@@ -343,9 +343,6 @@ class multi_tile_entity:
                 if member_tile is not None:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
-            #TODO: an animation option to sync frames across multiple member 
-            #actors via a cycling or otherwise changing global number?
-            #print(member[0], 'E' in animation_key, member[0] in animation_key)
             if member[0] in animation_key:
                 member_name = spawn_static_actor(base_name=mte_name, 
                                                  spawn_coord=member[1], 
@@ -366,7 +363,6 @@ class multi_tile_entity:
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
-            #if map_dict[check_coord].actors or not map_dict[check_coord].passable:
             if not map_dict[check_coord].passable:
                 return False
         return True
@@ -3094,9 +3090,7 @@ async def choose_core_move(core_name_key='', tentacles=True):
         asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
         wait = 20
     elif core_behavior_val > .4:
-        new_core_location = await wander(x_current=core_location[0],
-                                         y_current=core_location[1],
-                                         name_key=core_name_key)
+        new_core_location = await wander(name_key=core_name_key)
     else:
         new_core_location = await seek_actor(name_key=core_name_key, seek_key="player")
     return new_core_location
@@ -3111,7 +3105,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
     if behavior_val < .2:
         new_shroud_location = coord
     elif behavior_val > .6:
-        new_shroud_location = await wander(*coord, shroud_name_key)
+        new_shroud_location = await wander(name_key=shroud_name_key)
     else:
         new_shroud_location = await seek_actor(name_key=shroud_name_key, seek_key=core_name_key)
     return new_shroud_location
@@ -3747,11 +3741,11 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup()) #UI_SETUP
+    loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
     loop.create_task(death_check())
     loop.create_task(environment_check())
