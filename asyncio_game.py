@@ -308,7 +308,7 @@ class multi_tile_entity:
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
-        mte_name = generate_id(base_name=name)
+        self.mte_id = generate_id(base_name=name)
         animation_key = {'E':'explosion', 'W':'writhe'}
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
@@ -344,15 +344,15 @@ class multi_tile_entity:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
             if member[0] in animation_key:
-                member_name = spawn_static_actor(base_name=mte_name, 
+                member_name = spawn_static_actor(base_name=self.mte_id, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]],
-                                                 multi_tile_parent=mte_name)
+                                                 multi_tile_parent=self.mte_id)
             else:
-                member_name = spawn_static_actor(base_name=mte_name, 
+                member_name = spawn_static_actor(base_name=self.mte_id, 
                                                  spawn_coord=member[1], 
                                                  tile=member[0],
-                                                 multi_tile_parent=mte_name)
+                                                 multi_tile_parent=self.mte_id)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
@@ -367,28 +367,40 @@ class multi_tile_entity:
                 return False
         return True
     
-    def move(self, new_coord=(3, 3)):
+    def move(self, move_by=(3, 3)):
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
-            actor_dict[member_name].update(*add_coords(current_coord, new_coord))
+            actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def multi_wander(spawn_coord=(0, 0)):
-    mte_test = multi_tile_entity(anchor_coord=spawn_coord)
+async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0)):
+    mte_id = generate_id(base_name=base_name)
+    mte_dict[mte_id] = multi_tile_entity(anchor_coord=spawn_coord)
     while True:
-        await asyncio.sleep(.2)
-        rand_shift = (randint(-1, 1), randint(-1, 1))
-        if mte_test.check_collision(move_by=rand_shift):
-            mte_test.move(new_coord=rand_shift)
+        await asyncio.sleep(.5)
+        #rand_shift = (randint(-1, 1), randint(-1, 1))
+        rand_shift = (0, 1)
+        if mte_dict[mte_id].check_collision(move_by=rand_shift):
+            mte_dict[mte_id].move(move_by=rand_shift)
 
-async def multi_push():
+async def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
     pushes a multi_tile entity.
     """
-    pass
+    if pushed_actor is None and mte_parent is None:
+        return False
+    elif pushed_actor is not None and mte_parent is None:
+        mte_parent = actor_dict[pushed_actor].multi_tile_parent
+    dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
+    move_by = dir_coords[push_dir]
+    #if actor_dict[pushed_actor].multi_tile_parent is not None:
+    if mte_dict[mte_parent].check_collision(move_by=move_by):
+        mte_dict[mte_parent].move(move_by=move_by)
+        return True
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
+mte_dict = {}
 room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
@@ -1875,6 +1887,9 @@ async def handle_input(key):
             print_screen_grid() 
         if key in '(':
             asyncio.ensure_future(multi_wander(spawn_coord=player_coords))
+        if key in ')':
+            for mte_name in mte_dict:
+                await multi_push(mte_parent=mte_name)
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -3082,7 +3097,6 @@ async def choose_core_move(core_name_key='', tentacles=True):
     """
     breaks out random movement of core into separate function
     """
-    await asyncio.sleep(0)
     core_behavior_val = random()
     core_location = actor_dict[core_name_key].coords()
     if core_behavior_val < .05 and tentacles:
@@ -3114,7 +3128,6 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
         movement_function=wander, name_key="test", hurtful=False,
         strength=5, is_animated=False, animation=" ", holding_items=[],
         movement_function_kwargs={}):
-    """ A coroutine that creates a randomly wandering '*' """
     """
     actors can:
     move from square to square using a movement function
@@ -3741,11 +3754,11 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP
+    #loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
-    loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
     loop.create_task(death_check())
     loop.create_task(environment_check())
