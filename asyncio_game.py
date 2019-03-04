@@ -392,7 +392,6 @@ async def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     move_by = dir_coords[push_dir]
-    #if actor_dict[pushed_actor].multi_tile_parent is not None:
     if mte_dict[mte_parent].check_collision(move_by=move_by):
         mte_dict[mte_parent].move(move_by=move_by)
         return True
