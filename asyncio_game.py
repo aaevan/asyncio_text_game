@@ -308,7 +308,8 @@ class multi_tile_entity:
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
-        self.mte_id = generate_id(base_name=name)
+        #self.mte_id = generate_id(base_name=name)
+        self.name = name
         animation_key = {'E':'explosion', 'W':'writhe'}
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
@@ -344,21 +345,24 @@ class multi_tile_entity:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
             if member[0] in animation_key:
-                member_name = spawn_static_actor(base_name=self.mte_id, 
+                member_name = spawn_static_actor(base_name=self.name, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]],
-                                                 multi_tile_parent=self.mte_id)
+                                                 multi_tile_parent=self.name)
             else:
-                member_name = spawn_static_actor(base_name=self.mte_id, 
+                member_name = spawn_static_actor(base_name=self.name, 
                                                  spawn_coord=member[1], 
                                                  tile=member[0],
-                                                 multi_tile_parent=self.mte_id)
+                                                 multi_tile_parent=self.name)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
         """
         Checks whether all of the member actors can fit into a new configuration
         """
+        #TODO: check each space for other multi_tile_entities of different name.
+        #TODO: allow for an mte to move into a space currently occupied by the player.
+        #TODO: allow or disallow multi-pushes that would contact another block
         check_position = {}
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
@@ -372,17 +376,16 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0)):
+async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='3x3'):
     mte_id = generate_id(base_name=base_name)
-    mte_dict[mte_id] = multi_tile_entity(anchor_coord=spawn_coord)
-    while True:
-        await asyncio.sleep(.5)
-        #rand_shift = (randint(-1, 1), randint(-1, 1))
-        rand_shift = (0, 1)
-        if mte_dict[mte_id].check_collision(move_by=rand_shift):
-            mte_dict[mte_id].move(move_by=rand_shift)
+    mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
+    #while True:
+        #await asyncio.sleep(.5)
+        #rand_shift = (0, 1)
+        #if mte_dict[mte_id].check_collision(move_by=rand_shift):
+            #mte_dict[mte_id].move(move_by=rand_shift)
 
-async def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
+def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
     pushes a multi_tile entity.
     """
@@ -1002,7 +1005,11 @@ def push(direction='n', pusher='player'):
     if not map_dict[destination_coords].actors:
         return
     pushed_name = next(iter(map_dict[destination_coords].actors))
-    if not actor_dict[pushed_name].moveable:
+    mte_parent = actor_dict[pushed_name].multi_tile_parent
+    if mte_parent is not None:
+        multi_push(push_dir=direction, mte_parent=mte_parent)
+        return
+    elif not actor_dict[pushed_name].moveable:
         return
     else:
         pushed_coords = actor_dict[pushed_name].coords()
@@ -1888,7 +1895,7 @@ async def handle_input(key):
             asyncio.ensure_future(multi_wander(spawn_coord=player_coords))
         if key in ')':
             for mte_name in mte_dict:
-                await multi_push(mte_parent=mte_name)
+                multi_push(mte_parent=mte_name)
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -2863,7 +2870,6 @@ async def ui_setup():
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
-    loop.create_task(shimmer_text())
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -3753,7 +3759,7 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    #loop.create_task(ui_setup()) #UI_SETUP
+    loop.create_task(ui_setup()) #UI_SETUP
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
