@@ -308,9 +308,9 @@ class multi_tile_entity:
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
-        #self.mte_id = generate_id(base_name=name)
         self.name = name
         animation_key = {'E':'explosion', 'W':'writhe'}
+        #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
                    '3x2':(('┏', '━', '┓'),
@@ -360,7 +360,6 @@ class multi_tile_entity:
         """
         Checks whether all of the member actors can fit into a new configuration
         """
-        #TODO: check each space for other multi_tile_entities of different name.
         #TODO: allow for an mte to move into a space currently occupied by the player.
         #TODO: allow or disallow multi-pushes that would contact another block
         check_position = {}
@@ -369,6 +368,13 @@ class multi_tile_entity:
             check_coord = add_coords(current_coord, move_by)
             if not map_dict[check_coord].passable:
                 return False
+            line = 0
+            for actor in map_dict[check_coord].actors:
+                with term.location(50, randint(0, 10)):
+                    print(actor)
+                if actor not in self.member_names:
+                    return False
+                line += 1
         return True
     
     def move(self, move_by=(3, 3)):
