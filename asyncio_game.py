@@ -296,15 +296,8 @@ class multi_tile_entity:
     TODO: A method to split an MTE into multiple smaller MTEs.
         If an entity is only one tile, its parent is None.
 
-    TODO: implement a method an actor can call to check whether it will fit at a given location.
-        this checks single-tile presence/open-ness for each member in the set
-        if any fail the test, the method returns False
-        if all pass, the method returns True
-
     (less important, work with fixed orientation for now)
     TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
-
-    TODO: a multi-tile entity can either be moved instantaneously or incrementally.
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
@@ -368,13 +361,9 @@ class multi_tile_entity:
             check_coord = add_coords(current_coord, move_by)
             if not map_dict[check_coord].passable:
                 return False
-            line = 0
             for actor in map_dict[check_coord].actors:
-                with term.location(50, randint(0, 10)):
-                    print(actor)
                 if actor not in self.member_names:
                     return False
-                line += 1
         return True
     
     def move(self, move_by=(3, 3)):
@@ -382,14 +371,9 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='3x3'):
+async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='writheball'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
-    #while True:
-        #await asyncio.sleep(.5)
-        #rand_shift = (0, 1)
-        #if mte_dict[mte_id].check_collision(move_by=rand_shift):
-            #mte_dict[mte_id].move(move_by=rand_shift)
 
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
