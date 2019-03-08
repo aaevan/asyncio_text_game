@@ -1882,7 +1882,8 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            asyncio.ensure_future(multi_wander(spawn_coord=player_coords))
+            spawn_coords = add_coords(player_coords, (2, 2))
+            asyncio.ensure_future(multi_wander(spawn_coord=spawn_coords))
         if key in ')':
             for mte_name in mte_dict:
                 multi_push(mte_parent=mte_name)
