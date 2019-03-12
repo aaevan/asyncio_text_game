@@ -58,7 +58,7 @@ class Actor:
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
                  health=50, hurtful=True, moveable=True, is_animated=False,
                  animation="", holding_items={}, leaves_body=False,
-                 breakable=False, multi_tile_parent=None):
+                 breakable=False, multi_tile_parent=None, blocking=False):
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
@@ -74,6 +74,7 @@ class Actor:
         self.breakable = breakable
         self.last_location = (x_coord, y_coord)
         self.multi_tile_parent = multi_tile_parent
+        self.blocking = blocking
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
@@ -300,7 +301,8 @@ class multi_tile_entity:
     TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
     """
  
-    def __init__(self, name='mte', anchor_coord=(0, 0), preset='writheball', fill_color=8, offset=(-1, -1)):
+    def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
+                 blocking=False, fill_color=3, offset=(-1, -1)):
         self.name = name
         animation_key = {'E':'explosion', 'W':'writhe'}
         #Note: ' ' entries are ignored but keep the shape of the preset
@@ -318,6 +320,15 @@ class multi_tile_entity:
                           ('W', 'W', 'W', 'W'),
                           ('W', 'W', 'W', 'W'),
                           (' ', 'W', 'W', ' '),),
+              'fireball':((' ', 'E', 'E', ' '),
+                          ('E', 'E', 'E', 'E'),
+                          ('E', 'E', 'E', 'E'),
+                          (' ', 'E', 'E', ' '),),
+           'ns_bookcase':(('▛'),
+                          ('▌'),
+                          ('▌'),
+                          ('▙'),),
+           'ew_bookcase':(('▛'), ('▀'), ('▀'), ('▜'),),
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
@@ -333,7 +344,8 @@ class multi_tile_entity:
                 if tiles[y][x] is ' ':
                     member_tile = None
                 else:
-                    member_tile = tiles[y][x]
+                    member_tile = term.color(fill_color)(tiles[y][x])
+                    #member_tile = tiles[y][x]
                 if member_tile is not None:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
@@ -371,7 +383,7 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='writheball'):
+async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='ns_bookcase'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
 
@@ -1704,7 +1716,7 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                        animation_preset=None, breakable=True, moveable=False,
-                       multi_tile_parent=None):
+                       multi_tile_parent=None, blocking=True):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
@@ -1720,7 +1732,8 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                                  is_animated=is_animated, animation=animation,
                                  x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
                                  breakable=breakable, moveable=moveable,
-                                 multi_tile_parent=multi_tile_parent)
+                                 multi_tile_parent=multi_tile_parent,
+                                 blocking=blocking)
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
 
@@ -2409,6 +2422,15 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
             return await handle_magic_door(point=point, last_point=points[-1])
         if map_dict[point].blocking == False:
             open_space += 1
+        #elif map_dict[point].actors is not None:
+            #with term.location(80, randint(0, 20)):
+                #print(map_dict[point].actors)
+            #for actor in map_dict[point].actors:
+                #if actor_dict[actor].blocking:
+                    #walls += 1
+                    #break
+            #else:
+                #open_space += 1
         else:
             walls += 1
         if walls > 1:
