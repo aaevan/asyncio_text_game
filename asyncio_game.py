@@ -2411,30 +2411,32 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
     """
-    #TODO: make not async
-    await asyncio.sleep(.01)
-    open_space, walls, history = 0, 0, []
+    #await asyncio.sleep(.01)
+    open_space, walls = 0, 0
     points = get_line(coord_a, coord_b)
     change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
     reference_point = coord_a[0], coord_a[1] + 5
-    for point in points:
-        if map_dict[point].magic == True:
-            return await handle_magic_door(point=point, last_point=points[-1])
+    blocking_actor_index = None
+    for index, point in enumerate(points):
         if map_dict[point].blocking == False:
-            open_space += 1
-        #elif map_dict[point].actors is not None:
-            #with term.location(80, randint(0, 20)):
-                #print(map_dict[point].actors)
-            #for actor in map_dict[point].actors:
-                #if actor_dict[actor].blocking:
-                    #walls += 1
-                    #break
-            #else:
-                #open_space += 1
+            if map_dict[point].actors is not None:
+                for actor in map_dict[point].actors:
+                    if actor_dict[actor].blocking:
+                        blocking_actor_index = index
+                        break
+                else:
+                    open_space += 1
+        elif map_dict[point].magic == True:
+            return await handle_magic_door(point=point, last_point=points[-1])
         else:
             walls += 1
         if walls > 1:
             return False
+    if blocking_actor_index is not None:
+        if blocking_actor_index < len(points) - 1:
+            return False
+        else:
+            return points[blocking_actor_index]
     if walls == 0:
         return True
     if map_dict[points[-1]].blocking == True and walls == 1:
