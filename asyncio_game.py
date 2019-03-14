@@ -302,7 +302,7 @@ class multi_tile_entity:
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
-                 blocking=False, fill_color=3, offset=(-1, -1)):
+                 blocking=True, fill_color=3, offset=(-1, -1)):
         self.name = name
         animation_key = {'E':'explosion', 'W':'writhe'}
         #Note: ' ' entries are ignored but keep the shape of the preset
@@ -353,12 +353,14 @@ class multi_tile_entity:
                 member_name = spawn_static_actor(base_name=self.name, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]],
-                                                 multi_tile_parent=self.name)
+                                                 multi_tile_parent=self.name,
+                                                 blocking=blocking)
             else:
                 member_name = spawn_static_actor(base_name=self.name, 
                                                  spawn_coord=member[1], 
                                                  tile=member[0],
-                                                 multi_tile_parent=self.name)
+                                                 multi_tile_parent=self.name,
+                                                 blocking=blocking)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
@@ -1716,7 +1718,7 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                        animation_preset=None, breakable=True, moveable=False,
-                       multi_tile_parent=None, blocking=True):
+                       multi_tile_parent=None, blocking=False):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
@@ -2411,11 +2413,8 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
     """
-    #await asyncio.sleep(.01)
-    open_space, walls = 0, 0
+    walls = 0
     points = get_line(coord_a, coord_b)
-    change_x, change_y = coord_b[0] - coord_a[0], coord_b[1] - coord_a[1]
-    reference_point = coord_a[0], coord_a[1] + 5
     blocking_actor_index = None
     for index, point in enumerate(points):
         if map_dict[point].blocking == False:
@@ -2424,23 +2423,25 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
                     if actor_dict[actor].blocking:
                         blocking_actor_index = index
                         break
-                else:
-                    open_space += 1
         elif map_dict[point].magic == True:
             return await handle_magic_door(point=point, last_point=points[-1])
         else:
             walls += 1
-        if walls > 1:
+        if walls > 1: #exit early if there's a wall in the way
             return False
     if blocking_actor_index is not None:
         if blocking_actor_index < len(points) - 1:
             return False
         else:
-            return points[blocking_actor_index]
-    if walls == 0:
+            return True
+    #if there's only open space among the checked points, display it.
+    elif walls == 0:
         return True
-    if map_dict[points[-1]].blocking == True and walls == 1:
+    #If the last point is blocking and it's a wall, display it:
+    elif map_dict[points[-1]].blocking == True and walls == 1:
         return True
+    else:
+        return False
 
 async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
     """
@@ -2480,7 +2481,6 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that can push the player
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
-#if completely surrounded, a air clock begins.
 #a fatigue bar?? (souls-like?)
 #a between move timeout clock (decremented n times a second, must wait to move again.
 #    if move is received during timeout, clock does not change, player does not move.
@@ -2575,7 +2575,6 @@ def find_brightness_tile(distance=0, std_dev=.5):
         brightness_index = 14
     print_choice = bright_to_dark[int(brightness_index)]
     return print_choice
-
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
@@ -2686,8 +2685,6 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
                 print(tile)
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
-    #TODO: apply timer to pressure plates.
-    await asyncio.sleep(0)
     timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     while True:
         await asyncio.sleep(resolution)
