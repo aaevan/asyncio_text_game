@@ -298,7 +298,6 @@ class multi_tile_entity:
         If an entity is only one tile, its parent is None.
 
     (less important, work with fixed orientation for now)
-    TODO: define a rotation (0, 90, 180 or 270 for now?) that an MTE can be rendered to.
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
