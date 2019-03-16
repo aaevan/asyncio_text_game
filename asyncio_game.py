@@ -55,15 +55,17 @@ class Map_tile:
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", strength=1, 
-                 health=50, hurtful=True, moveable=True, is_animated=False,
-                 animation="", holding_items={}, leaves_body=False,
-                 breakable=False, multi_tile_parent=None, blocking=False):
+    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", 
+                 strength=1, health=50, fatigue=50, hurtful=True, moveable=True,
+                 is_animated=False, animation="", holding_items={}, 
+                 leaves_body=False, breakable=False, multi_tile_parent=None, 
+                 blocking=False):
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
+        self.fatigue = fatigue
         self.max_health = self.health #max health is set to starting value
         self.alive = True
         self.moveable = moveable
@@ -410,7 +412,7 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100)
+actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100, fatigue=100)
 actor_dict['player'].just_teleported = False
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
@@ -1292,9 +1294,11 @@ async def sword_item_ability(length=3):
     facing_dir = state_dict['facing']
     asyncio.ensure_future(sword(facing_dir, length=length))
 
-async def dash_item_ability(dash_length=20):
-    direction = state_dict['facing']
-    asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction))
+async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
+    if direction is None:
+        direction = state_dict['facing']
+    asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction, 
+                                               time_between_steps=time_between_steps))
 
 async def teleport_in_direction(direction=None, distance=15, flashy=True):
     if direction is None:
@@ -1425,7 +1429,7 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             'broken_text':wand_broken_text},
-            'dash trinket':{'uses':9999, 'tile':term.blue('⥌'), 'usable_power':dash_item_ability, 
+            'dash trinket':{'uses':9999, 'tile':term.blue('⥌'), 'usable_power':dash_ability, 
                             'power_kwargs':{'dash_length':20}, 'broken_text':wand_broken_text},
                  'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
                             'power_kwargs':{'opens':'red'}, 'broken_text':wand_broken_text,
@@ -1861,16 +1865,22 @@ async def handle_input(key):
         if key in directions:
             push_return_val = None
             if key in 'wasd': #try to push adjacent things given movement keys
-                push(pusher='player', direction=key_to_compass[key])
-                walk_destination = add_coords(player_coords, directions[key])
-                if occupied(walk_destination):
-                    x_shift, y_shift = directions[key]
-            #TODO: a separate push function for multi tile entities
-            actor_dict['player'].just_teleported = False
-        if key in 'WASD': #jump 15 tiles away in indicated direction
-            asyncio.ensure_future(teleport_in_direction(
-                                   direction=key_to_compass[key],
-                                   distance=15))
+                if actor_dict['player'].fatigue >= 20:
+                    push(pusher='player', direction=key_to_compass[key])
+                    walk_destination = add_coords(player_coords, directions[key])
+                    if occupied(walk_destination):
+                        actor_dict['player'].fatigue -= 2.4
+                        x_shift, y_shift = directions[key]
+                else:
+                    asyncio.ensure_future(filter_print(output_text='Out of breath!'))
+            actor_dict['player'].just_teleported = False #used by magic_doors
+        if key in 'WASD': 
+            if actor_dict['player'].fatigue >= 15:
+                asyncio.ensure_future(dash_ability(dash_length=5, direction=key_to_compass[key], 
+                                                   time_between_steps=.04))
+                actor_dict['player'].fatigue -= 15
+            else:
+                asyncio.ensure_future(filter_print(output_text='Out of breath!'))
         if key in '?':
             await display_help() 
         if key in '3': #shift dimensions
@@ -2443,10 +2453,6 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
         return False
 
 async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
-    """
-    TODO: if standing on the magic tile, display nothing to the left and right or
-    above and below depending on the orientation of the magic door.
-    """
     difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
     destination = map_dict[point].magic_destination
     if difference_from_last is not (0, 0):
@@ -2860,15 +2866,28 @@ async def status_bar(actor_name='player', attribute='health', x_offset=0, y_offs
         await asyncio.sleep(refresh_time)
         with term.location(*print_coord):
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
+
+async def player_coord_readout(x_offset=0, y_offset=0, refresh_time=.1, centered=True):
+    if centered:
+        middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
+        print_coord = (middle_x - x_offset, middle_y + y_offset)
+    while True:
+        await asyncio.sleep(refresh_time)
         player_coords = actor_dict['player'].coords()
         if state_dict['plane'] == 'normal':
             printed_coords = player_coords
         else:
             #TODO: create more convincing noise
             noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
-            printed_coords = ''.join([choice(noise) for _ in range(10)])
+            printed_coords = ''.join([choice(noise) for _ in range(7)])
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("coords: {}      ".format(printed_coords))
+            print("x,y: {}      ".format(printed_coords))
+
+async def fatigue_regen():
+    while True:
+        await asyncio.sleep(.1)
+        if actor_dict['player'].fatigue < 100:
+            actor_dict['player'].fatigue += 1
 
 async def ui_setup():
     """
@@ -2880,7 +2899,10 @@ async def ui_setup():
     loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
-    loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥:"))
+    loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥: ", bar_color=1))
+    loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='fatigue', title="★: ", bar_color=2))
+    loop.create_task(fatigue_regen())
+    loop.create_task(player_coord_readout(x_offset=12, y_offset=17))
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -3766,6 +3788,7 @@ async def quitter_daemon():
 def main():
     map_init()
     state_dict["player_health"] = 100
+    state_dict["player_fatigue"] = 100
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
