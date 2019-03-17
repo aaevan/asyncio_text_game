@@ -1744,15 +1744,14 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
-    draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
+    #draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
     passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
-                (0, 0, 17, 17), (39, 20, 41, 20), (-30, -30, 0, 0),
-                (60, 20, 90, 20)]
+                (0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
     doors = [(7, 16), (0, 5), (14, 17), (29, 20), (41, 20)]
     for passage in passages:
         connect_with_passage(*passage)
@@ -2542,7 +2541,10 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
             else:
                 color_choice = 7
             if random() < .95:
-                print_choice = term.on_color(0)(term.color(color_choice)(map_dict[x_display_coord, y_display_coord].tile))
+                #TODO: add an attribute to map_tile (perhaps stored in seen) for
+                #      the last thing that was seen at this space
+                remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+                print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
             else:
                 print_choice = ' '
         else:
@@ -2722,8 +2724,9 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
                                       box_width=21, box_height=21))
     for x in range(-20, 21, 2):
         for y in range(-20, 21, 2):
+            half_scale = x // 2, y // 2
             loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((126, 12), (x//2, y//2)))))
+                                          display_coord=(add_coords((126, 12), half_scale))))
 
 async def async_map_init():
     """
@@ -2747,9 +2750,9 @@ async def async_map_init():
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
-    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
-    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
-    loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
+    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
+    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
+    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
