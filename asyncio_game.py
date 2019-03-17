@@ -19,10 +19,10 @@ from time import sleep
 
 class Map_tile:
     """ holds the status and state of each tile. """
-    def __init__(self, passable=True, tile="⣿", blocking=True, 
+    def __init__(self, passable=True, tile='𝄛', blocking=True, 
                  description='', announcing=False, seen=False, 
-                 announcement="", distance_trigger=None, is_animated=False,
-                 animation="", actors=None, items=None, 
+                 announcement='', distance_trigger=None, is_animated=False,
+                 animation='', actors=None, items=None, 
                  magic=False, magic_destination=False, 
                  mutable=True, override_view=False,
                  is_door=False, locked=False, key=''):
@@ -31,9 +31,7 @@ class Map_tile:
         The tile representation of Map_tile at coordinate (0, 0) is accessed 
         with map_dict[(0, 0)].tile.
         actors is a dictionary of actor names with value == True if 
-                occupied by that actor, otherwise the key is deleted.
-        contains_items is a set that lists item_ids which the player or
-                other actors may draw from.
+        occupied by that actor, otherwise the key is deleted.
         """
         self.tile, self.passable, self.blocking = (tile, passable, blocking)
         self.description = description
@@ -309,6 +307,8 @@ class multi_tile_entity:
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
+              'bold_2x2':(('▛', '▜'),
+                          ('▙', '▟'),),
                    '3x2':(('┏', '━', '┓'),
                           ('┗', '━', '┛'),),
                    '3x3':(('┏', '━', '┓'),
@@ -386,7 +386,7 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def multi_wander(base_name='multi_wander', spawn_coord=(0, 0), preset='ns_bookcase'):
+async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='bold_2x2'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
 
@@ -1907,7 +1907,7 @@ async def handle_input(key):
             print_screen_grid() 
         if key in '(':
             spawn_coords = add_coords(player_coords, (2, 2))
-            asyncio.ensure_future(multi_wander(spawn_coord=spawn_coords))
+            asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coords))
         if key in ')':
             for mte_name in mte_dict:
                 multi_push(mte_parent=mte_name)
@@ -2075,7 +2075,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│ {} │'.format(term.red('│')),
                      '│ {} │'.format(term.red('O')),
                      '└───┘',),
-          'green key':('┌───┐',
+        'green key':('┌───┐',
                      '│ {} │'.format(term.green('╒')),
                      '│ {} │'.format(term.green('│')),
                      '│ {} │'.format(term.green('O')),
@@ -2174,7 +2174,6 @@ async def equip_item(slot='q'):
         await filter_print(output_text="Nothing to equip!")
 
 async def use_chosen_item():
-    #await asyncio.sleep(0)
     item_id_choice = await choose_item()
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
@@ -2223,7 +2222,7 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
 
 #Announcement/message handling--------------------------------------------------
 async def parse_announcement(tile_coord_key):
-    """ parses an annoucement, with a new printing after each pipe """
+    """ parses an annoucement, with a new line printed after each pipe """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for delay, line in enumerate(announcement_sequence):
         asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
@@ -2426,14 +2425,15 @@ async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     points = get_line(coord_a, coord_b)
     blocking_actor_index = None
     for index, point in enumerate(points):
-        if map_dict[point].blocking == False:
+        #TODO: make magic doors correctly be blocked behind MTEs
+        if map_dict[point].magic == True:
+            return await handle_magic_door(point=point, last_point=points[-1])
+        elif map_dict[point].blocking == False:
             if map_dict[point].actors is not None:
                 for actor in map_dict[point].actors:
                     if actor_dict[actor].blocking:
                         blocking_actor_index = index
                         break
-        elif map_dict[point].magic == True:
-            return await handle_magic_door(point=point, last_point=points[-1])
         else:
             walls += 1
         if walls > 1: #exit early if there's a wall in the way
