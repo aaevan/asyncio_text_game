@@ -54,7 +54,7 @@ class Map_tile:
 class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", 
-                 strength=1, health=50, fatigue=50, hurtful=True, moveable=True,
+                 strength=1, health=50, stamina=50, hurtful=True, moveable=True,
                  is_animated=False, animation="", holding_items={}, 
                  leaves_body=False, breakable=False, multi_tile_parent=None, 
                  blocking=False):
@@ -63,7 +63,7 @@ class Actor:
         self.speed, self.tile = (speed, tile)
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
-        self.fatigue = fatigue
+        self.stamina = stamina
         self.max_health = self.health #max health is set to starting value
         self.alive = True
         self.moveable = moveable
@@ -412,7 +412,7 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100, fatigue=100)
+actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100, stamina=100)
 actor_dict['player'].just_teleported = False
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
@@ -1209,7 +1209,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             if display_timer:
                 x_pos, y_pos = (int(term.width / 2 - 2), 
                                 int(term.height / 2 - 2),)
-                await timer(x_pos=x_pos, y_pos=(y_pos + 15), time_minutes=0, time_seconds=5, resolution=1)
+                await timer(x_pos=x_pos - 8, y_pos=(y_pos + 15), time_minutes=0, time_seconds=5, resolution=1)
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
@@ -1865,20 +1865,20 @@ async def handle_input(key):
         if key in directions:
             push_return_val = None
             if key in 'wasd': #try to push adjacent things given movement keys
-                if actor_dict['player'].fatigue >= 20:
+                if actor_dict['player'].stamina >= 20:
                     push(pusher='player', direction=key_to_compass[key])
                     walk_destination = add_coords(player_coords, directions[key])
                     if occupied(walk_destination):
-                        actor_dict['player'].fatigue -= 2.4
+                        actor_dict['player'].stamina -= 2.4
                         x_shift, y_shift = directions[key]
                 else:
                     asyncio.ensure_future(filter_print(output_text='Out of breath!'))
             actor_dict['player'].just_teleported = False #used by magic_doors
         if key in 'WASD': 
-            if actor_dict['player'].fatigue >= 15:
+            if actor_dict['player'].stamina >= 15:
                 asyncio.ensure_future(dash_ability(dash_length=5, direction=key_to_compass[key], 
                                                    time_between_steps=.04))
-                actor_dict['player'].fatigue -= 15
+                actor_dict['player'].stamina -= 15
             else:
                 asyncio.ensure_future(filter_print(output_text='Out of breath!'))
         if key in '?':
@@ -2486,7 +2486,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that can push the player
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
-#a fatigue bar?? (souls-like?)
+#a stamina bar?? (souls-like?)
 #a between move timeout clock (decremented n times a second, must wait to move again.
 #    if move is received during timeout, clock does not change, player does not move.
 
@@ -2690,7 +2690,7 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
                 print(tile)
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
-    timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+    timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     while True:
         await asyncio.sleep(resolution)
         with term.location(x_pos, y_pos):
@@ -2704,9 +2704,9 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
             await asyncio.sleep(.5)
             x, y = actor_dict['player'].coords()
             with term.location(x_pos, y_pos):
-                print(" " * 5)
+                print(" " * 7)
             break
-        timer_text = str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+        timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     return
 
 async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
@@ -2881,13 +2881,13 @@ async def player_coord_readout(x_offset=0, y_offset=0, refresh_time=.1, centered
             noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
             printed_coords = ''.join([choice(noise) for _ in range(7)])
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("x,y: {}      ".format(printed_coords))
+            print("❌ {}      ".format(printed_coords))
 
-async def fatigue_regen():
+async def stamina_regen():
     while True:
         await asyncio.sleep(.1)
-        if actor_dict['player'].fatigue < 100:
-            actor_dict['player'].fatigue += 1
+        if actor_dict['player'].stamina < 100:
+            actor_dict['player'].stamina += 1
 
 async def ui_setup():
     """
@@ -2895,14 +2895,16 @@ async def ui_setup():
     """
     await asyncio.sleep(0)
     loop = asyncio.get_event_loop()
-    loop.create_task(key_slot_checker(slot='q', print_location=(-30, 10)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(30, 10)))
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
-    loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title="♥: ", bar_color=1))
-    loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='fatigue', title="★: ", bar_color=2))
-    loop.create_task(fatigue_regen())
-    loop.create_task(player_coord_readout(x_offset=12, y_offset=17))
+    health_title = "{} ".format(term.color(1)("♥"))
+    stamina_title = "{} ".format(term.color(3)("⚡"))
+    loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
+    loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
+    loop.create_task(stamina_regen())
+    loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -3788,7 +3790,7 @@ async def quitter_daemon():
 def main():
     map_init()
     state_dict["player_health"] = 100
-    state_dict["player_fatigue"] = 100
+    state_dict["player_stamina"] = 100
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
