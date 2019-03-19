@@ -1242,14 +1242,14 @@ async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state
         trigger_state = await any_true(trigger_key=patch_to_key)
         if trigger_state == True:
             if default_state == 'closed':
-                await open_door(door_coord)
+                open_door(door_coord)
             else:
-                await close_door(door_coord)
+                close_door(door_coord)
         else:
             if default_state == 'closed':
-                await close_door(door_coord)
+                close_door(door_coord)
             else:
-                await open_door(door_coord)
+                open_door(door_coord)
 
 async def sword(direction='n', actor='player', length=5, name='sword', 
                 speed=.1, retract_speed=.1, damage=100, sword_color=1):
@@ -1394,12 +1394,13 @@ async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
 #      cooldown expires.
 #TODO: items that are used immediately upon pickup
 
-async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
+def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     wand_broken_text = " is out of charges."
     shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
     possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
                       'shiny stone', 'shift amulet', 'red sword', 'vine wand',
-                      'eye trinket', 'high explosives', 'red key', 'green key')
+                      'eye trinket', 'high explosives', 'red key', 'green key', 
+                      'rusty key')
     block_wand_text = "A shimmering block appears."
     if instance_of == 'random':
         instance_of = choice(possible_items)
@@ -1436,6 +1437,9 @@ async def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=Fal
                             'use_message':''},
                'green key':{'uses':9999, 'tile':term.green('⚷'), 'usable_power':unlock_door, 
                             'power_kwargs':{'opens':'green'}, 'broken_text':wand_broken_text,
+                            'use_message':None},
+               'rusty key':{'uses':3, 'tile':term.color(3)('⚷'), 'usable_power':unlock_door, 
+                            'power_kwargs':{'opens':'rusty'}, 'broken_text':'the key breaks off in the lock',
                             'use_message':None},
              'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
                             'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
@@ -1624,12 +1628,15 @@ def draw_door(x, y, closed=True, locked=False, description='wooden', is_door=Tru
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
     """
+    door_colors = {'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
+                   'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
+                   'iron':7}
     states = [('▮', False, True), ('▯', True, False)]
     if closed:
         tile, passable, blocking = states[0]
     else:
         tile, passable, blocking = states[1]
-    map_dict[(x, y)].tile = tile
+    map_dict[(x, y)].tile = term.color(door_colors[description])(tile)
     map_dict[(x, y)].passable = passable
     map_dict[(x, y)].blocking = blocking
     map_dict[(x, y)].is_door = is_door
@@ -1750,14 +1757,18 @@ def map_init():
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    passages = [(7, 7, 17, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
+    draw_box(top_left=(7, 5), x_size=5, y_size=5, tile="░")
+    passages = [(7, 5, 7, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
                 (0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
-    doors = [(7, 16), (0, 5), (14, 17), (29, 20), (41, 20)]
+    doors = [(7, 16), (14, 17), (29, 20), (41, 20)]
+    #draw_door((0, 5), 
     for passage in passages:
         connect_with_passage(*passage)
     for door in doors:
         draw_door(*door, locked=False)
     draw_door(*(-5, -5), locked=True, description='green')
+    draw_door(0, 5, locked=True, description='rusty', is_door=True)
+    spawn_item_at_coords(coord=(-1, 1), instance_of='rusty key', on_actor_id=False)
     announcement_at_coord(coord=(0, 17), distance_trigger=5, 
                           announcement="something slithers into the wall as you approach.")
     announcement_at_coord(coord=(7, 17), distance_trigger=1, 
@@ -1892,12 +1903,11 @@ async def handle_input(key):
             asyncio.ensure_future(export_map())
         if key in 'Xx': #examine
             description = map_dict[(x, y)].description
-            asyncio.ensure_future(filter_print(output_text=description)),
+            asyncio.ensure_future(filter_print(output_text=description))
         if key in ' ': #toggle doors
-            asyncio.ensure_future(toggle_doors()),
+            toggle_doors()
         if key in '@': #spawn debug items in player inventory
-            asyncio.ensure_future(spawn_item_at_coords(coord=player_coords, 
-                        instance_of='fused charge', on_actor_id='player'))
+            spawn_item_at_coords(coord=player_coords, instance_of='fused charge', on_actor_id='player')
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
@@ -1985,34 +1995,40 @@ async def handle_input(key):
         if key in "ijkl": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
 
-async def open_door(door_coord):
-    map_dict[door_coord].tile = '▯'
+def open_door(door_coord, door_tile='▯'):
+    map_dict[door_coord].tile = door_tile
     map_dict[door_coord].passable = True
     map_dict[door_coord].blocking = False
 
-async def close_door(door_coord):
-    map_dict[door_coord].tile = '▮'
+def close_door(door_coord, door_tile='▮'):
+    map_dict[door_coord].tile = door_tile
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
 
-async def toggle_door(door_coord):
+def toggle_door(door_coord):
     door_state = map_dict[door_coord].tile 
+    open_doors = [term.color(i)('▯') for i in range(10)]
+    open_doors.append('▯')
+    closed_doors = [term.color(i)('▮') for i in range(10)]
+    closed_doors.append('▮')
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
         asyncio.ensure_future(filter_print(output_text=output_text))
         return
-    if door_state == "▮":
-        await open_door(door_coord)
-    elif door_state == '▯':
-        await close_door(door_coord)
+    if door_state in closed_doors:
+        open_door_tile = open_doors[closed_doors.index(door_state)]
+        open_door(door_coord, door_tile=open_door_tile)
+    elif door_state in open_doors:
+        closed_door_tile = closed_doors[open_doors.index(door_state)]
+        close_door(door_coord, door_tile=closed_door_tile)
 
-async def toggle_doors():
+def toggle_doors():
     x, y = actor_dict['player'].coords()
     door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
     for door in door_dirs:
         door_coord = (x + door[0], y + door[1])
-        await toggle_door(door_coord)
+        toggle_door(door_coord)
 
         #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
@@ -2078,6 +2094,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│ {} │'.format(term.green('╒')),
                      '│ {} │'.format(term.green('│')),
                      '│ {} │'.format(term.green('O')),
+                     '└───┘',),
+        'rusty key':('┌───┐',
+                     '│ {} │'.format(term.color(3)('╒')),
+                     '│ {} │'.format(term.color(3)('│')),
+                     '│ {} │'.format(term.color(3)('O')),
                      '└───┘',),
       'shiny stone':('┌───┐',   #effect while equipped: orbit
                      '│ _ │', 
@@ -2625,8 +2646,10 @@ async def ui_box_draw(position="top left",
     +---------+ v
     """
     await asyncio.sleep(0)
-    top_bar = "┌" + ("─" * box_width) + "┐"
-    bottom_bar = "└" + ("─" * box_width) + "┘"
+    #top_bar = "┌" + ("─" * box_width) + "┐"
+    top_bar = "┌{}┐".format("─" * box_width)
+    #bottom_bar = "└" + ("─" * box_width) + "┘"
+    bottom_bar = "└{}┘".format("─" * box_width)
     if position == "top left":
         x_print, y_print = x_margin, y_margin
     if position == "centered":
@@ -2722,11 +2745,11 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
                                       box_width=21, box_height=21))
-    for x in range(-20, 21, 2):
-        for y in range(-20, 21, 2):
-            half_scale = x // 2, y // 2
-            loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((126, 12), half_scale))))
+    #for x in range(-20, 21, 2):
+        #for y in range(-20, 21, 2):
+            #half_scale = x // 2, y // 2
+            #loop.create_task(minimap_tile(player_position_offset=(x, y),
+                                          #display_coord=(add_coords((126, 12), half_scale))))
 
 async def async_map_init():
     """
@@ -2758,9 +2781,9 @@ async def async_map_init():
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False))
-    loop.create_task(spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False))
-    loop.create_task(spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False))
+    spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False)
+    spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False)
+    spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False)
     spawn_static_actor(spawn_coord=(5, 5), moveable=True)
     spawn_static_actor(spawn_coord=(6, 6), moveable=True)
     loop.create_task(trap_init())
@@ -2785,11 +2808,6 @@ async def trap_init():
     loop.create_task(spawn_turret())
     loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
     loop.create_task(state_toggle(trigger_key='test'))
-    loop.create_task(flip_sync(trigger_key='test2'))
-    loop.create_task(spike_trap(patch_to_key='test'))
-    loop.create_task(spike_trap(coord=(12, 10), patch_to_key='test2'))
-    state_dict['switch_4'] = {}
-    loop.create_task(pressure_plate(spawn_coord=(3, 3), patch_to_key='switch_4', display_timer=True))
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
@@ -3235,17 +3253,17 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     if leaves_body:
         map_dict[coords].tile = body_tile
         map_dict[coords].description = "A body."
-    await spawn_item_spray(base_coord=coords, items=holding_items)
+    spawn_item_spray(base_coord=coords, items=holding_items)
     return
 
-async def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
+def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
     if items is None:
         return
     loop = asyncio.get_event_loop()
     coord_choices = get_circle(center=base_coord, radius=radius)
     for item in items:
         item_coord = choice(coord_choices)
-        loop.create_task(spawn_item_at_coords(coord=item_coord, instance_of=item))
+        spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
@@ -3434,7 +3452,7 @@ async def beam_spire(spawn_coord=(0, 0)):
 
 async def fire_projectile(actor_key='player', firing_angle=45, radius=10, 
                           radius_spread=(10, 14), degree_spread=(-20, 20),
-                          damage=5, animation_preset='bullet'):
+                          damage=5, animation_preset='explosion'):
     rand_radius = randint(*radius_spread) + radius
     rand_angle = randint(*degree_spread) + firing_angle
     actor_coords = actor_dict[actor_key].coords()
