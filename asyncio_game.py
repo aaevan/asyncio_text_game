@@ -1806,7 +1806,7 @@ async def get_key():
     try:
         tty.setcbreak(sys.stdin.fileno())
         key = None
-        same_count = 0
+        state_dict['same_count'] = 0
         old_key = None
         while True:
             await asyncio.sleep(0.01)
@@ -1816,15 +1816,13 @@ async def get_key():
                     state_dict['exiting'] = True
                 if key is not None:
                     await handle_input(key)
-            #with term.location(0, 1):
-                #print(debug_text.format(repr(key), same_count))
             if old_key == key:
-                same_count += 1
+                state_dict['same_count'] += 1
             else:
-                same_count = 0
+                state_dict['same_count'] = 0
             old_key = key
-            if same_count >= 600:
-                same_count = 0
+            if state_dict['same_count'] % 600 == 0:
+                #state_dict['same_count'] = 0
                 asyncio.ensure_future(filter_print(output_text=help_text, pause_stay_on=2))
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
@@ -1994,6 +1992,8 @@ async def handle_input(key):
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijkl": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
+            with term.location(40, 1):
+                print(state_dict['facing'])
 
 def open_door(door_coord, door_tile='▯'):
     map_dict[door_coord].tile = door_tile
@@ -2030,7 +2030,7 @@ def toggle_doors():
         door_coord = (x + door[0], y + door[1])
         toggle_door(door_coord)
 
-        #Item Interaction---------------------------------------------------------------
+#Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
@@ -2410,6 +2410,44 @@ async def angle_checker(angle_from_twelve=0, fov=120):
         return True
     else:
         return False
+
+async def angle_swing(radius=15):
+    dir_to_angle = {'n':180, 'e':90, 's':360, 'w':270}
+    current_angle = dir_to_angle[state_dict['facing']]
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    central_point = (middle_x, middle_y)
+    while True:
+        pull_angle = dir_to_angle[state_dict['facing']]
+        difference = current_angle - pull_angle
+        if difference < -180:
+            difference %= 360
+        if difference > 180:
+            difference -= 360
+        with term.location(40, 2):
+            print("current_angle: {} pull_angle: {}, difference: {}      ".format(current_angle, pull_angle, difference))
+        if difference < 0:
+            current_angle += 5
+        elif difference > 0:
+            current_angle -= 5
+        state_dict['current_angle'] = current_angle
+        angles = (current_angle, current_angle + 30, current_angle - 30)
+
+        points = [await point_at_distance_and_angle(radius=radius,
+                                                    central_point=central_point,
+                                                    angle_from_twelve=angle)
+                                                    for angle in angles]
+        steadiness = 500 / (state_dict['same_count'] + 1) #divide by zero avoided with +1
+        with term.location(80, 0):
+            print("steadiness: {}         ".format(int(steadiness)))
+        for point, reticule in zip(points, (term.color(2)('⁛'), term.color(1)('L'), term.color(1)('R'))):
+            with term.location(*point):
+                print(reticule)
+        await asyncio.sleep(.008)
+        for point in points:
+            with term.location(*point):
+                print(' ')
+
     
 #UI/HUD functions---------------------------------------------------------------
 
@@ -2520,7 +2558,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     previous_tile = None
     print_location = (middle_x + x_offset, middle_y + y_offset)
     last_print_choice = ' '
-    angle_from_twelve = find_angle(p2=(x_offset, y_offset))
+    angle_from_twelve = find_angle(p0=(0, 5), p2=(x_offset, y_offset))
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
@@ -2529,7 +2567,10 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         #check whether the current tile is within the current field of view
-        display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
+        #display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
+        l_angle, r_angle = ((state_dict['current_angle'] - fov // 2) % 360, 
+                            (state_dict['current_angle'] + fov // 2) % 360)
+        display = in_angle_bracket(angle_from_twelve, arc_begin=l_angle, arc_end=r_angle)
         if map_dict[x_display_coord, y_display_coord].override_view:
             display = True
         if (x_offset, y_offset) == (0, 0):
@@ -2646,9 +2687,7 @@ async def ui_box_draw(position="top left",
     +---------+ v
     """
     await asyncio.sleep(0)
-    #top_bar = "┌" + ("─" * box_width) + "┐"
     top_bar = "┌{}┐".format("─" * box_width)
-    #bottom_bar = "└" + ("─" * box_width) + "┘"
     bottom_bar = "└{}┘".format("─" * box_width)
     if position == "top left":
         x_print, y_print = x_margin, y_margin
@@ -2745,11 +2784,11 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
                                       box_width=21, box_height=21))
-    #for x in range(-20, 21, 2):
-        #for y in range(-20, 21, 2):
-            #half_scale = x // 2, y // 2
-            #loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          #display_coord=(add_coords((126, 12), half_scale))))
+    for x in range(-20, 21, 2):
+        for y in range(-20, 21, 2):
+            half_scale = x // 2, y // 2
+            loop.create_task(minimap_tile(player_position_offset=(x, y),
+                                          display_coord=(add_coords((126, 12), half_scale))))
 
 async def async_map_init():
     """
@@ -2926,6 +2965,7 @@ async def ui_setup():
     loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     loop.create_task(stamina_regen())
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
+    loop.create_task(angle_swing())
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
