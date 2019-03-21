@@ -546,38 +546,6 @@ def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 
                            palette="░")
     #cull points that are too close together?
 
-def bumping_circles(num_points=10, center=(0, 0), radius=50, circle_size_range=(10, 20),
-                    try_n_times=30):
-    """
-    draws a number of circles that just barely touch but do not overlap
-    """
-    points = {}
-    starting_point = point_within_radius(radius=radius, center=center)
-    rand_radius = randint(*circle_size_range)
-    points[starting_point] = rand_radius
-    for _ in range(num_points):
-        failures = 0
-        while True:
-            fail = False
-            temp_point = point_within_radius(radius=radius, center=center)
-            min_radius = radius * 2
-            for point in points:
-                distance_from_point = point_to_point_distance(point_a=point, point_b=temp_point)
-                if distance_from_point < points[point]:
-                    fail = True
-                    break
-                elif distance_from_point < min_radius:
-                    min_radius = distance_from_point
-            if fail:
-                failures += 1
-                if failures >= try_n_times:
-                    return points
-                continue
-            else:
-                break
-        points[temp_point] = min_radius
-    pass
-
 def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0), 
                         in_cone=(0, 90), num_points=5):
     """
@@ -763,8 +731,6 @@ def cave_room(trim_radius=40, width=100, height=100,
                 input_space[coord] = '#'
             else:
                 input_space[coord] = ' '
-        if debug:
-            preview_space(input_space=input_space, height=height, width=width)
     return input_space
 
 def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outside_radius_char=' '):
@@ -786,14 +752,6 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].passable = True
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
-
-def preview_space(input_space=None, height=30, width=30):
-    os.system('clear')
-    if input_space is None:
-        return
-    for y in range(height):
-        print(''.join([input_space[x, y] for x in range(width)]))
-    sleep(.05)
 
 async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                 passable=True, blocking=False, animation=None, delay=0,
@@ -1751,7 +1709,7 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     #draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -1877,7 +1835,7 @@ async def handle_input(key):
                     push(pusher='player', direction=key_to_compass[key])
                     walk_destination = add_coords(player_coords, directions[key])
                     if occupied(walk_destination):
-                        actor_dict['player'].stamina -= 2.4
+                        actor_dict['player'].stamina -= 2
                         x_shift, y_shift = directions[key]
                 else:
                     asyncio.ensure_future(filter_print(output_text='Out of breath!'))
@@ -1949,16 +1907,6 @@ async def handle_input(key):
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
-            #check_point_within_arc(checked_point=(-5, 5), arc_width=120)
-            #surroundings = [(-1, 1), (0, 1), (1, 1),
-                            #(-1, 0), (0, 0), (1, 0),
-                            #(-1,-1), (0,-1), (1,-1)]
-            #for offset in surroundings:
-                #check_coord = add_coords(offset, player_coords)
-                #with term.location(80, 0):
-                    #print(check_coord)
-                ##map_dict[check_coord].tile = str(len(map_dict[check_coord].actors))
-                #map_dict[check_coord].override_view = True
         if key in '+':
             state_dict['fuzz'] += 1
             output_text = "+: fuzz set to {}".format(state_dict['fuzz'])
@@ -2427,9 +2375,9 @@ async def angle_swing(radius=15):
         with term.location(40, 2):
             print("current_angle: {} pull_angle: {}, difference: {}      ".format(current_angle, pull_angle, difference))
         if difference < 0:
-            current_angle += 5
+            current_angle += 10
         elif difference > 0:
-            current_angle -= 5
+            current_angle -= 10
         state_dict['current_angle'] = current_angle
         angles = (current_angle, current_angle + 30, current_angle - 30)
 
@@ -2437,16 +2385,16 @@ async def angle_swing(radius=15):
                                                     central_point=central_point,
                                                     angle_from_twelve=angle)
                                                     for angle in angles]
-        steadiness = 500 / (state_dict['same_count'] + 1) #divide by zero avoided with +1
-        with term.location(80, 0):
-            print("steadiness: {}         ".format(int(steadiness)))
-        for point, reticule in zip(points, (term.color(2)('⁛'), term.color(1)('L'), term.color(1)('R'))):
-            with term.location(*point):
-                print(reticule)
-        await asyncio.sleep(.008)
-        for point in points:
-            with term.location(*point):
-                print(' ')
+        #steadiness = 500 / (state_dict['same_count'] + 1) #divide by zero avoided with +1
+        #with term.location(80, 0):
+            #print("steadiness: {}         ".format(int(steadiness)))
+        #for point, reticule in zip(points, (term.color(2)('⁛'), term.color(1)('L'), term.color(1)('R'))):
+            #with term.location(*point):
+                #print(reticule)
+        await asyncio.sleep(.02)
+        #for point in points:
+            #with term.location(*point):
+                #print(' ')
 
     
 #UI/HUD functions---------------------------------------------------------------
@@ -2564,12 +2512,13 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     display = False
     while True:
         await asyncio.sleep(distance * .015) #update speed
+        #await asyncio.sleep(.1) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         #check whether the current tile is within the current field of view
-        #display = await angle_checker(angle_from_twelve=angle_from_twelve, fov=fov)
-        l_angle, r_angle = ((state_dict['current_angle'] - fov // 2) % 360, 
-                            (state_dict['current_angle'] + fov // 2) % 360)
+        current_angle = state_dict['current_angle']
+        l_angle, r_angle = ((current_angle - fov // 2) % 360, 
+                            (current_angle + fov // 2) % 360)
         display = in_angle_bracket(angle_from_twelve, arc_begin=l_angle, arc_end=r_angle)
         if map_dict[x_display_coord, y_display_coord].override_view:
             display = True
@@ -2578,9 +2527,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
         elif display:
             #add a line in here for different levels/dimensions:
             tile_coord_key = (x_display_coord, y_display_coord)
-            #the larger the number, the wider the range of fuzzy tiles
-            fuzz = state_dict['fuzz']
-            random_distance = abs(gauss(distance, distance / fuzz)) 
+            random_distance = abs(gauss(distance, 1))
             if random_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight(player_coords, tile_coord_key)
                 if type(line_of_sight_result) is tuple:
@@ -2602,13 +2549,15 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                 color_choice = 0
             else:
                 color_choice = 7
-            if random() < .95:
+            remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+            print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
+            #if random() < .95:
                 #TODO: add an attribute to map_tile (perhaps stored in seen) for
                 #      the last thing that was seen at this space
-                remembered_tile = map_dict[x_display_coord, y_display_coord].tile
-                print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
-            else:
-                print_choice = ' '
+                #remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+                #print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
+            #else:
+                #print_choice = ' '
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
@@ -2784,11 +2733,13 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
                                       box_width=21, box_height=21))
+    """
     for x in range(-20, 21, 2):
         for y in range(-20, 21, 2):
             half_scale = x // 2, y // 2
             loop.create_task(minimap_tile(player_position_offset=(x, y),
                                           display_coord=(add_coords((126, 12), half_scale))))
+    """
 
 async def async_map_init():
     """
