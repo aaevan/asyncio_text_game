@@ -346,7 +346,6 @@ class multi_tile_entity:
                     member_tile = None
                 else:
                     member_tile = term.color(fill_color)(tiles[y][x])
-                    #member_tile = tiles[y][x]
                 if member_tile is not None:
                     self.member_actors[offset_coord] = (member_tile, write_coord)
         for member in self.member_actors.values():
@@ -419,7 +418,6 @@ state_dict['facing'] = 'n'
 state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 state_dict['printing'] = False
-state_dict['fuzz'] = 8 #sets fuzziness of the edge of vision
 state_dict['known location'] = True
 
 #Drawing functions--------------------------------------------------------------
@@ -712,7 +710,6 @@ def cave_room(trim_radius=40, width=100, height=100,
                            for y in range(height)]
     if kernel:
         for coord, value in kernel_cells.items():
-            #input_space[coord] = value
             input_space[coord] = '#'
     for iteration_number in range(iterations):
         #build adjacency map
@@ -1106,8 +1103,6 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
             map_dict[direction_choice].tile = 'x'
 
 async def export_map(width=140, height=45):
-    #give a unique timestamped filename: 
-    #filename = "{}.txt".format(generate_id(base_name='exported_map'))
     #store the current tile at the player's location:
     temp_tile = map_dict[actor_dict['player'].coords()].tile
     #temporary lay down a '@':
@@ -1444,17 +1439,10 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
     if hold_for_lock:
         count = 0
         while True:
-            #with term.location(50, 6):
-                #print("({})holding for lock... (output_text:{})".format(count, output_text))
             if state_dict['printing'] == True:
                 await asyncio.sleep(.1)
             else:
                 break
-    #with term.location(50, 6):
-        #print(" " * 100)
-    #state_dict['printing'] = True #get lock on printing
-    #with term.location(50, 7):
-        #print("lock being held for output text:\"{}\"".format(output_text))
     if x_offset == 0:
         x_offset = -int(len(output_text) / 2)
     middle_x, middle_y = (int(term.width / 2 - 2), 
@@ -1479,8 +1467,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
         else:
             asyncio.sleep(pause_fade_out)
     state_dict['printing'] = False #releasing hold on printing to the screen
-    #with term.location(50, 7):
-        #print("lock released for output text:\"{}\"      ".format(output_text))
     await asyncio.sleep(1)
     with term.location(50, 7):
         print(" " * 100)
@@ -1711,7 +1697,6 @@ def map_init():
     clear()
     draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
-    #draw_centered_box(middle_coord=(-5, -5), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
     draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
@@ -1719,7 +1704,6 @@ def map_init():
     passages = [(7, 5, 7, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
                 (0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
     doors = [(7, 16), (14, 17), (29, 20), (41, 20)]
-    #draw_door((0, 5), 
     for passage in passages:
         connect_with_passage(*passage)
     for door in doors:
@@ -1779,8 +1763,7 @@ async def get_key():
             else:
                 state_dict['same_count'] = 0
             old_key = key
-            if state_dict['same_count'] % 600 == 0:
-                #state_dict['same_count'] = 0
+            if state_dict['same_count'] >= 600 and state_dict['same_count'] % 600 == 0:
                 asyncio.ensure_future(filter_print(output_text=help_text, pause_stay_on=2))
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
@@ -1853,7 +1836,6 @@ async def handle_input(key):
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in '4':
             with term.location(50, 0):
-                #print("point_within_radius: {}".format(point_within_radius()))
                 draw_net()
         if key in '8': #export map
             asyncio.ensure_future(export_map())
@@ -1907,15 +1889,6 @@ async def handle_input(key):
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
-        if key in '+':
-            state_dict['fuzz'] += 1
-            output_text = "+: fuzz set to {}".format(state_dict['fuzz'])
-            asyncio.ensure_future(filter_print(output_text=output_text))
-        if key in '-':
-            if state_dict['fuzz'] > 1:
-                state_dict['fuzz'] -= 1
-                output_text = "-: fuzz set to {}".format(state_dict['fuzz'])
-                asyncio.ensure_future(filter_print(output_text=output_text))
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
@@ -2372,8 +2345,6 @@ async def angle_swing(radius=15):
             difference %= 360
         if difference > 180:
             difference -= 360
-        with term.location(40, 2):
-            print("current_angle: {} pull_angle: {}, difference: {}      ".format(current_angle, pull_angle, difference))
         if difference < 0:
             current_angle += 10
         elif difference > 0:
@@ -2385,17 +2356,7 @@ async def angle_swing(radius=15):
                                                     central_point=central_point,
                                                     angle_from_twelve=angle)
                                                     for angle in angles]
-        #steadiness = 500 / (state_dict['same_count'] + 1) #divide by zero avoided with +1
-        #with term.location(80, 0):
-            #print("steadiness: {}         ".format(int(steadiness)))
-        #for point, reticule in zip(points, (term.color(2)('⁛'), term.color(1)('L'), term.color(1)('R'))):
-            #with term.location(*point):
-                #print(reticule)
         await asyncio.sleep(.02)
-        #for point in points:
-            #with term.location(*point):
-                #print(' ')
-
     
 #UI/HUD functions---------------------------------------------------------------
 
@@ -2604,7 +2565,6 @@ async def check_contents_of_tile(coord):
     if map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return item_dict[item_name].tile
-        #return item_name
     if map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
@@ -2763,9 +2723,6 @@ async def async_map_init():
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
-    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 3), door_b_coords=(-7, 3)))
-    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 4), door_b_coords=(-7, 4)))
-    #loop.create_task(create_magic_door_pair(door_a_coords=(-26, 5), door_b_coords=(-7, 5)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
@@ -2829,21 +2786,21 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
 async def printing_testing(distance=0):
     await asyncio.sleep(0)
 
-    bw_gradient = ((" "),                               #0
-                   term.color(7)("░"),                  #1
-                   term.color(8)("░"),                  #3
-                   term.color(7)("▒"),                  #5
-                   term.color(8)("▒"),                  #7
-                   term.color(7)("▓"),                  #9
-                   term.color(7)("█"),                  #10
-                   term.color(8)("▓"),                  #11
-                   term.color(8)("▓"),                  #11
-                   term.color(8)("▓"),                  #11
-                   term.color(8)("▓"),                  #11
-                   term.color(8)("█"),                  #12
-                   term.color(8)("█"),                  #13
-                   term.color(8)("█"),                  #14
-                   term.color(8)("█"),                  #15
+    bw_gradient = ((" "),                #0
+                   term.color(7)("░"),   #1
+                   term.color(8)("░"),   #3
+                   term.color(7)("▒"),   #5
+                   term.color(8)("▒"),   #7
+                   term.color(7)("▓"),   #9
+                   term.color(7)("█"),   #10
+                   term.color(8)("▓"),   #11
+                   term.color(8)("▓"),   #11
+                   term.color(8)("▓"),   #11
+                   term.color(8)("▓"),   #11
+                   term.color(8)("█"),   #12
+                   term.color(8)("█"),   #13
+                   term.color(8)("█"),   #14
+                   term.color(8)("█"),   #15
                    )
     bright_to_dark = bw_gradient[::-1]
     for number, tile in enumerate(bw_gradient):
@@ -2963,7 +2920,6 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
 
 async def seek_actor(name_key=None, seek_key='player', repel=False):
     """ Standardize format to pass movement function.  """
-    #await asyncio.sleep(0)
     if not repel:
         polarity = 1
     else:
@@ -3325,7 +3281,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
 
 async def health_potion(item_id=None, actor_key='player', total_restored=25, 
                         duration=2, sub_second_step=.1):
-    #add damage_numbers
     await asyncio.sleep(0)
     if item_id:
         del item_dict[item_id]
@@ -3433,7 +3388,6 @@ async def beam_spire(spawn_coord=(0, 0)):
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
                                        tile=closed_tile)
     actor_dict[turret_id].update(*spawn_coord)
-    #map_dict[spawn_coord].actors[turret_id] = True
     while True:
         for angle in [i * 5 for i in range(72)]:
             for i in range(10):
@@ -3788,7 +3742,6 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
                 print(term.green(print_char))
 
 def one_for_passable(map_coords=(0, 0)):
-    #return str(int(map_dict[add_coords(map_coords)].passable))
     return str(int(map_dict[map_coords].passable))
 
 async def quitter_daemon():
@@ -3819,6 +3772,7 @@ def main():
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
+    #test enemies
     #for i in range(2):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
         #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
