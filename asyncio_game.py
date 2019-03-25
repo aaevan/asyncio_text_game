@@ -311,9 +311,9 @@ class multi_tile_entity:
                           ('▙', '▟'),),
              '2x2_block':(('╔', '╗'),
                           ('╚', '╝'),),
-             '3x3_block':(('╔', '═', '╗'),
-                          ('║', ' ', '║'),
-                          ('╚', '═', '╝'),),
+             '3x3_block':(('╔', '╦', '╗'),
+                          ('╠', '╬', '╣'),
+                          ('╚', '╩', '╝'),),
                    '3x2':(('┏', '━', '┓'),
                           ('┗', '━', '┛'),),
                    '3x3':(('┏', '━', '┓'),
@@ -390,7 +390,7 @@ class multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='bold_2x2'):
+async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
 
@@ -945,7 +945,6 @@ async def unlock_door(actor_key='player', opens='red'):
     asyncio.ensure_future(filter_print(output_text=output_text))
 
 
-
 #TODO: an entity that moves around with momentum,
 #      others that follow the last n moves
 #      billiard balls?
@@ -960,7 +959,6 @@ def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
     objects do not clip into other objects or other actors.
-    TODO: implement multi-tile moveable actors. a bookshelf? large crates?▧
     TODO: implement pressure plates that only accept certain keys/blocks (colors?)
     """
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
@@ -1145,13 +1143,25 @@ async def display_current_tile():
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
-                         tile_color=7, test_rate=.1, display_timer=False):
+                         tile_color=7, test_rate=.1, display_timer=False,
+                         positives=None):
+    #TODO: rewrite pressure plate to be a thing that reacts to change rather
+    #than constantly check for change.
+    """
+    creates a pressure plate on the map at specified spawn_coord.
+
+    If positives is a list (instead of None), it will only accept things
+    with names containing one of the specified colors/attributes. 
+    Otherwise, it will be a list of generic objects that tend to trigger
+    pressure plates.
+    """
     appearance = [term.color(tile_color)(char) for char in appearance]
     map_dict[spawn_coord].tile = appearance[0]
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
-    positives = ('player', 'weight', 'crate', 'static')
+    if positives is None or positives is not type(list):
+        positives = ('player', 'weight', 'crate', 'static')
     count = 0
     triggered = False
     while True:
@@ -1174,6 +1184,14 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             triggered = False
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
+
+async def puzzle_pair(block_coord=(0, 0), plate_coord=(3, 3)):
+    """
+    creates a paired pressure plate and uniquely keyed block that will trigger
+    the plate when pushed atop
+    """
+    pass
+
             
 async def any_true(trigger_key):
     return any(i for i in state_dict[trigger_key].values())
