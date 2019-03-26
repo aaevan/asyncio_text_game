@@ -959,7 +959,6 @@ def push(direction='n', pusher='player'):
     """
     basic pushing behavior for single-tile actors.
     objects do not clip into other objects or other actors.
-    TODO: implement pressure plates that only accept certain keys/blocks (colors?)
     """
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
@@ -1160,7 +1159,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
-    if positives is None or positives is not type(list):
+    if positives is None:
         positives = ('player', 'weight', 'crate', 'static')
     count = 0
     triggered = False
@@ -1170,6 +1169,11 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
+                with term.location(0, 3):
+                    print(positives)
+                await asyncio.sleep(1)
+                with term.location(0, 3):
+                    print(' ' * len(repr(positives)))
                 asyncio.ensure_future(filter_print(output_text="click"))
             triggered = True
             map_dict[spawn_coord].tile = appearance[1]
@@ -1185,13 +1189,24 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
 
-async def puzzle_pair(block_coord=(0, 0), plate_coord=(3, 3)):
+async def puzzle_pair(block_coord=(-10, -10), plate_coord=(-10, -7), puzzle_name='puzzle_0', 
+                      color_num=3, block_char='☐'):
     """
     creates a paired pressure plate and uniquely keyed block that will trigger
     the plate when pushed atop
-    """
-    pass
 
+    #TODO: add tiles that exclude certain things from being pushed onto them.
+    """
+    state_dict[puzzle_name] = {}
+    block_tile = term.color(color_num)(block_char)
+    asyncio.ensure_future(spawn_weight(base_name=puzzle_name, 
+                                       spawn_coord=block_coord, 
+                                       tile=block_tile))
+    asyncio.ensure_future(pressure_plate(spawn_coord=plate_coord, 
+                                         tile_color=color_num,
+                                         positives=(puzzle_name, 'null'), #positives needs to be a tuple
+                                         patch_to_key=puzzle_name))
+    return puzzle_name
             
 async def any_true(trigger_key):
     return any(i for i in state_dict[trigger_key].values())
@@ -1691,7 +1706,7 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
     weight_id = spawn_static_actor(base_name=base_name, 
                                    spawn_coord=spawn_coord,
                                    tile=tile, breakable=False, 
-                                   moveable=False)
+                                   moveable=True)
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                        animation_preset=None, breakable=True, moveable=False,
@@ -2778,6 +2793,8 @@ async def trap_init():
     loop.create_task(spawn_turret())
     loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
     loop.create_task(state_toggle(trigger_key='test'))
+    loop.create_task(puzzle_pair(puzzle_name='brown'))
+    loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
