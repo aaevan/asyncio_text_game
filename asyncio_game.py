@@ -1143,7 +1143,7 @@ async def display_current_tile():
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
                          tile_color=7, test_rate=.1, display_timer=False,
-                         positives=None):
+                         positives=None, sound_choice='default'):
     #TODO: rewrite pressure plate to be a thing that reacts to change rather
     #than constantly check for change.
     """
@@ -1159,6 +1159,8 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
+    sound_effects = {'default':'*click*',
+                       'stone':'*stone on stone nearby*'}
     if positives is None:
         positives = ('player', 'weight', 'crate', 'static')
     count = 0
@@ -1169,12 +1171,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
-                with term.location(0, 3):
-                    print(positives)
-                await asyncio.sleep(1)
-                with term.location(0, 3):
-                    print(' ' * len(repr(positives)))
-                asyncio.ensure_future(filter_print(output_text="click"))
+                asyncio.ensure_future(filter_print(output_text=sound_effects[sound_choice]))
             triggered = True
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
@@ -1194,8 +1191,6 @@ async def puzzle_pair(block_coord=(-10, -10), plate_coord=(-10, -7), puzzle_name
     """
     creates a paired pressure plate and uniquely keyed block that will trigger
     the plate when pushed atop
-
-    #TODO: add tiles that exclude certain things from being pushed onto them.
     """
     state_dict[puzzle_name] = {}
     block_tile = term.color(color_num)(block_char)
@@ -1443,7 +1438,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         else:
             actor_dict[on_actor_id].holding_items[item_id] = True
 
-async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=24):
+async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=16):
     last_coord = None
     item_list = ' '
     with term.location(x_pos, y_pos):
@@ -1459,7 +1454,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
         last_coord = player_coords
 
-async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=9):
+async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=1):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
@@ -2079,9 +2074,8 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
     Prints to some region of the screen:
     Get stuck in a loop until a choice is made:
     Returns an item_id
-
-    defaults to items in player's inventory if item_id_choices is passed None
     """
+    #defaults to items in player's inventory if item_id_choices is passed None
     if item_id_choices == None:
         item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     if len(item_id_choices) == 0:
@@ -2101,6 +2095,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
         await asyncio.sleep(.02)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
+            #TODO: fix limited slots in inventory choices
             if menu_choice in [str(i) for i in range(10)]:
                 menu_choice = int(menu_choice)
         if menu_choice in menu_choices:
@@ -2109,6 +2104,19 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return item_id_choices[int(menu_choice)]
+
+async def console_box(width=40, height=10, x_margin=4, y_margin=30):
+    await asyncio.sleep(3)
+    asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
+                                      x_margin=x_margin - 1, y_margin=y_margin - 1))
+    garbage = [(i, random()) for i in range(15)]
+    window = 0
+    while True:
+        await asyncio.sleep(.4)
+        for index, line_y in enumerate(range(y_margin, y_margin + height)):
+            with term.location(x_margin, line_y):
+                print(garbage[(index + window) % len(garbage)])
+        window = (window + 1) % len(garbage)
     
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
@@ -2731,13 +2739,11 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
     #minimap init:
     asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
                                       box_width=21, box_height=21))
-    """
     for x in range(-20, 21, 2):
         for y in range(-20, 21, 2):
             half_scale = x // 2, y // 2
             loop.create_task(minimap_tile(player_position_offset=(x, y),
                                           display_coord=(add_coords((126, 12), half_scale))))
-    """
 
 async def async_map_init():
     """
@@ -2823,7 +2829,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     else:
         asyncio.ensure_future(filter_print(output_text="Something is in the way."))
 
-async def printing_testing(distance=0):
+async def printing_testing(distance=0, x_coord=90, y_coord=1):
     await asyncio.sleep(0)
 
     bw_gradient = ((" "),                #0
@@ -2844,15 +2850,15 @@ async def printing_testing(distance=0):
                    )
     bright_to_dark = bw_gradient[::-1]
     for number, tile in enumerate(bw_gradient):
-        with term.location(number, 4):
+        with term.location(number + x_coord, y_coord):
             print(term.bold(str(number)))
     for number, tile in enumerate(reversed(bw_gradient)):
-        with term.location(number, 5):
+        with term.location(number + x_coord, 1 + y_coord):
             print(tile)
     for number in range(10):
-        with term.location(number, 6):
+        with term.location(number + x_coord, 2 + y_coord):
             print(term.color(number)(str(number)))
-        with term.location(number, 7):
+        with term.location(number + x_coord, 3 + y_coord):
             print(term.on_color(number)(str(number)))
     if distance <= len(bright_to_dark) -1: return bright_to_dark[int(distance)]
     else:
@@ -2905,6 +2911,7 @@ async def ui_setup():
     loop = asyncio.get_event_loop()
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(console_box())
     loop.create_task(display_items_at_coord())
     loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
