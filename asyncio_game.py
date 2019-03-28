@@ -1917,6 +1917,8 @@ async def handle_input(key):
             asyncio.ensure_future(health_potion())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
+        if key in 'M':
+            append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
@@ -2107,6 +2109,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
 
 async def console_box(width=40, height=10, x_margin=4, y_margin=30):
     await asyncio.sleep(3)
+    state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
     garbage = [(i, random()) for i in range(15)]
@@ -2114,9 +2117,17 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
     while True:
         await asyncio.sleep(.4)
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
+            #we want to print the last <height> lines of the message queue
+            #we want the indices to go from -10 to -1. state_dict['messages'][-height + index]
             with term.location(x_margin, line_y):
-                print(garbage[(index + window) % len(garbage)])
+                #print(garbage[(index + window) % len(garbage)])
+                print(state_dict['messages'][-height + index])
         window = (window + 1) % len(garbage)
+        rand_index = randint(0, 9)
+        state_dict['messages'][rand_index] = randint(0, 20)
+
+def append_to_log(message="This is a test ({})".format(round(random(), 2))):
+    state_dict['messages'].append(message)
     
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
