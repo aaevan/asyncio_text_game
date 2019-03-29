@@ -384,6 +384,13 @@ class multi_tile_entity:
                 if actor not in self.member_names:
                     return False
         return True
+
+    def explode(radius_range=(4, 8)):
+        for member_name in self.member_names:
+            actor_dict[member_name].mte_parent = None
+            rand_angle = randint(0, 360)
+            rand_radius = randint(*radius_range)
+            endpoint = point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
     
     def move(self, move_by=(3, 3)):
         for member_name in self.member_names:
@@ -407,6 +414,34 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     if mte_dict[mte_parent].check_collision(move_by=move_by):
         mte_dict[mte_parent].move(move_by=move_by)
         return True
+
+async def rand_blink(actor_name='player', radius_range=(4, 8)):
+    #TODO: fix update so it doesn't leave invisible blocking spaces
+    rand_angle = randint(0, 3602)
+    rand_radius = randint(*radius_range)
+    end_point = point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
+    start_point = actor_dict[actor_name].coords()
+    travel_line = get_line(start_point, end_point)
+    await drag_actor_along_line(line=travel_line)
+
+async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
+    """
+    Takes a list of coordinates as input.
+    Moves an actor along the given points pausing linger_time seconds each step.
+    """
+    with term.location(40, 3):
+        print('dragging!')
+    if actor_name is None:
+        return False
+    if line is None:
+        player_coords = actor_dict['player'].coords()
+        destination = add_coords(player_coords, (5, 5))
+        line = get_line(player_coords, destination)
+    for point in line:
+        with term.location(40, 4):
+            print('dragging!')
+        await asyncio.sleep(linger_time)
+        actor_dict[actor_name].update(*point)
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -1918,7 +1953,9 @@ async def handle_input(key):
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
-            append_to_log()
+            #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
+            asyncio.ensure_future(rand_blink())
+            #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
