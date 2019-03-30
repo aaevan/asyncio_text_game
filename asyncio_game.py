@@ -385,13 +385,6 @@ class multi_tile_entity:
                     return False
         return True
 
-    def explode(radius_range=(4, 8)):
-        for member_name in self.member_names:
-            actor_dict[member_name].mte_parent = None
-            rand_angle = randint(0, 360)
-            rand_radius = randint(*radius_range)
-            endpoint = point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
-    
     def move(self, move_by=(3, 3)):
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
@@ -417,20 +410,18 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
 
 async def rand_blink(actor_name='player', radius_range=(4, 8)):
     #TODO: fix update so it doesn't leave invisible blocking spaces
-    rand_angle = randint(0, 3602)
+    rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
-    end_point = point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
     start_point = actor_dict[actor_name].coords()
+    end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
     travel_line = get_line(start_point, end_point)
-    await drag_actor_along_line(line=travel_line)
+    await drag_actor_along_line(actor_name=actor_name, line=travel_line)
 
 async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
     """
     Takes a list of coordinates as input.
     Moves an actor along the given points pausing linger_time seconds each step.
     """
-    with term.location(40, 3):
-        print('dragging!')
     if actor_name is None:
         return False
     if line is None:
@@ -438,10 +429,25 @@ async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02)
         destination = add_coords(player_coords, (5, 5))
         line = get_line(player_coords, destination)
     for point in line:
-        with term.location(40, 4):
-            print('dragging!')
         await asyncio.sleep(linger_time)
         actor_dict[actor_name].update(*point)
+
+async def disperse_all_mte():
+    for mte_name in mte_dict:
+        if not hasattr(mte_dict[mte_name], 'dead'):
+            asyncio.ensure_future(disperse_mte(mte_name))
+
+async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
+    if mte_name is None:
+        return False
+    if kills:
+        mte_dict[mte_name].dead = True
+    for segment in mte_dict[mte_name].member_names:
+        actor_dict[segment].multi_tile_parent = None
+        actor_dict[segment].moveable = True
+        actor_dict[segment].blocking = False
+        asyncio.ensure_future(rand_blink(actor_name=segment))
+
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -647,8 +653,6 @@ def chained_pairs_of_items(pairs=None):
 def multi_segment_passage(points=None, palette="░", width=3, 
                           passable=True, blocking=False):
     coord_pairs = chained_pairs_of_items(pairs=points)
-    #with term.location(30, 4):
-        #print("coord_pairs: {}".format(coord_pairs))
     for coord_pair in coord_pairs:
         n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
                        width=width, passable=passable, blocking=blocking,
@@ -1954,7 +1958,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
             #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
-            asyncio.ensure_future(rand_blink())
+            #asyncio.ensure_future(rand_blink())
+            asyncio.ensure_future(disperse_all_mte())
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
@@ -2145,14 +2150,13 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
             return item_id_choices[int(menu_choice)]
 
 async def console_box(width=40, height=10, x_margin=4, y_margin=30):
-    await asyncio.sleep(3)
+    #await asyncio.sleep(3)
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
     garbage = [(i, random()) for i in range(15)]
     window = 0
     while True:
-        await asyncio.sleep(.4)
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
             #we want to print the last <height> lines of the message queue
             #we want the indices to go from -10 to -1. state_dict['messages'][-height + index]
@@ -2160,8 +2164,9 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
                 #print(garbage[(index + window) % len(garbage)])
                 print(state_dict['messages'][-height + index])
         window = (window + 1) % len(garbage)
-        rand_index = randint(0, 9)
-        state_dict['messages'][rand_index] = randint(0, 20)
+        await asyncio.sleep(.4)
+        #rand_index = randint(0, 9)
+        #state_dict['messages'][rand_index] = randint(0, 20)
 
 def append_to_log(message="This is a test ({})".format(round(random(), 2))):
     state_dict['messages'].append(message)
@@ -2204,9 +2209,11 @@ async def equip_item(slot='q'):
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
         equip_message = "Equipped {} to slot {}.".format(item_name, slot)
-        await filter_print(output_text=equip_message)
+        #await filter_print(output_text=equip_message)
+        append_to_log(message=equip_message)
     else:
-        await filter_print(output_text="Nothing to equip!")
+        #await filter_print(output_text="Nothing to equip!")
+        append_to_log(message="Nothing to equip!")
 
 async def use_chosen_item():
     item_id_choice = await choose_item()
@@ -2252,7 +2259,8 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     pickup_text = "picked up {}".format(item_dict[item_id].name)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
-    asyncio.ensure_future(filter_print(pickup_text))
+    #asyncio.ensure_future(filter_print(pickup_text))
+    append_to_log(message=pickup_text)
     return True
 
 #Announcement/message handling--------------------------------------------------
