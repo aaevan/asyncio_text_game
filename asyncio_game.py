@@ -448,7 +448,6 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         actor_dict[segment].blocking = False
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
-
 #Global state setup-------------------------------------------------------------
 term = Terminal()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
@@ -3295,6 +3294,10 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
+    if actor_dict[name_key].multi_tile_parent is not None:
+        parent_name = actor_dict[name_key].multi_tile_parent
+        actor_index = mte_dict[parent_name].member_names.index(name_key)
+        del mte_dict[parent_name].member_names[actor_index]
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
