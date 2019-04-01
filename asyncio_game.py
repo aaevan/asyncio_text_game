@@ -249,9 +249,11 @@ class Item:
         else:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
-class multi_tile_entity:
+class Multi_tile_entity:
     #TODO: fix problems with damaged parts
     #TODO: option to turn into scenery parts that have no living neighbors
+    #TODO: make detached segments (with no continuous route to the majority of the segments) cleave off
+    #      and require separate pushing (spawning a smaller split MTE for each half)
     """
     when the new location is checked as passable, it has to do so for each element
     if any of the four pieces would be somewhere that is impassable, the whole does not move
@@ -271,7 +273,7 @@ class multi_tile_entity:
       A->┏┓<-B
       C->┗┛<-D
 
-    push() first sees A. A then needs to check with its parent multi_tile_entity.
+    push() first sees A. A then needs to check with its parent Multi_tile_entity.
 
     [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
     
@@ -352,20 +354,23 @@ class multi_tile_entity:
                 else:
                     member_tile = term.color(fill_color)(tiles[y][x])
                 if member_tile is not None:
-                    self.member_actors[offset_coord] = (member_tile, write_coord)
+                    self.member_actors[offset_coord] = (member_tile, write_coord, (x, y))
         for member in self.member_actors.values():
+            segment_name = '{}_{}'.format(self.name, member[2])
             if member[0] in animation_key:
-                member_name = spawn_static_actor(base_name=self.name, 
+                member_name = spawn_static_actor(base_name=segment_name, 
                                                  spawn_coord=member[1], 
                                                  animation_preset=animation_key[member[0]],
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking)
+                                                 blocking=blocking, 
+                                                 literal_name=True)
             else:
-                member_name = spawn_static_actor(base_name=self.name, 
+                member_name = spawn_static_actor(base_name=segment_name, 
                                                  spawn_coord=member[1], 
                                                  tile=member[0],
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking)
+                                                 blocking=blocking, 
+                                                 literal_name=True)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
@@ -392,7 +397,7 @@ class multi_tile_entity:
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
-    mte_dict[mte_id] = multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
+    mte_dict[mte_id] = Multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
 
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
@@ -1743,12 +1748,16 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                        animation_preset=None, breakable=True, moveable=False,
-                       multi_tile_parent=None, blocking=False):
+                       multi_tile_parent=None, blocking=False, literal_name=False):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
     """
-    actor_id = generate_id(base_name=base_name)
+    #TODO: add an alternate way of returning a name given a leading '_'
+    if literal_name:
+        actor_id = base_name
+    else:
+        actor_id = generate_id(base_name=base_name)
     if animation_preset is not None:
         is_animated = True
         animation = Animation(preset=animation_preset)
