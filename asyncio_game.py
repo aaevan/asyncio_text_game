@@ -1962,6 +1962,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_item_in_slot(slot='e'))
         if key in 'h': #debug health restore
             asyncio.ensure_future(health_potion())
+        if key in 'v': #debug health restore
+            asyncio.ensure_future(vine_grow())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
@@ -2445,9 +2447,6 @@ async def angle_checker(angle_from_twelve=0, fov=120):
 async def angle_swing(radius=15):
     dir_to_angle = {'n':180, 'e':90, 's':360, 'w':270}
     current_angle = dir_to_angle[state_dict['facing']]
-    middle_x, middle_y = (int(term.width / 2 - 2), 
-                          int(term.height / 2 - 2),)
-    central_point = (middle_x, middle_y)
     while True:
         pull_angle = dir_to_angle[state_dict['facing']]
         difference = current_angle - pull_angle
@@ -2456,18 +2455,39 @@ async def angle_swing(radius=15):
         if difference > 180:
             difference -= 360
         if difference < 0:
-            current_angle += 10
+            current_angle += 5
         elif difference > 0:
-            current_angle -= 10
+            current_angle -= 5
         state_dict['current_angle'] = current_angle
-        angles = (current_angle, current_angle + 30, current_angle - 30)
+        await asyncio.sleep(.01)
 
-        points = [await point_at_distance_and_angle(radius=radius,
-                                                    central_point=central_point,
-                                                    angle_from_twelve=angle)
-                                                    for angle in angles]
-        await asyncio.sleep(.02)
-    
+async def crosshairs(radius=15, crosshair_chars=('.', '*', '.'), fov=30, 
+                     refresh_delay=.05):
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    central_point = (middle_x, middle_y)
+    last_angle = None
+    old_points = None #used for clearing out print location
+    while True:
+        current_angle = state_dict['current_angle']
+        #clear last known location of crosshairs:
+        if last_angle != current_angle:
+            angles = (current_angle + fov, current_angle, current_angle - fov)
+            points = [await point_at_distance_and_angle(radius=radius,
+                                                        central_point=central_point,
+                                                        angle_from_twelve=angle)
+                                                        for angle in angles]
+            if old_points is not None:
+                for point in old_points:
+                    with term.location(*point):
+                        print(' ')
+            #write current location of crosshairs to screen
+            for char, point in zip(crosshair_chars, points):
+                with term.location(*point):
+                    print(char)
+            old_points = points
+        last_angle = current_angle
+        await asyncio.sleep(refresh_delay)
 #UI/HUD functions---------------------------------------------------------------
 
 async def display_help():
@@ -2985,6 +3005,7 @@ async def ui_setup():
     loop.create_task(stamina_regen())
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
     loop.create_task(angle_swing())
+    loop.create_task(crosshairs())
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -3368,7 +3389,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                       y_coord=current_coord[1],
                                       tile=term.color(color_num)(vine_tile),
                                       moveable=False)
-        current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
+        #current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
+        current_coord = add_coords(current_coord, next_tuple)
         prev_dir = next_dir
         #next_dir is generated at the end of the for loop so it can be
         #initialized to a given direction.
