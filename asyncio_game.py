@@ -395,6 +395,44 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
+    def check_continuity(self, root_node=None, connection_path=None):
+        """
+        does a recursive search through the parts of an mte, starting at a given root node.
+
+        for (1, 1) as the root node,
+
+        (1, 1) first finds if adjacent nodes exist:
+            check each adjacent coordinate (of possible mte members)
+
+                    (1, 0)
+                      /\
+
+         (0, 1) <-- (1, 1) --> (2, 1)
+
+                      \/
+                    (1, 2)
+
+        if a node exists (in the list of member actors in the parent MTE, 
+        run the function again on the child node with the parent node appended to the path.
+
+        (1, 1) (2, 1)   --
+        (1, 2)   --   (3, 2)
+          --   (2, 3) (3, 3)
+
+        Only check adjacency for nodes not in the path.
+
+        If there are no new nodes turned up by a search, return the path.
+        The next level up will return its path.
+
+        the root node then explores the next viable adjacent tile, ignoring tiles 
+        present in the first returned path.
+
+        the first version will just see if an actor exists.
+        it will assume that two actors with adjacent name_coords 
+        (i.e. (1, 1) and (2, 1)) are connected. Nodes diagonal from one
+        another are not connected.
+        """
+
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = Multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
