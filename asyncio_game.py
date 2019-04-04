@@ -78,6 +78,7 @@ class Actor:
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
+        map_dict[self.last_location].passable = True
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -2006,8 +2007,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
             #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
-            #asyncio.ensure_future(rand_blink())
-            asyncio.ensure_future(disperse_all_mte())
+            asyncio.ensure_future(rand_blink())
+            #asyncio.ensure_future(disperse_all_mte())
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
