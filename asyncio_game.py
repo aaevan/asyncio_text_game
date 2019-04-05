@@ -78,7 +78,6 @@ class Actor:
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
-        map_dict[self.last_location].passable = True
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -294,13 +293,8 @@ class Multi_tile_entity:
     If we don't want to clip through things, The actual location of the 
     MTE is only updated after checking whether the ground is clear.
 
-    If we don't care whether things clip through other things,
-    it can just move and be worked out and rendered by view_tiles.
-
     TODO: A method to split an MTE into multiple smaller MTEs.
         If an entity is only one tile, its parent is None.
-
-    (less important, work with fixed orientation for now)
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
@@ -432,7 +426,36 @@ class Multi_tile_entity:
         it will assume that two actors with adjacent name_coords 
         (i.e. (1, 1) and (2, 1)) are connected. Nodes diagonal from one
         another are not connected.
+
+        -------------------------------------------------------------------
+        starting with the root node:
+        we look for the neighbors of the node (one in each direction)
+        and check whether they exist as actors.
+
+        when an actor (neighbor) is found that exists,
+        the function runs again on its child and is passed any path history and walked cells.
+
+        explored at t1: (1, 1)
+        unexplored at t1: None
+
+        checked (1, 0), (2, 1), (1, 2), (0, 1)
+        (2, 1) and (1, 2) exist in mte parent
+        and are added to unexplored
+
+        explored at t2: (1, 1)
+        unexplored at t2: (2, 1), (1, 2)
+
+        [we pick the first unexplored cell and see whether it exists]
+
+        explored at t3: (1, 1), (2, 1)
+        passed (1, 1) as parent
+
+        if an MTE splits, it is appended with "_a" and "_b"
+
         """
+        
+        #neighbors = ((0, -1), (1, 0), (0, 1), (-1, 0))
+
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -2007,8 +2030,8 @@ async def handle_input(key):
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
             #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
-            asyncio.ensure_future(rand_blink())
-            #asyncio.ensure_future(disperse_all_mte())
+            #asyncio.ensure_future(rand_blink())
+            asyncio.ensure_future(disperse_all_mte())
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
