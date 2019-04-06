@@ -390,72 +390,31 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-    def check_continuity(self, root_node=None, connection_path=None):
+    def check_reachable(self, root_node=None, connection_path=None):
         """
         does a recursive search through the parts of an mte, starting at a given root node.
 
+        check_continuity is passed:
+            root_node: the starting place for the search
+            connection_path: the path that the search has traveled so far 
+                (i.e. [(1, 1), (1, 2), (1, 3)])
         for (1, 1) as the root node,
+            first check if any of the possible neighbor nodes exist
+            (generate set of possible neighbors, find intersect with explored.
+            for each of the unexplored neighbors, start another instance of check_continuity
+        if no new unexplored neighbors found, return the connection path.
 
-        (1, 1) first finds if adjacent nodes exist:
-            check each adjacent coordinate (of possible mte members)
-
-                    (1, 0)
-                      /\
-
-         (0, 1) <-- (1, 1) --> (2, 1)
-
-                      \/
-                    (1, 2)
-
-        if a node exists (in the list of member actors in the parent MTE, 
-        run the function again on the child node with the parent node appended to the path.
-
-        (1, 1) (2, 1)   --
-        (1, 2)   --   (3, 2)
-          --   (2, 3) (3, 3)
-
-        Only check adjacency for nodes not in the path.
-
-        If there are no new nodes turned up by a search, return the path.
-        The next level up will return its path.
-
-        the root node then explores the next viable adjacent tile, ignoring tiles 
-        present in the first returned path.
-
-        the first version will just see if an actor exists.
-        it will assume that two actors with adjacent name_coords 
-        (i.e. (1, 1) and (2, 1)) are connected. Nodes diagonal from one
-        another are not connected.
-
-        -------------------------------------------------------------------
-        starting with the root node:
-        we look for the neighbors of the node (one in each direction)
-        and check whether they exist as actors.
-
-        when an actor (neighbor) is found that exists,
-        the function runs again on its child and is passed any path history and walked cells.
-
-        explored at t1: (1, 1)
-        unexplored at t1: None
-
-        checked (1, 0), (2, 1), (1, 2), (0, 1)
-        (2, 1) and (1, 2) exist in mte parent
-        and are added to unexplored
-
-        explored at t2: (1, 1)
-        unexplored at t2: (2, 1), (1, 2)
-
-        [we pick the first unexplored cell and see whether it exists]
-
-        explored at t3: (1, 1), (2, 1)
-        passed (1, 1) as parent
-
-        if an MTE splits, it is appended with "_a" and "_b"
-
+        the top level function returns the combination of connection_paths.
         """
-        
-        #neighbors = ((0, -1), (1, 0), (0, 1), (-1, 0))
+        neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
+        explored = {member:False for member in self.member_names}
 
+    def cleave_mte(self, split_into_new=None):
+        """
+        given a list of member nodes, split into two MTEs with the same name 
+        but ending in '_a' and '_b'.
+        """
+        pass
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
