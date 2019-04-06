@@ -390,7 +390,7 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-    def check_reachable(self, root_node=None, connection_path=None):
+    def check_reachable(self, root_node=None, connection_path=None, depth=0):
         """
         does a recursive search through the parts of an mte, starting at a given root node.
 
@@ -405,9 +405,26 @@ class Multi_tile_entity:
         if no new unexplored neighbors found, return the connection path.
 
         the top level function returns the combination of connection_paths.
+
+        returns the connected cells, excluding cells listed in connection_path.
+
+        TODO: change how members of MTEs are stored and named so that there can
+              be a dictionary of coordinates (i.e. (1, 1), (2, 2)) tied to 
+              names of their actors in actor_dict.
         """
+        #if root_node is None or connection_path is None:
+            #return False
+        #explored = {member:False for member in self.member_names}
+        #return
+        print(f'self.member_names: {self.member_names}')
+        #TODO: add to member actors the name of each segment as stored in actor_dict
+        print(f'self.member_actors: {self.member_actors}')
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
-        explored = {member:False for member in self.member_names}
+        #for neighbor in neighbor_dirs:
+            #possible_neighbor = add_coord
+        #self.check_reachable
+        pass
+
 
     def cleave_mte(self, split_into_new=None):
         """
@@ -419,6 +436,7 @@ class Multi_tile_entity:
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = Multi_tile_entity(name=mte_id, anchor_coord=spawn_coord, preset=preset)
+    return mte_id
 
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
@@ -1990,7 +2008,10 @@ async def handle_input(key):
         if key in 'M':
             #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
             #asyncio.ensure_future(rand_blink())
-            asyncio.ensure_future(disperse_all_mte())
+            #asyncio.ensure_future(disperse_all_mte())
+            spawn_coords = add_coords(player_coords, (2, 2))
+            mte_id = await spawn_mte(spawn_coord=spawn_coords)
+            mte_dict[mte_id].check_reachable()
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
