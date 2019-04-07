@@ -335,7 +335,7 @@ class Multi_tile_entity:
               'add_sign':((' ', '╻', ' '),
                           ('╺', '╋', '╸'),
                           (' ', '╹', ' '),),}
-        self.member_actors = {}
+        self.member_data = {}
         self.member_names = []
         tiles = presets[preset]
         for y in range(len(tiles)):
@@ -344,28 +344,32 @@ class Multi_tile_entity:
                 write_coord = add_coords(offset_coord, anchor_coord)
                 if tiles[y][x] not in animation_key:
                     member_tile = term.color(fill_color)(tiles[y][x])
+                #skip over empty cells to preserve shape of preset:
                 if tiles[y][x] is ' ':
-                    member_tile = None
+                    continue
                 else:
                     member_tile = term.color(fill_color)(tiles[y][x])
-                if member_tile is not None:
-                    self.member_actors[offset_coord] = (member_tile, write_coord, (x, y))
-        for member in self.member_actors.values():
-            segment_name = '{}_{}'.format(self.name, member[2])
-            if member[0] in animation_key:
-                member_name = spawn_static_actor(base_name=segment_name, 
-                                                 spawn_coord=member[1], 
-                                                 animation_preset=animation_key[member[0]],
+                segment_name = f'{self.name}_{offset}'
+                self.member_data[(x, y)] = {'tile':member_tile, 
+                                            'write_coord':write_coord,
+                                            'offset':(x, y),
+                                            'name':segment_name}
+        for member_key in self.member_data:
+            spawn_coord = self.member_data[member_key]['write_coord']
+            if self.member_data[member_key]['tile'] in animation_key:
+                animation_preset=deepcopy(animation_key[self.member_data[member]['tile']])
+                member_name = spawn_static_actor(base_name=name, 
+                                                 spawn_coord=spawn_coord, 
+                                                 animation_preset=animation_preset,
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking, 
-                                                 literal_name=True)
+                                                 blocking=blocking)
             else:
-                member_name = spawn_static_actor(base_name=segment_name, 
-                                                 spawn_coord=member[1], 
-                                                 tile=member[0],
+                tile = deepcopy(self.member_data[member_key]['tile'])
+                member_name = spawn_static_actor(base_name=name, 
+                                                 spawn_coord=spawn_coord, 
+                                                 tile=tile,
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking, 
-                                                 literal_name=True)
+                                                 blocking=blocking)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
@@ -416,9 +420,7 @@ class Multi_tile_entity:
             #return False
         #explored = {member:False for member in self.member_names}
         #return
-        print(f'self.member_names: {self.member_names}')
         #TODO: add to member actors the name of each segment as stored in actor_dict
-        print(f'self.member_actors: {self.member_actors}')
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
         #for neighbor in neighbor_dirs:
             #possible_neighbor = add_coord
@@ -3035,11 +3037,11 @@ async def ui_setup():
     """
     await asyncio.sleep(0)
     loop = asyncio.get_event_loop()
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(console_box())
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
@@ -3939,7 +3941,8 @@ def main():
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
     loop.create_task(view_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP
+    #TODO: fix ordering of UI setup so that this can be disabled without a crash
+    loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
