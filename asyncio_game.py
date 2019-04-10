@@ -394,13 +394,13 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-    def check_reachable(self, root_node=None, connection_path=None, depth=0):
+    def check_reachable(self, root_node=None, traveled=None, depth=0):
         """
         does a recursive search through the parts of an mte, starting at a given root node.
 
         check_continuity is passed:
             root_node: the starting place for the search
-            connection_path: the path that the search has traveled so far 
+            traveled: the path that the search has traveled so far 
                 (i.e. [(1, 1), (1, 2), (1, 3)])
         for (1, 1) as the root node,
             first check if any of the possible neighbor nodes exist
@@ -408,25 +408,31 @@ class Multi_tile_entity:
             for each of the unexplored neighbors, start another instance of check_continuity
         if no new unexplored neighbors found, return the connection path.
 
-        the top level function returns the combination of connection_paths.
+        the top level function returns the combination of traveled.
 
-        returns the connected cells, excluding cells listed in connection_path.
-
-        TODO: change how members of MTEs are stored and named so that there can
-              be a dictionary of coordinates (i.e. (1, 1), (2, 2)) tied to 
-              names of their actors in actor_dict.
+        returns the connected cells, excluding cells listed in traveled.
         """
-        #if root_node is None or connection_path is None:
-            #return False
-        #explored = {member:False for member in self.member_names}
-        #return
-        #TODO: add to member actors the name of each segment as stored in actor_dict
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
-        #for neighbor in neighbor_dirs:
-            #possible_neighbor = add_coord
-        #self.check_reachable
-        pass
 
+        if traveled == None:
+            traveled = set()
+        segment_keys = {key for key in self.member_data if key not in traveled}
+        if root_node is None:
+            root_node = next(iter(segment_keys))
+        print(f'DEPTH: {depth}, ROOT: {root_node}')
+        traveled.add(root_node)
+        possible_paths = {add_coords(neighbor_dir, root_node) for neighbor_dir in neighbor_dirs}
+        #walkable is the intersection of segment_keys and possible_paths
+        walkable = set(segment_keys) & set(possible_paths)
+        print(f'walkable:{walkable}')
+        traveled = traveled | walkable
+        if walkable == set():
+            return {root_node}
+        for direction in walkable:
+            child_path = self.check_reachable(root_node=direction, traveled=traveled, depth=depth + 1)
+            traveled = traveled | child_path #union
+        print(f'returning: {traveled} at depth {depth}...')
+        return traveled
 
     def cleave_mte(self, split_into_new=None):
         """
@@ -3039,7 +3045,7 @@ async def ui_setup():
     loop = asyncio.get_event_loop()
     #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
+    #loop.create_task(console_box())
     #loop.create_task(display_items_at_coord())
     #loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
