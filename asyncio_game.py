@@ -327,6 +327,10 @@ class Multi_tile_entity:
                           ('E', 'E', 'E', 'E'),
                           ('E', 'E', 'E', 'E'),
                           (' ', 'E', 'E', ' '),),
+            '4x4 tester':(('1', '1', ' ', '3'),
+                          ('1', ' ', '3', '3'),
+                          (' ', '2', ' ', ' '),
+                          (' ', '2', ' ', '4'),),
            'ns_bookcase':(('▛'),
                           ('▌'),
                           ('▌'),
@@ -394,52 +398,136 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-    def check_reachable(self, root_node=None, traveled=None, depth=0):
+    def find_connected(self, root_node=None, traveled=None, depth=0, exclusions=set()):
         """
-        does a recursive search through the parts of an mte, starting at a given root node.
+        does a recursive search through the parts of an mte, starting at a given
+        root node and returning the connected (adjacent without gaps) cells.
 
-        check_continuity is passed:
+         1 and 2   |     1 and 2
+        connected: |  not connected:
+                   |
+           11      |      11
+            22     |        22
+                   |
+           1122    |     11 22
+                   |
+            11     |       11
+            2      |      2
+            2      |      2
+
+        find_connected is passed:
             root_node: the starting place for the search
             traveled: the path that the search has traveled so far 
                 (i.e. [(1, 1), (1, 2), (1, 3)])
         for (1, 1) as the root node,
             first check if any of the possible neighbor nodes exist
             (generate set of possible neighbors, find intersect with explored.
-            for each of the unexplored neighbors, start another instance of check_continuity
+            for each of the unexplored neighbors, start another call of find_connected
         if no new unexplored neighbors found, return the connection path.
 
         the top level function returns the combination of traveled.
 
         returns the connected cells, excluding cells listed in traveled.
+
+        exclusions is for taking into account cells traveled on a 
+        separate pass
         """
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
 
         if traveled == None:
             traveled = set()
         segment_keys = {key for key in self.member_data if key not in traveled}
+        if exclusions is not set():
+            segment_keys -= exclusions
+        if segment_keys == set():
+            return set()
         if root_node is None:
             root_node = next(iter(segment_keys))
-        print(f'DEPTH: {depth}, ROOT: {root_node}')
+        #print(f'segment_keys: {segment_keys}')
+        #print(f'DEPTH: {depth}, ROOT: {root_node}')
         traveled.add(root_node)
         possible_paths = {add_coords(neighbor_dir, root_node) for neighbor_dir in neighbor_dirs}
-        #walkable is the intersection of segment_keys and possible_paths
-        walkable = set(segment_keys) & set(possible_paths)
-        print(f'walkable:{walkable}')
-        traveled = traveled | walkable
-        if walkable == set():
-            return {root_node}
+        walkable = set(segment_keys) & set(possible_paths) #intersection
+        #print(f'walkable:{walkable}')
+        traveled = traveled | walkable #union
+        if walkable == set(): #is empty set
+            return {root_node} #i.e. {(0, 0)}
         for direction in walkable:
-            child_path = self.check_reachable(root_node=direction, traveled=traveled, depth=depth + 1)
+            child_path = self.find_connected(root_node=direction, traveled=traveled, depth=depth + 1)
             traveled = traveled | child_path #union
-        print(f'returning: {traveled} at depth {depth}...')
+        #print(f'returning: {traveled} at depth {depth}...')
         return traveled
 
-    def cleave_mte(self, split_into_new=None):
+    def split_mte(self, cells_of_new=None):
         """
         given a list of member nodes, split into two MTEs with the same name 
         but ending in '_a' and '_b'.
         """
-        pass
+
+    def split_unconnected(self):
+        """
+        takes an mte and splits unconnected (non-adjacent) segments of an MTE 
+        into new MTEs.
+
+           0123
+          +----
+         0|11 3
+         1|1 33
+         2| 2  
+         3| 2 4
+
+        runs find_connected multiple times on progressively smaller chunks of an MTE.
+
+        We start with cells:
+        ((0, 0), (1, 0), (3, 0), (0, 1), (2, 1), (3, 1), (1, 2), (1, 3), (3, 3))
+
+        and an empty list to hold the connected regions: []
+
+        ...if group one is returned by the first pass ((0, 0), (1, 0), (0, 1)),
+
+        regions = [((0, 0), (1, 0), (0, 1)),]
+
+        the next round of find_connected is passed:
+        ((3, 0), (2, 1), (3, 1), (1, 2), (1, 3), (3, 3))
+
+        ...this returns (at random) one of the remaining regions: ((3, 0), (2, 1), (3, 1))
+
+        regions = [((0, 0), (1, 0), (0, 1)), 
+                   ((3, 0), (2, 1), (3, 1)),]
+        
+        the next round of find_connected is passed:
+        ((1, 2), (1, 3), (3, 3))
+
+        ...this returns (at random) the second to last region: ((1, 2), (1, 3))
+
+        regions = [((0, 0), (1, 0), (0, 1)), 
+                   ((3, 0), (2, 1), (3, 1)),
+                   ((1, 2), (1, 3)),]
+
+        the last round of find_connected sees only a single tuple passed to it:
+        ((3, 3))
+
+        ...this is the final unconnected region: ((3, 3))
+
+        regions = [((0, 0), (1, 0), (0, 1)), 
+                   ((3, 0), (2, 1), (3, 1)),
+                   ((1, 2), (1, 3)),
+                   ((3, 3))]
+
+        """
+        unchecked_cells = {key for key in self.member_data}
+        seen_cells = set()
+        regions = []
+        found_region = None
+        while unchecked_cells is not set():
+            found_region = self.find_connected(exclusions=seen_cells)
+            if found_region == set():
+                break
+            unchecked_cells -= found_region
+            seen_cells = seen_cells | found_region
+            regions.append(found_region)
+        for number, region in enumerate(regions):
+            print(f'{number}: {region}')
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -1591,8 +1679,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
             asyncio.sleep(pause_fade_out)
     state_dict['printing'] = False #releasing hold on printing to the screen
     await asyncio.sleep(1)
-    with term.location(50, 7):
-        print(" " * 100)
 
 async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10, 
                       pause_between_prints=.005, pause_stay_on=3, 
@@ -1962,8 +2048,7 @@ async def handle_input(key):
         if key in '3': #shift dimensions
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in '4':
-            with term.location(50, 0):
-                draw_net()
+            draw_net()
         if key in '8': #export map
             asyncio.ensure_future(export_map())
         if key in 'Xx': #examine
@@ -2018,8 +2103,11 @@ async def handle_input(key):
             #asyncio.ensure_future(rand_blink())
             #asyncio.ensure_future(disperse_all_mte())
             spawn_coords = add_coords(player_coords, (2, 2))
-            mte_id = await spawn_mte(spawn_coord=spawn_coords)
-            mte_dict[mte_id].check_reachable()
+            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='4x4 tester')
+            #traveled = mte_dict[mte_id].find_connected()
+            traveled = mte_dict[mte_id].split_unconnected()
+            with term.location(40, 0):
+                print(f'traveled: {traveled}')
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
@@ -2050,8 +2138,6 @@ async def handle_input(key):
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijkl": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
-            with term.location(40, 1):
-                print(state_dict['facing'])
 
 def open_door(door_coord, door_tile='▯'):
     map_dict[door_coord].tile = door_tile
@@ -2221,12 +2307,9 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
             #we want to print the last <height> lines of the message queue
             #we want the indices to go from -10 to -1. state_dict['messages'][-height + index]
             with term.location(x_margin, line_y):
-                #print(garbage[(index + window) % len(garbage)])
                 print(state_dict['messages'][-height + index])
         window = (window + 1) % len(garbage)
         await asyncio.sleep(.4)
-        #rand_index = randint(0, 9)
-        #state_dict['messages'][rand_index] = randint(0, 20)
 
 def append_to_log(message="This is a test ({})".format(round(random(), 2))):
     state_dict['messages'].append(message)
@@ -2449,8 +2532,8 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
                                               central_point=actor_coords,
                                               reference_point=reference_point,
                                               radius=radius)
-    with term.location(50, 0):
-        print('facing: {}, point_angle: {}'.format(facing_dir, point_angle))
+    #with term.location(50, 0):
+    #   print('facing: {}, point_angle: {}'.format(facing_dir, point_angle))
     return point
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
