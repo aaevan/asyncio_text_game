@@ -331,6 +331,11 @@ class Multi_tile_entity:
                           ('1', ' ', '3', '3'),
                           (' ', '2', ' ', ' '),
                           (' ', '2', ' ', '4'),),
+            '5x5 tester':(('1', '1', ' ', '1', ' '),
+                          ('1', ' ', '1', '1', ' '),
+                          (' ', '1', ' ', ' ', '1'),
+                          ('1', ' ', '1', ' ', '1'),
+                          (' ', ' ', '1', '1', ' '),),
            'ns_bookcase':(('▛'),
                           ('▌'),
                           ('▌'),
@@ -353,27 +358,30 @@ class Multi_tile_entity:
                     continue
                 else:
                     member_tile = term.color(fill_color)(tiles[y][x])
-                segment_name = f'{self.name}_{offset}'
+                segment_name = f'{self.name}_{(x, y)}'
                 self.member_data[(x, y)] = {'tile':member_tile, 
                                             'write_coord':write_coord,
                                             'offset':(x, y),
                                             'name':segment_name}
         for member_key in self.member_data:
             spawn_coord = self.member_data[member_key]['write_coord']
+            actor_name = self.member_data[member_key]['name']
             if self.member_data[member_key]['tile'] in animation_key:
                 animation_preset=deepcopy(animation_key[self.member_data[member]['tile']])
-                member_name = spawn_static_actor(base_name=name, 
+                member_name = spawn_static_actor(base_name=actor_name, 
                                                  spawn_coord=spawn_coord, 
                                                  animation_preset=animation_preset,
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking)
+                                                 blocking=blocking,
+                                                 literal_name=True)
             else:
                 tile = deepcopy(self.member_data[member_key]['tile'])
-                member_name = spawn_static_actor(base_name=name, 
+                member_name = spawn_static_actor(base_name=actor_name, 
                                                  spawn_coord=spawn_coord, 
                                                  tile=tile,
                                                  multi_tile_parent=self.name,
-                                                 blocking=blocking)
+                                                 blocking=blocking, 
+                                                 literal_name=True)
             self.member_names.append(member_name)
 
     def check_collision(self, move_by=(0, 0)):
@@ -449,12 +457,12 @@ class Multi_tile_entity:
         possible_paths = {add_coords(neighbor_dir, root_node) for neighbor_dir in neighbor_dirs}
         walkable = set(segment_keys) & set(possible_paths) #intersection
         #print(f'walkable:{walkable}')
-        traveled = traveled | walkable #union
+        traveled |= walkable #union
         if walkable == set(): #is empty set
             return {root_node} #i.e. {(0, 0)}
         for direction in walkable:
             child_path = self.find_connected(root_node=direction, traveled=traveled, depth=depth + 1)
-            traveled = traveled | child_path #union
+            traveled |= child_path #union
         #print(f'returning: {traveled} at depth {depth}...')
         return traveled
 
@@ -523,11 +531,20 @@ class Multi_tile_entity:
             found_region = self.find_connected(exclusions=seen_cells)
             if found_region == set():
                 break
-            unchecked_cells -= found_region
+            unchecked_cells -= found_region #a set operation
             seen_cells = seen_cells | found_region
             regions.append(found_region)
+        colors = [i for i in range(10)]
+        #TODO: fix member names to end in (_, _) format again.
+        #      they are broken rignt now and have two ids
+        #      I think this has to do with the literal
         for number, region in enumerate(regions):
             print(f'{number}: {region}')
+            for cell in region:
+                actor_name = self.member_data[cell]['name']
+                print(f'actor_name: {actor_name} actor_dict entry: {actor_dict[actor_name]}')
+                print(number, actor_dict[actor_name].tile)
+                actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -2103,7 +2120,7 @@ async def handle_input(key):
             #asyncio.ensure_future(rand_blink())
             #asyncio.ensure_future(disperse_all_mte())
             spawn_coords = add_coords(player_coords, (2, 2))
-            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='4x4 tester')
+            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='5x5 tester')
             #traveled = mte_dict[mte_id].find_connected()
             traveled = mte_dict[mte_id].split_unconnected()
             with term.location(40, 0):
