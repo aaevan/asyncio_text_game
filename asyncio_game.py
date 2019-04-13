@@ -298,12 +298,13 @@ class Multi_tile_entity:
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
-                 blocking=True, fill_color=3, offset=(-1, -1)):
+                 blocking=False, fill_color=3, offset=(-1, -1)):
         self.name = name
-        animation_key = {'E':'explosion', 'W':'writhe'}
+        #animation_key = {'E':'explosion', 'W':'writhe'}
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
+                 'empty':((' ')),
               'bold_2x2':(('▛', '▜'),
                           ('▙', '▟'),),
              '2x2_block':(('╔', '╗'),
@@ -351,38 +352,39 @@ class Multi_tile_entity:
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
                 write_coord = add_coords(offset_coord, anchor_coord)
-                if tiles[y][x] not in animation_key:
-                    member_tile = term.color(fill_color)(tiles[y][x])
                 #skip over empty cells to preserve shape of preset:
                 if tiles[y][x] is ' ':
                     continue
                 else:
-                    member_tile = term.color(fill_color)(tiles[y][x])
+                    segment_tile = term.color(fill_color)(tiles[y][x])
                 segment_name = f'{self.name}_{(x, y)}'
-                self.member_data[(x, y)] = {'tile':member_tile, 
-                                            'write_coord':write_coord,
-                                            'offset':(x, y),
-                                            'name':segment_name}
-        for member_key in self.member_data:
-            spawn_coord = self.member_data[member_key]['write_coord']
-            actor_name = self.member_data[member_key]['name']
-            if self.member_data[member_key]['tile'] in animation_key:
-                animation_preset=deepcopy(animation_key[self.member_data[member]['tile']])
-                member_name = spawn_static_actor(base_name=actor_name, 
-                                                 spawn_coord=spawn_coord, 
-                                                 animation_preset=animation_preset,
-                                                 multi_tile_parent=self.name,
-                                                 blocking=blocking,
-                                                 literal_name=True)
-            else:
-                tile = deepcopy(self.member_data[member_key]['tile'])
-                member_name = spawn_static_actor(base_name=actor_name, 
-                                                 spawn_coord=spawn_coord, 
-                                                 tile=tile,
-                                                 multi_tile_parent=self.name,
-                                                 blocking=blocking, 
-                                                 literal_name=True)
-            self.member_names.append(member_name)
+                self.add_segment(segment_tile=segment_tile,
+                                 write_coord=write_coord,
+                                 offset=(x, y),
+                                 segment_name=segment_name,
+                                 blocking=blocking)
+
+    def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
+                    segment_name='test', literal_name=True, animation_preset=None,
+                    blocking=False):
+        animation_key = {'E':'explosion', 'W':'writhe'}
+        self.member_data[offset] = {'tile':segment_tile, 
+                                    'write_coord':write_coord,
+                                    'offset':offset,
+                                    'name':segment_name,
+                                    'blocking':blocking}
+        if segment_tile in animation_key:
+            animation_preset=deepcopy(animation_key[segment_tile])
+        else:
+            animation_preset=None
+        member_name = spawn_static_actor(base_name=segment_name, 
+                                         tile=segment_tile,
+                                         spawn_coord=write_coord, 
+                                         animation_preset=animation_preset,
+                                         multi_tile_parent=self.name,
+                                         blocking=blocking,
+                                         literal_name=True)
+        self.member_names.append(segment_name)
 
     def check_collision(self, move_by=(0, 0)):
         """
@@ -472,10 +474,11 @@ class Multi_tile_entity:
         but ending in '_a' and '_b'.
         """
 
-    def split_unconnected(self):
+    def find_subregions(self, debug=True):
         """
-        takes an mte and splits unconnected (non-adjacent) segments of an MTE 
-        into new MTEs.
+        takes an mte and finds connected segments of an MTE 
+
+        Returns a list of regions.
 
            0123
           +----
@@ -532,19 +535,33 @@ class Multi_tile_entity:
             if found_region == set():
                 break
             unchecked_cells -= found_region #a set operation
-            seen_cells = seen_cells | found_region
+            seen_cells |= found_region
             regions.append(found_region)
         colors = [i for i in range(10)]
-        #TODO: fix member names to end in (_, _) format again.
-        #      they are broken rignt now and have two ids
-        #      I think this has to do with the literal
         for number, region in enumerate(regions):
             print(f'{number}: {region}')
-            for cell in region:
-                actor_name = self.member_data[cell]['name']
-                print(f'actor_name: {actor_name} actor_dict entry: {actor_dict[actor_name]}')
-                print(number, actor_dict[actor_name].tile)
-                actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
+            if debug:
+                for cell in region:
+                    actor_name = self.member_data[cell]['name']
+                    actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
+        return regions
+
+    def split_along_subregions(self, debug=True):
+        regions = self.find_subregions(debug=debug)
+        print(regions)
+        for number, region in enumerate(regions):
+            new_mte_name = '{}_{}'.format(self.name, number)
+            print(f'new_mte_name: {new_mte_name}')
+            mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
+            for segment in region:
+                segment_data = self.member_data[segment]
+                mte_dict[new_mte_name].add_segment(segment_tile=segment_data['tile'],
+                #mte_dict[new_mte_name].add_segment(segment_tile=term.color(number)(str(number)),
+                        write_coord=add_coords(segment_data['write_coord'], (6, 0)),
+                        offset=segment_data['offset'],
+                        segment_name=segment_data['name'],
+                        blocking=segment_data['blocking'],
+                        literal_name=True, animation_preset=None)
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -2122,9 +2139,7 @@ async def handle_input(key):
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='5x5 tester')
             #traveled = mte_dict[mte_id].find_connected()
-            traveled = mte_dict[mte_id].split_unconnected()
-            with term.location(40, 0):
-                print(f'traveled: {traveled}')
+            traveled = mte_dict[mte_id].split_along_subregions()
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
@@ -2549,8 +2564,6 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
                                               central_point=actor_coords,
                                               reference_point=reference_point,
                                               radius=radius)
-    #with term.location(50, 0):
-    #   print('facing: {}, point_angle: {}'.format(facing_dir, point_angle))
     return point
 
 async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
@@ -3568,7 +3581,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
 
 async def health_potion(item_id=None, actor_key='player', total_restored=25, 
                         duration=2, sub_second_step=.1):
-    await asyncio.sleep(0)
     if item_id:
         del item_dict[item_id]
         del actor_dict['player'].holding_items[item_id]
