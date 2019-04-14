@@ -555,13 +555,17 @@ class Multi_tile_entity:
             mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
             for segment in region:
                 segment_data = self.member_data[segment]
-                mte_dict[new_mte_name].add_segment(segment_tile=segment_data['tile'],
-                #mte_dict[new_mte_name].add_segment(segment_tile=term.color(number)(str(number)),
-                        write_coord=add_coords(segment_data['write_coord'], (6, 0)),
+                mte_dict[new_mte_name].add_segment(
+                        segment_tile=segment_data['tile'],
+                        write_coord=add_coords((6, 0), segment_data['write_coord']),
                         offset=segment_data['offset'],
                         segment_name=segment_data['name'],
                         blocking=segment_data['blocking'],
                         literal_name=True, animation_preset=None)
+        for member_name in self.member_names:
+            actor_dict[member_name].update(0, 0)
+            #del actor_dict[member_name]
+        #del mte_dict[self.name]
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
