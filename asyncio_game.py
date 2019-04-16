@@ -539,33 +539,46 @@ class Multi_tile_entity:
             regions.append(found_region)
         colors = [i for i in range(10)]
         for number, region in enumerate(regions):
-            print(f'{number}: {region}')
+            #print(f'{number}: {region}')
             if debug:
                 for cell in region:
                     actor_name = self.member_data[cell]['name']
-                    actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
+                    if hasattr(actor_dict[actor_name], 'tile'):
+                        actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
+                    else:
+                        pass
+                        print("549: doesn't hasattr")
+        #print("regions: {}".format(regions))
         return regions
 
-    def split_along_subregions(self, debug=True):
+    def split_along_subregions(self, debug=False):
+        """
+        TODO: figure out how to only change the names
+        """
         regions = self.find_subregions(debug=debug)
-        print(regions)
+        #print('558', regions)
+        if len(regions) == 1:
+            return
         for number, region in enumerate(regions):
             new_mte_name = '{}_{}'.format(self.name, number)
-            print(f'new_mte_name: {new_mte_name}')
+            #print(f'new_mte_name: {new_mte_name}')
             mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
+            if not debug:
+                new_tile = segment_data['tile']
+            else:
+                new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
             for segment in region:
                 segment_data = self.member_data[segment]
                 mte_dict[new_mte_name].add_segment(
-                        segment_tile=segment_data['tile'],
-                        write_coord=add_coords((6, 0), segment_data['write_coord']),
+                        segment_tile=new_tile,
+                        write_coord=segment_data['write_coord'],
                         offset=segment_data['offset'],
-                        segment_name=segment_data['name'],
+                        segment_name='{}_{}'.format(segment_data['name'], number),
                         blocking=segment_data['blocking'],
                         literal_name=True, animation_preset=None)
         for member_name in self.member_names:
-            actor_dict[member_name].update(0, 0)
-            #del actor_dict[member_name]
-        #del mte_dict[self.name]
+            del map_dict[actor_dict[member_name].coords()].actors[member_name]
+        del mte_dict[self.name]
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -2141,9 +2154,10 @@ async def handle_input(key):
             #asyncio.ensure_future(rand_blink())
             #asyncio.ensure_future(disperse_all_mte())
             spawn_coords = add_coords(player_coords, (2, 2))
-            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='5x5 tester')
+            #mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='5x5 tester')
+            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='writheball')
             #traveled = mte_dict[mte_id].find_connected()
-            traveled = mte_dict[mte_id].split_along_subregions()
+            #traveled = mte_dict[mte_id].split_along_subregions()
             #append_to_log()
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
@@ -3487,6 +3501,7 @@ async def actor_turret(track_to_actor=None, fire_rate=.0, reach=15):
                                                   animation_preset='bullet'))
         
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
+    #print('name_key: {}'.format(name_key))
     coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
@@ -3495,6 +3510,15 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         parent_name = actor_dict[name_key].multi_tile_parent
         actor_index = mte_dict[parent_name].member_names.index(name_key)
         del mte_dict[parent_name].member_names[actor_index]
+        #print("3511: {}".format(mte_dict[parent_name].member_data.values()))
+        for entry in mte_dict[parent_name].member_data.values():
+            print(entry)
+            if name_key in entry.values():
+                #print("entry is: {}".format(entry))
+                segment_key = entry['offset']
+                #print("segment_key is: {}".format(segment_key))
+        mte_dict[parent_name].split_along_subregions()
+        del mte_dict[parent_name].member_data[segment_key]
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
