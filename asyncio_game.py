@@ -563,12 +563,12 @@ class Multi_tile_entity:
             new_mte_name = '{}_{}'.format(self.name, number)
             #print(f'new_mte_name: {new_mte_name}')
             mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
-            if not debug:
-                new_tile = segment_data['tile']
-            else:
-                new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
             for segment in region:
                 segment_data = self.member_data[segment]
+                if not debug:
+                    new_tile = segment_data['tile']
+                else:
+                    new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
                 mte_dict[new_mte_name].add_segment(
                         segment_tile=new_tile,
                         write_coord=segment_data['write_coord'],
@@ -579,6 +579,7 @@ class Multi_tile_entity:
         for member_name in self.member_names:
             del map_dict[actor_dict[member_name].coords()].actors[member_name]
         del mte_dict[self.name]
+        return
 
 async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
     mte_id = generate_id(base_name=base_name)
@@ -593,6 +594,7 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
         return False
     elif pushed_actor is not None and mte_parent is None:
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
+        print('mte_parent: {}'.format(mte_parent))
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     move_by = dir_coords[push_dir]
     if mte_dict[mte_parent].check_collision(move_by=move_by):
@@ -914,8 +916,6 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
                                                segment_angle_increment=rand_segment_angle,
                                                start_coord=arc_start,
                                                random_shift=False)
-        with term.location(30, 2):
-            print("POINTS: {}".format(points))
         for point in points:
             map_dict[point].tile = term.red("X")
         arc_start = points[-1] #set the start point of the next passage.
@@ -2694,6 +2694,26 @@ async def display_help():
                               x_offset=-40, y_offset=-30 + line_number,
                               hold_for_lock=False))
 
+async def tile_debug_info(x_print=0, y_print=0):
+    dummy_text = []
+    while True:
+        directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+        check_dir = state_dict['facing']
+        check_coord = add_coords(actor_dict['player'].coords(), directions[check_dir])
+        for y_offset, line in enumerate(dummy_text):
+            with term.location(*add_coords((x_print, y_print), (0, y_offset))):
+                print(line)
+        output_text = [f'tile_debug_info: {tile_debug_info}',
+                       f'facing: {check_dir}',
+                       f' coord: {check_coord}',
+                       f'actors: {map_dict[check_coord].actors.keys()}',
+                       f'  tile: {map_dict[check_coord].tile}',]
+        dummy_text = [' ' * len(line) for line in output_text]
+        for y_offset, line in enumerate(output_text):
+            with term.location(*add_coords((x_print, y_print), (0, y_offset))):
+                print(line)
+        await asyncio.sleep(.2)
+
 async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
     """
     intended to be used for occlusion.
@@ -2823,13 +2843,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                 color_choice = 7
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
-            #if random() < .95:
-                #TODO: add an attribute to map_tile (perhaps stored in seen) for
-                #      the last thing that was seen at this space
-                #remembered_tile = map_dict[x_display_coord, y_display_coord].tile
-                #print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
-            #else:
-                #print_choice = ' '
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
@@ -3181,6 +3194,7 @@ async def ui_setup():
     #loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
+    loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
     loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     loop.create_task(stamina_regen())
@@ -3501,7 +3515,6 @@ async def actor_turret(track_to_actor=None, fire_rate=.0, reach=15):
                                                   animation_preset='bullet'))
         
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
-    #print('name_key: {}'.format(name_key))
     coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
@@ -3510,15 +3523,13 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         parent_name = actor_dict[name_key].multi_tile_parent
         actor_index = mte_dict[parent_name].member_names.index(name_key)
         del mte_dict[parent_name].member_names[actor_index]
-        #print("3511: {}".format(mte_dict[parent_name].member_data.values()))
         for entry in mte_dict[parent_name].member_data.values():
-            print(entry)
             if name_key in entry.values():
-                #print("entry is: {}".format(entry))
                 segment_key = entry['offset']
-                #print("segment_key is: {}".format(segment_key))
-        mte_dict[parent_name].split_along_subregions()
+                print(f'segment_key: {segment_key}')
+        #delete MTE segment then try to split remaining segments:
         del mte_dict[parent_name].member_data[segment_key]
+        mte_dict[parent_name].split_along_subregions()
     del actor_dict[name_key]
     del map_dict[coords].actors[name_key]
     if blood:
