@@ -324,6 +324,11 @@ class Multi_tile_entity:
                           ('W', 'W', 'W', 'W'),
                           ('W', 'W', 'W', 'W'),
                           (' ', 'W', 'W', ' '),),
+            'test_block':(('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'X', 'X', 'X', 'X'),),
               'fireball':((' ', 'E', 'E', ' '),
                           ('E', 'E', 'E', 'E'),
                           ('E', 'E', 'E', 'E'),
@@ -571,6 +576,8 @@ class Multi_tile_entity:
                     new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
                 mte_dict[new_mte_name].add_segment(
                         segment_tile=new_tile,
+                        #TODO: use current coordinate instead of write_coord
+                        #write coord bungees new MTE back to where it started
                         write_coord=segment_data['write_coord'],
                         offset=segment_data['offset'],
                         segment_name='{}_{}'.format(segment_data['name'], number),
@@ -1094,7 +1101,7 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
                            damage=damage, particle_count=particle_count)
 
 async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
-    actor_list = map_dict[coord].actors.items()
+    actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
             asyncio.ensure_future(directional_damage_alert(source_actor=source_actor))
@@ -1471,12 +1478,12 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
+    dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
+    opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if 'sword_out' in state_dict and state_dict['sword_out'] == True:
         return False
     await asyncio.sleep(0)
     state_dict['sword_out'] = True
-    dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
-    opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = generate_id(base_name=name)
@@ -1485,19 +1492,13 @@ async def sword(direction='n', actor='player', length=5, name='sword',
                        starting_coords[1] + chosen_dir[1] * i) 
                       for i in range(1, length)]
     to_damage_names = []
+    player_coords = actor_dict['player'].coords()
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(name=segment_name, moveable=False,
                                          tile=term.color(sword_color)(chosen_dir[2]))
         map_dict[segment_coord].actors[segment_name] = True
-        for actor in map_dict[segment_coord].actors.items():
-            if 'sword' not in actor[0]:
-                to_damage_names.append(actor[0])
+        await damage_all_actors_at_coord(coord=segment_coord, damage=damage, source_actor='player')
         await asyncio.sleep(speed)
-    for actor in to_damage_names:
-        damage_direction = opposite_directions[direction]
-        if actor == 'player':
-            asyncio.ensure_future(directional_damage_alert(source_direction=damage_direction))
-        asyncio.ensure_future(damage_actor(actor=actor, damage=damage))
     for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
@@ -1505,9 +1506,10 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         await asyncio.sleep(retract_speed)
     state_dict['sword_out'] = False
 
-async def sword_item_ability(length=3):
+async def sword_item_ability(length=3, speed=.05):
     facing_dir = state_dict['facing']
-    asyncio.ensure_future(sword(facing_dir, length=length))
+    asyncio.ensure_future(sword(facing_dir, length=length, 
+                                speed=speed, retract_speed=speed))
 
 async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
     if direction is None:
@@ -2150,15 +2152,8 @@ async def handle_input(key):
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
-            #asyncio.ensure_future(drag_actor_along_line(actor_name='player', line=None, linger_time=.2))
-            #asyncio.ensure_future(rand_blink())
-            #asyncio.ensure_future(disperse_all_mte())
             spawn_coords = add_coords(player_coords, (2, 2))
-            #mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='5x5 tester')
-            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='writheball')
-            #traveled = mte_dict[mte_id].find_connected()
-            #traveled = mte_dict[mte_id].split_along_subregions()
-            #append_to_log()
+            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
         if key in '#':
             actor_dict['player'].update(49, 21) #jump to debug location
         if key in 'Y':
@@ -2167,7 +2162,7 @@ async def handle_input(key):
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
-            await sword_item_ability()
+            await sword_item_ability(length=5)
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
