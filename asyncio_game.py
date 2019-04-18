@@ -544,7 +544,6 @@ class Multi_tile_entity:
             regions.append(found_region)
         colors = [i for i in range(10)]
         for number, region in enumerate(regions):
-            #print(f'{number}: {region}')
             if debug:
                 for cell in region:
                     actor_name = self.member_data[cell]['name']
@@ -553,20 +552,14 @@ class Multi_tile_entity:
                     else:
                         pass
                         print("549: doesn't hasattr")
-        #print("regions: {}".format(regions))
         return regions
 
     def split_along_subregions(self, debug=False):
-        """
-        TODO: figure out how to only change the names
-        """
         regions = self.find_subregions(debug=debug)
-        #print('558', regions)
         if len(regions) == 1:
             return
         for number, region in enumerate(regions):
             new_mte_name = '{}_{}'.format(self.name, number)
-            #print(f'new_mte_name: {new_mte_name}')
             mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
             for segment in region:
                 segment_data = self.member_data[segment]
@@ -574,11 +567,10 @@ class Multi_tile_entity:
                     new_tile = segment_data['tile']
                 else:
                     new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
+                current_location = actor_dict[segment_data['name']].coords()
                 mte_dict[new_mte_name].add_segment(
                         segment_tile=new_tile,
-                        #TODO: use current coordinate instead of write_coord
-                        #write coord bungees new MTE back to where it started
-                        write_coord=segment_data['write_coord'],
+                        write_coord=current_location,
                         offset=segment_data['offset'],
                         segment_name='{}_{}'.format(segment_data['name'], number),
                         blocking=segment_data['blocking'],
@@ -596,6 +588,20 @@ async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
     pushes a multi_tile entity.
+    TODO: allow pushes to happen from within a 3x3 ring or similar:
+
+    aaa->  @: player
+    a@a->  a: first mte
+    aaa->
+          
+    TODO: allow pushes of arbitrarily chained MTEs:
+    This requires that we check each leading face for additional entities:
+
+    aaa->     @: player
+    a@a->     a: first mte
+    aaabbb->  b: second mte
+       bbbA-> A: other actor
+       bbb->
     """
     if pushed_actor is None and mte_parent is None:
         return False
@@ -2162,7 +2168,7 @@ async def handle_input(key):
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
-            await sword_item_ability(length=5)
+            await sword_item_ability(length=6)
         if key in '7':
             asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
                                   animation=Animation(preset='water')))
