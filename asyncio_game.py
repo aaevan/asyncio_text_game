@@ -757,7 +757,7 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
         dir_to_angle = {'n':0, 'e':90, 's':180, 'w':270}
         facing_angle = dir_to_angle[state_dict['facing']]
         center = actor_dict['player'].coords()
-    if center is None:
+    elif center is None:
         center = (0, 0)
     half_arc = arc_width / 2
     twelve_reference = (center[0], center[1] - 5)
@@ -767,7 +767,7 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
         found_angle = round(find_angle(p0=twelve_reference, p1=center, p2=checked_point))
         if checked_point[0] < center[0]:
             found_angle = 360 - found_angle
-        print("found: {}, facing: {}, arc_range: {}".format(found_angle, facing_angle, arc_range))
+        #print("found: {}, facing: {}, arc_range: {}".format(found_angle, facing_angle, arc_range))
         result = in_angle_bracket(given_angle=found_angle,
                                   arc_begin=arc_range[0], arc_end=arc_range[1])
     return result
@@ -2029,7 +2029,11 @@ async def get_key():
                 if key == '\x7f':  # x1b is ESC
                     state_dict['exiting'] = True
                 if key is not None:
-                    await handle_input(key)
+                    player_health = actor_dict["player"].health
+                    with term.location(0, 0):
+                        print(f'health: {player_health}      ')
+                    if player_health > 0:
+                        await handle_input(key)
             if old_key == key:
                 state_dict['same_count'] += 1
             else:
@@ -2695,7 +2699,7 @@ async def display_help():
                               x_offset=-40, y_offset=-30 + line_number,
                               hold_for_lock=False))
 
-async def tile_debug_info(x_print=0, y_print=0):
+async def tile_debug_info(x_print=18, y_print=0):
     dummy_text = []
     while True:
         directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -2785,9 +2789,6 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that can push the player
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
-#a stamina bar?? (souls-like?)
-#a between move timeout clock (decremented n times a second, must wait to move again.
-#    if move is received during timeout, clock does not change, player does not move.
 
 async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
     """ handles displaying data from map_dict """
@@ -3188,14 +3189,14 @@ async def ui_setup():
     """
     await asyncio.sleep(0)
     loop = asyncio.get_event_loop()
-    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    #loop.create_task(console_box())
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(console_box())
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
-    loop.create_task(tile_debug_info())
+    #loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
     loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     loop.create_task(stamina_regen())
@@ -3312,14 +3313,12 @@ async def angel_seek(name_key=None, seek_key='player'):
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
     return movement_choice
 
-#TODO: implement an invisible attribute for actors
+#TODO: an invisible attribute for actors
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     actor_location = actor_dict[name_key].coords()
     for _ in range(forget_count):
         rand_point = point_within_radius(radius=radius, center=actor_location)
         map_dict[rand_point].seen = False
-
-#TODO: an invisible actor that can still be damaged.
 
 async def damage_door():
     """ allows actors to break down doors"""
@@ -3592,7 +3591,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                       y_coord=current_coord[1],
                                       tile=term.color(color_num)(vine_tile),
                                       moveable=False)
-        #current_coord = (current_coord[0] + next_tuple[0], current_coord[1] + next_tuple[1])
         current_coord = add_coords(current_coord, next_tuple)
         prev_dir = next_dir
         #next_dir is generated at the end of the for loop so it can be
@@ -3645,7 +3643,6 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
         await filter_print(output_text="Nothing happens.")
         return False
     coords = actor_dict[centered_on_actor].coords()
-    await asyncio.sleep(0)
     bubble_id = generate_id(base_name='')
     bubble_pieces = {}
     player_coords = actor_dict['player'].coords()
@@ -4113,9 +4110,9 @@ def main():
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #test enemies
-    #for i in range(2):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    for i in range(2):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
