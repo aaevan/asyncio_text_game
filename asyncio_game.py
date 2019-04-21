@@ -250,10 +250,7 @@ class Item:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
 class Multi_tile_entity:
-    #TODO: fix problems with damaged parts
     #TODO: option to turn into scenery parts that have no living neighbors
-    #TODO: make detached segments (with no continuous route to the majority of the segments) cleave off
-    #      and require separate pushing (spawning a smaller split MTE for each half)
     """
     when the new location is checked as passable, it has to do so for each element
     if any of the four pieces would be somewhere that is impassable, the whole does not move
@@ -278,7 +275,7 @@ class Multi_tile_entity:
     [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
     
     if we check and find that an actor is part of an MTE (the MTE attribute is not None),
-        call the named MTE's location_clear method to figure out whether it will fit in a new orientation
+        figure out whether it will fit in a new orientation
 
     else:
         push the actor/entity as normal
@@ -292,9 +289,6 @@ class Multi_tile_entity:
 
     If we don't want to clip through things, The actual location of the 
     MTE is only updated after checking whether the ground is clear.
-
-    TODO: A method to split an MTE into multiple smaller MTEs.
-        If an entity is only one tile, its parent is None.
     """
  
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
@@ -401,7 +395,9 @@ class Multi_tile_entity:
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
-            if not map_dict[check_coord].passable:
+            if 'player' in map_dict[check_coord].actors:
+                return True
+            elif not map_dict[check_coord].passable:
                 return False
             for actor in map_dict[check_coord].actors:
                 if actor not in self.member_names:
@@ -3526,7 +3522,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         for entry in mte_dict[parent_name].member_data.values():
             if name_key in entry.values():
                 segment_key = entry['offset']
-                print(f'segment_key: {segment_key}')
+                #print(f'segment_key: {segment_key}')
         #delete MTE segment then try to split remaining segments:
         del mte_dict[parent_name].member_data[segment_key]
         mte_dict[parent_name].split_along_subregions()
@@ -4110,9 +4106,9 @@ def main():
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #test enemies
-    for i in range(2):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    #for i in range(2):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
