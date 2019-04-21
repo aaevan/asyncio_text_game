@@ -1670,7 +1670,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         
-        await clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1))
+        clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1))
         item_list = [item for item in map_dict[player_coords].items]
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
@@ -1683,7 +1683,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=1):
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print("Inventory:")
-        await clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
+        clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
@@ -1997,7 +1997,6 @@ async def get_key():
     Also, displays help tooltip if no input for a time."""
     debug_text = "key is: {}, same_count is: {}           "
     help_text = 'Press ? for help menu.'
-    await asyncio.sleep(0)
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
@@ -2046,7 +2045,6 @@ async def handle_input(key):
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
-    await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
         if is_number(key):
             if int(key) in state_dict['menu_choices']:
@@ -2311,7 +2309,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
     menu_choices = [index for index, _ in enumerate(item_id_choices)]
     state_dict['menu_choices'] = menu_choices
     state_dict['in_menu'] = True
-    await clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
+    clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(number))
@@ -2323,7 +2321,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
             if menu_choice in [str(i) for i in range(10)]:
                 menu_choice = int(menu_choice)
         if menu_choice in menu_choices:
-            await clear_screen_region(x_size=2, y_size=len(item_id_choices), 
+            clear_screen_region(x_size=2, y_size=len(item_id_choices), 
                                       screen_coord=(x_pos, y_pos))
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
@@ -2366,7 +2364,7 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
         else:
             item_name = 'empty'
         if centered:
-            x_coord, y_coord = await offset_of_center(*print_location)
+            x_coord, y_coord = offset_of_center(*print_location)
         else:
             x_coord, y_coord = print_location
         with term.location(x_coord + 2, y_coord + 5):
@@ -2413,7 +2411,6 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
     -give a position and list of values and item choices will hang until
      a menu choice is made.
     """
-    await asyncio.sleep(0)
     if not map_dict[coords].items:
         asyncio.ensure_future(filter_print(output_text="nothing's here."))
     else:
@@ -2654,7 +2651,7 @@ async def display_help():
     """
     displays controls at an unused part of the screen.
     """
-    x_offset, y_offset = await offset_of_center(x_offset=-10, y_offset=-5)
+    x_offset, y_offset = offset_of_center(x_offset=-10, y_offset=-5)
     help_text = ( " wasd: move               ",
                   "space: open/close doors   ",
                   " ijkl: look               ",
@@ -2870,16 +2867,14 @@ async def check_contents_of_tile(coord):
     else:
         return map_dict[coord].tile
 
-async def offset_of_center(x_offset=0, y_offset=0):
-    await asyncio.sleep(0)
+def offset_of_center(x_offset=0, y_offset=0):
     window_width, window_height = term.width, term.height
     middle_x, middle_y = (int(window_width / 2 - 2), 
                       int(window_height / 2 - 2),)
     x_print, y_print = middle_x + x_offset, middle_y + y_offset
     return x_print, y_print
 
-async def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
-    await asyncio.sleep(0)
+def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
     for y in range(screen_coord[1], screen_coord[1] + y_size):
         with term.location(screen_coord[0], y):
             print(' ' * x_size)
@@ -2895,7 +2890,6 @@ async def ui_box_draw(position="top left",
     |         | | height = 1
     +---------+ v
     """
-    await asyncio.sleep(0)
     top_bar = "┌{}┐".format("─" * box_width)
     bottom_bar = "└{}┘".format("─" * box_width)
     if position == "top left":
@@ -2983,7 +2977,6 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
     return
 
 async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
-    await asyncio.sleep(0)
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
            distance = sqrt(x**2 + y**2)
@@ -2991,13 +2984,13 @@ async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
     #minimap init:
-    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
-                                      box_width=21, box_height=21))
-    for x in range(-20, 21, 2):
-        for y in range(-20, 21, 2):
-            half_scale = x // 2, y // 2
-            loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((126, 12), half_scale))))
+    #asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
+                                      #box_width=21, box_height=21))
+    #for x in range(-20, 21, 2):
+        #for y in range(-20, 21, 2):
+            #half_scale = x // 2, y // 2
+            #loop.create_task(minimap_tile(player_position_offset=(x, y),
+                                          #display_coord=(add_coords((126, 12), half_scale))))
 
 async def async_map_init():
     """
@@ -3062,7 +3055,6 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
     shift from default area to alternate area and vice versa.
     """
-    await asyncio.sleep(0)
     player_x, player_y = actor_dict['player'].coords()
     if state_dict['plane'] == 'normal':
         destination, plane = (player_x + x_offset, player_y + y_offset), plane_name
@@ -3084,8 +3076,6 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         asyncio.ensure_future(filter_print(output_text="Something is in the way."))
 
 async def printing_testing(distance=0, x_coord=90, y_coord=1):
-    await asyncio.sleep(0)
-
     bw_gradient = ((" "),                #0
                    term.color(7)("░"),   #1
                    term.color(8)("░"),   #3
@@ -3161,16 +3151,15 @@ async def ui_setup():
     """
     lays out UI elements to the screen at the start of the program.
     """
-    await asyncio.sleep(0)
     loop = asyncio.get_event_loop()
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
+    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    #loop.create_task(console_box())
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
-    #loop.create_task(tile_debug_info())
+    loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
     loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     loop.create_task(stamina_regen())
@@ -3210,7 +3199,6 @@ async def wander(name_key=None, **kwargs):
         return x_current, y_current
 
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
-    await asyncio.sleep(0)
     attacker_strength = actor_dict[attacker_key].strength
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
@@ -3317,14 +3305,6 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
 
-async def track_actor_location(state_dict_key="player", actor_dict_key="player", update_speed=.1, length=10):
-    await asyncio.sleep(0)
-    actor_coords = None
-    while True:
-        await asyncio.sleep(update_speed)
-        actor_coords = actor_dict[actor_dict_key].coords()
-        state_dict[state_dict_key] = actor_coords
-
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
                          tentacle_rate=.1, tentacle_colors="456"):
@@ -3332,7 +3312,6 @@ async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3
     creates a (currently) stationary mass of random length and color tentacles
     move away while distance is far, move slowly towards when distance is near, radius = 20?
     """
-    await asyncio.sleep(0)
     tentacled_mass_id = generate_id(base_name='tentacled_mass')
     actor_dict[tentacled_mass_id] = Actor(name=tentacled_mass_id, moveable=False, tile='*',
                                           is_animated=True, animation=Animation(preset='mouth'))
@@ -3372,7 +3351,6 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     shrouded_horror is a core and a number of shroud pieces
     when it is first run, core is started as a coroutine (as an actor) as is each shroud_location
     """
-    await asyncio.sleep(0)
     #initialize all shroud tiles to starting coordinates:
     core_location = (start_x, start_y)
     actor_dict[core_name_key] = Actor(name=core_name_key, moveable=False, tile=' ')
@@ -3422,7 +3400,6 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
     """
     breaks out random movement of core into separate function
     """
-    await asyncio.sleep(0)
     coord = actor_dict[shroud_name_key].coords()
     behavior_val = random()
     if behavior_val < .2:
@@ -3445,7 +3422,6 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
     die
     exist for a set number of turns
     """
-    await asyncio.sleep(0)
     actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, 
                                    speed=speed, tile=tile, hurtful=hurtful, 
                                    leaves_body=True, strength=strength, 
@@ -3472,7 +3448,7 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     b_coord = actor_dict[actor_b].coords()
     return point_to_point_distance(point_a=a_coord, point_b=b_coord)
 
-async def actor_turret(track_to_actor=None, fire_rate=.0, reach=15):
+async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15):
     if track_to_actor == None:
         return
     while True:
@@ -3759,7 +3735,6 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
                             speed=.05, tile="X", animation=Animation(preset='explosion'),
                             debris=None, damage=None, ignore_head=False, no_clip=True,
                             source_actor=None):
-    asyncio.sleep(0)
     points = get_line(start_coord, end_coords)
     if no_clip:
         for index, point in enumerate(points):
@@ -3820,7 +3795,6 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
     angle_range can be defined as a cone (example: (45, 135)) for a cone shaped 
     effect.
     """
-    await asyncio.sleep(0)
     while True:
         await asyncio.sleep(frequency)
         rand_angle = randint(*angle_range)
@@ -3908,7 +3882,6 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
     generates an actor that orbits about a point
     TODO: particles that follow an arbitrary path
     """
-    await asyncio.sleep(0)
     angle = randint(0, 360)
     particle_id = generate_id(base_name=name)
     actor_dict[particle_id] = Actor(name=particle_id, x_coord=on_center[0], y_coord=on_center[1], 
@@ -3940,13 +3913,12 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
         angle = (angle + degrees_per_step) % 360
 
 async def death_check():
-    await asyncio.sleep(0)
     player_health = actor_dict["player"].health
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     death_message = "You have died."
     while True:
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.1)
         player_health = actor_dict["player"].health
         if player_health <= 0:
             asyncio.ensure_future(filter_print(pause_stay_on=99, output_text=death_message))
@@ -3960,7 +3932,6 @@ async def environment_check(rate=.1):
     and/or damage over time for obstacle-type actors such as tentacles from 
     vine_grow().
     """
-    await asyncio.sleep(0)
     while actor_dict['player'].health >= 0:
         await asyncio.sleep(rate)
         player_coords = actor_dict['player'].coords()
@@ -3975,7 +3946,6 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     *** does not need to be set at top level. Can be nested in map and character
     placement.
     """
-    asyncio.sleep(0)
     loop = asyncio.get_event_loop()
     actor_id = generate_id(base_name=preset)
     name = "{}_{}".format(preset, actor_id)
@@ -4073,7 +4043,6 @@ def main():
     #TODO: fix ordering of UI setup so that this can be disabled without a crash
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
-    loop.create_task(track_actor_location())
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     item_spawns = []
