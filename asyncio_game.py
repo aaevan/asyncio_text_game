@@ -391,6 +391,7 @@ class Multi_tile_entity:
         """
         #TODO: allow for an mte to move into a space currently occupied by the player.
         #TODO: allow or disallow multi-pushes that would contact another block
+        coord_to_dir = {(0, -1):'n', (1, 0):'e', (0, 1):'s', (-1, 0):'w'}
         check_position = {}
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
@@ -584,12 +585,6 @@ async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
     pushes a multi_tile entity.
-    TODO: allow pushes to happen from within a 3x3 ring or similar:
-
-    aaa->  @: player
-    a@a->  a: first mte
-    aaa->
-          
     TODO: allow pushes of arbitrarily chained MTEs:
     This requires that we check each leading face for additional entities:
 
@@ -742,7 +737,6 @@ def point_within_radius(radius=20, center=(0, 0)):
         if stuck_count >= 50:
             with term.location(15, 0):
                 print(radius, center, distance_from_center, point)
-            sleep(1)
     return point
 
 def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=90, center=None):
@@ -999,7 +993,6 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
     """
     draws a filled circle onto map_dict.
     """
-    await asyncio.sleep(0)
     x_bounds = center_coord[0] - radius, center_coord[0] + radius
     y_bounds = center_coord[1] - radius, center_coord[1] + radius
     for x in range(*x_bounds):
@@ -1068,7 +1061,6 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     return True
 
 async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
-    await asyncio.sleep(0)
     original_tile = item_dict[item_id].tile
     for count in reversed(range(fuse_length + 1)):
         await asyncio.sleep(.5)
@@ -1235,7 +1227,6 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
     loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
                                  tile=" ", name_key=actor_id, hurtful=True,
                                  is_animated=True, animation=Animation(preset="none")))
-    await asyncio.sleep(0)
     range_tuple = (-circle_size, circle_size + 1)
     for x in range(*range_tuple):
         for y in range(*range_tuple):
@@ -1484,7 +1475,6 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if 'sword_out' in state_dict and state_dict['sword_out'] == True:
         return False
-    await asyncio.sleep(0)
     state_dict['sword_out'] = True
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
@@ -1715,7 +1705,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
                           int(term.height / 2 - 2),)
     y_location = term.height + y_offset
     x_location = middle_x + x_offset
-    await asyncio.sleep(0)
     numbered_chars = [(place, char) for place, char in enumerate(output_text)]
     shuffle(numbered_chars)
     for char in numbered_chars:
@@ -1803,7 +1792,6 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
-    await asyncio.sleep(0)
     for i in range(seeds):
         await asyncio.sleep(pause_between)
         throw_dist = radius + 1
@@ -1884,7 +1872,6 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
     red within view distance and only you and the tentacle monster are visible
     """
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    await asyncio.sleep(0)
     animation = Animation(base_tile='▮', preset='door')
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
                                      magic=True, magic_destination=end_coords,
@@ -1997,8 +1984,7 @@ def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trig
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
 
-async def is_number(number="0"):
-    await asyncio.sleep(0)
+def is_number(number="0"):
     try:
         float(number)
         return True
@@ -2062,7 +2048,7 @@ async def handle_input(key):
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     await asyncio.sleep(0)  
     if state_dict['in_menu'] == True:
-        if await is_number(key):
+        if is_number(key):
             if int(key) in state_dict['menu_choices']:
                 state_dict['menu_choice'] = key
         else:
@@ -2126,9 +2112,6 @@ async def handle_input(key):
         if key in '(':
             spawn_coords = add_coords(player_coords, (2, 2))
             asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coords))
-        if key in ')':
-            for mte_name in mte_dict:
-                multi_push(mte_parent=mte_name)
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -2347,7 +2330,6 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
             return item_id_choices[int(menu_choice)]
 
 async def console_box(width=40, height=10, x_margin=4, y_margin=30):
-    #await asyncio.sleep(3)
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
@@ -2369,7 +2351,6 @@ async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location
     """
     make it possible to equip each number to an item
     """
-    await asyncio.sleep(0)
     slot_name = "{}_slot".format(slot)
     state_dict[slot_name] = 'empty'
     while True:
@@ -2396,7 +2377,6 @@ async def equip_item(slot='q'):
     """
     each slot must also have a coroutine to use the item's abilities.
     """
-    await asyncio.sleep(0)
     slot_name = "{}_slot".format(slot)
     item_id_choice = await choose_item()
     state_dict[slot_name] = item_id_choice
@@ -2449,7 +2429,6 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
-    await asyncio.sleep(0)
     pickup_text = "picked up {}".format(item_dict[item_id].name)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
@@ -2579,13 +2558,13 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
     point_angle = (dir_to_angle[facing_dir] + offset_angle) % 360
     actor_coords = actor_dict[actor_key].coords()
     reference_point = (actor_coords[0], actor_coords[1] + 5)
-    point = await point_at_distance_and_angle(angle_from_twelve=point_angle,
+    point = point_at_distance_and_angle(angle_from_twelve=point_angle,
                                               central_point=actor_coords,
                                               reference_point=reference_point,
                                               radius=radius)
     return point
 
-async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
+def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
                                       reference_point=(0, 5), radius=10,
                                       rounded=True):
     """
@@ -2599,7 +2578,6 @@ async def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0)
     a---b
       x
     """
-    await asyncio.sleep(0)
     angle = 90 - angle_from_twelve
     x = cos(radians(angle)) * radius
     y = sin(radians(angle)) * radius
@@ -2655,7 +2633,7 @@ async def crosshairs(radius=15, crosshair_chars=('.', '*', '.'), fov=30,
         #clear last known location of crosshairs:
         if last_angle != current_angle:
             angles = (current_angle + fov, current_angle, current_angle - fov)
-            points = [await point_at_distance_and_angle(radius=radius,
+            points = [point_at_distance_and_angle(radius=radius,
                                                         central_point=central_point,
                                                         angle_from_twelve=angle)
                                                         for angle in angles]
@@ -2973,7 +2951,7 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
         radius = warning_ui_radius + randint(0, warning_ui_radius_spread)
         central_point = (middle_x, middle_y)
         angle = await random_angle(centered_on_angle=source_angle)
-        point = await point_at_distance_and_angle(radius=radius,
+        point = point_at_distance_and_angle(radius=radius,
                                                   central_point=central_point,
                                                   angle_from_twelve=angle,)
         warning_ui_points.append(point)
@@ -3643,7 +3621,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     bubble_pieces = {}
     player_coords = actor_dict['player'].coords()
     every_five = [i * 5 for i in range(72)]
-    points_at_distance = {await point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
+    points_at_distance = {point_at_distance_and_angle(radius=radius, central_point=player_coords, angle_from_twelve=angle) for angle in every_five}
     state_dict['bubble_cooldown'] = True
     for num, point in enumerate(points_at_distance):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
@@ -3657,7 +3635,7 @@ async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
     points = []
     for angle in every_five:
-        point = await point_at_distance_and_angle(radius=radius, 
+        point = point_at_distance_and_angle(radius=radius, 
                                                   central_point=player_coords, 
                                                   angle_from_twelve=angle)
         points.append(point)
@@ -3853,7 +3831,7 @@ async def radial_fountain(anchor_actor='player', tile_anchor=None,
         reference = (origin_coord[0], origin_coord[1] + 5)
         rand_radius = randint(*radius)
         rand_speed = randint(*speed) / 100
-        point = await point_at_distance_and_angle(angle_from_twelve=rand_angle, 
+        point = point_at_distance_and_angle(angle_from_twelve=rand_angle, 
                                                   central_point=origin_coord,
                                                   reference_point=reference, 
                                                   radius=rand_radius)
@@ -3954,7 +3932,7 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
         if track_actor:
             on_center = actor_dict['player'].coords()
         del map_dict[point_coord].actors[particle_id]
-        point_coord = await point_at_distance_and_angle(radius=radius, central_point=on_center, angle_from_twelve=angle)
+        point_coord = point_at_distance_and_angle(radius=radius, central_point=on_center, angle_from_twelve=angle)
         if point_coord != last_location:
             actor_dict[particle_id].update(*point_coord)
             last_location = actor_dict[particle_id].coords()
