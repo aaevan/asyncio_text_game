@@ -250,7 +250,6 @@ class Item:
             await filter_print(output_text="{}{}".format(self.name, self.broken_text))
 
 class Multi_tile_entity:
-    #TODO: option to turn into scenery parts that have no living neighbors
     """
     when the new location is checked as passable, it has to do so for each element
     if any of the four pieces would be somewhere that is impassable, the whole does not move
@@ -1491,7 +1490,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         map_dict[segment_coord].actors[segment_name] = True
         await damage_all_actors_at_coord(coord=segment_coord, damage=damage, source_actor='player')
         await asyncio.sleep(speed)
-    for segment_coord, segment_name in zip(reversed(segment_coords), reversed(sword_segment_names)):
+    retract_order = zip(reversed(segment_coords), reversed(sword_segment_names))
+    for segment_coord, segment_name in retract_order:
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
@@ -2331,15 +2331,12 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
-    garbage = [(i, random()) for i in range(15)]
-    window = 0
+    #TODO: wrap long messages to following line.
     while True:
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
-            #we want to print the last <height> lines of the message queue
-            #we want the indices to go from -10 to -1. state_dict['messages'][-height + index]
+            line_text = state_dict['messages'][-height + index] 
             with term.location(x_margin, line_y):
-                print(state_dict['messages'][-height + index])
-        window = (window + 1) % len(garbage)
+                print(line_text.ljust(width, ' '))
         await asyncio.sleep(.4)
 
 def append_to_log(message="This is a test ({})".format(round(random(), 2))):
@@ -2826,6 +2823,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
                     print_choice = find_brightness_tile(distance=distance)
                 print(print_choice)
                 last_print_choice = print_choice
+            # only print something if it has changed:
 
 def find_brightness_tile(distance=0, std_dev=.5):
     """
@@ -2844,7 +2842,7 @@ def find_brightness_tile(distance=0, std_dev=.5):
     bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
     bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
 
-    brightness_index = distance #+ gauss(1, std_dev) 
+    brightness_index = distance
     if brightness_index <= 0:
         brightness_index = 0
     elif brightness_index >= 15:
@@ -3152,11 +3150,11 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    #loop.create_task(console_box())
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     loop.create_task(tile_debug_info())
@@ -3165,7 +3163,7 @@ async def ui_setup():
     loop.create_task(stamina_regen())
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
     loop.create_task(angle_swing())
-    loop.create_task(crosshairs())
+    #loop.create_task(crosshairs())
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
