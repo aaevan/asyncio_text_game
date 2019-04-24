@@ -1391,10 +1391,8 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
                        'stone':'*stone on stone nearby*'}
     if positives is None:
         positives = ('player', 'weight', 'crate', 'static')
-    count = 0
     triggered = False
     while True:
-        count = (count + 1) % 100
         await asyncio.sleep(test_rate)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
@@ -1693,7 +1691,6 @@ async def filter_print(output_text="You open the door.", x_offset=0, y_offset=-8
                        pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, 
                        delay=0, blocking=False, hold_for_lock=True):
     if hold_for_lock:
-        count = 0
         while True:
             if state_dict['printing'] == True:
                 await asyncio.sleep(.1)
@@ -3258,7 +3255,6 @@ async def waver(name_key=None, seek_key='player', **kwargs):
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=True)
     else:
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
-    #fuzzy_forget(name_key=name_key) #for use in a different context
     return movement_choice
 
 async def angel_seek(name_key=None, seek_key='player'):
@@ -3842,7 +3838,8 @@ async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
         new_position = add_coords(actor_coords, step)
-        if map_dict[new_position].passable and not drag_through_solid:
+        #if map_dict[new_position].passable and not drag_through_solid:
+        if occupied(new_position) and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
             actor_dict[actor_key].update(*new_position)
