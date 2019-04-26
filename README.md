@@ -7,6 +7,8 @@ WASD to move, IJKL to look.
 
 Press ? for help.
 
+See handle_input function for full list of testing commands.
+
 ![](circle_of_darkness.gif)
 
 Python 3 only.
