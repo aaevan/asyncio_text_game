@@ -2001,15 +2001,15 @@ async def get_key():
         state_dict['same_count'] = 0
         old_key = None
         while True:
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.03)
             if isData():
                 key = sys.stdin.read(1)
                 if key == '\x7f':  # x1b is ESC
                     state_dict['exiting'] = True
                 if key is not None:
                     player_health = actor_dict["player"].health
-                    with term.location(0, 0):
-                        print(f'health: {player_health}      ')
+                    #with term.location(0, 0):
+                        #print(f'health: {player_health}'.ljust(12, 'X'))
                     if player_health > 0:
                         await handle_input(key)
             if old_key == key:
@@ -2287,7 +2287,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         with term.location(x_coord, y_coord + num):
             print(line)
 
-async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=10):
+async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=2):
     """
     Takes a list of item_id values
     Prints to some region of the screen:
@@ -2917,12 +2917,22 @@ async def random_angle(centered_on_angle=0, total_cone_angle=60):
     rand_shift = round(randint(0, total_cone_angle) - (total_cone_angle / 2))
     return (centered_on_angle + rand_shift) % 360
 
-async def directional_damage_alert(source_angle=None, source_actor=None, source_direction=None,
-                                   warning_ui_radius=17, warning_ui_radius_spread=3):
+async def directional_damage_alert(particle_count=40, source_angle=None, 
+                                   source_actor=None, source_direction=None,
+                                   warning_radius=17, warning_radius_spread=3,
+                                   preset='damage'):
     """
     generates a spray of red tiles beyond the normal sight radius in the
     direction of a damage source.
     """
+    presets = {'damage':{'radius':17, 
+                         'radius_spread':3, 
+                         'warning_color':1},
+                'sound':{'radius':17,
+                         'radius_spread':0,
+                         'warning_color':2,}}
+    if preset in presets:
+        radius, radius_spread, warning_color = presets[preset].values()
     if source_actor:
         source_angle = angle_actor_to_actor(actor_a='player', actor_b=source_actor)
     elif source_direction is not None:
@@ -2935,18 +2945,18 @@ async def directional_damage_alert(source_angle=None, source_actor=None, source_
     source_angle = 180 - source_angle
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    warning_ui_points = []
-    for _ in range(40):
-        radius = warning_ui_radius + randint(0, warning_ui_radius_spread)
+    ui_points = []
+    for _ in range(particle_count):
+        radius = radius + randint(0, radius_spread)
         central_point = (middle_x, middle_y)
         angle = await random_angle(centered_on_angle=source_angle)
         point = point_at_distance_and_angle(radius=radius,
                                                   central_point=central_point,
                                                   angle_from_twelve=angle,)
-        warning_ui_points.append(point)
-    for tile in [term.red("█"), ' ']:
-        shuffle(warning_ui_points)
-        for point in warning_ui_points:
+        ui_points.append(point)
+    for tile in [term.color(warning_color)("█"), ' ']:
+        shuffle(ui_points)
+        for point in ui_points:
             await asyncio.sleep(random()/70)
             with term.location(*point):
                 print(tile)
