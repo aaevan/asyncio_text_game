@@ -57,10 +57,17 @@ class Actor:
                  strength=1, health=50, stamina=50, hurtful=True, moveable=True,
                  is_animated=False, animation="", holding_items={}, 
                  leaves_body=False, breakable=False, multi_tile_parent=None, 
-                 blocking=False):
+                 blocking=False, tile_color=8):
+        tile_color_lookup = {'black':0, 'red':1, 'green':2, 'orange':3, 
+                             'blue':4, 'purple':5, 'cyan':6, 'grey':7}
         self.name = name
         self.x_coord, self.y_coord, = (x_coord, y_coord)
-        self.speed, self.tile = (speed, tile)
+        self.speed = speed
+        self.tile = tile
+        if tile_color in tile_color_lookup:
+            self.tile_color = tile_color_lookup[tile_color]
+        else:
+            self.tile_color = tile_color
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
         self.stamina = stamina
@@ -94,6 +101,18 @@ class Actor:
         if coord_move:
             self.x_coord, self.y_coord = (self.x_coord + coord_move[0], 
                                           self.y_coord + coord_move[1])
+    def get_view(self):
+        """
+        returns the current appearance of the actor.
+        
+        With an animation, it returns the next frame.
+
+        With a static tile, it returns the tile along with the color.
+        """
+        if self.is_animated:
+            return next(self.animation)
+        else:
+            return term.color(self.tile_color)(self.tile)
 
 class Animation:
     def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
@@ -318,9 +337,9 @@ class Multi_tile_entity:
                           ('W', 'W', 'W', 'W'),
                           (' ', 'W', 'W', ' '),),
             'test_block':(('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'W', 'X', 'W', 'X'),
                           ('X', 'X', 'X', 'X', 'X'),
-                          ('X', 'X', 'X', 'X', 'X'),
-                          ('X', 'X', 'X', 'X', 'X'),
+                          ('X', 'W', 'X', 'W', 'X'),
                           ('X', 'X', 'X', 'X', 'X'),),
               'fireball':((' ', 'E', 'E', ' '),
                           ('E', 'E', 'E', 'E'),
@@ -372,7 +391,7 @@ class Multi_tile_entity:
                                     'name':segment_name,
                                     'blocking':blocking}
         if segment_tile in animation_key:
-            animation_preset=deepcopy(animation_key[segment_tile])
+            animation_preset=deepcopy(Animation(preset=animation_key[segment_tile]))
         else:
             animation_preset=None
         member_name = spawn_static_actor(base_name=segment_name, 
@@ -652,7 +671,7 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(name='player', tile=term.red("@"), health=100, stamina=100)
+actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100, stamina=100)
 actor_dict['player'].just_teleported = False
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
@@ -1262,7 +1281,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(name=node_name, moveable=False,
-                                           tile=term.color(7)('◘'))
+                                           tile='◘', tile_color='grey')
         actor_dict[node_name].update(*node_coord)
     while True:
         await asyncio.sleep(rate)
@@ -1281,7 +1300,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     """
     trap_origin_id = generate_id(base_name=base_name)
     actor_dict[trap_origin_id] = Actor(name=trap_origin_id, moveable=False,
-                                       tile=term.color(7)('◘'))
+                                       tile='◘', tile_color='grey')
     actor_dict[trap_origin_id].update(*coord)
     while True:
         await asyncio.sleep(rate)
@@ -1484,7 +1503,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     player_coords = actor_dict['player'].coords()
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(name=segment_name, moveable=False,
-                                         tile=term.color(sword_color)(chosen_dir[2]))
+                                         tile=chosen_dir[2], tile_color=sword_color)
         map_dict[segment_coord].actors[segment_name] = True
         await damage_all_actors_at_coord(coord=segment_coord, damage=damage, source_actor='player')
         await asyncio.sleep(speed)
@@ -2097,7 +2116,8 @@ async def handle_input(key):
         if key in ' ': #toggle doors
             toggle_doors()
         if key in '@': #spawn debug items in player inventory
-            spawn_item_at_coords(coord=player_coords, instance_of='fused charge', on_actor_id='player')
+            #TODO: fix vine_wand key error
+            spawn_item_at_coords(coord=player_coords, instance_of='vine wand', on_actor_id='player')
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
@@ -2850,10 +2870,7 @@ def find_brightness_tile(distance=0, std_dev=.5):
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
         actor_name = next(iter(map_dict[coord].actors))
-        if actor_dict[actor_name].is_animated:
-            return next(actor_dict[actor_name].animation)
-        else:
-            return actor_dict[actor_name].tile
+        return actor_dict[actor_name].get_view()
     if map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return item_dict[item_name].tile
@@ -3543,7 +3560,8 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                  vine_picks[(prev_dir, next_dir)])
         actor_dict[vine_name] = Actor(name=vine_name, x_coord=current_coord[0],
                                       y_coord=current_coord[1],
-                                      tile=term.color(color_num)(vine_tile),
+                                      #tile=term.color(color_num)(vine_tile),
+                                      tile=vine_tile, tile_color=color_num,
                                       moveable=False)
         current_coord = add_coords(current_coord, next_tuple)
         prev_dir = next_dir
@@ -3848,7 +3866,6 @@ async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
         new_position = add_coords(actor_coords, step)
-        #if map_dict[new_position].passable and not drag_through_solid:
         if occupied(new_position) and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
@@ -3944,7 +3961,7 @@ async def environment_check(rate=.1):
             print(" " * 10)
         with term.location(40, 0):
             print(len([i for i in map_dict[player_coords].actors.items()]))
-#
+
 async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_items=[]):
     """
     spawns an entity with various presets based on preset given.
