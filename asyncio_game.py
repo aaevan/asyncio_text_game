@@ -9,6 +9,7 @@ from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
+from functools import wrap
 from itertools import cycle, repeat, combinations
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
@@ -1944,7 +1945,6 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
     """
-    #TODO: add an alternate way of returning a name given a leading '_'
     if literal_name:
         actor_id = base_name
     else:
@@ -1966,7 +1966,7 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
@@ -2117,7 +2117,8 @@ async def handle_input(key):
             toggle_doors()
         if key in '@': #spawn debug items in player inventory
             #TODO: fix vine_wand key error
-            spawn_item_at_coords(coord=player_coords, instance_of='vine wand', on_actor_id='player')
+            #spawn_item_at_coords(coord=player_coords, instance_of='vine wand', on_actor_id='player')
+            asyncio.ensure_future(vine_grow(on_actor='player', start_facing=True))
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
@@ -3174,11 +3175,11 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
+    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    #loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     loop.create_task(tile_debug_info())
@@ -3187,7 +3188,7 @@ async def ui_setup():
     loop.create_task(stamina_regen())
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
     loop.create_task(angle_swing())
-    #loop.create_task(crosshairs())
+    loop.create_task(crosshairs())
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -3317,7 +3318,7 @@ def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
 async def facing_dir_to_num(direction="n"):
-    dir_to_num = {'n':2, 'e':1, 's':0, 'w':3}
+    dir_to_num = {'n':0, 'e':1, 's':2, 'w':3}
     return dir_to_num[direction]
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
@@ -3325,6 +3326,14 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
         await asyncio.sleep(sec_interval)
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
+
+async def timer_logger(func):
+    """
+    takes the time elapsed during execution of the 
+    function name and adds it to the log_dict
+    entry for the function name.
+    """
+    pass
 
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
@@ -3548,9 +3557,11 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     vine_id = generate_id(base_name='')
     vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
     current_coord = (start_x, start_y)
+    facing_dir = 'x'
     if start_facing:
         facing_dir = state_dict['facing']
-        next_dir = await facing_dir_to_num(facing_dir)
+        next_dir = await facing_dir_to_num(facing_dir) + 1
+        prev_dir = next_dir #starting condition of at double move in one direction.
     else:
         next_dir = randint(1, 4)
     for vine_name in vine_actor_names:
@@ -3563,6 +3574,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                       #tile=term.color(color_num)(vine_tile),
                                       tile=vine_tile, tile_color=color_num,
                                       moveable=False)
+        map_dict[current_coord[0], current_coord[1]].tile = facing_dir
         current_coord = add_coords(current_coord, next_tuple)
         prev_dir = next_dir
         #next_dir is generated at the end of the for loop so it can be
