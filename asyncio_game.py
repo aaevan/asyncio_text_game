@@ -9,7 +9,7 @@ from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
-from functools import wrap
+#from functools import wrap
 from itertools import cycle, repeat, combinations
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
@@ -1966,7 +1966,7 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
     draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
@@ -3175,11 +3175,11 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
-    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    #loop.create_task(console_box())
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     loop.create_task(tile_debug_info())
@@ -3230,7 +3230,8 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
-    asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
+    #TODO: figure out why directional_damage_alert is broken.
+    #asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
 async def seek_actor(name_key=None, seek_key='player', repel=False):
     """ Standardize format to pass movement function.  """
@@ -4087,9 +4088,9 @@ def main():
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #test enemies
-    #for i in range(2):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    for i in range(2):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
