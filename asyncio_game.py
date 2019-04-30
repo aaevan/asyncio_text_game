@@ -3328,14 +3328,6 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
 
-async def timer_logger(func):
-    """
-    takes the time elapsed during execution of the 
-    function name and adds it to the log_dict
-    entry for the function name.
-    """
-    pass
-
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3, 8),
                          tentacle_rate=.1, tentacle_colors="456"):
@@ -3530,6 +3522,34 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
     for item in items:
         item_coord = choice(coord_choices)
         spawn_item_at_coords(coord=item_coord, instance_of=item)
+
+async def follower_vine(num_segments=8, root_node_key=None):
+    """
+    listens for changes in a list of turn instructions and reconfigures a
+    vine-like multi-unit-entity to match those turn instructions.
+
+    Modifications to turn instructions are not changed here, they are modified
+    elsewhere. They are initialized here though.
+
+    An option to have multiple MTE vines listen to one instruction string?
+
+    instructions are given as either 'L', 'M' or 'R'.
+    
+    Given a starting direction of East with a root represented as R, the
+    following configurations of a seven-unit mte vine would be represented as
+
+    'RLRLRLR'|'LRMMRLL'|'MMLMLMM'  
+             |         |       
+      R┐     |  ┌──┐   |   ──┐ 
+       └┐    | R┘  └┘  |     │ 
+        └┐   |         |  R──┘ 
+         └┐  |         |       
+ 
+    Multiple segments of the same MTE vine can occupy the same location
+
+    can be pinned to a moving actor
+    """
+
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
