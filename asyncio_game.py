@@ -325,8 +325,8 @@ class Multi_tile_entity:
              '3x3_block':(('╔', '╦', '╗'),
                           ('╠', '╬', '╣'),
                           ('╚', '╩', '╝'),),
-                   '3x2':(('┏', '━', '┓'),
-                          ('┗', '━', '┛'),),
+                   #'3x2':(('┏', '━', '┓'),
+                          #('┗', '━', '┛'),),
                    '3x3':(('┏', '━', '┓'),
                           ('┃', ' ', '┃'),
                           ('┗', ' ', '┛'),),
@@ -3523,7 +3523,8 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         item_coord = choice(coord_choices)
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
-async def follower_vine(num_segments=8, root_node_key=None):
+async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
+                        root_node_key=None, update_period=1):
     """
     listens for changes in a list of turn instructions and reconfigures a
     vine-like multi-unit-entity to match those turn instructions.
@@ -3538,18 +3539,33 @@ async def follower_vine(num_segments=8, root_node_key=None):
     Given a starting direction of East with a root represented as R, the
     following configurations of a seven-unit mte vine would be represented as
 
+     3232323   1222321   2221144
     'RLRLRLR'|'LRMMRLL'|'MMLMLMM'  
-             |         |       
-      R┐     |  ┌──┐   |   ──┐ 
-       └┐    | R┘  └┘  |     │ 
-        └┐   |         |  R──┘ 
-         └┐  |         |       
+             |         |               ^    
+      R┐     |  ┌──┐   |   ──┐         1    
+       └┐    | R┘  └┘  |     │     < 4 . 2 >
+        └┐   |         |  R──┘         3    
+         └┐  |         |               v    
  
     Multiple segments of the same MTE vine can occupy the same location
 
     can be pinned to a moving actor
-    """
 
+    given no directions, the vine will propagate in a single direction
+    """
+    if root_node_key is not None:
+        starting_coord = actor_dict[root_node_key].coords()
+    elif spawn_coord is not None:
+        starting_coord = spawn_coord
+    vine_name = await spawn_mte(base_name=base_name, spawn_coord=starting_coord, preset='empty')
+    for number in range(num_segments):
+        self.add_segment(segment_tile='x',
+                         write_coord=starting_coord,
+                         #each move of the mte vine requires an update to the offset
+                         offset=(0, 0),
+                         segment_name=f'segment_{number}')
+    #while True:
+    
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
@@ -3592,7 +3608,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                  vine_picks[(prev_dir, next_dir)])
         actor_dict[vine_name] = Actor(name=vine_name, x_coord=current_coord[0],
                                       y_coord=current_coord[1],
-                                      #tile=term.color(color_num)(vine_tile),
                                       tile=vine_tile, tile_color=color_num,
                                       moveable=False)
         map_dict[current_coord[0], current_coord[1]].tile = facing_dir
@@ -4108,9 +4123,9 @@ def main():
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #test enemies
-    for i in range(2):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    #for i in range(2):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
