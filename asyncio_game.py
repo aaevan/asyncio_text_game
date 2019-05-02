@@ -3552,6 +3552,8 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
     can be pinned to a moving actor
 
     given no directions, the vine will propagate in a single direction
+
+    encoding the state as a series of Rs and Ls makes it easily transformed.
     """
     if root_node_key is not None:
         starting_coord = actor_dict[root_node_key].coords()
@@ -3565,7 +3567,11 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
                          offset=(0, 0),
                          segment_name=f'segment_{number}')
     #while True:
-    
+        ##get the most recent instructions, a string of Rs and Ls (i.e. RLRLRL)
+        #instructions = state_dict
+        #for each segment in the mte:
+            #update each segment to be at a new location based on the turn instructions
+            #update the tile representation of each segment to be that of the surrounding directions
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
