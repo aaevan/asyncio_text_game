@@ -403,6 +403,7 @@ class Multi_tile_entity:
                                          blocking=blocking,
                                          literal_name=True)
         self.member_names.append(segment_name)
+        return segment_name
 
     def check_collision(self, move_by=(0, 0)):
         """
@@ -428,6 +429,9 @@ class Multi_tile_entity:
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
+
+    def refresh(self):
+        self.move(move_by=(0, 0))
 
     def find_connected(self, root_node=None, traveled=None, depth=0, exclusions=set()):
         """
@@ -3318,9 +3322,14 @@ def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
 def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
-async def facing_dir_to_num(direction="n"):
+def facing_dir_to_num(direction="n"):
     dir_to_num = {'n':0, 'e':1, 's':2, 'w':3}
     return dir_to_num[direction]
+
+def num_to_offset(num=1):
+    pass
+    #num %= 4
+    #num_to_offset = {0:'n', 1:'e', 2:'s', 3:'w'}
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
     while True:
@@ -3524,7 +3533,7 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
-                        root_node_key=None, update_period=1):
+                        root_node_key=None, facing_dir='e', update_period=1):
     """
     listens for changes in a list of turn instructions and reconfigures a
     vine-like multi-unit-entity to match those turn instructions.
@@ -3556,20 +3565,29 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
     encoding the state as a series of Rs and Ls makes it easily transformed.
     """
     if root_node_key is not None:
-        starting_coord = actor_dict[root_node_key].coords()
+        current_coord = actor_dict[root_node_key].coords()
     elif spawn_coord is not None:
-        starting_coord = spawn_coord
-    vine_name = await spawn_mte(base_name=base_name, spawn_coord=starting_coord, preset='empty')
+        current_coord = spawn_coord
+    vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty')
     for number in range(num_segments):
         self.add_segment(segment_tile='x',
-                         write_coord=starting_coord,
-                         #each move of the mte vine requires an update to the offset
+                         write_coord=current_coord,
                          offset=(0, 0),
                          segment_name=f'segment_{number}')
-    #while True:
-        ##get the most recent instructions, a string of Rs and Ls (i.e. RLRLRL)
-        #instructions = state_dict
-        #for each segment in the mte:
+    #mte_dict[vine_name].vine_instructions = "M" * num_segments
+    mte_dict[vine_name].vine_instructions = [choice('L', 'M', 'R') for _ in range(num_segments)]
+    mte_dict[vine_name].vine_facing_dir = facing_dir
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    instruction_to_increment = {'L':-1, 'M':0, 'R':1}
+    while True:
+        await asyncio.sleep(update_period)
+        first_offset = directions[mte_dict[vine_name].vine_facing_dir]
+        first_coord = add_coords(first_offset, current_coord)
+        #TODO: figure out a way for the root to track to an actor.
+        instructions = mte_dict[vine_name].vine_instructions
+        #get the most recent instructions, a string of Rs and Ls (i.e. RLRLRL)
+        for turn_instruction, segment_name in zip(instructions, mte_dict[vine_name].member_names):
+            next_dir = facing_dir_to_num(turn_instruction)
             #update each segment to be at a new location based on the turn instructions
             #update the tile representation of each segment to be that of the surrounding directions
 
@@ -3603,7 +3621,7 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
     facing_dir = 'x'
     if start_facing:
         facing_dir = state_dict['facing']
-        next_dir = await facing_dir_to_num(facing_dir) + 1
+        next_dir = facing_dir_to_num(facing_dir) + 1
         prev_dir = next_dir #starting condition of at double move in one direction.
     else:
         next_dir = randint(1, 4)
