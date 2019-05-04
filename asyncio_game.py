@@ -2130,8 +2130,9 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            spawn_coords = add_coords(player_coords, (2, 2))
-            asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coords))
+            spawn_coord = add_coords(player_coords, (2, 2))
+            #asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coord))
+            asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
@@ -3326,10 +3327,10 @@ def facing_dir_to_num(direction="n"):
     dir_to_num = {'n':0, 'e':1, 's':2, 'w':3}
     return dir_to_num[direction]
 
-def num_to_offset(num=1):
-    pass
-    #num %= 4
-    #num_to_offset = {0:'n', 1:'e', 2:'s', 3:'w'}
+def num_to_facing_dir(direction_number=1):
+    direction_number %= 4
+    num_to_offset = {0:'n', 1:'e', 2:'s', 3:'w'}
+    return num_to_offset[direction_number]
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
     while True:
@@ -3570,26 +3571,45 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
         current_coord = spawn_coord
     vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty')
     for number in range(num_segments):
-        self.add_segment(segment_tile='x',
-                         write_coord=current_coord,
-                         offset=(0, 0),
-                         segment_name=f'segment_{number}')
+        mte_dict[vine_name].add_segment(segment_tile='x',
+                 write_coord=current_coord,
+                 offset=(0, 0),
+                 segment_name=f'segment_{number}')
     #mte_dict[vine_name].vine_instructions = "M" * num_segments
-    mte_dict[vine_name].vine_instructions = [choice('L', 'M', 'R') for _ in range(num_segments)]
+    mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
+    with term.location(30, 6):
+        print(mte_dict[vine_name].vine_instructions)
     mte_dict[vine_name].vine_facing_dir = facing_dir
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    instruction_to_increment = {'L':-1, 'M':0, 'R':1}
+    dir_increment = {'L':-1, 'M':0, 'R':1}
+    direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     while True:
-        await asyncio.sleep(update_period)
-        first_offset = directions[mte_dict[vine_name].vine_facing_dir]
-        first_coord = add_coords(first_offset, current_coord)
+        mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
+        write_list = [] #clear out write_list
         #TODO: figure out a way for the root to track to an actor.
-        instructions = mte_dict[vine_name].vine_instructions
+        #follow a changing current_coord
+        await asyncio.sleep(update_period)
+        #this doesn't change unless changed externally. It is a consistent starting direction
+        write_dir = mte_dict[vine_name].vine_facing_dir
+        next_offset = direction_offsets[write_dir]
+        write_coord = add_coords(next_offset, current_coord)
+        #write the coordinate of the first segment to write_list:
+        write_list.append(write_coord)
         #get the most recent instructions, a string of Rs and Ls (i.e. RLRLRL)
-        for turn_instruction, segment_name in zip(instructions, mte_dict[vine_name].member_names):
-            next_dir = facing_dir_to_num(turn_instruction)
-            #update each segment to be at a new location based on the turn instructions
-            #update the tile representation of each segment to be that of the surrounding directions
+        instructions = mte_dict[vine_name].vine_instructions
+        #for turn_instruction, segment_name in zip(instructions, mte_dict[vine_name].member_names):
+        for turn_instruction in instructions:
+            await asyncio.sleep(.1) #debug slow updating
+            #turn instruction is an 'L', 'M' or 'R'
+            #write_dir is 'n', 'e', 's' or 'w'
+            write_dir = num_to_facing_dir(facing_dir_to_num(write_dir) + dir_increment[turn_instruction])
+            with term.location(30, 5):
+                print(turn_instruction, write_dir)
+            next_offset = direction_offsets[write_dir]
+            write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
+            write_list.append(write_coord) #add to the end of write_list
+            #debug:
+            map_dict[write_coord].tile = turn_instruction #temporary printing to map as debug output
+        #update the tile representation of each segment to be that of the surrounding direction_offsets
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
