@@ -325,8 +325,6 @@ class Multi_tile_entity:
              '3x3_block':(('╔', '╦', '╗'),
                           ('╠', '╬', '╣'),
                           ('╚', '╩', '╝'),),
-                   #'3x2':(('┏', '━', '┓'),
-                          #('┗', '━', '┛'),),
                    '3x3':(('┏', '━', '┓'),
                           ('┃', ' ', '┃'),
                           ('┗', ' ', '┛'),),
@@ -2130,7 +2128,8 @@ async def handle_input(key):
         if key in '$':
             print_screen_grid() 
         if key in '(':
-            spawn_coord = add_coords(player_coords, (2, 2))
+            #spawn_coord = add_coords(player_coords, (2, 2))
+            spawn_coord = player_coords
             #asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coord))
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
@@ -3533,7 +3532,7 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         item_coord = choice(coord_choices)
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
-async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
+async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
                         root_node_key=None, facing_dir='e', update_period=1):
     """
     listens for changes in a list of turn instructions and reconfigures a
@@ -3545,6 +3544,7 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
     An option to have multiple MTE vines listen to one instruction string?
 
     instructions are given as either 'L', 'M' or 'R'.
+    encoding the state as a series of turn instructions makes it easily transformed.
     
     Given a starting direction of East with a root represented as R, the
     following configurations of a seven-unit mte vine would be represented as
@@ -3559,57 +3559,57 @@ async def follower_vine(spawn_coord=None, num_segments=8, base_name='mte_vine',
  
     Multiple segments of the same MTE vine can occupy the same location
 
-    can be pinned to a moving actor
-
-    given no directions, the vine will propagate in a single direction
-
-    encoding the state as a series of Rs and Ls makes it easily transformed.
     """
     if root_node_key is not None:
         current_coord = actor_dict[root_node_key].coords()
     elif spawn_coord is not None:
         current_coord = spawn_coord
     vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty')
+    vine_id = generate_id(base_name='')
     for number in range(num_segments):
         mte_dict[vine_name].add_segment(segment_tile='x',
                  write_coord=current_coord,
                  offset=(0, 0),
-                 segment_name=f'segment_{number}')
+                 segment_name=f'{vine_id}_segment_{number}')
     #mte_dict[vine_name].vine_instructions = "M" * num_segments
     mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
-    with term.location(30, 6):
-        print(mte_dict[vine_name].vine_instructions)
     mte_dict[vine_name].vine_facing_dir = facing_dir
     dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     while True:
-        mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
-        write_list = [] #clear out write_list
-        #TODO: figure out a way for the root to track to an actor.
-        #follow a changing current_coord
         await asyncio.sleep(update_period)
-        #this doesn't change unless changed externally. It is a consistent starting direction
+        #random vine config:
+        #mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
+        write_list = [] #clear out write_list
         write_dir = mte_dict[vine_name].vine_facing_dir
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
-        #write the coordinate of the first segment to write_list:
-        write_list.append(write_coord)
-        #get the most recent instructions, a string of Rs and Ls (i.e. RLRLRL)
         instructions = mte_dict[vine_name].vine_instructions
-        #for turn_instruction, segment_name in zip(instructions, mte_dict[vine_name].member_names):
         for turn_instruction in instructions:
-            await asyncio.sleep(.1) #debug slow updating
-            #turn instruction is an 'L', 'M' or 'R'
-            #write_dir is 'n', 'e', 's' or 'w'
+            prev_dir = write_dir
             write_dir = num_to_facing_dir(facing_dir_to_num(write_dir) + dir_increment[turn_instruction])
-            with term.location(30, 5):
-                print(turn_instruction, write_dir)
             next_offset = direction_offsets[write_dir]
+            segment_tile = choose_vine_tile(prev_dir, write_dir)
+            write_list.append((write_coord, segment_tile)) #add to the end of write_list
             write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
-            write_list.append(write_coord) #add to the end of write_list
-            #debug:
-            map_dict[write_coord].tile = turn_instruction #temporary printing to map as debug output
-        #update the tile representation of each segment to be that of the surrounding direction_offsets
+        member_names = mte_dict[vine_name].member_names
+        for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
+            actor_dict[segment_name].update(*write_coord)
+            actor_dict[segment_name].tile = segment_tile
+
+def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True):
+    if prev_dir in 'nesw':
+        prev_dir = facing_dir_to_num(prev_dir)
+    if next_dir in 'nesw':
+        next_dir = facing_dir_to_num(next_dir)
+    straight_vine_picks = {(0, 1):'┌', (3, 2):'┌', (1, 2):'┐', (0, 3):'┐', (0, 0):'│', (2, 2):'│', 
+                (2, 3):'┘', (1, 0):'┘', (2, 1):'└', (3, 0):'└', (1, 1):'─', (3, 3):'─', }
+    rounded_vine_picks = {(0, 1):'╭', (3, 2):'╭', (1, 2):'╮', (0, 3):'╮', (0, 0):'│', (2, 2):'│', 
+                (2, 3):'╯', (1, 0):'╯', (2, 1):'╰', (3, 0):'╰', (1, 1):'─', (3, 3):'─', }
+    if rounded:
+        return rounded_vine_picks[(prev_dir, next_dir)]
+    else:
+        return straight_vine_picks[(prev_dir, next_dir)]
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
