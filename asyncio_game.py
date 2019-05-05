@@ -1,4 +1,5 @@
 import asyncio
+import re
 import os
 import sys
 import select 
@@ -9,7 +10,6 @@ from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
 from datetime import datetime
-#from functools import wrap
 from itertools import cycle, repeat, combinations
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
@@ -3571,8 +3571,8 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
                  write_coord=current_coord,
                  offset=(0, 0),
                  segment_name=f'{vine_id}_segment_{number}')
-    #mte_dict[vine_name].vine_instructions = "M" * num_segments
-    mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
+    mte_dict[vine_name].vine_instructions = "M" * num_segments
+    #mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
     mte_dict[vine_name].vine_facing_dir = facing_dir
     dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -3596,6 +3596,45 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
             actor_dict[segment_name].update(*write_coord)
             actor_dict[segment_name].tile = segment_tile
+
+def rand_swap_on_pattern(input_string='LRLRLRLR', pattern='LRL', 
+                         replacements=('LLL', 'MMM', 'RRR'),
+                         debug=False):
+    """
+    Finds and replaces a randomly chosen matching substring of an instruction
+    list ('L', 'M' or 'R') and swaps it for a randomly chosen replacement.
+    """
+    match_indexes = [match.span() for match in re.finditer(pattern, input_string)]
+    if not match_indexes:
+        return False
+    start_index, end_index = choice(match_indexes)
+    replacement = choice(replacements)
+    head, tail = input_string[:start_index], input_string[end_index:]
+    output_string = ''.join((head, replacement, tail))
+    if debug:
+        print(f' input: {input_string}')
+        print(f'output: {output_string}')
+    return output_string
+
+def animate_mte_vine():
+    """
+    randomly chooses substrings of L, M and R instruction strings to be swapped
+    out to change the configuration of an existing mte_vine.
+    """
+    swaps = {'LRM':('MLR', 'MMM'),
+             'RLM':('MRL', 'MMM'),
+              'LR':('MM'),
+              'RL':('MM'),
+              'MM':('LR', 'RL'),
+             'RLR':('MRM'),
+             'MRM':('RLR'),
+             'LRL':('MLM'),
+             'MLM':('LRL'),}
+    #a list comprehension to filter out viable substrings
+    #randomly choose one of the viable substrings
+    #TODO: check for mte_vine being alive
+    #while True:
+        #pass
 
 def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True):
     if prev_dir in 'nesw':
