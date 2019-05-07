@@ -2131,6 +2131,7 @@ async def handle_input(key):
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
             #asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coord))
+            vine_name = "testing"
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
@@ -3564,7 +3565,11 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         current_coord = actor_dict[root_node_key].coords()
     elif spawn_coord is not None:
         current_coord = spawn_coord
-    vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty')
+    vine_name = await spawn_mte(
+        base_name=base_name, 
+        spawn_coord=current_coord, 
+        preset='empty',
+    )
     vine_id = generate_id(base_name='')
     for number in range(num_segments):
         mte_dict[vine_name].add_segment(segment_tile='x',
@@ -3576,18 +3581,25 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
     mte_dict[vine_name].vine_facing_dir = facing_dir
     dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    inverse_direction_offsets = {'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),}
     while True:
         await asyncio.sleep(update_period)
         #random vine config:
-        #mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
-        write_list = [] #clear out write_list
+        mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
         write_dir = mte_dict[vine_name].vine_facing_dir
+        current_coord = add_coords(
+            inverse_direction_offsets[write_dir], 
+            actor_dict[mte_dict[vine_name].member_names[0]].coords()
+        )
+        write_list = [] #clear out write_list
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
         instructions = mte_dict[vine_name].vine_instructions
         for turn_instruction in instructions:
             prev_dir = write_dir
-            write_dir = num_to_facing_dir(facing_dir_to_num(write_dir) + dir_increment[turn_instruction])
+            write_dir = num_to_facing_dir(
+                facing_dir_to_num(write_dir) + dir_increment[turn_instruction]
+            )
             next_offset = direction_offsets[write_dir]
             segment_tile = choose_vine_tile(prev_dir, write_dir)
             write_list.append((write_coord, segment_tile)) #add to the end of write_list
@@ -3598,8 +3610,7 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
             actor_dict[segment_name].tile = segment_tile
 
 def rand_swap_on_pattern(input_string='LRLRLRLR', pattern='LRL', 
-                         replacements=('LLL', 'MMM', 'RRR'),
-                         debug=False):
+                         replacements=('LLL', 'MMM', 'RRR'), debug=False):
     """
     Finds and replaces a randomly chosen matching substring of an instruction
     list ('L', 'M' or 'R') and swaps it for a randomly chosen replacement.
@@ -3608,15 +3619,20 @@ def rand_swap_on_pattern(input_string='LRLRLRLR', pattern='LRL',
     if not match_indexes:
         return False
     start_index, end_index = choice(match_indexes)
-    replacement = choice(replacements)
+    if type(replacements) == str:
+        replacement = replacements
+    else:
+        replacement = choice(replacements)
     head, tail = input_string[:start_index], input_string[end_index:]
     output_string = ''.join((head, replacement, tail))
     if debug:
-        print(f' input: {input_string}')
-        print(f'output: {output_string}')
+        with term.location(0, 0):
+            print(f' input: {input_string}')
+        with term.location(0, 1):
+            print(f'output: {output_string}')
     return output_string
 
-def animate_mte_vine():
+def mte_vine_animation_step(instructions, debug=True):
     """
     randomly chooses substrings of L, M and R instruction strings to be swapped
     out to change the configuration of an existing mte_vine.
@@ -3630,11 +3646,16 @@ def animate_mte_vine():
              'MRM':('RLR'),
              'LRL':('MLM'),
              'MLM':('LRL'),}
-    #a list comprehension to filter out viable substrings
-    #randomly choose one of the viable substrings
-    #TODO: check for mte_vine being alive
-    #while True:
-        #pass
+    swap_choices = [pattern for pattern in swaps.keys() if pattern in instructions]
+    if type(swap_choices) == str:
+        swap_choice = swap_choices
+    else:
+        swap_choice = choice(swap_choices)
+    new_instructions = rand_swap_on_pattern(input_string=instructions, 
+                                            pattern=swap_choice,
+                                            replacements=swaps[swap_choice], 
+                                            debug=debug)
+    return new_instructions
 
 def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True):
     if prev_dir in 'nesw':
