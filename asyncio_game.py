@@ -3163,7 +3163,6 @@ async def player_coord_readout(x_offset=0, y_offset=0, refresh_time=.1, centered
         if state_dict['plane'] == 'normal':
             printed_coords = player_coords
         else:
-            #TODO: create more convincing noise
             noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
             printed_coords = ''.join([choice(noise) for _ in range(7)])
         with term.location(*add_coords(print_coord, (0, 1))):
@@ -3534,7 +3533,7 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
-                        root_node_key=None, facing_dir='e', update_period=1):
+                        root_node_key=None, facing_dir='e', update_period=.1):
     """
     listens for changes in a list of turn instructions and reconfigures a
     vine-like multi-unit-entity to match those turn instructions.
@@ -3565,11 +3564,7 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         current_coord = actor_dict[root_node_key].coords()
     elif spawn_coord is not None:
         current_coord = spawn_coord
-    vine_name = await spawn_mte(
-        base_name=base_name, 
-        spawn_coord=current_coord, 
-        preset='empty',
-    )
+    vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty',)
     vine_id = generate_id(base_name='')
     for number in range(num_segments):
         mte_dict[vine_name].add_segment(segment_tile='x',
@@ -3577,15 +3572,14 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
                  offset=(0, 0),
                  segment_name=f'{vine_id}_segment_{number}')
     mte_dict[vine_name].vine_instructions = "M" * num_segments
-    #mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
     mte_dict[vine_name].vine_facing_dir = facing_dir
     dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     inverse_direction_offsets = {'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),}
     while True:
         await asyncio.sleep(update_period)
-        #random vine config:
-        mte_dict[vine_name].vine_instructions = [choice(('L', 'M', 'R')) for _ in range(num_segments)]
+        for i in range(randint(1, 2)): #repeat once or twice
+            mte_dict[vine_name].vine_instructions = mte_vine_animation_step(mte_dict[vine_name].vine_instructions)
         write_dir = mte_dict[vine_name].vine_facing_dir
         current_coord = add_coords(
             inverse_direction_offsets[write_dir], 
@@ -3637,11 +3631,22 @@ def mte_vine_animation_step(instructions, debug=True):
     randomly chooses substrings of L, M and R instruction strings to be swapped
     out to change the configuration of an existing mte_vine.
     """
-    swaps = {'LRM':('MLR', 'MMM'),
-             'RLM':('MRL', 'MMM'),
+    #swaps = {'LRM':('MLR', 'MMM'),
+             #'RLM':('MRL', 'MMM'),
+    swaps = {'LRM':('MLR',),
+             'RLM':('MRL',),
+            'MMMM':('RLLR', 'LRRL'),
+            'LRRL':('MMMM', 'RLLR'),
+            'RLLR':('LRRL', 'MMMM'),
+            'RLLR':('RRRR'), #bend to loop
+            'RRRR':('RLLR'), #loop to bend
+            'LRRL':('LLLL'), #bend to loop
+            'LLLL':('LRRL'), #loop to bend
               'LR':('MM'),
               'RL':('MM'),
               'MM':('LR', 'RL'),
+              #'ML':('MM', 'MR'), #twist
+              #'MR':('MM', 'ML'), #twist
              'RLR':('MRM'),
              'MRM':('RLR'),
              'LRL':('MLM'),
