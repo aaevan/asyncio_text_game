@@ -3533,7 +3533,8 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
-                        root_node_key=None, facing_dir='e', update_period=.1):
+                        root_node_key=None, facing_dir='e', update_period=.1,
+                        color_choice=None):
     """
     listens for changes in a list of turn instructions and reconfigures a
     vine-like multi-unit-entity to match those turn instructions.
@@ -3576,24 +3577,23 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
     dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     inverse_direction_offsets = {'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),}
+    if color_choice is None:
+        color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
         await asyncio.sleep(update_period)
         for i in range(randint(1, 2)): #repeat once or twice
             mte_dict[vine_name].vine_instructions = mte_vine_animation_step(mte_dict[vine_name].vine_instructions)
         write_dir = mte_dict[vine_name].vine_facing_dir
-        current_coord = add_coords(
-            inverse_direction_offsets[write_dir], 
-            actor_dict[mte_dict[vine_name].member_names[0]].coords()
-        )
+        current_coord = add_coords(inverse_direction_offsets[write_dir], 
+                actor_dict[mte_dict[vine_name].member_names[0]].coords())
         write_list = [] #clear out write_list
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
         instructions = mte_dict[vine_name].vine_instructions
         for turn_instruction in instructions:
             prev_dir = write_dir
-            write_dir = num_to_facing_dir(
-                facing_dir_to_num(write_dir) + dir_increment[turn_instruction]
-            )
+            write_dir = num_to_facing_dir(facing_dir_to_num(write_dir) + 
+                                          dir_increment[turn_instruction])
             next_offset = direction_offsets[write_dir]
             segment_tile = choose_vine_tile(prev_dir, write_dir)
             write_list.append((write_coord, segment_tile)) #add to the end of write_list
@@ -3602,6 +3602,7 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
             actor_dict[segment_name].update(*write_coord)
             actor_dict[segment_name].tile = segment_tile
+            actor_dict[segment_name].tile_color = color_choice
 
 def rand_swap_on_pattern(input_string='LRLRLRLR', pattern='LRL', 
                          replacements=('LLL', 'MMM', 'RRR'), debug=False):
@@ -3662,7 +3663,7 @@ def mte_vine_animation_step(instructions, debug=True):
                                             debug=debug)
     return new_instructions
 
-def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True):
+def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True, color_num=8):
     if prev_dir in 'nesw':
         prev_dir = facing_dir_to_num(prev_dir)
     if next_dir in 'nesw':
@@ -3672,9 +3673,10 @@ def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True):
     rounded_vine_picks = {(0, 1):'╭', (3, 2):'╭', (1, 2):'╮', (0, 3):'╮', (0, 0):'│', (2, 2):'│', 
                 (2, 3):'╯', (1, 0):'╯', (2, 1):'╰', (3, 0):'╰', (1, 1):'─', (3, 3):'─', }
     if rounded:
-        return rounded_vine_picks[(prev_dir, next_dir)]
+        tile_choice = rounded_vine_picks[(prev_dir, next_dir)]
     else:
-        return straight_vine_picks[(prev_dir, next_dir)]
+        tile_choice = straight_vine_picks[(prev_dir, next_dir)]
+    return tile_choice
 
 async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
                     rate=.1, vine_length=20, rounded=True,
