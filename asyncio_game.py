@@ -2948,10 +2948,10 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
     generates a spray of red tiles beyond the normal sight radius in the
     direction of a damage source.
     """
-    presets = {'damage':{'radius':17, 
+    presets = {'damage':{'radius':12, 
                          'radius_spread':3, 
                          'warning_color':1},
-                'sound':{'radius':17,
+                'sound':{'radius':12,
                          'radius_spread':0,
                          'warning_color':2,}}
     if preset in presets:
@@ -2974,15 +2974,15 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
         central_point = (middle_x, middle_y)
         angle = await random_angle(centered_on_angle=source_angle)
         point = point_at_distance_and_angle(radius=radius,
-                                                  central_point=central_point,
-                                                  angle_from_twelve=angle,)
+                                            central_point=central_point,
+                                            angle_from_twelve=angle,)
         ui_points.append(point)
     for tile in [term.color(warning_color)("█"), ' ']:
         shuffle(ui_points)
         for point in ui_points:
             await asyncio.sleep(random()/70)
             with term.location(*point):
-                print(tile)
+                print(point, tile)
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
     timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
@@ -4234,9 +4234,9 @@ def main():
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(trigger_on_presence())
     #test enemies
-    #for i in range(2):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+    for i in range(1):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
