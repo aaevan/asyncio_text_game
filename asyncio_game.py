@@ -2942,20 +2942,22 @@ async def random_angle(centered_on_angle=0, total_cone_angle=60):
 
 async def directional_damage_alert(particle_count=40, source_angle=None, 
                                    source_actor=None, source_direction=None,
-                                   warning_radius=17, warning_radius_spread=3,
+                                   radius=17, radius_spread=3, warning_color=1,
                                    preset='damage'):
     """
     generates a spray of red tiles beyond the normal sight radius in the
     direction of a damage source.
     """
-    presets = {'damage':{'radius':12, 
+    presets = {'damage':{'radius':17, 
                          'radius_spread':3, 
                          'warning_color':1},
                 'sound':{'radius':12,
                          'radius_spread':0,
                          'warning_color':2,}}
-    if preset in presets:
-        radius, radius_spread, warning_color = presets[preset].values()
+    if preset is not None and preset in presets:
+        preset_kwargs = presets[preset]
+        await directional_damage_alert(**preset_kwargs, source_actor=source_actor, preset=None)
+        return
     if source_actor:
         source_angle = angle_actor_to_actor(actor_a='player', actor_b=source_actor)
     elif source_direction is not None:
@@ -2970,19 +2972,21 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
                           int(term.height / 2 - 2),)
     ui_points = []
     for _ in range(particle_count):
-        radius = radius + randint(0, radius_spread)
+        point_radius = radius + randint(0, radius_spread)
         central_point = (middle_x, middle_y)
         angle = await random_angle(centered_on_angle=source_angle)
-        point = point_at_distance_and_angle(radius=radius,
+        point = point_at_distance_and_angle(radius=point_radius,
                                             central_point=central_point,
                                             angle_from_twelve=angle,)
+        with term.location(50, 0):
+            print(radius, central_point, angle, point)
         ui_points.append(point)
     for tile in [term.color(warning_color)("█"), ' ']:
         shuffle(ui_points)
         for point in ui_points:
             await asyncio.sleep(random()/70)
             with term.location(*point):
-                print(point, tile)
+                print(tile)
 
 async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1):
     timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
@@ -3186,7 +3190,7 @@ async def ui_setup():
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
-    loop.create_task(tile_debug_info())
+    #loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
     loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     loop.create_task(stamina_regen())
@@ -3235,7 +3239,7 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
     #TODO: figure out why directional_damage_alert is broken.
-    #asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
+    asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
 async def seek_actor(name_key=None, seek_key='player', repel=False):
     """ Standardize format to pass movement function.  """
@@ -4134,7 +4138,7 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     if preset == 'blob':
         item_drops = ['red potion']
         loop.create_task(basic_actor(*coords, speed=.3, movement_function=waver, 
-                                     tile='ö', name_key=name, hurtful=True, strength=10,
+                                     tile='ö', name_key=name, hurtful=True, strength=0,
                                      is_animated=True, animation=Animation(preset="blob"),
                                      holding_items=item_drops))
     if preset == 'angel':
@@ -4236,7 +4240,7 @@ def main():
     #test enemies
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='angel'))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
