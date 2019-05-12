@@ -3640,7 +3640,7 @@ def mte_vine_animation_step(instructions, debug=False):
              'RLM':('MRL',),
             'MMMM':('RLLR', 'LRRL'),
             'LRRL':('MMMM', 'RLLR'),
-            'RLLR':('LRRL', 'MMMM'),
+            'RLLR':('LRRL', 'MMM'),
             'RLLR':('RRRR'), #bend to loop
             'RRRR':('RLLR'), #loop to bend
             'LRRL':('LLLL'), #bend to loop
