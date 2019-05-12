@@ -225,6 +225,15 @@ class Animation:
         #combined output
         return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
+class Rand_repr:
+    """
+    A class that acts like a string but returns something
+    different each time it's printed.
+    """
+    def __init__(self, *choices):
+        self.choices = [str(item) for item in choices]
+    def __repr__(self):
+        return choice(self.choices)
 
 class Item:
     """
