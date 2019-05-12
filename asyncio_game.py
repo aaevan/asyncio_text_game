@@ -2943,16 +2943,18 @@ async def random_angle(centered_on_angle=0, total_cone_angle=60):
 async def directional_damage_alert(particle_count=40, source_angle=None, 
                                    source_actor=None, source_direction=None,
                                    radius=17, radius_spread=3, warning_color=1,
-                                   preset='damage'):
+                                   angle_spread=60, preset='damage'):
     """
     generates a spray of red tiles beyond the normal sight radius in the
     direction of a damage source.
     """
     presets = {'damage':{'radius':17, 
                          'radius_spread':3, 
+                         'angle_spread': 60,
                          'warning_color':1},
                 'sound':{'radius':12,
-                         'radius_spread':0,
+                         'radius_spread':1,
+                         'angle_spread': 80,
                          'warning_color':2,}}
     if preset is not None and preset in presets:
         preset_kwargs = presets[preset]
@@ -2974,7 +2976,8 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
     for _ in range(particle_count):
         point_radius = radius + randint(0, radius_spread)
         central_point = (middle_x, middle_y)
-        angle = await random_angle(centered_on_angle=source_angle)
+        angle = await random_angle(centered_on_angle=source_angle, 
+                                   total_cone_angle=angle_spread)
         point = point_at_distance_and_angle(radius=point_radius,
                                             central_point=central_point,
                                             angle_from_twelve=angle,)
@@ -3238,7 +3241,6 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
-    #TODO: figure out why directional_damage_alert is broken.
     asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
 async def seek_actor(name_key=None, seek_key='player', repel=False):
@@ -3284,8 +3286,6 @@ async def waver(name_key=None, seek_key='player', **kwargs):
     actor_location = actor_dict[name_key].coords()
     within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
     distance_to_player = distance_to_actor(actor_a=name_key, actor_b='player')
-    #TODO: flee only within certain distance of the player, chance to wait
-    #      increases towards margin of FOV cone/distance from player
     if distance_to_player >= 15:
         movement_choice = await wander(name_key=name_key)
     elif within_fov and distance_to_player < 10:
@@ -3631,13 +3631,11 @@ def rand_swap_on_pattern(input_string='LRLRLRLR', pattern='LRL',
             print(f'output: {output_string}')
     return output_string
 
-def mte_vine_animation_step(instructions, debug=True):
+def mte_vine_animation_step(instructions, debug=False):
     """
     randomly chooses substrings of L, M and R instruction strings to be swapped
     out to change the configuration of an existing mte_vine.
     """
-    #swaps = {'LRM':('MLR', 'MMM'),
-             #'RLM':('MRL', 'MMM'),
     swaps = {'LRM':('MLR',),
              'RLM':('MRL',),
             'MMMM':('RLLR', 'LRRL'),
@@ -3650,8 +3648,8 @@ def mte_vine_animation_step(instructions, debug=True):
               'LR':('MM'),
               'RL':('MM'),
               'MM':('LR', 'RL'),
-              #'ML':('MM', 'MR'), #twist
-              #'MR':('MM', 'ML'), #twist
+              #'ML':('MM', 'MR'), #quarter turn
+              #'MR':('MM', 'ML'), #quarter turn
              'RLR':('MRM'),
              'MRM':('RLR'),
              'LRL':('MLM'),
