@@ -2957,7 +2957,7 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
     generates a spray of red tiles beyond the normal sight radius in the
     direction of a damage source.
     """
-    presets = {'damage':{'radius':17, 
+    presets = {'damage':{'radius':15, 
                          'radius_spread':3, 
                          'angle_spread': 60,
                          'warning_color':1},
@@ -3020,21 +3020,24 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
         timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     return
 
-async def view_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
+async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
-    #minimap init:
-    #asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
-                                      #box_width=21, box_height=21))
-    #for x in range(-20, 21, 2):
-        #for y in range(-20, 21, 2):
-            #half_scale = x // 2, y // 2
-            #loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          #display_coord=(add_coords((126, 12), half_scale))))
+
+async def minimap_init(loop):
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
+                                      box_width=21, box_height=21))
+    width_span = range(-20, 21, 2)
+    height_span = range(-20, 21, 2)
+    for x in width_span:
+        for y in height_span:
+            half_scale = x // 2, y // 2
+            loop.create_task(minimap_tile(player_position_offset=(x, y),
+                                          display_coord=(add_coords((126, 12), half_scale))))
 
 async def async_map_init():
     """
@@ -4114,7 +4117,7 @@ async def death_check():
         player_health = actor_dict["player"].health
         if player_health <= 0:
             asyncio.ensure_future(filter_print(pause_stay_on=99, output_text=death_message))
-            state_dict['halt_input'] = True
+            #state_dict['halt_input'] = True
             await asyncio.sleep(3)
             state_dict['killall'] = True
 
@@ -4231,15 +4234,14 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
-    loop.create_task(view_init(loop))
-    #TODO: fix ordering of UI setup so that this can be disabled without a crash
+    loop.create_task(view_tile_init(loop))
+    loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
-    item_spawns = []
     loop.create_task(death_check())
-    loop.create_task(environment_check())
+    #loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
