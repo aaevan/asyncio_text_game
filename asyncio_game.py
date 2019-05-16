@@ -954,7 +954,6 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
         arc_start = points[-1] #set the start point of the next passage.
         multi_segment_passage(points=points, width=segment_width, palette=palette)
 
-
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
               kernel=True, kernel_offset=(0, 0), kernel_radius=3):
@@ -1017,8 +1016,8 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
 
-async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
-                passable=True, blocking=False, animation=None, delay=0,
+def draw_circle(center_coord=(0, 0), radius=5, palette="░",
+                passable=True, blocking=False, animation=None, 
                 description=None):
     """
     draws a filled circle onto map_dict.
@@ -1027,8 +1026,6 @@ async def draw_circle(center_coord=(0, 0), radius=5, palette="░",
     y_bounds = center_coord[1] - radius, center_coord[1] + radius
     for x in range(*x_bounds):
         for y in range(*y_bounds):
-            if delay != 0:
-                await asyncio.sleep(delay)
             if not map_dict[(x, y)].mutable:
                 continue
             distance_to_center = point_to_point_distance(point_a=center_coord, point_b=(x, y))
@@ -1106,7 +1103,7 @@ async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25
                           collapse=False, debris='`.,\'', deathclock=particle_count,
                           animation=Animation(preset='explosion'))
     if destroys_terrain:
-        await draw_circle(center_coord=center, radius=radius)
+        draw_circle(center_coord=center, radius=radius)
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
@@ -1977,26 +1974,40 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
-    draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
-    draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
-    draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
-    draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    draw_box(top_left=(7, 5), x_size=5, y_size=5, tile="░")
-    passages = [(7, 5, 7, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
-                (0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
-    doors = [(7, 16), (14, 17), (29, 20), (41, 20)]
-    for passage in passages:
-        connect_with_passage(*passage)
-    for door in doors:
-        draw_door(*door, locked=False)
-    draw_door(*(-5, -5), locked=True, description='green')
-    draw_door(0, 5, locked=True, description='rusty', is_door=True)
-    spawn_item_at_coords(coord=(-1, 1), instance_of='rusty key', on_actor_id=False)
-    announcement_at_coord(coord=(0, 17), distance_trigger=5, 
-                          announcement="something slithers into the wall as you approach.")
-    announcement_at_coord(coord=(7, 17), distance_trigger=1, 
-                          announcement="you hear muffled scratching from the other side")
+    room_a = (0, 0)
+    room_b = (5, -20)
+    room_c = (28, -28)
+    room_d = (9, -39)
+    draw_circle(center_coord=room_a, radius=10)
+    draw_circle(center_coord=room_b, radius=5)
+    draw_circle(center_coord=room_c , radius=7)
+    draw_circle(center_coord=room_d , radius=8)
+    n_wide_passage(coord_a=room_a, coord_b=room_b)
+    n_wide_passage(coord_a=room_b, coord_b=room_c)
+    n_wide_passage(coord_a=room_d, coord_b=room_c)
+    n_wide_passage(coord_a=room_b, coord_b=room_d)
+#def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░", 
+                   #passable=True, blocking=False, width=3):
+    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
+    #draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
+    #draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
+    #draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
+    #draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
+    #draw_box(top_left=(7, 5), x_size=5, y_size=5, tile="░")
+    #passages = [(7, 5, 7, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
+                #(0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
+    #doors = [(7, 16), (14, 17), (29, 20), (41, 20)]
+    #for passage in passages:
+        #connect_with_passage(*passage)
+    #for door in doors:
+        #draw_door(*door, locked=False)
+    #draw_door(*(-5, -5), locked=True, description='green')
+    #draw_door(0, 5, locked=True, description='rusty', is_door=True)
+    #spawn_item_at_coords(coord=(-1, 1), instance_of='rusty key', on_actor_id=False)
+    #announcement_at_coord(coord=(0, 17), distance_trigger=5, 
+                          #announcement="something slithers into the wall as you approach.")
+    #announcement_at_coord(coord=(7, 17), distance_trigger=1, 
+                          #announcement="you hear muffled scratching from the other side")
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
@@ -2183,8 +2194,8 @@ async def handle_input(key):
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=6)
         if key in '7':
-            asyncio.ensure_future(draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='water')))
+            draw_circle(center_coord=actor_dict['player'].coords(), 
+                                  animation=Animation(preset='water'))
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
@@ -3055,9 +3066,9 @@ async def async_map_init():
     """
     #scary nightmare land
     loop = asyncio.get_event_loop()
-    loop.create_task(draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise')))
+    draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
     #a small dark room
-    loop.create_task(draw_circle(center_coord=(500, 500), radius=15, animation=Animation(preset='blank')))
+    draw_circle(center_coord=(500, 500), radius=15, animation=Animation(preset='blank'))
     for _ in range(10):
         x, y = randint(-18, 18), randint(-18, 18)
         loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
