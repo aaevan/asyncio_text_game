@@ -717,7 +717,7 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
                 map_dict[(x, y)].tile = tile
 
 def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
-                  filled=True, tile=".", passable=True):
+                  filled=True, tile='░', passable=True):
     top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
     draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, tile=tile)
 
@@ -1334,31 +1334,7 @@ async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5),
         await asyncio.sleep(.1)
         if 'player' in map_dict[listen_tile].actors:
             break
-    with term.location(70, 0):
-        print(room_centers)
     map_dict[listen_tile].tile = 'O'
-    loop = asyncio.get_event_loop()
-    coord_dirs = ((-1, 0), (1, 0), (0, -1), (0, 1))
-    door_dirs = [(coord[0] * on_grid[0],
-                  coord[1] * on_grid[1]) 
-                 for coord in coord_dirs]
-    unexplored = [add_coords(listen_tile, door_dir) for door_dir in door_dirs]
-    with term.location(0, 2):
-        print(unexplored)
-    direction_choices = []
-    for location in unexplored:
-        if location not in room_centers:
-            direction_choices.append(location)
-    with term.location(70, 2):
-        print(direction_choices)
-    for direction_choice in direction_choices:
-        if direction_choice not in room_centers:
-            with term.location(70, 0):
-                print("new room at {}!".format(direction_choice))
-            draw_centered_box(middle_coord=direction_choice, x_size=room_size[0], y_size=room_size[1], tile="░")
-            loop.create_task(trigger_on_presence(listen_tile=direction_choice, on_grid=on_grid, room_size=room_size))
-            draw_line(coord_a=listen_tile, coord_b=direction_choice, palette="░")
-            map_dict[direction_choice].tile = 'x'
 
 async def export_map(width=140, height=45):
     #store the current tile at the player's location:
@@ -1476,7 +1452,7 @@ async def flip_sync(listen_key='test', trigger_key='test2', channel=1, listen_in
         await asyncio.sleep(listen_interval)
 
 async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed'):
-    draw_door(*door_coord, description='iron', locked=True)
+    draw_door(door_coord=door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
         trigger_state = await any_true(trigger_key=patch_to_key)
@@ -1825,6 +1801,9 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
                               randint(-radius, radius),)
             throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
         toss_coord = (root_x + x_toss, root_y + y_toss)
+        #doors will be ignored:
+        if map_dict[toss_coord].mutable == False:
+            continue
         if paint:
             if map_dict[toss_coord].tile not in "▮▯":
                 colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
@@ -1844,25 +1823,43 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def draw_door(x, y, closed=True, locked=False, description='wooden', is_door=True):
+def secret_door(door_coord=(0, 0), announcement="You walk into the newly apparent doorway."):
+    draw_door(door_coord=door_coord, locked=False, description='secret')
+    announcement_at_coord(coord=door_coord, distance_trigger=0, 
+                          announcement="You walk into the newly apparent doorway.")
+
+def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
+    room_center = add_coords(wall_coord, room_offset)
+    n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
+    secret_door(door_coord=wall_coord)
+    if square:
+        draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, tile="░")
+    else:
+        draw_circle(center_coord=room_center, radius=size)
+
+def draw_door(door_coord=(0, 0), closed=True, locked=False, description='wooden', is_door=True):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
     """
     door_colors = {'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
                    'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-                   'iron':7}
-    states = [('▮', False, True), ('▯', True, False)]
+                   'iron':7, 'secret':7}
+    if description == 'secret':
+        states = [('𝄛', False, True), ('▯', True, False)]
+    else:
+        states = [('▮', False, True), ('▯', True, False)]
     if closed:
         tile, passable, blocking = states[0]
     else:
         tile, passable, blocking = states[1]
-    map_dict[(x, y)].tile = term.color(door_colors[description])(tile)
-    map_dict[(x, y)].passable = passable
-    map_dict[(x, y)].blocking = blocking
-    map_dict[(x, y)].is_door = is_door
-    map_dict[(x, y)].locked = locked
-    map_dict[(x, y)].key = description
+    map_dict[door_coord].tile = term.color(door_colors[description])(tile)
+    map_dict[door_coord].passable = passable
+    map_dict[door_coord].blocking = blocking
+    map_dict[door_coord].is_door = is_door
+    map_dict[door_coord].locked = locked
+    map_dict[door_coord].key = description
+    map_dict[door_coord].mutable = False
 
 async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10), 
                       hallway_offset=(-1000, -1000), hallway_length=15):
@@ -1978,16 +1975,26 @@ def map_init():
     room_b = (5, -20)
     room_c = (28, -28)
     room_d = (9, -39)
+    room_e = (-20, 20)
+    room_f = (-35, 20)
     draw_circle(center_coord=room_a, radius=10)
     draw_circle(center_coord=room_b, radius=5)
     draw_circle(center_coord=room_c , radius=7)
     draw_circle(center_coord=room_d , radius=8)
+    draw_circle(center_coord=room_e, radius=6)
+    draw_centered_box(middle_coord=room_f, x_size=5, y_size=5, tile="░")
     n_wide_passage(coord_a=room_a, coord_b=room_b)
     n_wide_passage(coord_a=room_b, coord_b=room_c)
     n_wide_passage(coord_a=room_d, coord_b=room_c)
     n_wide_passage(coord_a=room_b, coord_b=room_d)
-#def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░", 
-                   #passable=True, blocking=False, width=3):
+    n_wide_passage(coord_a=room_a, coord_b=room_e, width=5)
+    n_wide_passage(coord_a=room_e, coord_b=room_f, width=1)
+    secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
+    secret_room(wall_coord=(35, -31))
+    secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
+    #draw_door(door_coord=(-27, 20), locked=False, description='secret')
+    #announcement_at_coord(coord=(-27, 20), distance_trigger=0, 
+                          #announcement="You walk into the newly apparent doorway.")
     #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
     #draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
     #draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
@@ -2185,7 +2192,8 @@ async def handle_input(key):
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
         if key in '#':
-            actor_dict['player'].update(49, 21) #jump to debug location
+            actor_dict['player'].update(31, -25) #jump to debug location
+            state_dict['facing'] = 'e'
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
@@ -2228,8 +2236,10 @@ def toggle_door(door_coord):
     door_state = map_dict[door_coord].tile 
     open_doors = [term.color(i)('▯') for i in range(10)]
     open_doors.append('▯')
+    open_doors.append('▯')
     closed_doors = [term.color(i)('▮') for i in range(10)]
     closed_doors.append('▮')
+    closed_doors.append(term.color(7)('𝄛'))
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
@@ -2981,6 +2991,8 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
         await directional_damage_alert(**preset_kwargs, source_actor=source_actor, preset=None)
         return
     if source_actor:
+        if source_actor not in actor_dict:
+            return
         source_angle = angle_actor_to_actor(actor_a='player', actor_b=source_actor)
     elif source_direction is not None:
         source_directions = {'n':0, 'ne':45, 'e':90, 'se':135,
@@ -3213,7 +3225,7 @@ async def ui_setup():
     loop.create_task(display_items_on_actor())
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
+    #loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     #loop.create_task(tile_debug_info())
