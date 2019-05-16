@@ -9,6 +9,8 @@ Press ? for help.
 
 See handle_input function for full list of testing commands.
 
+See map_init for layout of rooms and misc. world features.
+
 ![](circle_of_darkness.gif)
 
 Python 3 only.
