@@ -5,7 +5,7 @@ import sys
 import select 
 import tty 
 import termios
-import numpy as np
+from numpy import linspace #, astype, tolist
 from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
@@ -21,7 +21,7 @@ from time import sleep
 class Map_tile:
     """ holds the status and state of each tile. """
     def __init__(self, passable=True, tile='𝄛', blocking=True, 
-                 description='', announcing=False, seen=False, 
+                 description='A rough stone wall.', announcing=False, seen=False, 
                  announcement='', distance_trigger=None, is_animated=False,
                  animation='', actors=None, items=None, 
                  magic=False, magic_destination=False, 
@@ -693,6 +693,24 @@ state_dict['printing'] = False
 state_dict['known location'] = True
 
 #Drawing functions--------------------------------------------------------------
+def tile_preset(preset='floor'):
+    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+                                description='A smooth patch of stone floor.',
+                                magic=True, is_animated=False, animation=None),
+                'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
+                                description='A rough stone wall.',
+                                magic=True, is_animated=False, animation=None),}
+    return presets[preset]
+
+def paint_preset(tile_coords=(0, 0), preset='floor'):
+    tile_template = tile_preset(preset=preset)
+    map_dict[tile_coords].passable = tile_template.passable
+    map_dict[tile_coords].tile = tile_template.tile
+    map_dict[tile_coords].blocking = tile_template.blocking 
+    map_dict[tile_coords].description = tile_template.description
+    map_dict[tile_coords].is_animated = tile_template.is_animated
+    map_dict[tile_coords].animation = copy(tile_template.animation)
+
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True):
     """ Draws a box to map_dict at the given coordinates."""
@@ -842,8 +860,8 @@ def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     """
     x_value_range = (start_point[0], end_point[0])
     y_value_range = (start_point[1], end_point[1])
-    x_values = np.linspace(*x_value_range, num=num_points).astype(int)
-    y_values = np.linspace(*y_value_range, num=num_points).astype(int)
+    x_values = linspace(*x_value_range, num=num_points).astype(int)
+    y_values = linspace(*y_value_range, num=num_points).astype(int)
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
@@ -885,6 +903,7 @@ def multi_segment_passage(points=None, palette="░", width=3,
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░", 
                    passable=True, blocking=False, width=3):
+    #TODO: fix n_wide_passage to accept tile presets
     origin = (0, 0)
     if width == 0:
         return
@@ -1016,9 +1035,7 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
 
-def draw_circle(center_coord=(0, 0), radius=5, palette="░",
-                passable=True, blocking=False, animation=None, 
-                description=None):
+def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
     """
     draws a filled circle onto map_dict.
     """
@@ -1035,12 +1052,7 @@ def draw_circle(center_coord=(0, 0), radius=5, palette="░",
                 is_animated = False
             if distance_to_center <= radius:
                 #assigned as separate attributes to preserve items and actors on each tile.
-                map_dict[x, y].passable = passable
-                map_dict[x, y].tile = choice(palette)
-                map_dict[x, y].blocking = blocking 
-                map_dict[x, y].description = description
-                map_dict[x, y].is_animated = is_animated
-                map_dict[x, y].animation = copy(animation)
+                paint_preset(tile_coords=(x, y), preset=preset)
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -1823,10 +1835,9 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def secret_door(door_coord=(0, 0), announcement="You walk into the newly apparent doorway."):
+def secret_door(door_coord=(0, 0), tile_description="The wall looks a little different here."):
     draw_door(door_coord=door_coord, locked=False, description='secret')
-    announcement_at_coord(coord=door_coord, distance_trigger=0, 
-                          announcement="You walk into the newly apparent doorway.")
+    map_dict[door_coord].description = tile_description
 
 def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     room_center = add_coords(wall_coord, room_offset)
@@ -2140,8 +2151,7 @@ async def handle_input(key):
         if key in '8': #export map
             asyncio.ensure_future(export_map())
         if key in 'Xx': #examine
-            description = map_dict[(x, y)].description
-            asyncio.ensure_future(filter_print(output_text=description))
+            await examine_facing()
         if key in ' ': #toggle doors
             toggle_doors()
         if key in '@': #spawn debug items in player inventory
@@ -2221,6 +2231,15 @@ async def handle_input(key):
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijkl": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
+
+async def examine_facing():
+    direction = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    player_coords = actor_dict['player'].coords()
+    facing_offset = direction[state_dict['facing']]
+    examined_coord = add_coords(player_coords, facing_offset)
+    description_text = map_dict[examined_coord].description
+    if description_text is not None:
+        asyncio.ensure_future(filter_print(output_text=description_text))
 
 def open_door(door_coord, door_tile='▯'):
     map_dict[door_coord].tile = door_tile
