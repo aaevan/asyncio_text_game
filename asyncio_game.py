@@ -86,6 +86,7 @@ class Actor:
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
+        map_dict[(x, y)].passable = True #make previous space passable
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -635,14 +636,15 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
         mte_dict[mte_parent].move(move_by=move_by)
         return True
 
-async def rand_blink(actor_name='player', radius_range=(4, 8)):
+async def rand_blink(actor_name='player', radius_range=(2, 4)):
     #TODO: fix update so it doesn't leave invisible blocking spaces
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
     start_point = actor_dict[actor_name].coords()
     end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
     travel_line = get_line(start_point, end_point)
-    await drag_actor_along_line(actor_name=actor_name, line=travel_line)
+    if map_dict[travel_line[-1]].passable:
+        await drag_actor_along_line(actor_name=actor_name, line=travel_line)
 
 async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
     """
@@ -656,6 +658,7 @@ async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02)
         destination = add_coords(player_coords, (5, 5))
         line = get_line(player_coords, destination)
     for point in line:
+        #map_dict[point].tile = '.' #debug
         await asyncio.sleep(linger_time)
         actor_dict[actor_name].update(*point)
 
@@ -703,36 +706,48 @@ def tile_preset(preset='floor'):
     return presets[preset]
 
 def paint_preset(tile_coords=(0, 0), preset='floor'):
-    tile_template = tile_preset(preset=preset)
-    map_dict[tile_coords].passable = tile_template.passable
-    map_dict[tile_coords].tile = tile_template.tile
-    map_dict[tile_coords].blocking = tile_template.blocking 
-    map_dict[tile_coords].description = tile_template.description
-    map_dict[tile_coords].is_animated = tile_template.is_animated
-    map_dict[tile_coords].animation = copy(tile_template.animation)
+    """
+    Applies a preset to an existing map tile.
+
+    Each attribute is individually set so that actors and items are preserved.
+    """
+    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+                                description='A smooth patch of stone floor.',
+                                magic=True, is_animated=False, animation=None),
+                'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
+                                description='A rough stone wall.',
+                                magic=True, is_animated=False, animation=None),}
+    map_dict[tile_coords].passable = presets[preset].passable
+    #TODO: add an option to randomly draw from a palette
+    map_dict[tile_coords].tile = presets[preset].tile
+    map_dict[tile_coords].blocking = presets[preset].blocking 
+    map_dict[tile_coords].description = presets[preset].description
+    map_dict[tile_coords].is_animated = presets[preset].is_animated
+    map_dict[tile_coords].animation = copy(presets[preset].animation)
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
-             tile=".", passable=True):
+             tile=".", passable=True, preset='floor'):
     """ Draws a box to map_dict at the given coordinates."""
     x_min, y_min = top_left[0], top_left[1]
     x_max, y_max = x_min + x_size, y_min + y_size
-    x_values = (x_min, x_max)
-    y_values = (y_min, y_max)
+    x_values = range(x_min, x_max)
+    y_values = range(y_min, y_max)
+    write_coords = []
     if filled:
-        for x in range(*x_values):
-            for y in range(*y_values):
-                map_dict[(x, y)].tile = tile
-                map_dict[(x, y)].passable = passable
-                map_dict[(x, y)].blocking = False
+        for x in x_values:
+            for y in y_values:
+                write_coords.append((x, y))
     else:
-        map_dict[x_min, y_min].tile = tile
-        map_dict[(x_max, y_max)].tile = tile
+        corners = [(x_min, y_min), (x_min, y_min), (x_max, y_max)]
+        write_coords.extend(corners)
         for x in range(x_min, x_max):
             for y in (y_min, y_max):
-                map_dict[(x, y)].tile = tile
+                write_coords.append((x, y))
         for y in range(y_min, y_max):
             for x in (x_min, x_max):
-                map_dict[(x, y)].tile = tile
+                write_coords.append((x, y))
+    for point in write_coords:
+        paint_preset(tile_coords=point, preset=preset)
 
 def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
                   filled=True, tile='░', passable=True):
@@ -901,7 +916,7 @@ def multi_segment_passage(points=None, palette="░", width=3,
                        width=width, passable=passable, blocking=blocking,
                        palette=palette)
 
-def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░", 
+def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',#palette="░", 
                    passable=True, blocking=False, width=3):
     #TODO: fix n_wide_passage to accept tile presets
     origin = (0, 0)
@@ -921,12 +936,13 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), palette="░",
     with term.location(0, 1):
         print("len(points_to_write) is: {}".format(len(points_to_write)))
     for point in points_to_write:
-        if len(palette) > 1:
-            map_dict[point].tile = choice(palette)
-        else:
-            map_dict[point].tile = palette[0]
-        map_dict[point].passable = passable
-        map_dict[point].blocking = blocking
+        #if len(palette) > 1:
+            #map_dict[point].tile = choice(palette)
+        #else:
+            #map_dict[point].tile = palette[0]
+        #map_dict[point].passable = passable
+        #map_dict[point].blocking = blocking
+        paint_preset(tile_coords=point, preset=preset)
 
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
                   segment_angle_increment=5, segments=10, random_shift=True,
@@ -2219,7 +2235,8 @@ async def handle_input(key):
             test_room = cave_room()
             write_room_to_map(room=test_room, top_left_coord=player_coords)
         if key in 'b': #spawn a force field around the player.
-            asyncio.ensure_future(spawn_bubble())
+            asyncio.ensure_future(rand_blink())
+            #asyncio.ensure_future(spawn_bubble())
         if key in '1': #draw a passage on the map back to (0, 0).
             n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░", width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
@@ -2748,7 +2765,7 @@ async def tile_debug_info(x_print=18, y_print=0):
         for y_offset, line in enumerate(dummy_text):
             with term.location(*add_coords((x_print, y_print), (0, y_offset))):
                 print(line)
-        output_text = [f'tile_debug_info: {tile_debug_info}',
+        output_text = [f'tile_debug_info:',
                        f'facing: {check_dir}',
                        f' coord: {check_coord}',
                        f'actors: {map_dict[check_coord].actors.keys()}',
@@ -2830,7 +2847,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
 
-async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=120):
+async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
@@ -3100,9 +3117,9 @@ async def async_map_init():
     draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
     #a small dark room
     draw_circle(center_coord=(500, 500), radius=15, animation=Animation(preset='blank'))
-    for _ in range(10):
-        x, y = randint(-18, 18), randint(-18, 18)
-        loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
+    #for _ in range(10):
+        #x, y = randint(-18, 18), randint(-18, 18)
+        #loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
@@ -3240,11 +3257,11 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    #loop.create_task(console_box())
+    loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     #loop.create_task(tile_debug_info())
@@ -3286,12 +3303,12 @@ async def wander(name_key=None, **kwargs):
     else:
         return x_current, y_current
 
-async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=9):
+async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=3):
     attacker_strength = actor_dict[attacker_key].strength
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
-                          seeds=randint(1, spatter_num), description="blood.")
+                          seeds=randint(1, spatter_num), description="Blood.")
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
@@ -3777,7 +3794,6 @@ async def vine_grow(start_x=0, start_y=0, actor_key="vine",
                                       y_coord=current_coord[1],
                                       tile=vine_tile, tile_color=color_num,
                                       moveable=False)
-        map_dict[current_coord[0], current_coord[1]].tile = facing_dir
         current_coord = add_coords(current_coord, next_tuple)
         prev_dir = next_dir
         #next_dir is generated at the end of the for loop so it can be
