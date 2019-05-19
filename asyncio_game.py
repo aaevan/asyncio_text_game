@@ -5,7 +5,7 @@ import sys
 import select 
 import tty 
 import termios
-from numpy import linspace #, astype, tolist
+from numpy import linspace
 from blessings import Terminal
 from copy import copy, deepcopy
 from collections import defaultdict
@@ -19,17 +19,20 @@ from time import sleep
 #Class definitions--------------------------------------------------------------
 
 class Map_tile:
-    """ holds the status and state of each tile. """
+    """ 
+    Holds the appearance, contents and st✸ate of each tile. 
+    """
     def __init__(self, passable=True, tile='𝄛', blocking=True, 
-                 description='A rough stone wall.', announcing=False, seen=False, 
+                 description='A rough stone wall.', announcing=False, seen=False,
                  announcement='', distance_trigger=None, is_animated=False,
                  animation='', actors=None, items=None, 
                  magic=False, magic_destination=False, 
                  mutable=True, override_view=False,
                  is_door=False, locked=False, key=''):
-        """ create a new map tile, map_dict holds tiles.
+        """ 
+        Create a new Map_tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
-        The tile representation of Map_tile at coordinate (0, 0) is accessed 
+        The tile representation of Map_tile at coordinate (0, 0) is accessed
         with map_dict[(0, 0)].tile.
         actors is a dictionary of actor names with value == True if 
         occupied by that actor, otherwise the key is deleted.
@@ -50,7 +53,7 @@ class Map_tile:
         self.override_view = override_view
         self.is_door = is_door
         self.locked = locked
-        self.key = key
+        self.key = key #holds what keys fit this tile (if it's a door)
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -106,9 +109,7 @@ class Actor:
     def get_view(self):
         """
         returns the current appearance of the actor.
-        
         With an animation, it returns the next frame.
-
         With a static tile, it returns the tile along with the color.
         """
         if self.is_animated:
@@ -131,7 +132,7 @@ class Animation:
                    'blob':{'animation':('ööööÖ'),
                            'behavior':'loop tile',
                            'color_choices':('2')},
-                  'mouth':{'animation':('▲▸▼◀'),
+                  'mouth':{'animation':('✳✳✳✳✳✸✸'),
                            'behavior':'loop tile',
                            'color_choices':('456')},
                   'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
@@ -168,7 +169,7 @@ class Animation:
                    'door':{'animation':('▯'), 
                            'behavior':'random', 
                            'color_choices':'78888'},
-                 'writhe':{'animation':('─│╭╮╯╰'),
+                 'writhe':{'animation':('╭╮╯╰╭╮╯╰'),
                            'behavior':'random',
                            'color_choices':'456'}}
         if preset:
@@ -196,7 +197,7 @@ class Animation:
                            'breathe':{'color':'breathe', 'tile':'breathe'}}
 
         current_behavior = behavior_lookup[self.behavior]
-        #color behavior:
+        #color behavior------------------------------------
         if current_behavior['color'] == 'random':
             color_choice = int(choice(self.color_choices))
         elif current_behavior['color'] == 'loop':
@@ -207,7 +208,7 @@ class Animation:
             color_choice = int(list(self.color_choices)[self.color_frame_number])
         else:
             color_choice = 5 #purple
-        #tile behavior
+        #tile behavior-------------------------------------
         if current_behavior['tile'] == 'random':
             tile_choice = choice(self.animation)
         elif current_behavior['tile'] == 'loop':
@@ -218,7 +219,7 @@ class Animation:
             tile_choice = list(self.animation)[self.frame_number]
         else:
             tile_choice = '?'
-        #background behavior
+        #background behavior-------------------------------
         if self.background:
             background_choice = int(choice(self.background))
         else:
@@ -476,7 +477,6 @@ class Multi_tile_entity:
         separate pass
         """
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
-
         if traveled == None:
             traveled = set()
         segment_keys = {key for key in self.member_data if key not in traveled}
@@ -500,12 +500,6 @@ class Multi_tile_entity:
             traveled |= child_path #union
         #print(f'returning: {traveled} at depth {depth}...')
         return traveled
-
-    def split_mte(self, cells_of_new=None):
-        """
-        given a list of member nodes, split into two MTEs with the same name 
-        but ending in '_a' and '_b'.
-        """
 
     def find_subregions(self, debug=True):
         """
@@ -916,9 +910,8 @@ def multi_segment_passage(points=None, palette="░", width=3,
                        width=width, passable=passable, blocking=blocking,
                        palette=palette)
 
-def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',#palette="░", 
+def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
                    passable=True, blocking=False, width=3):
-    #TODO: fix n_wide_passage to accept tile presets
     origin = (0, 0)
     if width == 0:
         return
@@ -933,15 +926,7 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',#palette="░"
         line_points = get_line(offset_coord_a, offset_coord_b)
         for point in line_points:
             points_to_write.add(point)
-    with term.location(0, 1):
-        print("len(points_to_write) is: {}".format(len(points_to_write)))
     for point in points_to_write:
-        #if len(palette) > 1:
-            #map_dict[point].tile = choice(palette)
-        #else:
-            #map_dict[point].tile = palette[0]
-        #map_dict[point].passable = passable
-        #map_dict[point].blocking = blocking
         paint_preset(tile_coords=point, preset=preset)
 
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
@@ -2019,6 +2004,8 @@ def map_init():
     secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
+    secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
+    basement_door = (-28, 45)
     #draw_door(door_coord=(-27, 20), locked=False, description='secret')
     #announcement_at_coord(coord=(-27, 20), distance_trigger=0, 
                           #announcement="You walk into the newly apparent doorway.")
@@ -3114,20 +3101,26 @@ async def async_map_init():
     """
     #scary nightmare land
     loop = asyncio.get_event_loop()
+    #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
-    #a small dark room
-    draw_circle(center_coord=(500, 500), radius=15, animation=Animation(preset='blank'))
-    #for _ in range(10):
-        #x, y = randint(-18, 18), randint(-18, 18)
-        #loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
-    loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
-                                            destination_plane='nightmare'))
+    #features drawing--------------------------------------
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
+    #item creation-----------------------------------------
+    items = (((-3, 0), 'wand'), 
+             ((-3, -3), 'red key'), 
+             ((-2, -2), 'green key'),)
+    for coord, item_name in items:
+        spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
+    #spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False)
+    #spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False)
+    #actor creation----------------------------------------
+    for _ in range(10):
+        x, y = randint(-18, 18), randint(-18, 18)
+        loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
+                                            destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
-    spawn_item_at_coords(coord=(-3, -0), instance_of='wand', on_actor_id=False)
-    spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False)
-    spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False)
     spawn_static_actor(spawn_coord=(5, 5), moveable=True)
     spawn_static_actor(spawn_coord=(6, 6), moveable=True)
     loop.create_task(trap_init())
@@ -3608,7 +3601,8 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
-                        root_node_key=None, facing_dir='e', update_period=.1,
+                        #root_node_key=None, facing_dir='e', update_period=.1,
+                        root_node_key='player', facing_dir='e', update_period=.1,
                         color_choice=None):
     """
     listens for changes in a list of turn instructions and reconfigures a
@@ -3659,8 +3653,12 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         for i in range(randint(1, 2)): #repeat once or twice
             mte_dict[vine_name].vine_instructions = mte_vine_animation_step(mte_dict[vine_name].vine_instructions)
         write_dir = mte_dict[vine_name].vine_facing_dir
-        current_coord = add_coords(inverse_direction_offsets[write_dir], 
-                actor_dict[mte_dict[vine_name].member_names[0]].coords())
+        if root_node_key is None:
+            current_coord = add_coords(inverse_direction_offsets[write_dir], 
+                    actor_dict[mte_dict[vine_name].member_names[0]].coords())
+        else:
+            current_coord = add_coords(inverse_direction_offsets[write_dir], 
+                    actor_dict[root_node_key].coords())
         write_list = [] #clear out write_list
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
