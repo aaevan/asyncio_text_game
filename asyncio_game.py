@@ -5,6 +5,7 @@ import sys
 import select 
 import tty 
 import termios
+import textwrap
 from numpy import linspace
 from blessings import Terminal
 from copy import copy, deepcopy
@@ -20,7 +21,7 @@ from time import sleep
 
 class Map_tile:
     """ 
-    Holds the appearance, contents and st✸ate of each tile. 
+    Holds the appearance, contents and state of each tile. 
     """
     def __init__(self, passable=True, tile='𝄛', blocking=True, 
                  description='A rough stone wall.', announcing=False, seen=False,
@@ -2165,8 +2166,8 @@ async def handle_input(key):
             points = points_around_point()
             for point in points:
                 map_dict[add_coords(point, player_coords)].tile = '$'
-        if key in '$':
-            print_screen_grid() 
+        #if key in '$':
+            #print_screen_grid() 
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -2212,6 +2213,8 @@ async def handle_input(key):
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
+        if key in '$': #test text wrapping
+            append_to_log(message="{} is a thing about some {}. Whoa. This is a very long line. This is a test. Whoa. Wow. Much line length.".format(randint(1, 10), randint(100, 1000)))
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=6)
         if key in '7':
@@ -2407,7 +2410,6 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
-    #TODO: wrap long messages to following line.
     while True:
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
             line_text = state_dict['messages'][-height + index] 
@@ -2416,7 +2418,11 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
         await asyncio.sleep(.4)
 
 def append_to_log(message="This is a test ({})".format(round(random(), 2))):
-    state_dict['messages'].append(message)
+    message_lines = textwrap.wrap(message, 40)
+    with term.location(0, 0):
+        print(message_lines)
+    for line in message_lines:
+        state_dict['messages'].append(line)
     
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
