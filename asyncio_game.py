@@ -440,9 +440,6 @@ class Multi_tile_entity:
             current_coord = actor_dict[member_name].coords()
             actor_dict[member_name].update(*add_coords(current_coord, move_by))
 
-    def refresh(self):
-        self.move(move_by=(0, 0))
-
     def find_connected(self, root_node=None, traveled=None, depth=0, exclusions=set()):
         """
         does a recursive search through the parts of an mte, starting at a given
@@ -749,15 +746,12 @@ def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10,
     top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
     draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, tile=tile)
 
-def draw_line(coord_a=(0, 0), coord_b=(5, 5), palette="*",
+def draw_line(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
                     passable=True, blocking=False):
     """draws a line to the map_dict connecting the two given points."""
     points = get_line(coord_a, coord_b)
     for point in points:
-        if len(palette) > 1:
-            map_dict[point].tile = choice(palette)
-        else:
-            map_dict[point].tile = palette
+        paint_preset(tile_coords=point, preset=preset)
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
@@ -832,17 +826,6 @@ def in_angle_bracket(given_angle, arc_begin=45, arc_end=135):
         result = arc_begin < given_angle < arc_end
     return result
 
-def draw_net(radius=50, points=100, cull_connections_of_distance=10, center=(0, 0)):
-    net_points = [point_within_radius(radius=radius, center=center) for _ in range(points)]
-    lines = combinations(net_points, 2)
-    for line in lines:
-        line_length = point_to_point_distance(point_a=line[0], point_b=line[1])
-        if line_length < cull_connections_of_distance:
-            n_wide_passage(coord_a=line[0], coord_b=line[1],
-                           width=2, passable=True, blocking=False,
-                           palette="░")
-    #cull points that are too close together?
-
 def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0), 
                         in_cone=(0, 90), num_points=5):
     """
@@ -903,13 +886,13 @@ def chained_pairs_of_items(pairs=None):
         pairs = [(i, i * 2) for i in range(10)]
     return [(pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1)]
 
-def multi_segment_passage(points=None, palette="░", width=3, 
+def multi_segment_passage(points=None, preset='floor', width=3, 
                           passable=True, blocking=False):
     coord_pairs = chained_pairs_of_items(pairs=points)
     for coord_pair in coord_pairs:
         n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
                        width=width, passable=passable, blocking=blocking,
-                       palette=palette)
+                       preset=preset)
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
                    passable=True, blocking=False, width=3):
@@ -948,7 +931,7 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
     return output_points, last_angle
 
 def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
-                  width=(2, 20), draw_mode='taper', palette="░"):
+                  width=(2, 20), draw_mode='taper', preset='floor'):
     """
     chain of arcs creates a chain of curved passages of optionally variable width.
 
@@ -963,7 +946,7 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
     elif draw_mode == 'random': #passage width is random
         segment_widths = [randint(*width) for _ in range(num_arcs)]
     elif draw_mode == 'taper': #passage starts at width[0], ends at width[1]
-        segment_widths = np.linspace(*width, num=num_arcs).astype(int)
+        segment_widths = linspace(*width, num=num_arcs).astype(int)
     for segment_width in segment_widths:
         rand_segment_angle = choice((-20, -10, 10, 20))
         points, starting_angle = arc_of_points(starting_angle=starting_angle, 
@@ -973,7 +956,7 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
         for point in points:
             map_dict[point].tile = term.red("X")
         arc_start = points[-1] #set the start point of the next passage.
-        multi_segment_passage(points=points, width=segment_width, palette=palette)
+        multi_segment_passage(points=points, width=segment_width, preset=preset)
 
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
@@ -1339,16 +1322,6 @@ async def check_actors_on_tile(coords=(0, 0), positives=''):
                 return True
                 break
     return False
-
-async def trigger_on_presence(trigger_actor='player', listen_tile=(5, 5), 
-                              on_grid=(11, 11), room_size=(10, 10), origin=(0, 0)):
-    room_centers.add(listen_tile)
-    map_dict[listen_tile].tile = 'X'
-    while True:
-        await asyncio.sleep(.1)
-        if 'player' in map_dict[listen_tile].actors:
-            break
-    map_dict[listen_tile].tile = 'O'
 
 async def export_map(width=140, height=45):
     #store the current tile at the player's location:
@@ -2206,8 +2179,8 @@ async def handle_input(key):
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
         if key in '#':
-            actor_dict['player'].update(31, -25) #jump to debug location
-            state_dict['facing'] = 'e'
+            actor_dict['player'].update(29, -22) #jump to debug location
+            state_dict['facing'] = 'n'
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
@@ -2228,7 +2201,7 @@ async def handle_input(key):
             asyncio.ensure_future(rand_blink())
             #asyncio.ensure_future(spawn_bubble())
         if key in '1': #draw a passage on the map back to (0, 0).
-            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), palette="░", width=5)
+            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), preset='floor', width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             state_dict['last_location'] = (x, y)
@@ -2873,6 +2846,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             tile_coord_key = (x_display_coord, y_display_coord)
             random_distance = abs(gauss(distance, 1))
             if random_distance < threshold: 
+            #threshold_distance = 5
+            #if threshold_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight(player_coords, tile_coord_key)
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
@@ -3129,6 +3104,13 @@ async def async_map_init():
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
     spawn_static_actor(spawn_coord=(5, 5), moveable=True)
     spawn_static_actor(spawn_coord=(6, 6), moveable=True)
+    tester_coord = (28, -34)
+    spawn_static_actor(base_name="tester", spawn_coord=(28, -34), moveable=True, literal_name=True)
+    for i in range(3):
+        asyncio.ensure_future(follower_vine(root_node_key='tester', 
+                                            spawn_coord=tester_coord, 
+                                            facing_dir='s',
+                                            color_choice=2))
     loop.create_task(trap_init())
 
 async def trap_init():
@@ -3260,7 +3242,7 @@ async def ui_setup():
     #loop.create_task(display_items_on_actor())
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
+    #loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     #loop.create_task(tile_debug_info())
@@ -4307,7 +4289,6 @@ def main():
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
     #loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(trigger_on_presence())
     #test enemies
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
