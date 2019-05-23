@@ -90,7 +90,7 @@ class Actor:
 
     def update(self, x, y):
         self.last_location = (self.x_coord, self.y_coord)
-        map_dict[(x, y)].passable = True #make previous space passable
+        #map_dict[(x, y)].passable = True #make previous space passable
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = x, y
@@ -628,15 +628,19 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
         mte_dict[mte_parent].move(move_by=move_by)
         return True
 
-async def rand_blink(actor_name='player', radius_range=(2, 4)):
+async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     #TODO: fix update so it doesn't leave invisible blocking spaces
+    await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
     start_point = actor_dict[actor_name].coords()
     end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
-    travel_line = get_line(start_point, end_point)
-    if map_dict[travel_line[-1]].passable:
-        await drag_actor_along_line(actor_name=actor_name, line=travel_line)
+    if map_dict[end_point].passable:
+        actor_dict[actor_name].update(*end_point)
+    #travel_line = get_line(start_point, end_point)
+    #if map_dict[travel_line[-1]].passable:
+        #await drag_actor_along_line(actor_name=actor_name, line=travel_line)
+        #map_dict[start_point].passable = True
 
 async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
     """
@@ -686,6 +690,7 @@ state_dict['menu_choices'] = []
 state_dict['plane'] = 'normal'
 state_dict['printing'] = False
 state_dict['known location'] = True
+state_dict['teleporting'] = False
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -765,6 +770,8 @@ def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     y_diff = point_b[1] - point_a[1]
     return add_coords(point_a, (x_diff//2, y_diff//2))
 
+#REVIEWED TO HERE
+
 def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
     sum_x = sum(point[0] for point in points)
     sum_y = sum(point[1] for point in points)
@@ -778,7 +785,7 @@ def point_within_square(radius=20, center=(0, 0)):
     point_in_square = randint(-radius, radius), randint(-radius, radius)
     return add_coords(center, point_in_square)
 
-def point_within_radius(radius=20, center=(0, 0)):
+def point_within_circle(radius=20, center=(0, 0)):
     stuck_count = 0
     while True:
         stuck_count += 1
@@ -805,16 +812,14 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
     twelve_reference = (center[0], center[1] - 5)
     arc_range = ((facing_angle - half_arc) % 360,
                  (facing_angle + half_arc) % 360)
-    with term.location(0, 1):
-        found_angle = round(find_angle(p0=twelve_reference, p1=center, p2=checked_point))
-        if checked_point[0] < center[0]:
-            found_angle = 360 - found_angle
-        #print("found: {}, facing: {}, arc_range: {}".format(found_angle, facing_angle, arc_range))
-        result = in_angle_bracket(given_angle=found_angle,
-                                  arc_begin=arc_range[0], arc_end=arc_range[1])
+    found_angle = round(find_angle(p0=twelve_reference, p1=center, p2=checked_point))
+    if checked_point[0] < center[0]:
+        found_angle = 360 - found_angle
+    result = angle_in_arc(given_angle=found_angle,
+                              arc_begin=arc_range[0], arc_end=arc_range[1])
     return result
 
-def in_angle_bracket(given_angle, arc_begin=45, arc_end=135):
+def angle_in_arc(given_angle, arc_begin=45, arc_end=135):
     if arc_begin > arc_end:
         if given_angle < 90:
             result = given_angle <= arc_end
@@ -2199,7 +2204,6 @@ async def handle_input(key):
             write_room_to_map(room=test_room, top_left_coord=player_coords)
         if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(rand_blink())
-            #asyncio.ensure_future(spawn_bubble())
         if key in '1': #draw a passage on the map back to (0, 0).
             n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), preset='floor', width=5)
         shifted_x, shifted_y = x + x_shift, y + y_shift
@@ -2836,7 +2840,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
         current_angle = state_dict['current_angle']
         l_angle, r_angle = ((current_angle - fov // 2) % 360, 
                             (current_angle + fov // 2) % 360)
-        display = in_angle_bracket(angle_from_twelve, arc_begin=l_angle, arc_end=r_angle)
+        display = angle_in_arc(angle_from_twelve, arc_begin=l_angle, arc_end=r_angle)
         if map_dict[x_display_coord, y_display_coord].override_view:
             display = True
         if (x_offset, y_offset) == (0, 0):
@@ -3362,7 +3366,7 @@ async def angel_seek(name_key=None, seek_key='player'):
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     actor_location = actor_dict[name_key].coords()
     for _ in range(forget_count):
-        rand_point = point_within_radius(radius=radius, center=actor_location)
+        rand_point = point_within_circle(radius=radius, center=actor_location)
         map_dict[rand_point].seen = False
 
 async def damage_door():
