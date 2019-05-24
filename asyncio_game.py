@@ -1651,9 +1651,26 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
                                   **item_catalog[instance_of])
         if not on_actor_id:
-            map_dict[coord].items[item_id] = True
+            if len(map_dict[coord].items) < 10:
+                map_dict[coord].items[item_id] = True
+            else:
+                for coord in adjacent_passable_tiles(base_coord=coord):
+                    if len(map_dict[coord].items) < 10:
+                        map_dict[coord].items[item_id] = True
         else:
             actor_dict[on_actor_id].holding_items[item_id] = True
+
+def adjacent_passable_tiles(base_coord=(0, 0), orthagonal=False):
+    """
+    Returns the tiles adjacent to a given coordinate that are passable.
+    """
+    direction_offsets = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    valid_directions = []
+    for offset in direction_offsets:
+        coord = add_coords(base_coord, offset)
+        if map_dict[coord].passable:
+            valid_directions.append(coord)
+    return valid_directions
 
 async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=16):
     last_coord = None
@@ -2369,12 +2386,14 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=2):
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(number))
+    menu_choices = [str(i) for i in range(10)] #limit to 10 items on a square
     while True:
-        await asyncio.sleep(.02)
+        await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
             #TODO: fix limited slots in inventory choices
-            if menu_choice in [str(i) for i in range(10)]:
+            if menu_choice not in menu_choices:
+                return None
                 menu_choice = int(menu_choice)
         if menu_choice in menu_choices:
             clear_screen_region(x_size=2, y_size=len(item_id_choices), 
@@ -2396,8 +2415,6 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
 
 def append_to_log(message="This is a test ({})".format(round(random(), 2))):
     message_lines = textwrap.wrap(message, 40)
-    with term.location(0, 0):
-        print(message_lines)
     for line in message_lines:
         state_dict['messages'].append(line)
     
@@ -3242,11 +3259,11 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    #loop.create_task(console_box())
+    loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
     #loop.create_task(tile_debug_info())
