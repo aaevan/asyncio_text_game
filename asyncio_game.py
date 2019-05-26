@@ -1630,9 +1630,9 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                             'usable_power':pass_between, 'broken_text':"Something went wrong."},
                'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
                             'usable_power':sword_item_ability, 'broken_text':"Something went wrong."},
-               'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
-                            'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
-                            'broken_text':wand_broken_text},
+               #'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
+                            #'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
+                            #'broken_text':wand_broken_text},
             'dash trinket':{'uses':9999, 'tile':term.blue('⥌'), 'usable_power':dash_ability, 
                             'power_kwargs':{'dash_length':20}, 'broken_text':wand_broken_text},
                  'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
@@ -1657,6 +1657,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                 for coord in adjacent_passable_tiles(base_coord=coord):
                     if len(map_dict[coord].items) < 10:
                         map_dict[coord].items[item_id] = True
+                        break
         else:
             actor_dict[on_actor_id].holding_items[item_id] = True
 
@@ -2153,10 +2154,6 @@ async def handle_input(key):
             await examine_facing()
         if key in ' ': #toggle doors
             toggle_doors()
-        if key in '@': #spawn debug items in player inventory
-            #TODO: fix vine_wand key error
-            #spawn_item_at_coords(coord=player_coords, instance_of='vine wand', on_actor_id='player')
-            asyncio.ensure_future(vine_grow(on_actor='player', start_facing=True))
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
@@ -2193,8 +2190,6 @@ async def handle_input(key):
             asyncio.ensure_future(use_item_in_slot(slot='e'))
         if key in 'h': #debug health restore
             asyncio.ensure_future(health_potion())
-        if key in 'v': #debug health restore
-            asyncio.ensure_future(vine_grow())
         if key in 'u':
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
@@ -3432,12 +3427,12 @@ async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3
                                                tentacles=False)
         if current_coord:
             actor_dict[tentacled_mass_id].update(*current_coord)
-        tentacle_color = int(choice(tentacle_colors))
-        asyncio.ensure_future(vine_grow(start_x=current_coord[0], 
-                start_y=current_coord[1], actor_key="tentacle", 
-                rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
-                behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
-                extend_wait=.025, retract_wait=.25 ))
+        #tentacle_color = int(choice(tentacle_colors))
+        #asyncio.ensure_future(vine_grow(start_x=current_coord[0], 
+                #start_y=current_coord[1], actor_key="tentacle", 
+                #rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
+                #behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
+                #extend_wait=.025, retract_wait=.25 ))
         actor_dict[tentacled_mass_id].update(*current_coord)
     
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
@@ -3497,7 +3492,8 @@ async def choose_core_move(core_name_key='', tentacles=True):
     core_location = actor_dict[core_name_key].coords()
     if core_behavior_val < .05 and tentacles:
         new_core_location = actor_dict[core_name_key].coords()
-        asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
+        #TODO: replace with follower_vine
+        #asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
         wait = 20
     elif core_behavior_val > .4:
         new_core_location = await wander(name_key=core_name_key)
@@ -3610,8 +3606,7 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
         spawn_item_at_coords(coord=item_coord, instance_of=item)
 
 async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
-                        #root_node_key=None, facing_dir='e', update_period=.1,
-                        root_node_key='player', facing_dir='e', update_period=.1,
+                        root_node_key=None, facing_dir='e', update_period=.1,
                         color_choice=None):
     """
     listens for changes in a list of turn instructions and reconfigures a
@@ -3659,8 +3654,7 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
         await asyncio.sleep(update_period)
-        for i in range(randint(1, 2)): #repeat once or twice
-            mte_dict[vine_name].vine_instructions = mte_vine_animation_step(mte_dict[vine_name].vine_instructions)
+        mte_dict[vine_name].vine_instructions = mte_vine_animation_step(mte_dict[vine_name].vine_instructions)
         write_dir = mte_dict[vine_name].vine_facing_dir
         if root_node_key is None:
             current_coord = add_coords(inverse_direction_offsets[write_dir], 
@@ -3716,18 +3710,14 @@ def mte_vine_animation_step(instructions, debug=False):
     """
     swaps = {'LRM':('MLR',),
              'RLM':('MRL',),
-            'MMMM':('RLLR', 'LRRL'),
-            'LRRL':('MMMM', 'RLLR'),
-            'RLLR':('LRRL', 'MMM'),
-            'RLLR':('RRRR'), #bend to loop
-            'RRRR':('RLLR'), #loop to bend
-            'LRRL':('LLLL'), #bend to loop
-            'LLLL':('LRRL'), #loop to bend
-              'LR':('MM'),
-              'RL':('MM'),
-              'MM':('LR', 'RL'),
-              #'ML':('MM', 'MR'), #quarter turn
-              #'MR':('MM', 'ML'), #quarter turn
+             'LRRL':('MMMM', 'RLLR', 'LLLL'),
+             'RLLR':('LRRL', 'MMMM', 'RRRR'),
+             'LLLL':('LRRL'), #loop to bend
+             'MMMM':('RLLR', 'LRRL'),
+             'RRRR':('RLLR'), #loop to bend
+             'LR':('MM', 'LR'),
+             'RL':('MM', 'RL'),
+             'MM':('LR', 'RL'),
              'RLR':('MRM'),
              'MRM':('RLR'),
              'LRL':('MLM'),
@@ -3757,75 +3747,6 @@ def choose_vine_tile(prev_dir=1, next_dir=2, rounded=True, color_num=8):
     else:
         tile_choice = straight_vine_picks[(prev_dir, next_dir)]
     return tile_choice
-
-async def vine_grow(start_x=0, start_y=0, actor_key="vine", 
-                    rate=.1, vine_length=20, rounded=True,
-                    behavior="retract", speed=.01, damage=0,
-                    extend_wait=.025, retract_wait=.25,
-                    color_num=2, on_actor=None, start_facing=False):
-    """grows a vine starting at coordinates (start_x, start_y). Doesn't know about anything else.
-    TODO: make vines stay within walls (a toggle between clipping and tunneling)
-    """
-    await asyncio.sleep(rate)
-    if on_actor:
-        start_x, start_y = actor_dict[on_actor].coords()
-    if not rounded:
-        vine_picks = {(1, 2):'┌', (4, 3):'┌', (2, 3):'┐', (1, 4):'┐', (1, 1):'│', (3, 3):'│', 
-                (3, 4):'┘', (2, 1):'┘', (3, 2):'└', (4, 1):'└', (2, 2):'─', (4, 4):'─', }
-    else:
-        vine_picks = {(1, 2):'╭', (4, 3):'╭', (2, 3):'╮', (1, 4):'╮', (1, 1):'│', (3, 3):'│', 
-                (3, 4):'╯', (2, 1):'╯', (3, 2):'╰', (4, 1):'╰', (2, 2):'─', (4, 4):'─', }
-    behaviors = ["grow", "retract", "bolt"]
-    exclusions = {(2, 4), (4, 2), (1, 3), (3, 1), }
-    vines = [term.green(i) for i in "┌┐└┘─│"]
-    prev_dir, next_dir = randint(1, 4), randint(1, 4)
-    movement_tuples = {1:(0, -1), 2:(1, 0), 3:(0, 1), 4:(-1, 0)}
-    next_tuple = movement_tuples[next_dir]
-    vine_locations = []
-    vine_id = generate_id(base_name='')
-    vine_actor_names = ["{}_{}_{}".format(actor_key, vine_id, number) for number in range(vine_length)]
-    current_coord = (start_x, start_y)
-    facing_dir = 'x'
-    if start_facing:
-        facing_dir = state_dict['facing']
-        next_dir = facing_dir_to_num(facing_dir) + 1
-        prev_dir = next_dir #starting condition of at double move in one direction.
-    else:
-        next_dir = randint(1, 4)
-    for vine_name in vine_actor_names:
-        while (prev_dir, next_dir) in exclusions:
-            next_dir = randint(1, 4)
-        next_tuple, vine_tile = (movement_tuples[next_dir], 
-                                 vine_picks[(prev_dir, next_dir)])
-        actor_dict[vine_name] = Actor(name=vine_name, x_coord=current_coord[0],
-                                      y_coord=current_coord[1],
-                                      tile=vine_tile, tile_color=color_num,
-                                      moveable=False)
-        current_coord = add_coords(current_coord, next_tuple)
-        prev_dir = next_dir
-        #next_dir is generated at the end of the for loop so it can be
-        #initialized to a given direction.
-        next_dir = randint(1, 4)
-    for vine_name in vine_actor_names:
-        await asyncio.sleep(extend_wait)
-        map_tile = actor_dict[vine_name].tile
-        coord = actor_dict[vine_name].coord
-        if behavior == "grow":
-            map_dict[coord].tile = map_tile
-        if behavior == "retract" or "bolt":
-            map_dict[coord].actors[vine_name] = True
-        if damage:
-            await damage_all_actors_at_coord(coord=coord, damage=damage)
-    if behavior == "retract":
-        end_loop = reversed(vine_actor_names)
-        end_wait = retract_wait
-    if behavior == "bolt":
-        end_loop, end_wait = vine_actor_names, extend_wait
-    for vine_name in end_loop:
-        coord = actor_dict[vine_name].coord
-        await asyncio.sleep(end_wait)
-        del map_dict[coord].actors[vine_name]
-        del actor_dict[vine_name]
 
 async def health_potion(item_id=None, actor_key='player', total_restored=25, 
                         duration=2, sub_second_step=.1):
