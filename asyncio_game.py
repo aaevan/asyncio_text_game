@@ -88,12 +88,13 @@ class Actor:
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
 
-    def update(self, x, y):
+    #def update(self, x, y,):
+    def update(self, coord=(0, 0)):
         self.last_location = (self.x_coord, self.y_coord)
-        #map_dict[(x, y)].passable = True #make previous space passable
+        map_dict[self.last_location].passable = True #make previous space passable
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
-        self.x_coord, self.y_coord = x, y
+        self.x_coord, self.y_coord = coord
         map_dict[self.coords()].actors[self.name] = True
 
     def coords(self):
@@ -438,7 +439,7 @@ class Multi_tile_entity:
     def move(self, move_by=(3, 3)):
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
-            actor_dict[member_name].update(*add_coords(current_coord, move_by))
+            actor_dict[member_name].update(coord=add_coords(current_coord, move_by))
 
     def find_connected(self, root_node=None, traveled=None, depth=0, exclusions=set()):
         """
@@ -636,7 +637,7 @@ async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     start_point = actor_dict[actor_name].coords()
     end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
     if map_dict[end_point].passable:
-        actor_dict[actor_name].update(*end_point)
+        actor_dict[actor_name].update(coord=end_point)
     #travel_line = get_line(start_point, end_point)
     #if map_dict[travel_line[-1]].passable:
         #await drag_actor_along_line(actor_name=actor_name, line=travel_line)
@@ -656,7 +657,7 @@ async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02)
     for point in line:
         #map_dict[point].tile = '.' #debug
         await asyncio.sleep(linger_time)
-        actor_dict[actor_name].update(*point)
+        actor_dict[actor_name].update(coord=point)
 
 async def disperse_all_mte():
     for mte_name in mte_dict:
@@ -1236,7 +1237,7 @@ def push(direction='n', pusher='player'):
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coords, chosen_dir)
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
-            actor_dict[pushed_name].update(*pushed_destination)
+            actor_dict[pushed_name].update(coord=pushed_destination)
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
@@ -1248,7 +1249,7 @@ async def follower_actor(name="follower", refresh_speed=.01, parent_actor='playe
         parent_coords = actor_dict[parent_actor].coords()
         follow_x, follow_y = (parent_coords[0] + offset[0], 
                               parent_coords[1] + offset[1])
-        actor_dict[follower_id].update(follow_x, follow_y)
+        actor_dict[follower_id].update(coord=(follow_x, follow_y))
 
 async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
     actor_id = generate_id(base_name=name)
@@ -1293,7 +1294,7 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(name=node_name, moveable=False,
                                            tile='◘', tile_color='grey')
-        actor_dict[node_name].update(*node_coord)
+        actor_dict[node_name].update(coord=node_coord)
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
@@ -1312,7 +1313,7 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
     trap_origin_id = generate_id(base_name=base_name)
     actor_dict[trap_origin_id] = Actor(name=trap_origin_id, moveable=False,
                                        tile='◘', tile_color='grey')
-    actor_dict[trap_origin_id].update(*coord)
+    actor_dict[trap_origin_id].update(coord=coord)
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
@@ -1526,9 +1527,9 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     if map_dict[destination].passable:
         await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
         await asyncio.sleep(.2)
-        actor_dict[actor].update(1000, 1000)
+        actor_dict[actor].update(coord=(1000, 1000))
         await asyncio.sleep(.8)
-        actor_dict[actor].update(*destination)
+        actor_dict[actor].update(coord=(destination))
         await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
                               deathclock=30, speed=(1, 1))
     else:
@@ -1537,7 +1538,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
     await asyncio.sleep(.2)
-    actor_dict[actor].update(*(500, 500))
+    actor_dict[actor].update(coord=(500, 500))
     await asyncio.sleep(.2)
     while True:
         await asyncio.sleep(.01)
@@ -1553,12 +1554,12 @@ async def random_blink(actor='player', radius=20):
             continue
         if type(line_of_sight_result) is bool:
             if line_of_sight_result is True:
-                actor_dict[actor].update(*blink_to)
+                actor_dict[actor].update(coord=(blink_to))
                 return
             else:
                 continue
         else:
-            actor_dict[actor].update(*line_of_sight_result)
+            actor_dict[actor].update(coord=(line_of_sight_result))
             return
 
 async def temporary_block(duration=5, animation_preset='energy block'):
@@ -1921,7 +1922,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
                 if not silent:
                     asyncio.ensure_future(filter_print(output_text="You are teleported."))
                 map_dict[player_coords].passable=True
-                actor_dict['player'].update(*destination)
+                actor_dict['player'].update(coord=destination)
                 actor_dict['player'].just_teleported = True
                 state_dict['plane'] = destination_plane
 
@@ -2196,7 +2197,7 @@ async def handle_input(key):
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
         if key in '#':
-            actor_dict['player'].update(29, -22) #jump to debug location
+            actor_dict['player'].update(coord=(29, -22)) #jump to debug location
             state_dict['facing'] = 'n'
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
@@ -2222,7 +2223,7 @@ async def handle_input(key):
         if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
             state_dict['last_location'] = (x, y)
             map_dict[(x, y)].passable = True #make previous space passable
-            actor_dict['player'].update(x + x_shift, y + y_shift)
+            actor_dict['player'].update(coord=add_coords((x, y), (x_shift, y_shift)))
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijkl": #change viewing direction
@@ -3167,7 +3168,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         return False
     if map_dict[destination].passable:
         map_dict[player_x, player_y].passable = True
-        actor_dict['player'].update(*destination)
+        actor_dict['player'].update(coord=destination)
         state_dict['plane'] = plane
         with term.location(0, 0):
             print('plane: {}, known location: {}'.format(plane, state_dict['known location']))
@@ -3419,21 +3420,21 @@ async def tentacled_mass(start_coord=(-5, -5), speed=1, tentacle_length_range=(3
     tentacled_mass_id = generate_id(base_name='tentacled_mass')
     actor_dict[tentacled_mass_id] = Actor(name=tentacled_mass_id, moveable=False, tile='*',
                                           is_animated=True, animation=Animation(preset='mouth'))
-    actor_dict[tentacled_mass_id].update(*start_coord)
+    actor_dict[tentacled_mass_id].update(coord=start_coord)
     current_coord = start_coord
     while True:
         await asyncio.sleep(tentacle_rate)
         current_coord = await choose_core_move(core_name_key=tentacled_mass_id,
                                                tentacles=False)
         if current_coord:
-            actor_dict[tentacled_mass_id].update(*current_coord)
+            actor_dict[tentacled_mass_id].update(coord=current_coord)
         #tentacle_color = int(choice(tentacle_colors))
         #asyncio.ensure_future(vine_grow(start_x=current_coord[0], 
                 #start_y=current_coord[1], actor_key="tentacle", 
                 #rate=random(), vine_length=randint(*tentacle_length_range), rounded=True,
                 #behavior="retract", speed=.01, damage=10, color_num=tentacle_color,
                 #extend_wait=.025, retract_wait=.25 ))
-        actor_dict[tentacled_mass_id].update(*current_coord)
+        actor_dict[tentacled_mass_id].update(coord=current_coord)
     
 async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core_name_key="shrouded_horror"):
     """
@@ -3458,7 +3459,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     #initialize all shroud tiles to starting coordinates:
     core_location = (start_x, start_y)
     actor_dict[core_name_key] = Actor(name=core_name_key, moveable=False, tile=' ')
-    actor_dict[core_name_key].update(*core_location)
+    actor_dict[core_name_key].update(coord=core_location)
     shroud_locations = [(start_x, start_y)] * shroud_pieces
     #initialize segment actors:
     shroud_piece_names = []
@@ -3474,7 +3475,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
             new_coord = await choose_shroud_move(shroud_name_key=shroud_name_key,
                                                  core_name_key=core_name_key)
             if new_coord:
-                actor_dict[shroud_name_key].update(*new_coord)
+                actor_dict[shroud_name_key].update(coord=new_coord)
         core_location = actor_dict[core_name_key].coords()
         if wait > 0:
             wait -= 1
@@ -3482,7 +3483,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         else:
             new_core_location = await choose_core_move(core_name_key=core_name_key)
         if new_core_location:
-            actor_dict[core_name_key].update(*new_core_location)
+            actor_dict[core_name_key].update(coord=new_core_location)
 
 async def choose_core_move(core_name_key='', tentacles=True):
     """
@@ -3544,7 +3545,7 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
-            actor_dict[name_key].update(*next_coords)
+            actor_dict[name_key].update(coord=next_coords)
 
 def distance_to_actor(actor_a=None, actor_b='player'):
     if actor_a is None:
@@ -3676,7 +3677,7 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
             write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
         member_names = mte_dict[vine_name].member_names
         for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
-            actor_dict[segment_name].update(*write_coord)
+            actor_dict[segment_name].update(coord=write_coord)
             actor_dict[segment_name].tile = segment_tile
             actor_dict[segment_name].tile_color = color_choice
 
@@ -3832,7 +3833,7 @@ async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='swit
     open_tile = term.on_color(7)(term.color(0)('◼'))
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
                                        tile=closed_tile)
-    actor_dict[turret_id].update(*spawn_coord)
+    actor_dict[turret_id].update(coord=spawn_coord)
     map_dict[spawn_coord].actors[turret_id] = True
     while True:
         await asyncio.sleep(rate)
@@ -3854,7 +3855,7 @@ async def beam_spire(spawn_coord=(0, 0)):
     open_tile = term.on_color(7)(term.color(0)('◼'))
     actor_dict[turret_id] = Actor(name=turret_id, moveable=False,
                                        tile=closed_tile)
-    actor_dict[turret_id].update(*spawn_coord)
+    actor_dict[turret_id].update(coord=spawn_coord)
     while True:
         for angle in [i * 5 for i in range(72)]:
             for i in range(10):
@@ -3941,7 +3942,7 @@ async def travel_along_line(name='particle', start_coord=(0, 0), end_coords=(10,
         if particle_id in map_dict[last_location].actors:
             del map_dict[last_location].actors[particle_id]
         map_dict[point].actors[particle_id] = True
-        actor_dict[particle_id].update(*point)
+        actor_dict[particle_id].update(coord=point)
         if damage is not None:
             await damage_all_actors_at_coord(coord=point, damage=damage, 
                                              source_actor=source_actor)
@@ -4028,7 +4029,7 @@ async def move_through_coords(actor_key=None, coord_list=[(i, i) for i in range(
         if occupied(new_position) and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
-            actor_dict[actor_key].update(*new_position)
+            actor_dict[actor_key].update(coord=new_position)
         else:
             return
         await asyncio.sleep(time_between_steps)
@@ -4088,7 +4089,7 @@ async def orbit(name='particle', radius=5, degrees_per_step=1, on_center=(0, 0),
         del map_dict[point_coord].actors[particle_id]
         point_coord = point_at_distance_and_angle(radius=radius, central_point=on_center, angle_from_twelve=angle)
         if point_coord != last_location:
-            actor_dict[particle_id].update(*point_coord)
+            actor_dict[particle_id].update(coord=point_coord)
             last_location = actor_dict[particle_id].coords()
         map_dict[last_location].actors[particle_id] = True
         angle = (angle + degrees_per_step) % 360
