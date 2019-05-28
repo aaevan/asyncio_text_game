@@ -100,14 +100,6 @@ class Actor:
     def coords(self):
         return (self.x_coord, self.y_coord)
 
-    def move_by(self, coord_move=None, x_move=None, y_move=None):
-        if x_move:
-            self.x_coord = self.x_coord + x_move
-        if y_move:
-            self.y_coord = self.y_coord + y_move
-        if coord_move:
-            self.x_coord, self.y_coord = (self.x_coord + coord_move[0], 
-                                          self.y_coord + coord_move[1])
     def get_view(self):
         """
         returns the current appearance of the actor.
@@ -485,19 +477,15 @@ class Multi_tile_entity:
             return set()
         if root_node is None:
             root_node = next(iter(segment_keys))
-        #print(f'segment_keys: {segment_keys}')
-        #print(f'DEPTH: {depth}, ROOT: {root_node}')
         traveled.add(root_node)
         possible_paths = {add_coords(neighbor_dir, root_node) for neighbor_dir in neighbor_dirs}
         walkable = set(segment_keys) & set(possible_paths) #intersection
-        #print(f'walkable:{walkable}')
         traveled |= walkable #union
         if walkable == set(): #is empty set
             return {root_node} #i.e. {(0, 0)}
         for direction in walkable:
             child_path = self.find_connected(root_node=direction, traveled=traveled, depth=depth + 1)
             traveled |= child_path #union
-        #print(f'returning: {traveled} at depth {depth}...')
         return traveled
 
     def find_subregions(self, debug=True):
@@ -2197,8 +2185,8 @@ async def handle_input(key):
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
         if key in '#':
-            actor_dict['player'].update(coord=(29, -22)) #jump to debug location
-            state_dict['facing'] = 'n'
+            actor_dict['player'].update(coord=(-32, 20)) #jump to debug location
+            state_dict['facing'] = 'w'
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
@@ -3104,6 +3092,9 @@ async def async_map_init():
     #features drawing--------------------------------------
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
+    loop.create_task(spawn_container(spawn_coord=(-44, 21), ))
+    loop.create_task(spawn_container(spawn_coord=(-36, 18), ))
+    loop.create_task(spawn_container(spawn_coord=(-36, 22), ))
     #item creation-----------------------------------------
     items = (((-3, 0), 'wand'), 
              ((-3, -3), 'red key'), 
@@ -3601,7 +3592,8 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
     if items is None:
         return
     loop = asyncio.get_event_loop()
-    coord_choices = get_circle(center=base_coord, radius=radius)
+    coord_choices = [point for point in get_circle(center=base_coord, radius=radius)
+                            if map_dict[point].passable]
     for item in items:
         item_coord = choice(coord_choices)
         spawn_item_at_coords(coord=item_coord, instance_of=item)
