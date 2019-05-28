@@ -88,7 +88,6 @@ class Actor:
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
 
-    #def update(self, x, y,):
     def update(self, coord=(0, 0)):
         self.last_location = (self.x_coord, self.y_coord)
         map_dict[self.last_location].passable = True #make previous space passable
@@ -2184,9 +2183,13 @@ async def handle_input(key):
         if key in 'M':
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
-        if key in '#':
-            actor_dict['player'].update(coord=(-32, 20)) #jump to debug location
+        if key in 'y':
+            #actor_dict['player'].update(coord=(-32, 20)) #jump to debug location
+            destination = (-32, 20)
+            actor_dict['player'].update(coord=destination)
+            #actor_dict['player'].update(coord=(5, 5)) #jump to debug location
             state_dict['facing'] = 'w'
+            return
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
@@ -3104,9 +3107,9 @@ async def async_map_init():
     #spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False)
     #spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False)
     #actor creation----------------------------------------
-    for _ in range(10):
-        x, y = randint(-18, 18), randint(-18, 18)
-        loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
+    #for _ in range(10):
+        #x, y = randint(-18, 18), randint(-18, 18)
+        #loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
@@ -3114,11 +3117,11 @@ async def async_map_init():
     spawn_static_actor(spawn_coord=(6, 6), moveable=True)
     tester_coord = (28, -34)
     spawn_static_actor(base_name="tester", spawn_coord=(28, -34), moveable=True, literal_name=True)
-    for i in range(3):
-        asyncio.ensure_future(follower_vine(root_node_key='tester', 
-                                            spawn_coord=tester_coord, 
-                                            facing_dir='s',
-                                            color_choice=2))
+    #for i in range(3):
+        #asyncio.ensure_future(follower_vine(root_node_key='tester', 
+                                            #spawn_coord=tester_coord, 
+                                            #facing_dir='s',
+                                            #color_choice=2))
     loop.create_task(trap_init())
 
 async def trap_init():
