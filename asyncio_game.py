@@ -836,7 +836,6 @@ def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0),
                                                    radius=rand_radius))
     return points
 
-#REVIEWED TO HERE
 def get_points_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     """
     Writes a jagged passage between two points of a variable number of segments
@@ -853,14 +852,15 @@ def get_points_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
+
 def carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), 
-                         num_points=5, jitter=5):
+                         num_points=5, jitter=5, width=3,
+                         preset='floor'):
     points = get_points_along_line(num_points=num_points,
                                   start_point=start_point,
                                   end_point=end_point,)
-    points = add_jitter_to_middle(cells=points, jitter)
-    #chained_pairs = chained_pairs_of_items(points)
-    multi_segment_passage(cells)
+    points = add_jitter_to_middle(cells=points, jitter=jitter)
+    multi_segment_passage(cells, width=3, preset=preset)
 
 def add_jitter_to_middle(points=None, jitter=5):
     """
@@ -878,7 +878,8 @@ def add_jitter_to_middle(points=None, jitter=5):
     else:
         return []
 
-def chained_pairs_of_items(pairs=None):
+
+def chained_pairs(pairs=None):
     """
     Used for taking a list of points and returning pairs of points for drawing
     lines.
@@ -892,7 +893,7 @@ def chained_pairs_of_items(pairs=None):
 
 def multi_segment_passage(points=None, preset='floor', width=3, 
                           passable=True, blocking=False):
-    coord_pairs = chained_pairs_of_items(pairs=points)
+    coord_pairs = chained_pairs(pairs=points)
     for coord_pair in coord_pairs:
         n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
                        width=width, passable=passable, blocking=blocking,
@@ -905,8 +906,8 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
         return
     offsets = ((x, y) for x in range(-width, width + 1) 
                       for y in range(-width, width + 1))
-    trimmed_offsets = [offset for offset in offsets if
-                       point_to_point_distance(point_a=offset, point_b=origin) <= width / 2]
+    trimmed_offsets = {offset for offset in offsets if
+                       point_to_point_distance(point_a=offset, point_b=origin) <= width / 2}
     points_to_write = set()
     for offset in trimmed_offsets:
         offset_coord_a = add_coords(coord_a, offset)
@@ -917,14 +918,16 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
     for point in points_to_write:
         paint_preset(tile_coords=point, preset=preset)
 
+#REVIEWED TO HERE
+
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
                   segment_angle_increment=5, segments=10, random_shift=True,
                   shift_choices=(-10, 10)):
     last_point, last_angle = start_coord, starting_angle
     output_points = [start_coord]
     for _ in range(segment_length):
-        coord_shift = point_given_angle_and_radius(angle=last_angle,
-                                                        radius=segment_length)
+        coord_shift = point_given_angle_and_radius(angle=last_angle, 
+                                                   radius=segment_length)
         next_point = add_coords(last_point, coord_shift)
         output_points.append(next_point)
         last_point = next_point
@@ -975,10 +978,12 @@ def cave_room(trim_radius=40, width=100, height=100,
         kernel_cells = {coord:'#' for coord in 
                         get_circle(center=kernel_base_coord, radius=kernel_radius)}
     #initialize the room:
-    input_space = {(x, y):choice(['#', ' ']) for x in range(width) for y in range(height)}
+    input_space = {(x, y):choice(['#', ' ']) 
+                   for x in range(width) 
+                   for y in range(height)}
     if trim_radius:
         input_space = trim_outside_circle(input_dict=input_space, width=width,
-                                         height=height, trim_radius=trim_radius)
+                                          height=height, trim_radius=trim_radius)
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
     check_coords = [(x, y) for x in range(width)
                            for y in range(height)]
@@ -1798,7 +1803,7 @@ def pick_point_in_cone(cone_left_edge, cone_right_edge):
 
 async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
                 passable=False, stamp=True, paint=True, color_num=1, description='',
-                pause_between=.02):
+                pause_between=.02, only_passable=True):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -1809,8 +1814,10 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             x_toss, y_toss = (randint(-radius, radius),
                               randint(-radius, radius),)
             throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
-        toss_coord = (root_x + x_toss, root_y + y_toss)
         #doors will be ignored:
+        toss_coord = add_coords((root_x, root_y), (x_toss, y_toss))
+        if only_passable and not map_dict[toss_coord].passable:
+            continue
         if map_dict[toss_coord].mutable == False:
             continue
         if paint:
@@ -2169,12 +2176,6 @@ async def handle_input(key):
             dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
             facing_angle = dir_to_angle[state_dict['facing']]
             chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
-        if key in '^':
-            cells = get_points_along_line(num_points=10, end_point=(0, 0),
-                                         start_point=player_coords)
-            cells = add_jitter_to_middle(cells=cells)
-            chained_pairs = chained_pairs_of_items(cells)
-            multi_segment_passage(cells)
         if key in 'g': #pick up an item from the ground
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q': #equip an item to slot q
@@ -3359,7 +3360,7 @@ async def waver(name_key=None, seek_key='player', **kwargs):
     """
     actor_location = actor_dict[name_key].coords()
     #seek_location = actor_dict[seek_key].coords()
-    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120, center)
+    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
     distance_to_player = distance_to_actor(actor_a=name_key, actor_b='player')
     if distance_to_player >= 15:
         movement_choice = await wander(name_key=name_key)
