@@ -758,7 +758,6 @@ def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     y_diff = point_b[1] - point_a[1]
     return add_coords(point_a, (x_diff//2, y_diff//2))
 
-#REVIEWED TO HERE
 
 def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
     sum_x = sum(point[0] for point in points)
@@ -774,17 +773,13 @@ def point_within_square(radius=20, center=(0, 0)):
     return add_coords(center, point_in_square)
 
 def point_within_circle(radius=20, center=(0, 0)):
-    stuck_count = 0
     while True:
-        stuck_count += 1
         point = point_within_square(radius=radius, center=center)
         distance_from_center = abs(point_to_point_distance(point_a=point, point_b=center))
         if distance_from_center <= radius:
             break
-        if stuck_count >= 50:
-            with term.location(15, 0):
-                print(radius, center, distance_from_center, point)
     return point
+
 
 def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=90, center=None):
     """
@@ -804,8 +799,10 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
     if checked_point[0] < center[0]:
         found_angle = 360 - found_angle
     result = angle_in_arc(given_angle=found_angle,
-                              arc_begin=arc_range[0], arc_end=arc_range[1])
+                          arc_begin=arc_range[0], 
+                          arc_end=arc_range[1])
     return result
+
 
 def angle_in_arc(given_angle, arc_begin=45, arc_end=135):
     if arc_begin > arc_end:
@@ -823,9 +820,13 @@ def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0),
                         in_cone=(0, 90), num_points=5):
     """
     returns a number of points fanned out around a middle point.
-    given radius_spread values, the points will be at a random radius.
+    given a non-zero radius_spread value, the points will be at a random radius
+    centered on radius. 
+    
+    example: radius 5, radius_spread 2 becomes 5 +/- 2 or randint(3, 7)
     if in_cone is not None, the returned points are restricted to an arc.
     """
+    #TODO: possibly useful for arc of blood in opposite direction from attack
     points = []
     radius_range = (radius - radius_spread, radius + radius_spread)
     for _ in range(num_points):
@@ -835,7 +836,8 @@ def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0),
                                                    radius=rand_radius))
     return points
 
-def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
+#REVIEWED TO HERE
+def get_points_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     """
     Writes a jagged passage between two points of a variable number of segments
     to map_dict.
@@ -851,13 +853,22 @@ def get_cells_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
-def add_jitter_to_middle(cells=None, jitter=5):
+def carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), 
+                         num_points=5, jitter=5):
+    points = get_points_along_line(num_points=num_points,
+                                  start_point=start_point,
+                                  end_point=end_point,)
+    points = add_jitter_to_middle(cells=points, jitter)
+    #chained_pairs = chained_pairs_of_items(points)
+    multi_segment_passage(cells)
+
+def add_jitter_to_middle(points=None, jitter=5):
     """
     takes a list of points and returns the same head and tail but with randomly
     shifted points in the middle.
     """
-    if cells is not None:
-        head, *body, tail = cells #tuple unpacking
+    if points is not None:
+        head, *body, tail = points #tuple unpacking
         new_body = []
         for point in body:
             rand_shift = [randint(-jitter, jitter) for i in range(2)]
@@ -2159,7 +2170,7 @@ async def handle_input(key):
             facing_angle = dir_to_angle[state_dict['facing']]
             chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
         if key in '^':
-            cells = get_cells_along_line(num_points=10, end_point=(0, 0),
+            cells = get_points_along_line(num_points=10, end_point=(0, 0),
                                          start_point=player_coords)
             cells = add_jitter_to_middle(cells=cells)
             chained_pairs = chained_pairs_of_items(cells)
@@ -3347,7 +3358,8 @@ async def waver(name_key=None, seek_key='player', **kwargs):
     Seeks player if out of sight, flees if within fov of player
     """
     actor_location = actor_dict[name_key].coords()
-    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120)
+    #seek_location = actor_dict[seek_key].coords()
+    within_fov = check_point_within_arc(checked_point=actor_location, arc_width=120, center)
     distance_to_player = distance_to_actor(actor_a=name_key, actor_b='player')
     if distance_to_player >= 15:
         movement_choice = await wander(name_key=name_key)
@@ -3637,7 +3649,8 @@ async def follower_vine(spawn_coord=None, num_segments=10, base_name='mte_vine',
     vine_name = await spawn_mte(base_name=base_name, spawn_coord=current_coord, preset='empty',)
     vine_id = generate_id(base_name='')
     for number in range(num_segments):
-        mte_dict[vine_name].add_segment(segment_tile='x',
+        mte_dict[vine_name].add_segment(
+                 segment_tile='x',
                  write_coord=current_coord,
                  offset=(0, 0),
                  segment_name=f'{vine_id}_segment_{number}')
