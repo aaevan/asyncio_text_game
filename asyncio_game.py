@@ -918,10 +918,8 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
     for point in points_to_write:
         paint_preset(tile_coords=point, preset=preset)
 
-#REVIEWED TO HERE
-
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
-                  segment_angle_increment=5, segments=10, random_shift=True,
+                  fixed_angle_increment=5, segments=10, random_shift=True,
                   shift_choices=(-10, 10)):
     last_point, last_angle = start_coord, starting_angle
     output_points = [start_coord]
@@ -934,7 +932,7 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
         if random_shift:
             last_angle += choice(shift_choices)
         else:
-            last_angle += segment_angle_increment
+            last_angle += fixed_angle_increment
     return output_points, last_angle
 
 def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
@@ -968,6 +966,10 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
 def cave_room(trim_radius=40, width=100, height=100, 
               iterations=20, debug=False, 
               kernel=True, kernel_offset=(0, 0), kernel_radius=3):
+    """
+    Generates a smooth cave-like series of rooms within a given radius
+    and around a given starting point.
+    """
     neighbors = [(x, y) for x in (-1, 0, 1)
                         for y in (-1, 0, 1)]
     #get kernel cells:
@@ -1017,14 +1019,18 @@ def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outsi
             input_dict[coord] = outside_radius_char
     return input_dict
 
+
 def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'):
+    """
+    Writes a dictionary representation of a region of space into the map_dict.
+    """
     for coord, value in room.items():
         write_coord = add_coords(coord, top_left_coord)
         with term.location(80, 0):
             print(write_coord, value)
-        if value == ' ':
+        if value == space_char:
             continue
-        if value == '#':
+        if value == hash_char:
             map_dict[write_coord].passable = True
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
@@ -1047,6 +1053,8 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
             if distance_to_center <= radius:
                 #assigned as separate attributes to preserve items and actors on each tile.
                 paint_preset(tile_coords=(x, y), preset=preset)
+
+#REVIEWED TO HERE
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
