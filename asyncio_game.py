@@ -2216,7 +2216,7 @@ async def handle_input(key):
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in '$': #test text wrapping
-            append_to_log(message="{} is a thing about some {}. Whoa. This is a very long line. This is a test. Whoa. Wow. Much line length.".format(randint(1, 10), randint(100, 1000)))
+            await append_to_log(message="{} is a thing about some {}. Whoa. This is a very long line. This is a test. Whoa. Wow. Much line length.".format(randint(1, 10), randint(100, 1000)))
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=6)
         if key in '7':
@@ -2247,7 +2247,8 @@ async def examine_facing():
     examined_coord = add_coords(player_coords, facing_offset)
     description_text = map_dict[examined_coord].description
     if description_text is not None:
-        asyncio.ensure_future(filter_print(output_text=description_text))
+        asyncio.ensure_future(append_to_log(message=description_text))
+        #asyncio.ensure_future(filter_print(output_text=description_text))
 
 def open_door(door_coord, door_tile='▯'):
     map_dict[door_coord].tile = door_tile
@@ -2409,7 +2410,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=2):
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return item_id_choices[int(menu_choice)]
 
-async def console_box(width=40, height=10, x_margin=4, y_margin=30):
+async def console_box(width=40, height=10, x_margin=4, y_margin=30, refresh_rate=.05):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
@@ -2418,29 +2419,27 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
             line_text = state_dict['messages'][-height + index] 
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
-        await asyncio.sleep(.4)
+        await asyncio.sleep(refresh_rate)
 
 async def append_to_log(message="This is a test"):
-    #TODO: replace all instances of filter_print with append_to_log
     #TODO: add filter print effect to console_box
-    #TODO: add different colored messages
-
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
-    last_message_index = len(message_lines) - 1
-    for line in message_lines:
-        state_dict['messages'].append(' ' * len(line))
     for index_offset, line in enumerate(message_lines):
-        line_index = last_message_index + index_offset
+        await asyncio.sleep(.075)
+        line_index = len(state_dict['messages'])
+        state_dict['messages'].append('')
+        asyncio.ensure_future(filter_into_log(message=line, line_index=line_index))
 
-async def filter_into_log(message="This is a test", line_index=0):
-    written_string = ' ' * len(message)
-    indexes = [index for char in message]
+async def filter_into_log(message="This is a test", line_index=0, 
+                          time_between_chars=.02):
+    written_string = [' '] * len(message)
+    indexes = [index for index in range(len(message))]
     shuffle(indexes)
-    for char_index in indexes:
-        head, tail = written_string[:char_index], written_string[:char_index + 1]
-        written_string = head + message[char_index] + tail
-        state_dict['messages'][line_index] = written_string
+    for index in indexes:
+        await asyncio.sleep(time_between_chars)
+        written_string[index] = message[index]
+        state_dict['messages'][line_index] = ''.join(written_string)
 
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
@@ -2479,10 +2478,10 @@ async def equip_item(slot='q'):
         item_name = item_dict[item_id_choice].name
         equip_message = "Equipped {} to slot {}.".format(item_name, slot)
         #await filter_print(output_text=equip_message)
-        append_to_log(message=equip_message)
+        await append_to_log(message=equip_message)
     else:
         #await filter_print(output_text="Nothing to equip!")
-        append_to_log(message="Nothing to equip!")
+        await append_to_log(message="Nothing to equip!")
 
 async def use_chosen_item():
     item_id_choice = await choose_item()
@@ -2527,7 +2526,7 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
     #asyncio.ensure_future(filter_print(pickup_text))
-    append_to_log(message=pickup_text)
+    await append_to_log(message=pickup_text)
     return True
 
 #Announcement/message handling--------------------------------------------------
