@@ -2420,11 +2420,28 @@ async def console_box(width=40, height=10, x_margin=4, y_margin=30):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(.4)
 
-def append_to_log(message="This is a test ({})".format(round(random(), 2))):
+async def append_to_log(message="This is a test"):
+    #TODO: replace all instances of filter_print with append_to_log
+    #TODO: add filter print effect to console_box
+    #TODO: add different colored messages
+
     message_lines = textwrap.wrap(message, 40)
+    #first, add just the empty strings to the log:
+    last_message_index = len(message_lines) - 1
     for line in message_lines:
-        state_dict['messages'].append(line)
-    
+        state_dict['messages'].append(' ' * len(line))
+    for index_offset, line in enumerate(message_lines):
+        line_index = last_message_index + index_offset
+
+async def filter_into_log(message="This is a test", line_index=0):
+    written_string = ' ' * len(message)
+    indexes = [index for char in message]
+    shuffle(indexes)
+    for char_index in indexes:
+        head, tail = written_string[:char_index], written_string[:char_index + 1]
+        written_string = head + message[char_index] + tail
+        state_dict['messages'][line_index] = written_string
+
 async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
     """
     make it possible to equip each number to an item
