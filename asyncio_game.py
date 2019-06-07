@@ -1072,11 +1072,12 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
         return False
     del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
-    destination = (starting_point[0] + direction_tuple[0] * throw_distance,
-                   starting_point[1] + direction_tuple[1] * throw_distance)
+    throw_vector = (direction_tuple[0] * throw_distance,
+                    direction_tuple[1] * throw_distance)
+    destination = add_coords(starting_point, throw_vector)
     if rand_drift:
-        destination = (destination[0] + randint(0, rand_drift),
-                       destination[1] + randint(0, rand_drift))
+        drift = randint(0, rand_drift), randint(0, rand_drift)
+        destination = add_coords(destination, drift)
     if not hasattr(item_dict[thrown_item_id], 'tile'):
         return False
     line_of_sight_result = await check_line_of_sight(coord_a=starting_point, coord_b=destination)
