@@ -1054,7 +1054,6 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
                 #assigned as separate attributes to preserve items and actors on each tile.
                 paint_preset(tile_coords=(x, y), preset=preset)
 
-#REVIEWED TO HERE
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -1112,6 +1111,7 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
     if reset_tile:
         item_dict[item_id].tile = original_tile
 
+
 async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25, destroys_terrain=True):
     await radial_fountain(tile_anchor=center, anchor_actor='player', 
                           frequency=.001, radius=(radius, radius + 3), speed=(1, 2), 
@@ -1135,6 +1135,8 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
     del item_dict[thrown_item_id]
     await explosion_effect(center=item_location, radius=radius, 
                            damage=damage, particle_count=particle_count)
+
+#REVIEWED TO HERE
 
 async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
     actor_list = [actor for actor in map_dict[coord].actors.items()]
