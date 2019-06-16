@@ -701,13 +701,18 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                                 magic=True, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
                                 description='A rough stone wall.',
-                                magic=True, is_animated=False, animation=None),}
+                                magic=True, is_animated=False, animation=None),
+               'water':Map_tile(tile=' ', blocking=False, passable=True,
+                                description='Water.',
+                                magic=True, is_animated=True, 
+                                animation=Animation(preset='water'))}
     map_dict[tile_coords].passable = presets[preset].passable
     #TODO: add an option to randomly draw from a palette
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
     map_dict[tile_coords].is_animated = presets[preset].is_animated
+    #map_dict[tile_coords].animation = copy(presets[preset].animation)
     map_dict[tile_coords].animation = copy(presets[preset].animation)
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
@@ -1136,7 +1141,6 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
     await explosion_effect(center=item_location, radius=radius, 
                            damage=damage, particle_count=particle_count)
 
-#REVIEWED TO HERE
 
 async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
     actor_list = [actor for actor in map_dict[coord].actors.items()]
@@ -1218,6 +1222,7 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     asyncio.ensure_future(filter_print(output_text=output_text))
 
+#REVIEWED TO HERE
 
 #TODO: an entity that moves around with momentum,
 #      others that follow the last n moves
@@ -2218,8 +2223,6 @@ async def handle_input(key):
             asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
-        if key in '$': #test text wrapping
-            await append_to_log(message="{} is a thing about some {}. Whoa. This is a very long line. This is a test. Whoa. Wow. Much line length.".format(randint(1, 10), randint(100, 1000)))
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=6)
         if key in '7':
