@@ -711,9 +711,9 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
-    map_dict[tile_coords].is_animated = presets[preset].is_animated
-    #map_dict[tile_coords].animation = copy(presets[preset].animation)
-    map_dict[tile_coords].animation = copy(presets[preset].animation)
+    if presets[preset].is_animated:
+        map_dict[tile_coords].is_animated = presets[preset].is_animated
+        map_dict[tile_coords].animation = Animation(preset='water')
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True, preset='floor'):
@@ -1056,7 +1056,6 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
             else:
                 is_animated = False
             if distance_to_center <= radius:
-                #assigned as separate attributes to preserve items and actors on each tile.
                 paint_preset(tile_coords=(x, y), preset=preset)
 
 
@@ -2025,29 +2024,6 @@ def map_init():
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     basement_door = (-28, 45)
-    #draw_door(door_coord=(-27, 20), locked=False, description='secret')
-    #announcement_at_coord(coord=(-27, 20), distance_trigger=0, 
-                          #announcement="You walk into the newly apparent doorway.")
-    #draw_box(top_left=(-25, -25), x_size=50, y_size=50, tile="░") #large debug room
-    #draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, tile="░")
-    #draw_box(top_left=(15, 15), x_size=10, y_size=10, tile="░")
-    #draw_box(top_left=(30, 15), x_size=10, y_size=11, tile="░")
-    #draw_box(top_left=(42, 10), x_size=20, y_size=20, tile="░")
-    #draw_box(top_left=(7, 5), x_size=5, y_size=5, tile="░")
-    #passages = [(7, 5, 7, 17), (17, 17, 25, 10), (20, 20, 35, 20), 
-                #(0, 0, 17, 17), (39, 20, 41, 20), (60, 20, 90, 20)]
-    #doors = [(7, 16), (14, 17), (29, 20), (41, 20)]
-    #for passage in passages:
-        #connect_with_passage(*passage)
-    #for door in doors:
-        #draw_door(*door, locked=False)
-    #draw_door(*(-5, -5), locked=True, description='green')
-    #draw_door(0, 5, locked=True, description='rusty', is_door=True)
-    #spawn_item_at_coords(coord=(-1, 1), instance_of='rusty key', on_actor_id=False)
-    #announcement_at_coord(coord=(0, 17), distance_trigger=5, 
-                          #announcement="something slithers into the wall as you approach.")
-    #announcement_at_coord(coord=(7, 17), distance_trigger=1, 
-                          #announcement="you hear muffled scratching from the other side")
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
@@ -2227,7 +2203,7 @@ async def handle_input(key):
             await sword_item_ability(length=6)
         if key in '7':
             draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  animation=Animation(preset='water'))
+                                  preset='water')
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
