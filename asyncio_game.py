@@ -1058,7 +1058,6 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
             if distance_to_center <= radius:
                 paint_preset(tile_coords=(x, y), preset=preset)
 
-
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
     """
@@ -1708,7 +1707,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
         last_coord = player_coords
 
-async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=1):
+async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=30):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
@@ -2392,13 +2391,14 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=2):
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return item_id_choices[int(menu_choice)]
 
-async def console_box(width=40, height=10, x_margin=4, y_margin=30, refresh_rate=.05):
+async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
     while True:
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
-            line_text = state_dict['messages'][-height + index] 
+            #line_text = state_dict['messages'][-height + index] 
+            line_text = state_dict['messages'][-index - 1] 
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
