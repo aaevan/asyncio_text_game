@@ -62,7 +62,7 @@ class Actor:
                  strength=1, health=50, stamina=50, hurtful=True, moveable=True,
                  is_animated=False, animation="", holding_items={}, 
                  leaves_body=False, breakable=False, multi_tile_parent=None, 
-                 blocking=False, tile_color=8):
+                 blocking=False, tile_color=8, description="A featureless gray blob"):
         tile_color_lookup = {'black':0, 'red':1, 'green':2, 'orange':3, 
                              'blue':4, 'purple':5, 'cyan':6, 'grey':7}
         self.name = name
@@ -87,6 +87,7 @@ class Actor:
         self.last_location = (x_coord, y_coord)
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
+        self.description = description
 
     def update(self, coord=(0, 0)):
         self.last_location = (self.x_coord, self.y_coord)
@@ -264,14 +265,15 @@ class Item:
     async def use(self):
         if self.uses is not None and not self.broken:
             if self.use_message is not None:
-                asyncio.ensure_future(filter_print(output_text=self.use_message))
+                await append_to_log(message=self.use_message)
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
             if self.uses is not None:
                 self.uses -= 1
             if self.uses <= 0:
                 self.broken = True
         else:
-            await filter_print(output_text="{}{}".format(self.name, self.broken_text))
+            #await filter_print(output_text="{}{}".format(self.name, self.broken_text))
+            await append_to_log(message="The {}{}".format(self.name, self.broken_text))
 
 class Multi_tile_entity:
     """
@@ -1169,6 +1171,8 @@ async def damage_actor(actor=None, damage=10, display_above=True,
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
     if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
+        #TODO: custom destruction messages for different materials?
+        await append_to_log(message="SMASH!")
         root_x, root_y = actor_dict[actor].coords()
         asyncio.ensure_future(sow_texture(root_x, root_y, palette=',.\'', radius=3, seeds=6, 
                               passable=True, stamp=True, paint=False, color_num=8,
@@ -1627,7 +1631,8 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         instance_of = choice(possible_items)
     item_id = generate_id(base_name=instance_of)
     item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':temporary_block,
-                            'power_kwargs':{'duration':5}, 'use_message':block_wand_text},
+                            'power_kwargs':{'duration':5}, 'use_message':block_wand_text,
+                            'broken_text':' is out of charges'},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
@@ -1691,7 +1696,7 @@ def adjacent_passable_tiles(base_coord=(0, 0), orthagonal=False):
             valid_directions.append(coord)
     return valid_directions
 
-async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=16):
+async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=12):
     last_coord = None
     item_list = ' '
     with term.location(x_pos, y_pos):
@@ -1707,7 +1712,7 @@ async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y
                 print("{} {}".format(item_dict[item_id].tile, item_dict[item_id].name))
         last_coord = player_coords
 
-async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=30):
+async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
@@ -1954,12 +1959,14 @@ async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25),
                                 destination_plane=source_plane))
 
 async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
-                          breakable=True, moveable=True, preset='random'):
+                          breakable=True, moveable=True, preset='random',
+                          description='A wooden box'):
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
     container_id = spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
-                                      tile=tile, moveable=moveable, breakable=breakable)
+                                      tile=tile, moveable=moveable, breakable=breakable,
+                                      description=description)
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
@@ -1974,7 +1981,8 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
 
 def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                        animation_preset=None, breakable=True, moveable=False,
-                       multi_tile_parent=None, blocking=False, literal_name=False):
+                       multi_tile_parent=None, blocking=False, literal_name=False,
+                       description='STATIC ACTOR'):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
@@ -1994,7 +2002,7 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
                                  x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
                                  breakable=breakable, moveable=moveable,
                                  multi_tile_parent=multi_tile_parent,
-                                 blocking=blocking)
+                                 blocking=blocking, description=description)
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
 
@@ -2084,7 +2092,7 @@ async def handle_input(key):
     controls:
     wasd to move/push
     ijkl to look in different directions
-    e to examine
+    x to examine
     spacebar to open doors
     esc to open inventory
     a variable in state_dict to capture input while in menus?
@@ -2150,7 +2158,7 @@ async def handle_input(key):
         if key in 'Xx': #examine
             await examine_facing()
         if key in ' ': #toggle doors
-            toggle_doors()
+            await toggle_doors()
         if key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
@@ -2226,7 +2234,14 @@ async def examine_facing():
     player_coords = actor_dict['player'].coords()
     facing_offset = direction[state_dict['facing']]
     examined_coord = add_coords(player_coords, facing_offset)
-    description_text = map_dict[examined_coord].description
+    #add descriptions for actors
+    if map_dict[examined_coord].actors:
+        actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
+        description_text = actor_dict[actor_name].description
+    elif map_dict[examined_coord].items:
+        description_text = "Theres an item here!"
+    else:
+        description_text = map_dict[examined_coord].description
     if description_text is not None:
         asyncio.ensure_future(append_to_log(message=description_text))
         #asyncio.ensure_future(filter_print(output_text=description_text))
@@ -2241,7 +2256,7 @@ def close_door(door_coord, door_tile='▮'):
     map_dict[door_coord].passable = False
     map_dict[door_coord].blocking = True
 
-def toggle_door(door_coord):
+async def toggle_door(door_coord):
     door_state = map_dict[door_coord].tile 
     open_doors = [term.color(i)('▯') for i in range(10)]
     open_doors.append('▯')
@@ -2252,21 +2267,26 @@ def toggle_door(door_coord):
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
-        asyncio.ensure_future(filter_print(output_text=output_text))
+        #asyncio.ensure_future(filter_print(output_text=output_text))
+        await append_to_log(message=output_text)
         return
     if door_state in closed_doors:
         open_door_tile = open_doors[closed_doors.index(door_state)]
         open_door(door_coord, door_tile=open_door_tile)
+        output_text = "You open the door."
+        await append_to_log(message=output_text)
     elif door_state in open_doors:
         closed_door_tile = closed_doors[open_doors.index(door_state)]
         close_door(door_coord, door_tile=closed_door_tile)
+        output_text = "You close the door."
+        await append_to_log(message=output_text)
 
-def toggle_doors():
+async def toggle_doors():
     x, y = actor_dict['player'].coords()
     door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
     for door in door_dirs:
         door_coord = (x + door[0], y + door[1])
-        toggle_door(door_coord)
+        await toggle_door(door_coord)
 
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
@@ -2397,8 +2417,8 @@ async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=
                                       x_margin=x_margin - 1, y_margin=y_margin - 1))
     while True:
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
-            #line_text = state_dict['messages'][-height + index] 
-            line_text = state_dict['messages'][-index - 1] 
+            #line_text = state_dict['messages'][-height + index] #bottom is newest
+            line_text = state_dict['messages'][-index - 1] #top is newest
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
@@ -2407,7 +2427,7 @@ async def append_to_log(message="This is a test"):
     #TODO: add filter print effect to console_box
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
-    for index_offset, line in enumerate(message_lines):
+    for index_offset, line in enumerate(reversed(message_lines)):
         await asyncio.sleep(.075)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
@@ -2490,7 +2510,8 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
      a menu choice is made.
     """
     if not map_dict[coords].items:
-        asyncio.ensure_future(filter_print(output_text="nothing's here."))
+        #asyncio.ensure_future(filter_print(output_text="nothing's here."))
+        await append_to_log(message="There's nothing here to pick up.")
     else:
         item_list = [item for item in map_dict[coords].items]
         if len(item_list) <= 1:
@@ -2504,7 +2525,7 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
-    pickup_text = "picked up {}".format(item_dict[item_id].name)
+    pickup_text = "You pick up the {}.".format(item_dict[item_id].name)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
     #asyncio.ensure_future(filter_print(pickup_text))
@@ -3122,8 +3143,6 @@ async def async_map_init():
              ((-2, -2), 'green key'),)
     for coord, item_name in items:
         spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
-    #spawn_item_at_coords(coord=(-3, -3), instance_of='red key', on_actor_id=False)
-    #spawn_item_at_coords(coord=(-2, -2), instance_of='green key', on_actor_id=False)
     #actor creation----------------------------------------
     #for _ in range(10):
         #x, y = randint(-18, 18), randint(-18, 18)
@@ -3532,7 +3551,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
 async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
         strength=5, is_animated=False, animation=" ", holding_items=[],
-        movement_function_kwargs={}):
+        movement_function_kwargs={}, description='A featureless blob'):
     """
     actors can:
     move from square to square using a movement function
@@ -3545,7 +3564,7 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
                                    speed=speed, tile=tile, hurtful=hurtful, 
                                    leaves_body=True, strength=strength, 
                                    is_animated=is_animated, animation=animation,
-                                   holding_items=holding_items)
+                                   holding_items=holding_items, description=description)
     coords = actor_dict[name_key].coords()
     while True:
         if actor_dict[name_key].health <= 0:
@@ -4149,10 +4168,11 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     start_coord = coords
     if preset == 'blob':
         item_drops = ['red potion']
+        description = 'A gibbering mass of green slime that pulses and writhes before your eyes.'
         loop.create_task(basic_actor(*coords, speed=.3, movement_function=waver, 
                                      tile='ö', name_key=name, hurtful=True, strength=0,
                                      is_animated=True, animation=Animation(preset="blob"),
-                                     holding_items=item_drops))
+                                     holding_items=item_drops, description=description))
     if preset == 'angel':
         item_drops = ['dash trinket']
         loop.create_task(basic_actor(*coords, speed=.15, movement_function=angel_seek, 
