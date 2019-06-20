@@ -272,7 +272,6 @@ class Item:
             if self.uses <= 0:
                 self.broken = True
         else:
-            #await filter_print(output_text="{}{}".format(self.name, self.broken_text))
             await append_to_log(message="The {}{}".format(self.name, self.broken_text))
 
 class Multi_tile_entity:
@@ -1072,7 +1071,7 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     if not thrown_item_id:
         thrown_item_id = await choose_item()
     if thrown_item_id == None:
-        await filter_print(output_text="Nothing to throw!")
+        await append_to_log(message="Nothing to throw!")
         return False
     del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
@@ -1098,7 +1097,7 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
     throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
-    asyncio.ensure_future(filter_print(throw_text))
+    await append_to_log(message=throw_text)
     await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
                             end_coords=destination, speed=.05, tile=item_tile, 
                             animation=None, debris=None)
@@ -1222,7 +1221,7 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "That isn't a door."
     else:
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
-    asyncio.ensure_future(filter_print(output_text=output_text))
+    append_to_log(message=output_text)
 
 #REVIEWED TO HERE
 
@@ -1415,7 +1414,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
-                asyncio.ensure_future(filter_print(output_text=sound_effects[sound_choice]))
+                await append_to_log(message=sound_effects[sound_choice])
             triggered = True
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
@@ -1554,7 +1553,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
         await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
                               deathclock=30, speed=(1, 1))
     else:
-        await filter_print(output_text="Something is in the way.")
+        append_to_log(message="Something is in the way.")
     
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
@@ -1944,7 +1943,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
             destination = add_coords(end_coords, difference_from_door_coords)
             if map_dict[destination].passable:
                 if not silent:
-                    asyncio.ensure_future(filter_print(output_text="You are teleported."))
+                    append_to_log(message="You are teleported.")
                 map_dict[player_coords].passable=True
                 actor_dict['player'].update(coord=destination)
                 actor_dict['player'].just_teleported = True
@@ -2082,7 +2081,7 @@ async def get_key():
                 state_dict['same_count'] = 0
             old_key = key
             if state_dict['same_count'] >= 600 and state_dict['same_count'] % 600 == 0:
-                asyncio.ensure_future(filter_print(output_text=help_text, pause_stay_on=2))
+                append_to_log(message=help_text)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -2138,7 +2137,7 @@ async def handle_input(key):
                         actor_dict['player'].stamina -= 2
                         x_shift, y_shift = directions[key]
                 else:
-                    asyncio.ensure_future(filter_print(output_text='Out of breath!'))
+                    append_to_log(message='Out of breath!')
             actor_dict['player'].just_teleported = False #used by magic_doors
         if key in 'WASD': 
             if actor_dict['player'].stamina >= 15:
@@ -2146,7 +2145,7 @@ async def handle_input(key):
                                                    time_between_steps=.04))
                 actor_dict['player'].stamina -= 15
             else:
-                asyncio.ensure_future(filter_print(output_text='Out of breath!'))
+                append_to_log(message='Out of breath!')
         if key in '?':
             await display_help() 
         if key in '3': #shift dimensions
