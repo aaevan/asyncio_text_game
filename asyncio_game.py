@@ -703,7 +703,11 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
                                 description='A rough stone wall.',
                                 magic=True, is_animated=False, animation=None),
-               'water':Map_tile(tile=' ', blocking=False, passable=True,
+               'noise':Map_tile(tile='.', blocking=False, passable=True,
+                                description='A shimmering insubstantial surface.',
+                                magic=True, is_animated=True, 
+                                animation=Animation(preset='noise')),
+               'water':Map_tile(tile='▒', blocking=False, passable=True,
                                 description='Water.',
                                 magic=True, is_animated=True, 
                                 animation=Animation(preset='water'))}
@@ -714,7 +718,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].description = presets[preset].description
     if presets[preset].is_animated:
         map_dict[tile_coords].is_animated = presets[preset].is_animated
-        map_dict[tile_coords].animation = Animation(preset='water')
+        map_dict[tile_coords].animation = Animation(preset=preset)
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True, preset='floor'):
@@ -1221,7 +1225,7 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "That isn't a door."
     else:
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
-    append_to_log(message=output_text)
+    await append_to_log(message=output_text)
 
 #REVIEWED TO HERE
 
@@ -1553,7 +1557,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
         await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
                               deathclock=30, speed=(1, 1))
     else:
-        append_to_log(message="Something is in the way.")
+        await append_to_log(message="Something is in the way.")
     
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
@@ -1943,7 +1947,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
             destination = add_coords(end_coords, difference_from_door_coords)
             if map_dict[destination].passable:
                 if not silent:
-                    append_to_log(message="You are teleported.")
+                    await append_to_log(message="You are teleported.")
                 map_dict[player_coords].passable=True
                 actor_dict['player'].update(coord=destination)
                 actor_dict['player'].just_teleported = True
@@ -2081,7 +2085,7 @@ async def get_key():
                 state_dict['same_count'] = 0
             old_key = key
             if state_dict['same_count'] >= 600 and state_dict['same_count'] % 600 == 0:
-                append_to_log(message=help_text)
+                await append_to_log(message=help_text)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -2137,7 +2141,7 @@ async def handle_input(key):
                         actor_dict['player'].stamina -= 2
                         x_shift, y_shift = directions[key]
                 else:
-                    append_to_log(message='Out of breath!')
+                    await append_to_log(message='Out of breath!')
             actor_dict['player'].just_teleported = False #used by magic_doors
         if key in 'WASD': 
             if actor_dict['player'].stamina >= 15:
@@ -2145,7 +2149,7 @@ async def handle_input(key):
                                                    time_between_steps=.04))
                 actor_dict['player'].stamina -= 15
             else:
-                append_to_log(message='Out of breath!')
+                await append_to_log(message='Out of breath!')
         if key in '?':
             await display_help() 
         if key in '3': #shift dimensions
@@ -2242,8 +2246,7 @@ async def examine_facing():
     else:
         description_text = map_dict[examined_coord].description
     if description_text is not None:
-        asyncio.ensure_future(append_to_log(message=description_text))
-        #asyncio.ensure_future(filter_print(output_text=description_text))
+        await append_to_log(message=description_text)
 
 def open_door(door_coord, door_tile='▯'):
     map_dict[door_coord].tile = door_tile
@@ -2266,10 +2269,9 @@ async def toggle_door(door_coord):
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
-        #asyncio.ensure_future(filter_print(output_text=output_text))
         await append_to_log(message=output_text)
-        return
-    if door_state in closed_doors:
+        #return
+    elif door_state in closed_doors:
         open_door_tile = open_doors[closed_doors.index(door_state)]
         open_door(door_coord, door_tile=open_door_tile)
         output_text = "You open the door."
@@ -2478,10 +2480,8 @@ async def equip_item(slot='q'):
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
         equip_message = "Equipped {} to slot {}.".format(item_name, slot)
-        #await filter_print(output_text=equip_message)
         await append_to_log(message=equip_message)
     else:
-        #await filter_print(output_text="Nothing to equip!")
         await append_to_log(message="Nothing to equip!")
 
 async def use_chosen_item():
@@ -2499,7 +2499,7 @@ async def use_item_in_slot(slot='q'):
         else:
             #put custom null action here instead of 'Nothing happens.'
             #as given for each item.
-            await filter_print(output_text='Nothing happens.')
+            await append_to_log(message='Nothing happens.')
 
 async def item_choices(coords=None, x_pos=0, y_pos=25):
     """
@@ -3129,7 +3129,7 @@ async def async_map_init():
     #scary nightmare land
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
-    draw_circle(center_coord=(1000, 1000), radius=50, animation=Animation(preset='noise'))
+    draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
     #features drawing--------------------------------------
     loop.create_task(spawn_container(spawn_coord=(3, -2)))
     loop.create_task(spawn_container(spawn_coord=(3, -3)))
