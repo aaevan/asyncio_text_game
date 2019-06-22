@@ -946,7 +946,7 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
     return output_points, last_angle
 
 def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
-                  width=(2, 20), draw_mode='taper', preset='floor'):
+                  width=(2, 20), draw_mode='even', preset='floor'):
     """
     chain of arcs creates a chain of curved passages of optionally variable width.
 
@@ -965,7 +965,7 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
     for segment_width in segment_widths:
         rand_segment_angle = choice((-20, -10, 10, 20))
         points, starting_angle = arc_of_points(starting_angle=starting_angle, 
-                                               segment_angle_increment=rand_segment_angle,
+                                               fixed_angle_increment=rand_segment_angle,
                                                start_coord=arc_start,
                                                random_shift=False)
         for point in points:
@@ -2085,7 +2085,9 @@ async def get_key():
                 state_dict['same_count'] = 0
             old_key = key
             if state_dict['same_count'] >= 600 and state_dict['same_count'] % 600 == 0:
-                await append_to_log(message=help_text)
+                print(same_count)
+                if not any (help_text in line for line in state_dict['messages']):
+                    await append_to_log(message=help_text)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
