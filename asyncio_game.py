@@ -910,7 +910,9 @@ def multi_segment_passage(points=None, preset='floor', width=3,
                        preset=preset)
 
 def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
-                   passable=True, blocking=False, width=3):
+                   passable=True, blocking=False, width=3,
+                   fade_to_preset=None, fade_bracket=(.25, .75)):
+    total_distance = point_to_point_distance(point_a=coord_a, point_b=coord_b)
     origin = (0, 0)
     if width == 0:
         return
@@ -926,7 +928,42 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
         for point in line_points:
             points_to_write.add(point)
     for point in points_to_write:
-        paint_preset(tile_coords=point, preset=preset)
+        #break this out into a separate function
+        #make fade points easily changeable
+        if fade_to_preset is not None:
+            point_distance = point_to_point_distance(point_a=coord_a, point_b=point)
+            if point_distance == 0:
+                written_preset = fade_to_preset
+            else:
+                fade_threshold = (((point_distance / total_distance) * 2) - .5)
+                if fade_threshold < 0:
+                    written_preset = preset
+                elif fade_threshold > 1:
+                    written_preset = fade_to_preset
+                if fade_threshold > random():
+                    written_preset = fade_to_preset
+                else:
+                    written_preset = preset
+                paint_preset(tile_coords=point, preset=written_preset)
+        else:
+            paint_preset(tile_coords=point, preset=preset)
+
+def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10), 
+                             point=(5, 5), fade_bracket=(.25, .75)):
+    slope = (end_point[1] - start_point[1]) / (end_point[0] - start_point[0])
+    total_distance = point_to_point_distance(point_a=start_point, point_b=end_point)
+    point_distance = point_to_point_distance(point_a=start_point, point_b=point)
+    if point_distance == 0:
+        written_preset = end_preset
+    fade_threshold = (((point_distance / total_distance) * slope) - (1 / slope))
+    if fade_threshold < 0:
+        return True
+    elif fade_threshold > 1:
+        return False
+    if fade_threshold > random():
+        return False
+    else:
+        return True
 
 def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
                   fixed_angle_increment=5, segments=10, random_shift=True,
@@ -2056,7 +2093,7 @@ def is_number(number="0"):
         return False
 
 #Top level input----------------------------------------------------------------
-async def get_key(): 
+async def get_key(help_wait_count=100): 
     """handles raw keyboard data, passes to handle_input if its interesting.
     Also, displays help tooltip if no input for a time."""
     debug_text = "key is: {}, same_count is: {}           "
@@ -2084,9 +2121,11 @@ async def get_key():
             else:
                 state_dict['same_count'] = 0
             old_key = key
-            if state_dict['same_count'] >= 600 and state_dict['same_count'] % 600 == 0:
-                print(same_count)
-                if not any (help_text in line for line in state_dict['messages']):
+            with term.location(80, 0):
+                print("SAME COUNT: ", state_dict['same_count'], '       ')
+            if (state_dict['same_count'] >= help_wait_count and 
+                state_dict['same_count'] % help_wait_count == 0):
+                if not any (help_text in line for line in state_dict['messages'][-10:]):
                     await append_to_log(message=help_text)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
@@ -2216,6 +2255,10 @@ async def handle_input(key):
         if key in '7':
             draw_circle(center_coord=actor_dict['player'].coords(), 
                                   preset='water')
+        if key in '8':
+            center_coord = actor_dict['player'].coords()
+            endpoint = add_coords(center_coord, (30, 0))
+            n_wide_passage(coord_a=center_coord, coord_b=endpoint, fade_to_preset='water')
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
@@ -2765,7 +2808,7 @@ async def display_help():
                   "    x: examine tile       ",)
     for line_number, line in enumerate(help_text):
         x_print_coord, y_print_coord = 0, 0
-        asyncio.ensure_future(filter_print(output_text=line, pause_stay_on=5,
+        asyncio.ensure_future(filter_print(output_text=line, pause_stay_on=7,
                               pause_fade_in=.015, pause_fade_out=.015,
                               x_offset=-40, y_offset=-30 + line_number,
                               hold_for_lock=False))
