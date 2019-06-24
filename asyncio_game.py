@@ -928,34 +928,24 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
         for point in line_points:
             points_to_write.add(point)
     for point in points_to_write:
-        #break this out into a separate function
-        #make fade points easily changeable
         if fade_to_preset is not None:
-            point_distance = point_to_point_distance(point_a=coord_a, point_b=point)
-            if point_distance == 0:
-                written_preset = fade_to_preset
+            if prob_fade_point_to_point(start_point=coord_a, end_point=coord_b, point=point):
+                write_preset = preset
             else:
-                fade_threshold = (((point_distance / total_distance) * 2) - .5)
-                if fade_threshold < 0:
-                    written_preset = preset
-                elif fade_threshold > 1:
-                    written_preset = fade_to_preset
-                if fade_threshold > random():
-                    written_preset = fade_to_preset
-                else:
-                    written_preset = preset
-                paint_preset(tile_coords=point, preset=written_preset)
+                write_preset = fade_to_preset
+            paint_preset(tile_coords=point, preset=write_preset)
         else:
             paint_preset(tile_coords=point, preset=preset)
 
 def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10), 
                              point=(5, 5), fade_bracket=(.25, .75)):
-    slope = (end_point[1] - start_point[1]) / (end_point[0] - start_point[0])
+    fade_slope = 1 / (fade_bracket[1] - fade_bracket[0])
+    fade_intercept = fade_slope * -fade_bracket[0]
     total_distance = point_to_point_distance(point_a=start_point, point_b=end_point)
     point_distance = point_to_point_distance(point_a=start_point, point_b=point)
-    if point_distance == 0:
-        written_preset = end_preset
-    fade_threshold = (((point_distance / total_distance) * slope) - (1 / slope))
+    if total_distance == 0:
+        return False
+    fade_threshold = ((point_distance / total_distance) * fade_slope) + fade_intercept
     if fade_threshold < 0:
         return True
     elif fade_threshold > 1:
@@ -2121,8 +2111,6 @@ async def get_key(help_wait_count=100):
             else:
                 state_dict['same_count'] = 0
             old_key = key
-            with term.location(80, 0):
-                print("SAME COUNT: ", state_dict['same_count'], '       ')
             if (state_dict['same_count'] >= help_wait_count and 
                 state_dict['same_count'] % help_wait_count == 0):
                 if not any (help_text in line for line in state_dict['messages'][-10:]):
@@ -2197,8 +2185,8 @@ async def handle_input(key):
             asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
         if key in '4':
             draw_net()
-        if key in '8': #export map
-            asyncio.ensure_future(export_map())
+        #if key in '8': #export map
+            #asyncio.ensure_future(export_map())
         if key in 'Xx': #examine
             await examine_facing()
         if key in ' ': #toggle doors
@@ -2257,8 +2245,9 @@ async def handle_input(key):
                                   preset='water')
         if key in '8':
             center_coord = actor_dict['player'].coords()
-            endpoint = add_coords(center_coord, (30, 0))
-            n_wide_passage(coord_a=center_coord, coord_b=endpoint, fade_to_preset='water')
+            endpoint = add_coords(center_coord, (30, 5))
+            n_wide_passage(width = 5, coord_a=center_coord, coord_b=endpoint, 
+                           fade_to_preset='water', fade_bracket=(0, 1))
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
@@ -3176,11 +3165,9 @@ async def async_map_init():
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
     #features drawing--------------------------------------
-    loop.create_task(spawn_container(spawn_coord=(3, -2)))
-    loop.create_task(spawn_container(spawn_coord=(3, -3)))
-    loop.create_task(spawn_container(spawn_coord=(-44, 21), ))
-    loop.create_task(spawn_container(spawn_coord=(-36, 18), ))
-    loop.create_task(spawn_container(spawn_coord=(-36, 22), ))
+    containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
+    for coord in containers:
+        loop.create_task(spawn_container(spawn_coord=coord))
     #item creation-----------------------------------------
     items = (((-3, 0), 'wand'), 
              ((-3, -3), 'red key'), 
@@ -3194,10 +3181,6 @@ async def async_map_init():
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
-    spawn_static_actor(spawn_coord=(5, 5), moveable=True)
-    spawn_static_actor(spawn_coord=(6, 6), moveable=True)
-    tester_coord = (28, -34)
-    spawn_static_actor(base_name="tester", spawn_coord=(28, -34), moveable=True, literal_name=True)
     #for i in range(3):
         #asyncio.ensure_future(follower_vine(root_node_key='tester', 
                                             #spawn_coord=tester_coord, 
