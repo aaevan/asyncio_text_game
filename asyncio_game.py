@@ -377,17 +377,19 @@ class Multi_tile_entity:
                 if tiles[y][x] is ' ':
                     continue
                 else:
-                    segment_tile = term.color(fill_color)(tiles[y][x])
+                    #segment_tile = term.color(fill_color)(tiles[y][x])
+                    segment_tile = tiles[y][x]
                 segment_name = f'{self.name}_{(x, y)}'
                 self.add_segment(segment_tile=segment_tile,
                                  write_coord=write_coord,
                                  offset=(x, y),
                                  segment_name=segment_name,
-                                 blocking=blocking)
+                                 blocking=blocking,
+                                 fill_color=fill_color)
 
     def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
                     segment_name='test', literal_name=True, animation_preset=None,
-                    blocking=False):
+                    blocking=False, fill_color=8):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {'tile':segment_tile, 
                                     'write_coord':write_coord,
@@ -395,11 +397,13 @@ class Multi_tile_entity:
                                     'name':segment_name,
                                     'blocking':blocking}
         if segment_tile in animation_key:
-            animation_preset=deepcopy(Animation(preset=animation_key[segment_tile]))
+            #animation_preset=deepcopy(Animation(preset=animation_key[segment_tile]))
+            animation_preset=animation_key[segment_tile]
         else:
             animation_preset=None
+        written_tile = term.color(fill_color)(segment_tile)
         member_name = spawn_static_actor(base_name=segment_name, 
-                                         tile=segment_tile,
+                                         tile=written_tile,
                                          spawn_coord=write_coord, 
                                          animation_preset=animation_preset,
                                          multi_tile_parent=self.name,
@@ -929,7 +933,8 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
             points_to_write.add(point)
     for point in points_to_write:
         if fade_to_preset is not None:
-            if prob_fade_point_to_point(start_point=coord_a, end_point=coord_b, point=point):
+            if prob_fade_point_to_point(start_point=coord_a, end_point=coord_b, 
+                                        point=point, fade_bracket=fade_bracket):
                 write_preset = preset
             else:
                 write_preset = fade_to_preset
@@ -940,6 +945,8 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
 def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10), 
                              point=(5, 5), fade_bracket=(.25, .75)):
     fade_slope = 1 / (fade_bracket[1] - fade_bracket[0])
+    with term.location(80, 0):
+        print(fade_slope)
     fade_intercept = fade_slope * -fade_bracket[0]
     total_distance = point_to_point_distance(point_a=start_point, point_b=end_point)
     point_distance = point_to_point_distance(point_a=start_point, point_b=point)
@@ -2245,9 +2252,9 @@ async def handle_input(key):
                                   preset='water')
         if key in '8':
             center_coord = actor_dict['player'].coords()
-            endpoint = add_coords(center_coord, (30, 5))
+            endpoint = add_coords(center_coord, (90, 0))
             n_wide_passage(width = 5, coord_a=center_coord, coord_b=endpoint, 
-                           fade_to_preset='water', fade_bracket=(0, 1))
+                           fade_to_preset='water', fade_bracket=(.2, .8))
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
@@ -2909,7 +2916,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     display = False
     while True:
         await asyncio.sleep(distance * .015) #update speed
-        #await asyncio.sleep(.1) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         #check whether the current tile is within the current field of view
@@ -2926,8 +2932,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             tile_coord_key = (x_display_coord, y_display_coord)
             random_distance = abs(gauss(distance, 1))
             if random_distance < threshold: 
-            #threshold_distance = 5
-            #if threshold_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight(player_coords, tile_coord_key)
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result) #
@@ -3313,10 +3317,10 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
+    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
