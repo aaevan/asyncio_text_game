@@ -132,6 +132,9 @@ class Animation:
                   'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
                            'behavior':'loop tile', 
                            'color_choices':'4'},
+                  'chasm':{'animation':(' ' * 10 + '.'), 
+                           'behavior':'random', 
+                           'color_choices':'0' * 10 + '8'},
            'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
                            'behavior':'random', 
                            'color_choices':'1' * 5 + '7'},
@@ -692,7 +695,7 @@ def tile_preset(preset='floor'):
                                 magic=True, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
                                 description='A rough stone wall.',
-                                magic=True, is_animated=False, animation=None),}
+                                magic=True, is_animated=False, animation=None)}
     return presets[preset]
 
 def paint_preset(tile_coords=(0, 0), preset='floor'):
@@ -711,6 +714,10 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                                 description='A shimmering insubstantial surface.',
                                 magic=True, is_animated=True, 
                                 animation=Animation(preset='noise')),
+               'chasm':Map_tile(tile=' ', blocking=False, passable=False,
+                                description='A gaping void',
+                                magic=True, is_animated=True, 
+                                animation=Animation(preset='chasm')),
                'water':Map_tile(tile='▒', blocking=False, passable=True,
                                 description='Water.',
                                 magic=True, is_animated=True, 
@@ -1079,7 +1086,8 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
 
-def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
+def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', filled=True,
+                border_thickness=0, border_preset='chasm'):
     """
     draws a filled circle onto map_dict.
     """
@@ -1090,12 +1098,10 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor'):
             if not map_dict[(x, y)].mutable:
                 continue
             distance_to_center = point_to_point_distance(point_a=center_coord, point_b=(x, y))
-            if animation:
-                is_animated = True
-            else:
-                is_animated = False
             if distance_to_center <= radius:
                 paint_preset(tile_coords=(x, y), preset=preset)
+            if radius + border_thickness > distance_to_center > radius:
+                paint_preset(tile_coords=(x, y), preset=border_preset)
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -2249,7 +2255,7 @@ async def handle_input(key):
             await sword_item_ability(length=6)
         if key in '7':
             draw_circle(center_coord=actor_dict['player'].coords(), 
-                                  preset='water')
+                        preset='floor', border_thickness=3)
         if key in '8':
             center_coord = actor_dict['player'].coords()
             endpoint = add_coords(center_coord, (90, 0))
