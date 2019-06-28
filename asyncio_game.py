@@ -1913,6 +1913,7 @@ def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     room_center = add_coords(wall_coord, room_offset)
     n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
     secret_door(door_coord=wall_coord)
+    announcement_at_coord(coord=room_center, announcement="You found a secret room!" )
     if square:
         draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, tile="░")
     else:
@@ -2080,6 +2081,7 @@ def map_init():
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     basement_door = (-28, 45)
+    announcement_at_coord()
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
@@ -2317,17 +2319,19 @@ async def toggle_door(door_coord):
     open_doors.append('▯')
     closed_doors = [term.color(i)('▮') for i in range(10)]
     closed_doors.append('▮')
-    closed_doors.append(term.color(7)('𝄛'))
+    secret_tile = term.color(7)('𝄛')
+    closed_doors.append(secret_tile)
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
         await append_to_log(message=output_text)
         #return
-    elif door_state in closed_doors:
+    elif door_state in closed_doors :
         open_door_tile = open_doors[closed_doors.index(door_state)]
         open_door(door_coord, door_tile=open_door_tile)
-        output_text = "You open the door."
-        await append_to_log(message=output_text)
+        if door_state != secret_tile:
+            output_text = "You open the door."
+            await append_to_log(message=output_text)
     elif door_state in open_doors:
         closed_door_tile = closed_doors[open_doors.index(door_state)]
         close_door(door_coord, door_tile=closed_door_tile)
@@ -2425,7 +2429,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         with term.location(x_coord, y_coord + num):
             print(line)
 
-async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=2):
+async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
     """
     Takes a list of item_id values
     Prints to some region of the screen:
@@ -2477,7 +2481,6 @@ async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=
         await asyncio.sleep(refresh_rate)
 
 async def append_to_log(message="This is a test"):
-    #TODO: add filter print effect to console_box
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
     for index_offset, line in enumerate(reversed(message_lines)):
@@ -2561,7 +2564,6 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
      a menu choice is made.
     """
     if not map_dict[coords].items:
-        #asyncio.ensure_future(filter_print(output_text="nothing's here."))
         await append_to_log(message="There's nothing here to pick up.")
     else:
         item_list = [item for item in map_dict[coords].items]
@@ -2579,7 +2581,6 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     pickup_text = "You pick up the {}.".format(item_dict[item_id].name)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
-    #asyncio.ensure_future(filter_print(pickup_text))
     await append_to_log(message=pickup_text)
     return True
 
@@ -2588,7 +2589,7 @@ async def parse_announcement(tile_coord_key):
     """ parses an annoucement, with a new line printed after each pipe """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for delay, line in enumerate(announcement_sequence):
-        asyncio.ensure_future(filter_print(output_text=line, delay=delay * 2))
+        await append_to_log(message=line)
 
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
     if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
