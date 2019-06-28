@@ -730,6 +730,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     if presets[preset].is_animated:
         map_dict[tile_coords].is_animated = presets[preset].is_animated
         map_dict[tile_coords].animation = Animation(preset=preset)
+    else:
+        map_dict[tile_coords].is_animated = False
 
 def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
              tile=".", passable=True, preset='floor'):
@@ -1093,15 +1095,17 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', f
     """
     x_bounds = center_coord[0] - radius, center_coord[0] + radius
     y_bounds = center_coord[1] - radius, center_coord[1] + radius
-    for x in range(*x_bounds):
-        for y in range(*y_bounds):
-            if not map_dict[(x, y)].mutable:
-                continue
-            distance_to_center = point_to_point_distance(point_a=center_coord, point_b=(x, y))
-            if distance_to_center <= radius:
-                paint_preset(tile_coords=(x, y), preset=preset)
-            if radius + border_thickness > distance_to_center > radius:
-                paint_preset(tile_coords=(x, y), preset=border_preset)
+    points = get_circle(center=center_coord, radius=radius)
+    for point in points:
+        if not map_dict[point].mutable:
+            continue
+        distance_to_center = point_to_point_distance(point_a=center_coord, point_b=point)
+        if distance_to_center <= radius:
+            paint_preset(tile_coords=point, preset=preset)
+    if border_thickness > 0:
+        boundary_circle = get_circle(radius=radius + border_thickness, center=center_coord)
+        for point in set(boundary_circle) - set(points):
+            paint_preset(tile_coords=point, preset=border_preset)
 
 #Actions------------------------------------------------------------------------
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
@@ -2057,11 +2061,13 @@ def map_init():
     room_d = (9, -39)
     room_e = (-20, 20)
     room_f = (-35, 20)
+    room_g = (28, -34)
     draw_circle(center_coord=room_a, radius=10)
     draw_circle(center_coord=room_b, radius=5)
     draw_circle(center_coord=room_c , radius=7)
     draw_circle(center_coord=room_d , radius=8)
     draw_circle(center_coord=room_e, radius=6)
+    draw_circle(center_coord=room_g, radius=6, preset='chasm')
     draw_centered_box(middle_coord=room_f, x_size=5, y_size=5, tile="░")
     n_wide_passage(coord_a=room_a, coord_b=room_b)
     n_wide_passage(coord_a=room_b, coord_b=room_c)
@@ -2254,8 +2260,7 @@ async def handle_input(key):
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=6)
         if key in '7':
-            draw_circle(center_coord=actor_dict['player'].coords(), 
-                        preset='floor', border_thickness=3)
+            draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
         if key in '8':
             center_coord = actor_dict['player'].coords()
             endpoint = add_coords(center_coord, (90, 0))
@@ -3323,10 +3328,10 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
-    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     stamina_title = "{} ".format(term.color(3)("⚡"))
