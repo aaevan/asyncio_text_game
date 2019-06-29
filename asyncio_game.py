@@ -400,7 +400,6 @@ class Multi_tile_entity:
                                     'name':segment_name,
                                     'blocking':blocking}
         if segment_tile in animation_key:
-            #animation_preset=deepcopy(Animation(preset=animation_key[segment_tile]))
             animation_preset=animation_key[segment_tile]
         else:
             animation_preset=None
@@ -2973,26 +2972,29 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             # only print something if it has changed:
             if last_print_choice != print_choice:
                 if print_choice == "░":
-                    print_choice = find_brightness_tile(distance=distance)
+                    print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                elif print_choice == '𝄛':
+                    print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
                 print(print_choice)
                 last_print_choice = print_choice
             # only print something if it has changed:
 
-def find_brightness_tile(distance=0, std_dev=.5):
+def find_brightness_tile(print_choice=None, distance=0, std_dev=.5):
     """
     returns the appropriate light-level shifted tile based on distance.
     """
-    gradient_tile_pairs = ((0, ' '),        #dark
-                           (7, "░"),
-                           (8, "░"), 
-                           (7, "▒"),
-                           (8, "▒"), 
-                           (7, "▓"), 
-                           (7, "█"), 
-                          *((8, "▓"),) * 2,
-                          *((8, "█"),) * 6) #bright
+    gradient_tile_pairs = {'░': ((0, ' '),          #dark
+                                 (7, "░"),
+                                 (8, "░"), 
+                                 (7, "▒"),
+                                 (8, "▒"), 
+                                 (7, "▓"), 
+                                 (7, "█"), 
+                                 *((8, "▓"),) * 2,
+                                 *((8, "█"),) * 6), #bright
+                           '𝄛': [(8, "𝄛") for _ in range(15)]}
 
-    bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs])
+    bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs[print_choice]])
     bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
 
     brightness_index = distance
