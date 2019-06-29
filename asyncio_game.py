@@ -119,7 +119,8 @@ class Animation:
                            'color_choices':'3331'},
                   'water':{'animation':'███████▒▓▒', 
                            'behavior':'walk both',
-                           'color_choices':('446')},
+                           #'color_choices':('446')}, #old color weights
+                           'color_choices':('6' * 10 + '4')},
                   'grass':{'animation':('▒' * 20 + '▓'), 
                            'behavior':'random',
                            'color_choices':('2'),},
@@ -705,21 +706,25 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     """
     presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
-                                magic=True, is_animated=False, animation=None),
+                                magic=False, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
                                 description='A rough stone wall.',
-                                magic=True, is_animated=False, animation=None),
+                                magic=False, is_animated=False, animation=None),
                'noise':Map_tile(tile='.', blocking=False, passable=True,
                                 description='A shimmering insubstantial surface.',
-                                magic=True, is_animated=True, 
+                                magic=False, is_animated=True, 
                                 animation=Animation(preset='noise')),
                'chasm':Map_tile(tile=' ', blocking=False, passable=False,
                                 description='A gaping void',
-                                magic=True, is_animated=True, 
+                                magic=False, is_animated=True, 
                                 animation=Animation(preset='chasm')),
-               'water':Map_tile(tile='▒', blocking=False, passable=True,
+               'grass':Map_tile(tile='▒', blocking=False, passable=True,
+                                description='Soft ankle length grass',
+                                magic=False, is_animated=True, 
+                                animation=Animation(preset='grass')),
+               'water':Map_tile(tile='█', blocking=False, passable=True,
                                 description='Water.',
-                                magic=True, is_animated=True, 
+                                magic=False, is_animated=True, 
                                 animation=Animation(preset='water'))}
     map_dict[tile_coords].passable = presets[preset].passable
     #TODO: add an option to randomly draw from a palette
@@ -1885,6 +1890,8 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             continue
         if map_dict[toss_coord].mutable == False:
             continue
+        if map_dict[toss_coord].magic == True:
+            continue
         if paint:
             if map_dict[toss_coord].tile not in "▮▯":
                 colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
@@ -1979,6 +1986,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
     map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
                                      magic=True, magic_destination=end_coords,
                                      is_animated=True, animation=animation)
+    map_dict[start_coord].description = "The air shimmers slightly between you and the space beyond."
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
@@ -2266,7 +2274,8 @@ async def handle_input(key):
             center_coord = actor_dict['player'].coords()
             endpoint = add_coords(center_coord, (90, 0))
             n_wide_passage(width = 5, coord_a=center_coord, coord_b=endpoint, 
-                           fade_to_preset='water', fade_bracket=(.2, .8))
+                           #fade_to_preset='water', fade_bracket=(.2, .8)) 
+                           fade_to_preset='grass', fade_bracket=(.2, .8))
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
             test_room = cave_room()
@@ -2457,6 +2466,7 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
             #TODO: fix limited slots in inventory choices
+            #TODO: fix lingering numbers from choice. has to do with placement of overwritten whitespace
             if menu_choice not in menu_choices:
                 return None
                 menu_choice = int(menu_choice)
@@ -2992,7 +3002,21 @@ def find_brightness_tile(print_choice=None, distance=0, std_dev=.5):
                                  (7, "█"), 
                                  *((8, "▓"),) * 2,
                                  *((8, "█"),) * 6), #bright
-                           '𝄛': [(8, "𝄛") for _ in range(15)]}
+                           '𝄛': ((8, ' '),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (7, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),
+                                 (8, '𝄛'),)}
 
     bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs[print_choice]])
     bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
@@ -3024,10 +3048,14 @@ def offset_of_center(x_offset=0, y_offset=0):
     x_print, y_print = middle_x + x_offset, middle_y + y_offset
     return x_print, y_print
 
-def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0)):
+def clear_screen_region(x_size=10, y_size=10, screen_coord=(0, 0), debug=False):
+    if debug:
+        marker = str(randint(0, 9))
+    else:
+        marker = ' '
     for y in range(screen_coord[1], screen_coord[1] + y_size):
         with term.location(screen_coord[0], y):
-            print(' ' * x_size)
+            print(marker * x_size)
 
 async def ui_box_draw(position="top left", 
                       box_height=1, box_width=9, 
