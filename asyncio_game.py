@@ -3009,7 +3009,7 @@ def find_brightness_tile(print_choice=None, distance=0, std_dev=.5):
                                  (7, '𝄛'),
                                  (7, '𝄛'),
                                  (7, '𝄛'),
-                                 (7, '𝄛'),
+                                 (8, '𝄛'),
                                  (8, '𝄛'),
                                  (8, '𝄛'),
                                  (8, '𝄛'),
