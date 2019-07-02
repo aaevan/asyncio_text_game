@@ -1949,7 +1949,7 @@ def draw_door(door_coord=(0, 0), closed=True, locked=False, description='wooden'
     map_dict[door_coord].key = description
     map_dict[door_coord].mutable = False
 
-async def fake_stairs(coord_a=(8, 0), coord_b=(41, 10), 
+async def fake_stairs(coord_a=(8, 0), coord_b=(-10, 0), 
                       hallway_offset=(-1000, -1000), hallway_length=15):
     #draw hallway
     draw_box(top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░")
@@ -1987,6 +1987,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
                                      magic=True, magic_destination=end_coords,
                                      is_animated=True, animation=animation)
     map_dict[start_coord].description = "The air shimmers slightly between you and the space beyond."
+    map_dict[start_coord].tile = "M"
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
@@ -2461,21 +2462,23 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(number))
     menu_choices = [str(i) for i in range(10)] #limit to 10 items on a square
-    while True:
+    #while True:
+    while state_dict['in_menu']:
+        with term.location(100, 0):
+            print(randint(0, 100))
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
             #TODO: fix limited slots in inventory choices
-            #TODO: fix lingering numbers from choice. has to do with placement of overwritten whitespace
             if menu_choice not in menu_choices:
                 return None
                 menu_choice = int(menu_choice)
         if menu_choice in menu_choices:
-            clear_screen_region(x_size=2, y_size=len(item_id_choices), 
-                                      screen_coord=(x_pos, y_pos))
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return item_id_choices[int(menu_choice)]
+    clear_screen_region(x_size=2, y_size=len(item_id_choices), 
+                              screen_coord=(x_pos, y_pos))
 
 async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05):
     state_dict['messages'] = [''] * height
