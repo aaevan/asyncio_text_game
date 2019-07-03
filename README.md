@@ -1,6 +1,8 @@
 # asyncio_text_game
 An attempt to make a real-time rogue-adjacent game using asyncio.
 
+Permadeath? Portals into nightmare dimensions? 'Aliens' style radar readouts?
+
 Start game by running "python async_game.py" inside the cloned directory.
 
 WASD to move, IJKL to look.
