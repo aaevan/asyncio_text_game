@@ -1953,11 +1953,23 @@ async def fake_stairs(coord_a=(8, 0), coord_b=(-10, 0),
                       hallway_offset=(-1000, -1000), hallway_length=15):
     #draw hallway
     draw_box(top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░")
-    coord_a_hallway = hallway_offset
-    coord_b_hallway = add_coords(hallway_offset, (hallway_length, 0))
+    coord_a_hallway = add_coords(coord_a, hallway_offset)
+    coord_b_hallway = add_coords(coord_a_hallway, (hallway_length, 0))
     #create magic doors:
     await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway, silent=True)
     await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway, silent=True)
+
+async def under_passage(start=(-20, 27), end=(-20, 13), offset=(-1000, -1000), 
+                        width=1, direction='ns', length=10):
+    """
+    Assumes parallel starting and ending directions.
+    """
+    under_start = add_coords(start, offset)
+    end_offsets = {'ns':(0, length), 'ew':(length, 0)}
+    under_end = add_coords(under_start, end_offsets[direction])
+    n_wide_passage(coord_a=under_start, coord_b=under_end, width=width)
+    await create_magic_door_pair(door_a_coords=start, door_b_coords=under_start, silent=True)
+    await create_magic_door_pair(door_a_coords=end, door_b_coords=under_end, silent=True)
 
 #TODO: create a mirror
 
@@ -4342,6 +4354,11 @@ def main():
     #loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
     loop.create_task(fake_stairs())
+    loop.create_task(under_passage())
+    loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
+    loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
+    #TODO: fix offsets of nake_stairs to allow for multiple passages.
+    loop.create_task(fake_stairs(coord_a=(-10, 14), coord_b=(-1, 20)))
     #loop.create_task(display_current_tile()) #debug for map generation
     #test enemies
     for i in range(1):
