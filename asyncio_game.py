@@ -626,6 +626,8 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
 
 async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     #TODO: fix update so it doesn't leave invisible blocking spaces
+    # update may still carve out spaces if space is not checked first
+    # i.e. from follower_vine()
     await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
@@ -1148,7 +1150,7 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = "throwing {} {}.(destination: {})".format(item_dict[thrown_item_id].name, direction, destination)
+    throw_text = "throwing {} {}.".format(item_dict[thrown_item_id].name)
     await append_to_log(message=throw_text)
     await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
                             end_coords=destination, speed=.05, tile=item_tile, 
@@ -1207,6 +1209,8 @@ async def damage_within_circle(center=(0, 0), radius=6, damage=75):
 
 async def damage_actor(actor=None, damage=10, display_above=True,
                        leaves_body=False, blood=False, material='wood'):
+    debris_dict = {'wood':('SMASH!', ',.\''),
+                   'stone':('SMASH!', '..:o')}
     if hasattr(actor_dict[actor], 'health'):
         current_health = actor_dict[actor].health
     else:
@@ -1222,10 +1226,10 @@ async def damage_actor(actor=None, damage=10, display_above=True,
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
     if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
-        #TODO: custom destruction messages for different materials?
-        await append_to_log(message="SMASH!")
+        message, palette = debris_dict[material]
+        await append_to_log(message=message)
         root_x, root_y = actor_dict[actor].coords()
-        asyncio.ensure_future(sow_texture(root_x, root_y, palette=',.\'', radius=3, seeds=6, 
+        asyncio.ensure_future(sow_texture(root_x, root_y, palette=palette, radius=3, seeds=6, 
                               passable=True, stamp=True, paint=False, color_num=8,
                               description='Broken {}.'.format(material),
                               pause_between=.06))
