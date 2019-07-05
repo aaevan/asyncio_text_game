@@ -28,7 +28,7 @@ class Map_tile:
                  announcement='', distance_trigger=None, is_animated=False,
                  animation='', actors=None, items=None, 
                  magic=False, magic_destination=False, 
-                 mutable=True, override_view=False,
+                 mutable=True, override_view=False, color_num=7,
                  is_door=False, locked=False, key=''):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -52,6 +52,7 @@ class Map_tile:
         self.magic, self.magic_destination = magic, magic_destination
         self.mutable = mutable
         self.override_view = override_view
+        self.color_num = color_num
         self.is_door = is_door
         self.locked = locked
         self.key = key #holds what keys fit this tile (if it's a door)
@@ -1436,10 +1437,12 @@ async def display_current_tile():
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
-        with term.location(80, 0):
+        with term.location(90, 7):
             print("current tile: {}".format(current_tile))
-        with term.location(80, 1):
-            print("repr() of tile: {}".format(repr(current_tile)))
+        with term.location(90, 8):
+            print("repr() of tile:")
+        with term.location(90, 9):
+            print("{}".format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -4361,9 +4364,7 @@ def main():
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
-    #TODO: fix offsets of nake_stairs to allow for multiple passages.
-    loop.create_task(fake_stairs(coord_a=(-10, 14), coord_b=(-1, 20)))
-    #loop.create_task(display_current_tile()) #debug for map generation
+    loop.create_task(display_current_tile()) #debug for map generation
     #test enemies
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
