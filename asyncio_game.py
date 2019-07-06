@@ -1437,8 +1437,11 @@ async def display_current_tile():
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
-        with term.location(90, 7):
+        with term.location(90, 6):
             print("current tile: {}".format(current_tile))
+        tile_color = map_dict[current_coords].color_num
+        with term.location(90, 7):
+            print("tile w/ color: {}".format(term.color(tile_color)(current_tile)))
         with term.location(90, 8):
             print("repr() of tile:")
         with term.location(90, 9):
@@ -1901,11 +1904,13 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             continue
         if paint:
             if map_dict[toss_coord].tile not in "▮▯":
-                colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
-                map_dict[toss_coord].tile = colored_tile
+                #colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
+                map_dict[toss_coord].color_num = 1
+                #map_dict[toss_coord].tile = colored_tile
         else:
             random_tile = choice(palette)
-            map_dict[toss_coord].tile = term.color(color_num)(random_tile)
+            #map_dict[toss_coord].tile = term.color(color_num)(random_tile)
+            map_dict[toss_coord].color_num = color_num
         if not stamp:
             map_dict[toss_coord].passable = passable
         if description:
@@ -2961,6 +2966,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
         await asyncio.sleep(distance * .015) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
+        tile_coord_key = (x_display_coord, y_display_coord)
         #check whether the current tile is within the current field of view
         current_angle = state_dict['current_angle']
         l_angle, r_angle = ((current_angle - fov // 2) % 360, 
@@ -2972,7 +2978,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             print_choice=term.color(6)('@')
         elif display:
             #add a line in here for different levels/dimensions:
-            tile_coord_key = (x_display_coord, y_display_coord)
             random_distance = abs(gauss(distance, 1))
             if random_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight(player_coords, tile_coord_key)
@@ -3003,10 +3008,14 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
         with term.location(*print_location):
             # only print something if it has changed:
             if last_print_choice != print_choice:
-                if print_choice == "░":
-                    print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                elif print_choice == '𝄛':
-                    print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                tile_color = map_dict[tile_coord_key].color_num
+                if tile_color in (0, 7, 8, 9):
+                    if print_choice == "░":
+                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                    elif print_choice == '𝄛':
+                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                else:
+                    print_choice = term.color(tile_color)(print_choice)
                 print(print_choice)
                 last_print_choice = print_choice
             # only print something if it has changed:
@@ -4358,9 +4367,7 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(death_check())
-    #loop.create_task(environment_check())
     loop.create_task(quitter_daemon())
-    loop.create_task(fake_stairs())
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
