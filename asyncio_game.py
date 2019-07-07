@@ -1429,8 +1429,6 @@ async def export_map(width=140, height=45):
     #return the tile to its original state:
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
-#TODO: fix colors of tiles as displayed through magic doors.
-
 async def display_current_tile():
     #TODO: a larger problem: store colors not on the tiles themselves but
     #      numbers to be retrieved when the tile or actor or item is accessed?
@@ -3074,7 +3072,11 @@ async def check_contents_of_tile(coord):
     if map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
-        return map_dict[coord].tile
+        if map_dict[coord].color_num not in (7, 8):
+            tile_color = map_dict[coord].color_num
+            return term.color(tile_color)(map_dict[coord].tile)
+        else:
+            return map_dict[coord].tile
 
 def offset_of_center(x_offset=0, y_offset=0):
     window_width, window_height = term.width, term.height
