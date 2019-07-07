@@ -1429,6 +1429,8 @@ async def export_map(width=140, height=45):
     #return the tile to its original state:
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
+#TODO: fix colors of tiles as displayed through magic doors.
+
 async def display_current_tile():
     #TODO: a larger problem: store colors not on the tiles themselves but
     #      numbers to be retrieved when the tile or actor or item is accessed?
@@ -1441,10 +1443,12 @@ async def display_current_tile():
             print("current tile: {}".format(current_tile))
         tile_color = map_dict[current_coords].color_num
         with term.location(90, 7):
-            print("tile w/ color: {}".format(term.color(tile_color)(current_tile)))
+            print("tile_color: {}".format(tile_color))
         with term.location(90, 8):
-            print("repr() of tile:")
+            print("tile w/ color: {}".format(term.color(tile_color)(current_tile)))
         with term.location(90, 9):
+            print("repr() of tile:")
+        with term.location(90, 10):
             print("{}".format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
@@ -3436,6 +3440,23 @@ async def wander(name_key=None, **kwargs):
     else:
         return x_current, y_current
 
+async def delay_follow(name_key='player', window_length=20, speed=.02, delay_offset=10):
+    moves = [[None, None]] * window_length
+    grab_index = 0
+    delay_index = delay_offset
+    current_coords = actor_dict[name_key].coords()
+    delay_id = spawn_static_actor(base_name='static', spawn_coord=current_coords, tile=' ',
+                                  breakable=False, moveable=False,
+                                  multi_tile_parent=None, blocking=False, literal_name=False,
+                                  description='Your shadow.')
+    while True:
+        await asyncio.sleep(speed)
+        grab_index = (grab_index + 1) % window_length
+        delay_index = (delay_index + 1) % window_length
+        moves[grab_index] = actor_dict[name_key].coords()
+        if None not in moves[delay_index]:
+            actor_dict[delay_id].update(moves[delay_index])
+
 async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=3):
     attacker_strength = actor_dict[attacker_key].strength
     target_x, target_y = actor_dict[defender_key].coords()
@@ -4372,6 +4393,8 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
+    for i in range(3):
+        loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
     #test enemies
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
