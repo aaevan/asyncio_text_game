@@ -1316,6 +1316,42 @@ def push(direction='n', pusher='player'):
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(coord=pushed_destination)
 
+async def bay_door(hinge_coord=(0, 0), patch_to_key="bay_door_0", orientation='n', 
+                   segments=5, blocking=True, color_num=6, preset='thin'):
+    """
+    Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
+    is activated.
+
+    hinge_coord is the location of the "doorframe", where the door disappears into.
+
+    orientation is the direction that the door will propagate from hinge_coord
+
+    A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have door segments
+    at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
+
+    TODO: have bay doors (when closing) push any actor towards the direction that they're closing.
+    TODO: account for crushing damage if the actor can be destroyed,
+    TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
+          if actor cannot be crushed (destroyed?)
+    TODO: use ╞ type characters for interface with wall hinge tile?
+    """
+    if orientation in ('n', 's'):
+        style_dir = 'ns'
+    door_style = {'thick':{'ns':'‖', 'ew':'═'},
+                   'thin':{'ns':'│', 'ew':'─'},}
+    door_segment_tile = door_style[preset][style_dir]
+    #TODO: make sure the name of the spawned mte matches that of the door?
+    await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
+    dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
+    dir_coord_increment = dir_offsets[orientation]
+    for i in range(segments):
+        offset = (dir_coord_increment[0] * 1 + i, 
+                  dir_coord_increment[1] * 1 + i)
+        spawn_coord = add_coords(hinge_coord, offset)
+        segment_name = '{}_{}'.format(patch_to_key, i)
+        #door.add_segment(segment_tile=door_segment_tile, offset=offset,
+                         #segment_name=segment_name, blocking=blocking)
+
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
     await asyncio.sleep(refresh_speed)
@@ -4395,6 +4431,7 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(-3, 0))) #debug for map generation
     #for i in range(3):
         #loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
     #test enemies
