@@ -1316,7 +1316,7 @@ def push(direction='n', pusher='player'):
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(coord=pushed_destination)
 
-async def bay_door(hinge_coord=(0, 0), patch_to_key="bay_door_0", orientation='n', 
+async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n', 
                    segments=5, blocking=True, color_num=6, preset='thin'):
     """
     Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
@@ -1341,16 +1341,16 @@ async def bay_door(hinge_coord=(0, 0), patch_to_key="bay_door_0", orientation='n
                    'thin':{'ns':'│', 'ew':'─'},}
     door_segment_tile = door_style[preset][style_dir]
     #TODO: make sure the name of the spawned mte matches that of the door?
-    await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
+    door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
     for i in range(segments):
-        offset = (dir_coord_increment[0] * 1 + i, 
-                  dir_coord_increment[1] * 1 + i)
+        offset = (dir_coord_increment[0] * (1 + i), 
+                  dir_coord_increment[1] * (1 + i))
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(patch_to_key, i)
-        #door.add_segment(segment_tile=door_segment_tile, offset=offset,
-                         #segment_name=segment_name, blocking=blocking)
+        mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
+                                   offset=offset, segment_name=segment_name, blocking=blocking)
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
