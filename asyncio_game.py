@@ -1350,7 +1350,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
                   dir_coord_increment[1] * (1 + i))
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(patch_to_key, i)
-        segment_names.append(segment_name)
+        segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
                                    offset=offset, segment_name=segment_name, blocking=blocking)
     flipper = 0
@@ -1358,11 +1358,13 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
         await asyncio.sleep(1)
         if flipper == 0:
             for segment in segment_names:
-                actor_dict[segment].blocking = False
+                actor_dict[segment[0]].update(hinge_coord)
+                #actor_dict[segment[0]].blocking = False
             flipper = 1
         elif flipper == 1:
             for segment in segment_names:
-                actor_dict[segment].blocking = True
+                actor_dict[segment[0]].update(segment[1])
+                #actor_dict[segment[0]].blocking = True
             flipper = 0
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
