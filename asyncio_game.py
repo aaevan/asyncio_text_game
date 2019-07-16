@@ -1357,12 +1357,14 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     while True:
         await asyncio.sleep(1)
         if flipper == 0:
-            for segment in segment_names:
+            for segment in reversed(segment_names):
+                await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(hinge_coord)
                 #actor_dict[segment[0]].blocking = False
             flipper = 1
         elif flipper == 1:
             for segment in segment_names:
+                await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
                 #actor_dict[segment[0]].blocking = True
             flipper = 0
@@ -3062,13 +3064,14 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             # only print something if it has changed:
             if last_print_choice != print_choice:
                 tile_color = map_dict[tile_coord_key].color_num
-                if tile_color in (0, 7, 8, 9):
-                    if print_choice == "░":
-                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                    elif print_choice == '𝄛':
-                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                else:
-                    print_choice = term.color(tile_color)(print_choice)
+                #if tile_color in (0, 7, 8, 9):
+                    #if print_choice == "░":
+                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                    #elif print_choice == '𝄛':
+                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                #else:
+                    #print_choice = term.color(tile_color)(print_choice)
+                print_choice = term.color(tile_color)(print_choice)
                 print(print_choice)
                 last_print_choice = print_choice
             # only print something if it has changed:
