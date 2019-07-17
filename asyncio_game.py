@@ -693,7 +693,8 @@ state_dict['teleporting'] = False
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
-    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    #presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=True, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
@@ -707,7 +708,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
 
     Each attribute is individually set so that actors and items are preserved.
     """
-    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    #presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=False, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
@@ -1335,6 +1337,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
           if actor cannot be crushed (destroyed?)
     TODO: use ╞ type characters for interface with wall hinge tile?
     """
+    state_dict[patch_to_key] = {}
     if orientation in ('n', 's'):
         style_dir = 'ns'
     door_style = {'thick':{'ns':'‖', 'ew':'═'},
@@ -1356,18 +1359,18 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     flipper = 0
     while True:
         await asyncio.sleep(1)
-        if flipper == 0:
+        if await any_true(trigger_key=patch_to_key):
+        #if flipper == 0:
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
-                actor_dict[segment[0]].update(hinge_coord)
-                #actor_dict[segment[0]].blocking = False
-            flipper = 1
-        elif flipper == 1:
+                actor_dict[segment[0]].update(('', '')) #move to nowhere
+            #flipper = 1
+        #elif flipper == 1:
+        else:
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
-                #actor_dict[segment[0]].blocking = True
-            flipper = 0
+            #flipper = 0
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
@@ -3347,6 +3350,10 @@ async def trap_init():
     loop.create_task(state_toggle(trigger_key='test'))
     loop.create_task(puzzle_pair(puzzle_name='brown'))
     loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
+    patch_key = 'bay_door_1'
+    state_dict[patch_key] = {}
+    loop.create_task(pressure_plate(spawn_coord=(2, -2), patch_to_key=patch_key))
+    loop.create_task(bay_door(hinge_coord=(-3, 0), patch_to_key=patch_key)) #debug for map generation
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
@@ -4449,7 +4456,7 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(bay_door(hinge_coord=(-3, 0))) #debug for map generation
+    #loop.create_task(bay_door(hinge_coord=(-3, 0))) #debug for map generation
     #for i in range(3):
         #loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
     #test enemies
