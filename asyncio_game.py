@@ -28,7 +28,7 @@ class Map_tile:
                  announcement='', distance_trigger=None, is_animated=False,
                  animation='', actors=None, items=None, 
                  magic=False, magic_destination=False, 
-                 mutable=True, override_view=False, color_num=7,
+                 mutable=True, override_view=False, color_num=8,
                  is_door=False, locked=False, key=''):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -1404,6 +1404,10 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
+    with term.location(50, 3):
+        print((hinge_a_coord, patch_to_key, hinge_a_dir))
+    with term.location(50, 4):
+        print((hinge_b_coord, patch_to_key, hinge_b_dir))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
                                    orientation = hinge_a_dir)) 
@@ -3118,7 +3122,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
                 last_print_choice = print_choice
             # only print something if it has changed:
 
-def find_brightness_tile(print_choice=None, distance=0, std_dev=.5):
+def find_brightness_tile(print_choice=None, distance=0):
     """
     returns the appropriate light-level shifted tile based on distance.
     """
