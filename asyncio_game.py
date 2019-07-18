@@ -693,8 +693,8 @@ state_dict['teleporting'] = False
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
-    #presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
-    presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
+    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    #presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=True, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
@@ -708,8 +708,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
 
     Each attribute is individually set so that actors and items are preserved.
     """
-    #presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
-    presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
+    presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
+    #presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=False, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
@@ -730,7 +730,10 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                'water':Map_tile(tile='█', blocking=False, passable=True,
                                 description='Water.',
                                 magic=False, is_animated=True, 
-                                animation=Animation(preset='water'))}
+                                animation=Animation(preset='water')),
+               'error':Map_tile(tile='?', blocking=False, passable=True,
+                                description='ERROR',
+                                magic=False, is_animated=False)}
     map_dict[tile_coords].passable = presets[preset].passable
     #TODO: add an option to randomly draw from a palette
     map_dict[tile_coords].tile = presets[preset].tile
@@ -1340,6 +1343,8 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     state_dict[patch_to_key] = {}
     if orientation in ('n', 's'):
         style_dir = 'ns'
+    elif orientation in ('e', 'w'):
+        style_dir = 'ew'
     door_style = {'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
     door_segment_tile = door_style[preset][style_dir]
@@ -1371,6 +1376,40 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
             #flipper = 0
+
+async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
+        preset='thin', orientation='ns', pressure_plate_coord=None):
+    """
+    writes a pair of bay_doors to the map that listen on the same key.
+    
+    width of doorway is determined by distance apart. 
+    
+    hinge_a_coord will take up the slack if the distance is an odd number
+    """
+    #one of the coords must lie on the same x or y coord.
+    draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
+    if hinge_a_coord[0] != hinge_b_coord[0] and hinge_a_coord[1] != hinge_b_coord[1]:
+        draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
+        return
+    if hinge_a_coord[1] == hinge_b_coord[1]:
+        if hinge_a_coord[0] > hinge_b_coord[0]:
+            hinge_a_dir, hinge_b_dir = 'w', 'e'
+        else:
+            hinge_a_dir, hinge_b_dir = 'e', 'w'
+    elif hinge_a_coord[0] == hinge_b_coord[0]:
+        if hinge_a_coord[1] > hinge_b_coord[1]:
+            hinge_a_dir, hinge_b_dir = 'n', 's'
+        else:
+            hinge_a_dir, hinge_b_dir = 's', 'n'
+    state_dict[patch_to_key] = {}
+    if pressure_plate_coord is not None:
+        asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
+    asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
+                                   patch_to_key=patch_to_key,
+                                   orientation = hinge_a_dir)) 
+    asyncio.ensure_future(bay_door(hinge_coord=hinge_b_coord,
+                                   patch_to_key=patch_to_key,
+                                   orientation = hinge_b_dir)) 
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
@@ -3067,13 +3106,13 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             # only print something if it has changed:
             if last_print_choice != print_choice:
                 tile_color = map_dict[tile_coord_key].color_num
-                #if tile_color in (0, 7, 8, 9):
-                    #if print_choice == "░":
-                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                    #elif print_choice == '𝄛':
-                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                #else:
-                    #print_choice = term.color(tile_color)(print_choice)
+                if tile_color in (0, 7, 8, 9):
+                    if print_choice == "░":
+                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                    elif print_choice == '𝄛':
+                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                else:
+                    print_choice = term.color(tile_color)(print_choice)
                 print_choice = term.color(tile_color)(print_choice)
                 print(print_choice)
                 last_print_choice = print_choice
@@ -3350,10 +3389,11 @@ async def trap_init():
     loop.create_task(state_toggle(trigger_key='test'))
     loop.create_task(puzzle_pair(puzzle_name='brown'))
     loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
-    patch_key = 'bay_door_1'
-    state_dict[patch_key] = {}
-    loop.create_task(pressure_plate(spawn_coord=(2, -2), patch_to_key=patch_key))
-    loop.create_task(bay_door(hinge_coord=(-3, 0), patch_to_key=patch_key)) #debug for map generation
+    await bay_door_pair((-5, -3), (5, -3), pressure_plate_coord=(1, 1))
+    #patch_key = 'bay_door_1'
+    #state_dict[patch_key] = {}
+    #loop.create_task(pressure_plate(spawn_coord=(2, -2), patch_to_key=patch_key))
+    #loop.create_task(bay_door(hinge_coord=(-3, 0), patch_to_key=patch_key)) #debug for map generation
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
