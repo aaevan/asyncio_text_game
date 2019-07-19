@@ -1354,6 +1354,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     dir_coord_increment = dir_offsets[orientation]
     segment_names = []
     for i in range(segments):
+        await asyncio.sleep(1)
         offset = (dir_coord_increment[0] * (1 + i), 
                   dir_coord_increment[1] * (1 + i))
         spawn_coord = add_coords(hinge_coord, offset)
@@ -1361,21 +1362,16 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
         segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
                                    offset=offset, segment_name=segment_name, blocking=blocking)
-    flipper = 0
     while True:
         await asyncio.sleep(1)
         if await any_true(trigger_key=patch_to_key):
-        #if flipper == 0:
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(('', '')) #move to nowhere
-            #flipper = 1
-        #elif flipper == 1:
         else:
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
-            #flipper = 0
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
         preset='thin', orientation='ns', pressure_plate_coord=None):
