@@ -1354,7 +1354,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     dir_coord_increment = dir_offsets[orientation]
     segment_names = []
     for i in range(segments):
-        await asyncio.sleep(1)
         offset = (dir_coord_increment[0] * (1 + i), 
                   dir_coord_increment[1] * (1 + i))
         spawn_coord = add_coords(hinge_coord, offset)
@@ -1364,6 +1363,9 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
                                    offset=offset, segment_name=segment_name, blocking=blocking)
     while True:
         await asyncio.sleep(1)
+        for segment in segment_names:
+            if segment_name[0] not in actor_dict:
+                return
         if await any_true(trigger_key=patch_to_key):
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
@@ -1372,6 +1374,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
+
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
         preset='thin', orientation='ns', pressure_plate_coord=None):
@@ -1383,9 +1386,9 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     hinge_a_coord will take up the slack if the distance is an odd number
     """
     #one of the coords must lie on the same x or y coord.
-    draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
+    #draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
     if hinge_a_coord[0] != hinge_b_coord[0] and hinge_a_coord[1] != hinge_b_coord[1]:
-        draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
+        #draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
         return
     if hinge_a_coord[1] == hinge_b_coord[1]:
         if hinge_a_coord[0] > hinge_b_coord[0]:
@@ -4496,7 +4499,8 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    #loop.create_task(bay_door(hinge_coord=(-3, 0))) #debug for map generation
+    for temp_dir in ('n', 'e', 's', 'w'):
+        loop.create_task(bay_door(hinge_coord=(-3, 0), orientation=temp_dir)) #debug for map generation
     #for i in range(3):
         #loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
     #test enemies
