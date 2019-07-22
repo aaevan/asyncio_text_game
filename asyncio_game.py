@@ -1348,7 +1348,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     door_style = {'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
     door_segment_tile = door_style[preset][style_dir]
-    #TODO: make sure the name of the spawned mte matches that of the door?
     door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
