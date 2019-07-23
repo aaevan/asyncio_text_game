@@ -1321,8 +1321,9 @@ def push(direction='n', pusher='player'):
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(coord=pushed_destination)
 
-async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n', 
-                   segments=5, blocking=True, color_num=6, preset='thin'):
+async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", 
+                   orientation='n', segments=5, blocking=True, 
+                   color_num=6, preset='thin'):
     """
     Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
     is activated.
@@ -1348,15 +1349,17 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", orientation='n
     door_style = {'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
     door_segment_tile = door_style[preset][style_dir]
+    #print(preset, style_dir, door_segment_tile)
     door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
     segment_names = []
-    for i in range(segments):
-        offset = (dir_coord_increment[0] * (1 + i), 
-                  dir_coord_increment[1] * (1 + i))
+    door_id = generate_id(base_name=patch_to_key)
+    for segment_num in range(segments):
+        offset = (dir_coord_increment[0] * (1 + segment_num), 
+                  dir_coord_increment[1] * (1 + segment_num))
         spawn_coord = add_coords(hinge_coord, offset)
-        segment_name = '{}_{}'.format(patch_to_key, i)
+        segment_name = '{}_{}'.format(door_id, segment_num)
         segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
                                    offset=offset, segment_name=segment_name, blocking=blocking)
@@ -3391,11 +3394,6 @@ async def trap_init():
     loop.create_task(state_toggle(trigger_key='test'))
     loop.create_task(puzzle_pair(puzzle_name='brown'))
     loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
-    await bay_door_pair((-5, -3), (5, -3), pressure_plate_coord=(1, 1))
-    #patch_key = 'bay_door_1'
-    #state_dict[patch_key] = {}
-    #loop.create_task(pressure_plate(spawn_coord=(2, -2), patch_to_key=patch_key))
-    #loop.create_task(bay_door(hinge_coord=(-3, 0), patch_to_key=patch_key)) #debug for map generation
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
@@ -4498,8 +4496,9 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    for temp_dir in ('n', 'e', 's', 'w'):
-        loop.create_task(bay_door(hinge_coord=(-3, 0), orientation=temp_dir)) #debug for map generation
+    for temp_dir in ('n', 'e', 's', 'w'):#('n', 'e', 's', 'w'):
+        patch_key = 'bay_door_{}'.format(temp_dir)
+        loop.create_task(bay_door(hinge_coord=(-3, 0), orientation=temp_dir, patch_to_key=patch_key)) #debug for map generation
     #for i in range(3):
         #loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
     #test enemies
