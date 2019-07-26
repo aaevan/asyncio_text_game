@@ -4499,9 +4499,6 @@ def main():
     for temp_dir in ('n', 'e', 's', 'w'):#('n', 'e', 's', 'w'):
         patch_key = 'bay_door_{}'.format(temp_dir)
         loop.create_task(bay_door(hinge_coord=(-3, 0), orientation=temp_dir, patch_to_key=patch_key)) #debug for map generation
-    #for i in range(3):
-        #loop.create_task(delay_follow(delay_offset=i)) #debug for map generation
-    #test enemies
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
