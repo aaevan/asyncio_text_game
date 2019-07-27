@@ -13,8 +13,9 @@ def clear():
     _ = call('clear' if os.name =='posix' else 'cls')
 
 def shades_pick():
-    shades = ('░', '▒', '▓', '█')
+    shades = (' ', '░', '▒', '▓', '█')
     numbers = (0, 8, 7)
+    on_fill = (0, 8, 7)
     output_pairs = list(product(numbers, shades))
     #print(output_pairs)
     str_output = []
@@ -23,10 +24,11 @@ def shades_pick():
     for pair in output_pairs:
         str_output.append(term.color(pair[0])(pair[1]))
     print(''.join(str_output))
-    for number in numbers:
-        for index, shade in enumerate(shades):
-            tile = term.color(number)(shade)
-            print(number, index, shade, tile * 4)
+    for color in on_fill:
+        for number in numbers:
+            for index, shade in enumerate(shades):
+                tile = term.on_color(color)(term.color(number)(shade))
+                print(number, color, term.on_color(color)(' '), index, shade, tile * 4)
     print()
     print(term.color(0)(shades[0]) * 4, 0, 0)
     print(term.color(8)(shades[0]) * 4, 8, 0)
