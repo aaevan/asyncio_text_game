@@ -25,11 +25,6 @@ def shades_pick():
     for pair in output_pairs:
         str_output.append(term.color(pair[0])(pair[1]))
     print(''.join(str_output))
-    #for color in on_fill:
-        #for number in numbers:
-            #for index, shade in enumerate(shades):
-                #tile = term.on_color(color)(term.color(number)(shade))
-                #print(number, color, term.on_color(color)(' '), index, shade, tile * 4)
     print(term.color(0)(shades[0]) * 4, 0, 0)
     print(term.color(8)(shades[0]) * 4, 8, 0)
     print(term.color(7)(shades[0]) * 4, 7, 0)
@@ -44,17 +39,27 @@ def shades_pick():
     print(term.color(7)(shades[3]) * 4, 7, 3)
 
 def switcher_display(y_offset=3, x_offset=3):
-    ordering = [i for i in range(10)]
+    shades = (' ', '░', '▒', '▓', '█')
+    numbers = (0, 8, 7)
+    on_fill = (0, 8, 7)
+    ordering = []
+    for number in numbers:
+        for index, shade in enumerate(shades):
+            tile = (number, shade, term.color(number)(shade))
+            ordering.append(tile)
     while True:
         clear()
-        for index, i in enumerate(ordering):
-            with term.location(x_offset, y_offset + i):
-                print(index, i)
-        input_command = [int(i.strip()) for i in input("switch a and b? ").split(',')]
+        with term.location(0, 0):
+            print("Enter line indexes to swap, ex. '1, 2'")
+        for index, (number, shade, tile) in enumerate(ordering):
+            with term.location(x_offset, y_offset + index):
+                print(str(index).ljust(2) + ':', number, shade, (tile * 10))
+        with term.location(0, 1):
+            input_string = input("switch a and b? ").split(',')
+        input_command = [int(i.strip()) for i in input_string]
         a, b = input_command
         ordering[a], ordering[b] = ordering[b], ordering[a]
         print("input_command: {}".format(input_command))
-        sleep(2)
 
 
 def main():
