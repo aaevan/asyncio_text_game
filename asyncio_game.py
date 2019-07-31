@@ -6,6 +6,7 @@ import select
 import tty 
 import termios
 import textwrap
+from ast import literal_eval
 from numpy import linspace
 from blessings import Terminal
 from copy import copy, deepcopy
@@ -673,8 +674,15 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         actor_dict[segment].blocking = False
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
+def read_color_palette_file(filename='color_palette.txt'):
+    with open('color_palette.txt', 'r') as file:
+        for line in file:
+            output = literal_eval(line) #assumes a one-line file
+    return output
+
 #Global state setup-------------------------------------------------------------
 term = Terminal()
+brightness_vals = read_color_palette_file()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -694,7 +702,6 @@ state_dict['teleporting'] = False
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
     presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
-    #presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=True, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,
@@ -3113,7 +3120,9 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
                 tile_color = map_dict[tile_coord_key].color_num
                 if tile_color in (0, 7, 8, 9):
                     if print_choice == "░":
-                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                        color_tuple = brightness_vals[int(distance)]
+                        print_choice = term.color(color_tuple[0])(color_tuple[1])
+                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
                     elif print_choice == '𝄛':
                         print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
                 else:
