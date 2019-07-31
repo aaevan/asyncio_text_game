@@ -50,12 +50,27 @@ def switcher_display(y_offset=3, x_offset=3):
     while True:
         clear()
         with term.location(0, 0):
-            print("Enter line indexes to swap, ex. '1, 2'")
+            print("Enter line indexes to swap, ex. '1, 2', 'good' to finish preset")
         for index, (number, shade, tile) in enumerate(ordering):
             with term.location(x_offset, y_offset + index):
                 print(str(index).ljust(2) + ':', number, shade, (tile * 10))
-        with term.location(0, 1):
-            input_string = input("switch a and b? ").split(',')
+        while True:
+            with term.location(0, 1):
+                print(' ' * 80)
+            with term.location(0, 1):
+                input_string = input("switch a and b? ")
+            if type(input_string) == str:
+                if input_string == 'good':
+                    clear()
+                    return ordering
+                input_string = input_string.split(',')
+                if len(input_string) == 2:
+                    if all (i.strip().isdigit() for i in input_string):
+                        break
+                with term.location(0, 0):
+                    print(" " * 80)
+                with term.location(0, 0):
+                    print("input must be 'int, int' format.")
         input_command = [int(i.strip()) for i in input_string]
         a, b = input_command
         ordering[a], ordering[b] = ordering[b], ordering[a]
@@ -99,7 +114,8 @@ def main():
     shades_pick()
     sleep(1)
     clear()
-    switcher_display()
+    output = switcher_display()
+    print(output)
 
 
 main()
