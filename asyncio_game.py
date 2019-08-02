@@ -3065,7 +3065,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
     previous_tile = None
-    print_location = (middle_x + x_offset, middle_y + y_offset)
+    #print_location = (middle_x + x_offset, middle_y + y_offset)
+    print_location = add_coords((middle_x, middle_y), (x_offset, y_offset))
     last_print_choice = ' '
     angle_from_twelve = find_angle(p0=(0, 5), p2=(x_offset, y_offset))
     if x_offset <= 0:
@@ -3108,7 +3109,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             if state_dict['plane'] == 'nightmare':
                 color_choice = 0
             else:
-                color_choice = 7
+                color_choice = brightness_vals[10][0]
+                #color_choice = 7
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
         else:
