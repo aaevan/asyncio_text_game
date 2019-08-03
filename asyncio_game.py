@@ -627,9 +627,6 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
         return True
 
 async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
-    #TODO: fix update so it doesn't leave invisible blocking spaces
-    # update may still carve out spaces if space is not checked first
-    # i.e. from follower_vine()
     await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
@@ -637,10 +634,6 @@ async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
     if map_dict[end_point].passable:
         actor_dict[actor_name].update(coord=end_point)
-    #travel_line = get_line(start_point, end_point)
-    #if map_dict[travel_line[-1]].passable:
-        #await drag_actor_along_line(actor_name=actor_name, line=travel_line)
-        #map_dict[start_point].passable = True
 
 async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
     """
@@ -654,7 +647,6 @@ async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02)
         destination = add_coords(player_coords, (5, 5))
         line = get_line(player_coords, destination)
     for point in line:
-        #map_dict[point].tile = '.' #debug
         await asyncio.sleep(linger_time)
         actor_dict[actor_name].update(coord=point)
 
@@ -790,8 +782,6 @@ def draw_line(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
         map_dict[point].passable = passable
         map_dict[point].blocking = blocking
 
-#TODO: a function to make a bumpy passage of randomly oscillating size?
-
 def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     """
     returns the point halfway between two points.
@@ -915,7 +905,7 @@ def add_jitter_to_middle(points=None, jitter=5):
         for point in body:
             rand_shift = [randint(-jitter, jitter) for i in range(2)]
             new_body.append(add_coords(rand_shift, point))
-        output = head, *new_body, tail #pack tuples back into one list o
+        output = head, *new_body, tail #pack tuples back into one list
         return output
     else:
         return []
