@@ -9,10 +9,10 @@ import textwrap
 from ast import literal_eval
 from numpy import linspace
 from blessings import Terminal
-from copy import copy, deepcopy
+from copy import copy
 from collections import defaultdict
 from datetime import datetime
-from itertools import cycle, repeat, combinations
+from itertools import cycle, repeat
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
@@ -324,7 +324,6 @@ class Multi_tile_entity:
     def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
                  blocking=False, fill_color=3, offset=(-1, -1)):
         self.name = name
-        #animation_key = {'E':'explosion', 'W':'writhe'}
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {'2x2':(('┏', '┓'),
                           ('┗', '┛'),),
@@ -383,7 +382,6 @@ class Multi_tile_entity:
                 if tiles[y][x] is ' ':
                     continue
                 else:
-                    #segment_tile = term.color(fill_color)(tiles[y][x])
                     segment_tile = tiles[y][x]
                 segment_name = f'{self.name}_{(x, y)}'
                 self.add_segment(segment_tile=segment_tile,
@@ -708,7 +706,6 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     Each attribute is individually set so that actors and items are preserved.
     """
     presets = {'floor':Map_tile(tile="░", blocking=False, passable=True,
-    #presets = {'floor':Map_tile(tile="▒", blocking=False, passable=True,
                                 description='A smooth patch of stone floor.',
                                 magic=False, is_animated=False, animation=None),
                 'wall':Map_tile(tile="𝄛", blocking=False, passable=True,

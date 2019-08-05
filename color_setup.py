@@ -54,6 +54,26 @@ def switcher_display(y_offset=3, x_offset=3):
         ordering[a], ordering[b] = ordering[b], ordering[a]
         print("input_command: {}".format(input_command))
 
+def input_number(message="Choose a number: "):
+    while True:
+        try:
+            user_input = int(input(message))
+        except ValueError:
+            print("That's not a whole number.")
+            continue
+        else:
+            return user_input
+
+def pick_matching_color():
+    color_map = {}
+    for color in ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue'):
+        with term.location(0, 0):
+            color_choice = None
+            print("Which color is closest to {}?".format(color))
+            color_choice = input_number()
+            color_map[color] = int(color_choice)
+    return color
+
 def main():
     clear()
     bw_gradient = ((" "),                #0
