@@ -66,10 +66,15 @@ def input_number(message="Choose a number: "):
 
 def pick_matching_color():
     color_map = {}
+    for number in range(10):
+        with term.location(number, 0):
+            print(term.color(number)(str(number)))
+        with term.location(number, 1):
+            print(term.on_color(number)(str(number)))
     for color in ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue'):
-        with term.location(0, 0):
+        with term.location(0, 2):
             color_choice = None
-            print("Which color is closest to {}?".format(color))
+            print("Which color is closest to {}?          ".format(color))
             color_choice = input_number()
             color_map[color] = int(color_choice)
     return color
@@ -93,10 +98,11 @@ def main():
                    term.color(8)("█"),   #15
                    )
     clear()
-    output = switcher_display()
-    print(output)
-    with open('color_palette.txt', 'w') as color_palette:
-        color_palette.write(str(output))
+    pick_matching_color()
+    #output = switcher_display()
+    #print(output)
+    #with open('color_palette.txt', 'w') as color_palette:
+        #color_palette.write(str(output))
 
 main()
 
