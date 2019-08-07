@@ -64,6 +64,18 @@ def input_number(message="Choose a number: "):
         else:
             return user_input
 
+def choose_yn(message="Yes or No? "):
+    while True:
+        user_input = input(message).lower()
+        if user_input not in ('y', 'n', 'yes', 'no'):
+            print("Must be a yes or no answer.")
+            continue
+        else:
+            if user_input in ('n', 'no'):
+                return False
+            else:
+                return True
+
 def pick_matching_color():
     color_map = {}
     for number in range(10):
@@ -98,7 +110,10 @@ def main():
                    term.color(8)("█"),   #15
                    )
     clear()
-    pick_matching_color()
+    while True:
+        color_preset = pick_matching_color()
+        confirm_preset = input("Do the chosen colors match their descriptions?")
+        if confirm_preset.lower in ('yes', 'Yes', '
     #output = switcher_display()
     #print(output)
     #with open('color_palette.txt', 'w') as color_palette:
