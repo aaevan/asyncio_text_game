@@ -4494,9 +4494,7 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    for temp_dir in ('n', 'e', 's', 'w'):#('n', 'e', 's', 'w'):
-        patch_key = 'bay_door_{}'.format(temp_dir)
-        loop.create_task(bay_door(hinge_coord=(-3, 0), orientation=temp_dir, patch_to_key=patch_key)) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test')) #debug for map generation
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
