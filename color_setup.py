@@ -110,10 +110,16 @@ def main():
                    term.color(8)("█"),   #15
                    )
     clear()
+    colors = ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue')
     while True:
         color_preset = pick_matching_color()
+        for color_name, color_num in zip(colors, color_preset):
+            print(color_name, term.color(color_num)(color_name))
         confirm_preset = input("Do the chosen colors match their descriptions?")
-        if confirm_preset.lower in ('yes', 'Yes', '
+        if confirm_preset.lower not in ('yes', 'y'):
+            continue
+        else:
+            break
     #output = switcher_display()
     #print(output)
     #with open('color_palette.txt', 'w') as color_palette:
