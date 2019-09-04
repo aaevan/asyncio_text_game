@@ -606,7 +606,6 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     pushes a multi_tile entity.
     TODO: allow pushes of arbitrarily chained MTEs:
     This requires that we check each leading face for additional entities:
-
     aaa->     @: player
     a@a->     a: first mte
     aaabbb->  b: second mte
@@ -731,7 +730,6 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                                 description='ERROR',
                                 magic=False, is_animated=False)}
     map_dict[tile_coords].passable = presets[preset].passable
-    #TODO: add an option to randomly draw from a palette
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
