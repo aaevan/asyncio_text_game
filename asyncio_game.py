@@ -1277,8 +1277,6 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     await append_to_log(message=output_text)
 
-#REVIEWED TO HERE
-
 #TODO: an entity that moves around with momentum,
 #      others that follow the last n moves
 #      billiard balls?
@@ -1312,6 +1310,8 @@ def push(direction='n', pusher='player'):
         pushed_destination = add_coords(pushed_coords, chosen_dir)
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(coord=pushed_destination)
+
+#REVIEWED TO HERE
 
 async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", 
                    orientation='n', segments=5, blocking=True, 
