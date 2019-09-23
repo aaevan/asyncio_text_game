@@ -77,6 +77,7 @@ def choose_yn(message="Yes or No? "):
                 return True
 
 def pick_matching_color():
+    clear()
     color_map = {}
     for number in range(10):
         with term.location(number, 0):
@@ -89,7 +90,8 @@ def pick_matching_color():
             print("Which color is closest to {}?          ".format(color))
             color_choice = input_number()
             color_map[color] = int(color_choice)
-    return color
+    print("Color map is: {}".format(color_map))
+    return color_map
 
 def main():
     clear()
@@ -113,17 +115,19 @@ def main():
     colors = ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue')
     while True:
         color_preset = pick_matching_color()
-        for color_name, color_num in zip(colors, color_preset):
-            print(color_name, term.color(color_num)(color_name))
-        confirm_preset = input("Do the chosen colors match their descriptions?")
-        if confirm_preset.lower not in ('yes', 'y'):
+        clear()
+        for color_name in colors:
+            print(color_name, term.color(color_preset[color_name])(color_name))
+        confirm_preset = input("For all lines, does the font color match the color names?\n")
+        print("confirm_preset: {}".format(confirm_preset))
+        if confirm_preset.lower() not in ('yes', 'y'):
             continue
         else:
             break
-    #output = switcher_display()
-    #print(output)
-    #with open('color_palette.txt', 'w') as color_palette:
-        #color_palette.write(str(output))
+    with open('color_palette.txt', 'w') as color_palette:
+        for color in colors:
+            print("writing {}, {}".format(color, color_preset[color]))
+            color_palette.write("{}, {}\n".format(color, color_preset[color]))
 
 main()
 
