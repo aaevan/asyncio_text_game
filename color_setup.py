@@ -112,6 +112,12 @@ def main():
                    term.color(8)("█"),   #15
                    )
     clear()
+    ordering = switcher_display()
+    print(ordering)
+    with open('color_palette.txt', 'w+' as color_palette:
+        for pair in ordering:
+            color_palette.write("{}, {}\n".format(*pair))
+    """
     colors = ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue')
     while True:
         color_preset = pick_matching_color()
@@ -128,6 +134,7 @@ def main():
         for color in colors:
             print("writing {}, {}".format(color, color_preset[color]))
             color_palette.write("{}, {}\n".format(color, color_preset[color]))
+    """
 
 main()
 
