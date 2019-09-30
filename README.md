@@ -1,5 +1,5 @@
 # asyncio_text_game
-A (mostly failed) attempt to make a real-time rogue-adjacent game using asyncio.
+An attempt to make a real-time rogue-adjacent game using asyncio.
 
 Start game by running "python async_game.py" inside the cloned directory.
 
