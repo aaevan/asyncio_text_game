@@ -114,9 +114,11 @@ def main():
     clear()
     ordering = switcher_display()
     print(ordering)
-    with open('color_palette.txt', 'w+' as color_palette:
-        for pair in ordering:
-            color_palette.write("{}, {}\n".format(*pair))
+    print(repr(ordering))
+    with open('color_palette.txt', 'w+') as color_palette:
+        color_palette.write(repr(ordering))
+        #for pair in ordering:
+            #color_palette.write("{}, {}\n".format(*pair))
     """
     colors = ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue')
     while True:
