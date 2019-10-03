@@ -1529,16 +1529,16 @@ async def display_current_tile():
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
-        with term.location(90, 6):
+        with term.location(105, 6):
             print("current tile: {}".format(current_tile))
         tile_color = map_dict[current_coords].color_num
-        with term.location(90, 7):
+        with term.location(105, 7):
             print("tile_color: {}".format(tile_color))
-        with term.location(90, 8):
+        with term.location(105, 8):
             print("tile w/ color: {}".format(term.color(tile_color)(current_tile)))
-        with term.location(90, 9):
+        with term.location(105, 9):
             print("repr() of tile:")
-        with term.location(90, 10):
+        with term.location(105, 10):
             print("{}".format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
@@ -1748,6 +1748,7 @@ async def temporary_block(duration=5, animation_preset='energy block'):
     asyncio.ensure_future(timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
                           rand_delay=0, solid=False, moveable=True, 
                           animation_preset=animation_preset))
+
 
 async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
     """
@@ -2342,8 +2343,8 @@ async def handle_input(key):
             points = points_around_point()
             for point in points:
                 map_dict[add_coords(point, player_coords)].tile = '$'
-        #if key in '$':
-            #print_screen_grid() 
+        if key in '$':
+            print_screen_grid() 
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -3094,10 +3095,9 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             if state_dict['plane'] == 'nightmare':
                 color_choice = 0
             else:
-                color_choice = brightness_vals[10][0]
-                #color_choice = 7
+                color_choice = 8
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
-            print_choice = term.on_color(0)(term.color(color_choice)(remembered_tile))
+            print_choice = term.color(color_choice)(remembered_tile)
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
@@ -3105,16 +3105,13 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             # only print something if it has changed:
             if last_print_choice != print_choice:
                 tile_color = map_dict[tile_coord_key].color_num
-                if tile_color in (0, 7, 8, 9):
-                    if print_choice == "░":
-                        color_tuple = brightness_vals[int(distance)]
-                        print_choice = term.color(color_tuple[0])(color_tuple[1])
-                        #print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
-                    elif print_choice == '𝄛':
-                        print_choice = find_brightness_tile(print_choice=print_choice, distance=distance)
+                color_tuple = brightness_vals[int(distance)]
+                if print_choice == "░":
+                    print_choice = term.color(color_tuple[0])(color_tuple[1])
+                elif print_choice == '𝄛':
+                    print_choice = term.color(color_tuple[0])('𝄛')
                 else:
                     print_choice = term.color(tile_color)(print_choice)
-                print_choice = term.color(tile_color)(print_choice)
                 print(print_choice)
                 last_print_choice = print_choice
             # only print something if it has changed:
@@ -3277,8 +3274,6 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
         point = point_at_distance_and_angle(radius=point_radius,
                                             central_point=central_point,
                                             angle_from_twelve=angle,)
-        with term.location(50, 0):
-            print(radius, central_point, angle, point)
         ui_points.append(point)
     for tile in [term.color(warning_color)("█"), ' ']:
         shuffle(ui_points)
@@ -3315,16 +3310,18 @@ async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radi
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
-async def minimap_init(loop):
-    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=46, y_margin=-18, 
+async def minimap_init(loop, x_margin=46, y_margin=-18):
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=x_margin, y_margin=y_margin, 
                                       box_width=21, box_height=21))
     width_span = range(-20, 21, 2)
     height_span = range(-20, 21, 2)
+    width, height = (term.width, term.height)
+    x_offset, y_offset = width - x_margin + 13, -y_margin - 3
     for x in width_span:
         for y in height_span:
             half_scale = x // 2, y // 2
             loop.create_task(minimap_tile(player_position_offset=(x, y),
-                                          display_coord=(add_coords((126, 12), half_scale))))
+                                          display_coord=(add_coords((x_offset, y_offset), half_scale))))
 
 async def async_map_init():
     """
