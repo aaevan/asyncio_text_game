@@ -663,15 +663,15 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         actor_dict[segment].blocking = False
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
-def read_color_palette_file(filename='color_palette.txt'):
-    with open('color_palette.txt', 'r') as file:
+def read_brightness_preset_file(filename='brightness_preset.txt'):
+    with open('brightness_preset.txt', 'r') as file:
         for line in file:
             output = literal_eval(line) #assumes a one-line file
     return output
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
-brightness_vals = read_color_palette_file()
+brightness_vals = read_brightness_preset_file()
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -3310,14 +3310,19 @@ async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radi
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
 
-async def minimap_init(loop, x_margin=46, y_margin=-18, box_width=21, box_height=21):
-    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=x_margin, y_margin=y_margin, 
-                                      box_width=box_width, box_height=box_height))
+async def minimap_init(loop, box_width=21, box_height=21):
     width_span = range(-20, 21, 2)
     height_span = range(-20, 21, 2)
     width, height = (term.width, term.height)
-    #x_offset, y_offset = width - x_margin + 13, -y_margin - 3
-    x_offset, y_offset = (width - (box_width // 2) - 1), 1 + (box_height // 2)
+    x_offset, y_offset = (width - (box_width // 2) - 2), 1 + (box_height // 2)
+    #box_x_offset, box_y_offset = 67, -box_height - 1
+    if width % 2 == 0:
+        box_x_offset, box_y_offset = (width // 2) - box_width, -box_height - 1
+    else:
+        box_x_offset, box_y_offset = (width // 2) - box_width + 1, -box_height - 1
+
+    asyncio.ensure_future(ui_box_draw(position='centered', x_margin=box_x_offset, y_margin=box_y_offset, 
+                                      box_width=box_width, box_height=box_height))
     for x in width_span:
         for y in height_span:
             half_scale = x // 2, y // 2

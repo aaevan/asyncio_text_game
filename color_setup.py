@@ -113,9 +113,10 @@ def main():
                    )
     clear()
     ordering = switcher_display()
+    print("brightness_preset:")
     print(ordering)
-    print(repr(ordering))
-    with open('color_palette.txt', 'w+') as color_palette:
+    print(''.join([str(i) for _, i in ordering]))
+    with open('brightness_preset.txt', 'w+') as color_palette:
         color_palette.write(repr(ordering))
         #for pair in ordering:
             #color_palette.write("{}, {}\n".format(*pair))
