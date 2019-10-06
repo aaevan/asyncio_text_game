@@ -3315,7 +3315,6 @@ async def minimap_init(loop, box_width=21, box_height=21):
     height_span = range(-20, 21, 2)
     width, height = (term.width, term.height)
     x_offset, y_offset = (width - (box_width // 2) - 2), 1 + (box_height // 2)
-    #box_x_offset, box_y_offset = 67, -box_height - 1
     if width % 2 == 0:
         box_x_offset, box_y_offset = (width // 2) - box_width, -box_height - 1
     else:
