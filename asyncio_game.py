@@ -2208,7 +2208,7 @@ def map_init():
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     basement_door = (-28, 45)
-    announcement_at_coord()
+    #announcement_at_coord()
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
     """
