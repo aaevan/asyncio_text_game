@@ -121,7 +121,6 @@ class Animation:
                            'color_choices':'3331'},
                   'water':{'animation':'███████▒▓▒', 
                            'behavior':'walk both',
-                           #'color_choices':('446')}, #old color weights
                            'color_choices':('6' * 10 + '4')},
                   'grass':{'animation':('▒' * 20 + '▓'), 
                            'behavior':'random',
