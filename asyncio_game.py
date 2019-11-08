@@ -1500,7 +1500,7 @@ async def check_actors_on_tile(coords=(0, 0), positives=''):
 async def export_map(width=140, height=45):
     #store the current tile at the player's location:
     temp_tile = map_dict[actor_dict['player'].coords()].tile
-    #temporary lay down a '@':
+    #represent the player's current location with an @ symbol:
     map_dict[actor_dict['player'].coords()].tile = '@'
     filename = "{}.txt".format('exported_map')
     if os.path.exists(filename): 
@@ -1510,11 +1510,11 @@ async def export_map(width=140, height=45):
                  width // 2 + player_location[0])
     y_spread = (-height // 2 + player_location[1], 
                  height // 2 + player_location[1])
-    with open(filename, 'a') as the_file:
+    with open(filename, 'a') as map_file:
         for y_pos, y in enumerate(range(*y_spread)):
             with term.location(60, y_pos):
                 line_output = "{}\n".format("".join([map_dict[i, y].tile for i in range(*x_spread)]))
-                the_file.write(line_output)
+                map_file.write(line_output)
     with term.location(80, 0):
         print("finished writing map segment to {}.".format(filename))
     #return the tile to its original state:
@@ -2582,8 +2582,6 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
     menu_choices = [str(i) for i in range(10)] #limit to 10 items on a square
     #while True:
     while state_dict['in_menu']:
-        with term.location(100, 0):
-            print(randint(0, 100))
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
