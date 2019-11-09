@@ -1354,11 +1354,16 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
         segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
                                    offset=offset, segment_name=segment_name, blocking=blocking)
+    counter = 0
     while True:
+        counter += 1
+        with term.location(80, 5):
+            print("1358: inside bay_door.", counter)
         await asyncio.sleep(1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
-                return
+                continue
+                #return
         if await any_true(trigger_key=patch_to_key):
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
@@ -1566,6 +1571,8 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
+        with term.location(80, 3):
+            print(triggered, patch_to_key, plate_id, 1572)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
@@ -3375,20 +3382,20 @@ async def trap_init():
     rand_coords = {(randint(-5, 5) + base_coord[0], 
                     randint(-5, 5) + base_coord[1]) for _ in range(20)}
     state_dict['switch_1'] = {}
-    for coord in rand_coords:
-       loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
-    loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20), patch_to_key='switch_1'))
-    state_dict['switch_2'] = {}
-    loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
-    loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
-    loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
-    state_dict['switch_3'] = {}
-    loop.create_task(pressure_plate(spawn_coord=(54, 19), patch_to_key='switch_3'))
-    loop.create_task(spawn_turret())
-    loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
-    loop.create_task(state_toggle(trigger_key='test'))
-    loop.create_task(puzzle_pair(puzzle_name='brown'))
-    loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
+    #for coord in rand_coords:
+       #loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
+    #loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20), patch_to_key='switch_1'))
+    #state_dict['switch_2'] = {}
+    #loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
+    #loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
+    #loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
+    #state_dict['switch_3'] = {}
+    #loop.create_task(pressure_plate(spawn_coord=(54, 19), patch_to_key='switch_3'))
+    #loop.create_task(spawn_turret())
+    #loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
+    #loop.create_task(state_toggle(trigger_key='test'))
+    #loop.create_task(puzzle_pair(puzzle_name='brown'))
+    #loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
 
 #TODO: create a map editor mode, accessible with a keystroke??
 
@@ -4492,6 +4499,7 @@ def main():
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test')) #debug for map generation
+    loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
