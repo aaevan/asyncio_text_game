@@ -426,7 +426,6 @@ class Multi_tile_entity:
         for member_name in self.member_names:
             if not actor_dict[member_name].moveable:
                 with term.location(80, 4):
-                    print(429, "NOT MOVEABLE")
                     return False
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
@@ -1319,7 +1318,7 @@ def push(direction='n', pusher='player'):
 
 async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", 
                    orientation='n', segments=5, blocking=True, 
-                   color_num=6, preset='thin'):
+                   color_num=6, preset='thin', debug=False):
     """
     Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
     is activated.
@@ -1342,10 +1341,12 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
         style_dir = 'ns'
     elif orientation in ('e', 'w'):
         style_dir = 'ew'
-    door_style = {'thick':{'ns':'‖', 'ew':'═'},
+    door_style = { 'secret':{'ns':'𝄛', 'ew':'𝄛'},
+                   'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
     door_segment_tile = door_style[preset][style_dir]
-    #print(preset, style_dir, door_segment_tile)
+    if debug:
+        print(preset, style_dir, door_segment_tile)
     door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
@@ -1363,11 +1364,10 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                                    segment_name=segment_name,
                                    moveable=False,
                                    blocking=blocking)
-    counter = 0
     while True:
-        counter += 1
-        #with term.location(80, 5):
-            #print("1358: inside bay_door.", counter, patch_to_key)
+        if debug:
+            with term.location(80, 5):
+                print("1358: inside bay_door.", counter, patch_to_key)
         await asyncio.sleep(1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
@@ -1410,10 +1410,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
-    with term.location(50, 3):
-        print((hinge_a_coord, patch_to_key, hinge_a_dir))
-    with term.location(50, 4):
-        print((hinge_b_coord, patch_to_key, hinge_b_dir))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
                                    orientation = hinge_a_dir)) 
@@ -4507,8 +4503,8 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test')) #debug for map generation
-    loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test')) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test', preset='secret')) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
