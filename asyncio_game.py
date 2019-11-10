@@ -392,7 +392,7 @@ class Multi_tile_entity:
 
     def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
                     segment_name='test', literal_name=True, animation_preset=None,
-                    blocking=False, fill_color=8):
+                    blocking=False, fill_color=8, moveable=True):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {'tile':segment_tile, 
                                     'write_coord':write_coord,
@@ -410,6 +410,7 @@ class Multi_tile_entity:
                                          animation_preset=animation_preset,
                                          multi_tile_parent=self.name,
                                          blocking=blocking,
+                                         moveable=moveable,
                                          literal_name=True)
         self.member_names.append(segment_name)
         return segment_name
@@ -423,6 +424,10 @@ class Multi_tile_entity:
         coord_to_dir = {(0, -1):'n', (1, 0):'e', (0, 1):'s', (-1, 0):'w'}
         check_position = {}
         for member_name in self.member_names:
+            if not actor_dict[member_name].moveable:
+                with term.location(80, 4):
+                    print(429, "NOT MOVEABLE")
+                    return False
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
             if 'player' in map_dict[check_coord].actors:
@@ -1352,13 +1357,17 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(door_id, segment_num)
         segment_names.append((segment_name, spawn_coord))
-        mte_dict[door].add_segment(write_coord=spawn_coord, segment_tile=door_segment_tile,
-                                   offset=offset, segment_name=segment_name, blocking=blocking)
+        mte_dict[door].add_segment(write_coord=spawn_coord,
+                                   segment_tile=door_segment_tile,
+                                   offset=offset,
+                                   segment_name=segment_name,
+                                   moveable=False,
+                                   blocking=blocking)
     counter = 0
     while True:
         counter += 1
-        with term.location(80, 5):
-            print("1358: inside bay_door.", counter)
+        #with term.location(80, 5):
+            #print("1358: inside bay_door.", counter, patch_to_key)
         await asyncio.sleep(1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
@@ -4499,6 +4508,7 @@ def main():
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test')) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test')) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
