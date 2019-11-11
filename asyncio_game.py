@@ -1393,10 +1393,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     hinge_a_coord will take up the slack if the distance is an odd number
     """
     #one of the coords must lie on the same x or y coord.
-    #draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
-    if hinge_a_coord[0] != hinge_b_coord[0] and hinge_a_coord[1] != hinge_b_coord[1]:
-        #draw_line(coord_a=hinge_a_coord, coord_b=hinge_b_coord, preset='error')
-        return
     if hinge_a_coord[1] == hinge_b_coord[1]:
         if hinge_a_coord[0] > hinge_b_coord[0]:
             hinge_a_dir, hinge_b_dir = 'w', 'e'
@@ -1407,6 +1403,9 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             hinge_a_dir, hinge_b_dir = 'n', 's'
         else:
             hinge_a_dir, hinge_b_dir = 's', 'n'
+    else:
+        #TODO: raise an exeption at runtime: not a valid pair of coordinates.
+        return
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
