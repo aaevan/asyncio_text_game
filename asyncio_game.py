@@ -392,7 +392,7 @@ class Multi_tile_entity:
 
     def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
                     segment_name='test', literal_name=True, animation_preset=None,
-                    blocking=False, fill_color=8, moveable=True):
+                    blocking=False, fill_color=8, moveable=True, breakable=True):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {'tile':segment_tile, 
                                     'write_coord':write_coord,
@@ -411,7 +411,8 @@ class Multi_tile_entity:
                                          multi_tile_parent=self.name,
                                          blocking=blocking,
                                          moveable=moveable,
-                                         literal_name=True)
+                                         literal_name=True,
+                                         breakable=breakable)
         self.member_names.append(segment_name)
         return segment_name
 
@@ -1363,7 +1364,8 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                                    offset=offset,
                                    segment_name=segment_name,
                                    moveable=False,
-                                   blocking=blocking)
+                                   blocking=blocking, 
+                                   breakable=False)
     while True:
         if debug:
             with term.location(80, 5):
@@ -1384,7 +1386,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
 
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
-        preset='thin', orientation='ns', pressure_plate_coord=None):
+        preset='thin', pressure_plate_coord=None):
     """
     writes a pair of bay_doors to the map that listen on the same key.
     
@@ -1396,25 +1398,47 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     if hinge_a_coord[1] == hinge_b_coord[1]:
         if hinge_a_coord[0] > hinge_b_coord[0]:
             hinge_a_dir, hinge_b_dir = 'w', 'e'
+            span = hinge_a_coord[0] - hinge_b_coord[0] - 1
+            a_segments = span // 2
+            b_segments = span - a_segments
         else:
             hinge_a_dir, hinge_b_dir = 'e', 'w'
+            span = hinge_b_coord[0] - hinge_a_coord[0] - 1
+            a_segments = span // 2
+            b_segments = span - a_segments
+        with term.location(60, 7):
+            print("horizontal! span:", span)
     elif hinge_a_coord[0] == hinge_b_coord[0]:
         if hinge_a_coord[1] > hinge_b_coord[1]:
             hinge_a_dir, hinge_b_dir = 'n', 's'
+            span = hinge_b_coord[1] - hinge_a_coord[1] - 1
+            a_segments = span // 2
+            b_segments = span - a_segments
         else:
             hinge_a_dir, hinge_b_dir = 's', 'n'
+            span = hinge_a_coord[1] - hinge_b_coord[1] - 1
+            a_segments = span // 2
+            b_segments = span - a_segments
+        with term.location(60, 7):
+            print("vertical! span:", span)
     else:
         #TODO: raise an exeption at runtime: not a valid pair of coordinates.
         return
+    with term.location(60, 8):
+        print("segments:", a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
-                                   orientation = hinge_a_dir)) 
+                                   orientation=hinge_a_dir,
+                                   segments=a_segments,
+                                   preset='thin')) 
     asyncio.ensure_future(bay_door(hinge_coord=hinge_b_coord,
                                    patch_to_key=patch_to_key,
-                                   orientation = hinge_b_dir)) 
+                                   orientation=hinge_b_dir,
+                                   segments=b_segments,
+                                   preset='thick')) 
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
@@ -4504,6 +4528,8 @@ def main():
     loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
+    loop.create_task(bay_door_pair((-7, 3), (-2, 3), patch_to_key='bay_door_pair_1',
+        preset='thin', pressure_plate_coord=(-5, 0))) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
