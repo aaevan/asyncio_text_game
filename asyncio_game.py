@@ -1385,20 +1385,14 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                 door_state = 'open'
                 if door_message is not None:
                     await append_to_log(message=door_message[0])
-            with term.location(60, 3):
-                print("OPEN! (1385)")
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(('', '')) #move to nowhere
         else:
-            with term.location(60, 3):
-                print("CLOSE! (1393)")
             if door_state is not 'close':
                 door_state = 'close'
                 if door_message is not None:
-                    await append_to_log(message=door_message[0])
-            #if door_message is not None:
-                #await append_to_log(message=door_message[1])
+                    await append_to_log(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
@@ -1425,8 +1419,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             span = hinge_b_coord[0] - hinge_a_coord[0] - 1
             a_segments = span // 2
             b_segments = span - a_segments
-        with term.location(60, 7):
-            print("horizontal! span:", span)
     elif hinge_a_coord[0] == hinge_b_coord[0]:
         if hinge_a_coord[1] > hinge_b_coord[1]:
             hinge_a_dir, hinge_b_dir = 'n', 's'
@@ -1438,8 +1430,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             span = hinge_a_coord[1] - hinge_b_coord[1] - 1
             a_segments = span // 2
             b_segments = span - a_segments
-        with term.location(60, 7):
-            print("vertical! span:", span)
     else:
         #TODO: raise an exeption at runtime: not a valid pair of coordinates.
         return
