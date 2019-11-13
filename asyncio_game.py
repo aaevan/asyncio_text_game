@@ -1319,7 +1319,8 @@ def push(direction='n', pusher='player'):
 
 async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", 
                    orientation='n', segments=5, blocking=True, 
-                   color_num=6, preset='thin', debug=False):
+                   color_num=6, preset='thin', debug=False,
+                   message_preset=None):
     """
     Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
     is activated.
@@ -1345,6 +1346,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
     door_style = { 'secret':{'ns':'𝄛', 'ew':'𝄛'},
                    'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
+    message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_segment_tile = door_style[preset][style_dir]
     if debug:
         print(preset, style_dir, door_segment_tile)
@@ -1366,27 +1368,44 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                                    moveable=False,
                                    blocking=blocking, 
                                    breakable=False)
+    door_message = None
+    if message_preset is not None and message_preset in message_presets: 
+        door_message = message_presets[message_preset]
+    door_state = None
     while True:
         if debug:
             with term.location(80, 5):
                 print("1358: inside bay_door.", counter, patch_to_key)
-        await asyncio.sleep(1)
+        await asyncio.sleep(.1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
                 continue
-                #return
         if await any_true(trigger_key=patch_to_key):
+            if door_state is not 'open':
+                door_state = 'open'
+                if door_message is not None:
+                    await append_to_log(message=door_message[0])
+            with term.location(60, 3):
+                print("OPEN! (1385)")
             for segment in reversed(segment_names):
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(('', '')) #move to nowhere
         else:
+            with term.location(60, 3):
+                print("CLOSE! (1393)")
+            if door_state is not 'close':
+                door_state = 'close'
+                if door_message is not None:
+                    await append_to_log(message=door_message[0])
+            #if door_message is not None:
+                #await append_to_log(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
 
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
-        preset='thin', pressure_plate_coord=None):
+        preset='thin', pressure_plate_coord=None, message_preset=None):
     """
     writes a pair of bay_doors to the map that listen on the same key.
     
@@ -1428,17 +1447,21 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
         print("segments:", a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
-        asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord, patch_to_key=patch_to_key))
+        asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
+                                             patch_to_key=patch_to_key,))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
                                    orientation=hinge_a_dir,
                                    segments=a_segments,
-                                   preset='thin')) 
+                                   preset='thin',
+                                   message_preset=message_preset)) 
+    #one door is silent to prevent message repeats
     asyncio.ensure_future(bay_door(hinge_coord=hinge_b_coord,
                                    patch_to_key=patch_to_key,
                                    orientation=hinge_b_dir,
                                    segments=b_segments,
-                                   preset='thick')) 
+                                   preset='thick',
+                                   message_preset=None))
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
                          offset=(-1,-1), alive=True, tile=" "):
@@ -1594,6 +1617,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     exclusions = ('sword', 'particle')
     sound_effects = {'default':'*click*',
                        'stone':'*stone on stone nearby*'}
+                    #'bay door':'*kssshhhhhh*'}
     if positives is None:
         positives = ('player', 'weight', 'crate', 'static')
     triggered = False
@@ -4529,7 +4553,7 @@ def main():
     loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door_pair((-7, 3), (-2, 3), patch_to_key='bay_door_pair_1',
-        preset='thin', pressure_plate_coord=(-5, 0))) #debug for map generation
+        preset='thin', pressure_plate_coord=(-5, 0), message_preset='ksh')) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
