@@ -1322,17 +1322,19 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                    color_num=6, preset='thin', debug=False,
                    message_preset=None):
     """
-    Instantiates an MTE that moves to one side when a pressure plate (or other trigger)
-    is activated.
+    Instantiates an MTE that moves to one side when a pressure plate 
+    (or other trigger) is activated.
 
-    hinge_coord is the location of the "doorframe", where the door disappears into.
+    hinge_coord is the location of the "doorframe", where the door 
+    disappears into.
 
     orientation is the direction that the door will propagate from hinge_coord
 
-    A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have door segments
-    at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
+    A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have
+    door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
-    TODO: have bay doors (when closing) push any actor towards the direction that they're closing.
+    TODO: have bay doors (when closing) push any actor towards the direction 
+          that they're closing.
     TODO: account for crushing damage if the actor can be destroyed,
     TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
@@ -1403,11 +1405,10 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     """
     writes a pair of bay_doors to the map that listen on the same key.
     
-    width of doorway is determined by distance apart. 
+    width of doorway is determined by the given coordinates.
     
     hinge_a_coord will take up the slack if the distance is an odd number
     """
-    #one of the coords must lie on the same x or y coord.
     if hinge_a_coord[1] == hinge_b_coord[1]:
         if hinge_a_coord[0] > hinge_b_coord[0]:
             hinge_a_dir, hinge_b_dir = 'w', 'e'
@@ -1431,7 +1432,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             a_segments = span // 2
             b_segments = span - a_segments
     else:
-        #TODO: raise an exeption at runtime: not a valid pair of coordinates.
         return
     with term.location(60, 8):
         print("segments:", a_segments, b_segments)
