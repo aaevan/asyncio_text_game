@@ -1324,12 +1324,9 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
     """
     Instantiates an MTE that moves to one side when a pressure plate 
     (or other trigger) is activated.
-
     hinge_coord is the location of the "doorframe", where the door 
     disappears into.
-
     orientation is the direction that the door will propagate from hinge_coord
-
     A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have
     door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
@@ -1443,14 +1440,14 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
                                    patch_to_key=patch_to_key,
                                    orientation=hinge_a_dir,
                                    segments=a_segments,
-                                   preset='thin',
+                                   preset=preset,
                                    message_preset=message_preset)) 
     #one door is silent to prevent message repeats
     asyncio.ensure_future(bay_door(hinge_coord=hinge_b_coord,
                                    patch_to_key=patch_to_key,
                                    orientation=hinge_b_dir,
                                    segments=b_segments,
-                                   preset='thick',
+                                   preset=preset,
                                    message_preset=None))
 
 async def follower_actor(name="follower", refresh_speed=.01, parent_actor='player', 
@@ -4544,6 +4541,8 @@ def main():
     loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door_pair((-7, 3), (-2, 3), patch_to_key='bay_door_pair_1',
         preset='thin', pressure_plate_coord=(-5, 0), message_preset='ksh')) #debug for map generation
+    loop.create_task(bay_door_pair((2, -15), (6, -15), patch_to_key='bay_door_pair_2',
+        preset='thick', pressure_plate_coord=(4, -13), message_preset='ksh')) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
