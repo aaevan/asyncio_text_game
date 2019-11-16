@@ -817,8 +817,7 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
     checks whether a point falls within an arc sighted from another point.
     """
     if facing_angle is None:
-        dir_to_angle = {'n':0, 'e':90, 's':180, 'w':270}
-        facing_angle = dir_to_angle[state_dict['facing']]
+        facing_angle = dir_to_angle(state_dict['facing'], 180)
         center = actor_dict['player'].coords()
     elif center is None:
         center = (0, 0)
@@ -1319,8 +1318,7 @@ def push(direction='n', pusher='player'):
 
 async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0", 
                    orientation='n', segments=5, blocking=True, 
-                   color_num=6, preset='thin', debug=False,
-                   message_preset=None):
+                   color_num=6, preset='thin', message_preset=None):
     """
     Instantiates an MTE that moves to one side when a pressure plate 
     (or other trigger) is activated.
@@ -1347,8 +1345,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
                    'thin':{'ns':'│', 'ew':'─'},}
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_segment_tile = door_style[preset][style_dir]
-    if debug:
-        print(preset, style_dir, door_segment_tile)
     door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
@@ -1372,9 +1368,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
         door_message = message_presets[message_preset]
     door_state = None
     while True:
-        if debug:
-            with term.location(80, 5):
-                print("1358: inside bay_door.", counter, patch_to_key)
         await asyncio.sleep(.1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
@@ -1395,7 +1388,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
             for segment in segment_names:
                 await asyncio.sleep(.2)
                 actor_dict[segment[0]].update(segment[1])
-
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
         preset='thin', pressure_plate_coord=None, message_preset=None):
@@ -1430,8 +1422,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             b_segments = span - a_segments
     else:
         return
-    with term.location(60, 8):
-        print("segments:", a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
@@ -1610,8 +1600,6 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
-        with term.location(80, 3):
-            print(triggered, patch_to_key, plate_id, 1572)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
@@ -2397,8 +2385,7 @@ async def handle_input(key):
             vine_name = "testing"
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
-            dir_to_angle = {'n':270, 'e':0, 's':90, 'w':180}
-            facing_angle = dir_to_angle[state_dict['facing']]
+            facing_angle = dir_to_angle(state_dict['facing'])
             chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
         if key in 'g': #pick up an item from the ground
             asyncio.ensure_future(item_choices(coords=(x, y)))
@@ -2875,9 +2862,8 @@ async def point_angle_from_facing(actor_key='player', facing_dir=None,
     """
     if facing_dir is None:
         facing_dir = state_dict['facing']
-    dir_to_angle = {'n':180, 'e':90, 's':0, 'w':270}
     #negative numbers into modulo wrap back around the other way.
-    point_angle = (dir_to_angle[facing_dir] + offset_angle) % 360
+    point_angle = (dir_to_angle(facing_dir) + offset_angle) % 360
     actor_coords = actor_dict[actor_key].coords()
     reference_point = (actor_coords[0], actor_coords[1] + 5)
     point = point_at_distance_and_angle(angle_from_twelve=point_angle,
@@ -2914,8 +2900,10 @@ async def angle_checker(angle_from_twelve=0, fov=120):
     """
     angle_from_twelve = int(angle_from_twelve)
     half_fov = fov // 2
-    directions = ('n', 'e', 's', 'w')
-    angle_pairs = ((360, 0), (90, 90), (180, 180), (270, 270))
+    directions = ('n', 'e', 's', 'w',
+                  'ne', 'se', 'sw', 'nw')
+    angle_pairs = ((360, 0), (90, 90), (180, 180), (270, 270),
+                   (135, 135), (35, 35), (315, 315), (225, 225))
     dir_to_angle_pair = dict(zip(directions, angle_pairs))
     facing = state_dict['facing'] 
     arc_pair = dir_to_angle_pair[facing] #of the format (angle, angle)
@@ -2926,11 +2914,15 @@ async def angle_checker(angle_from_twelve=0, fov=120):
     else:
         return False
 
+def dir_to_angle(facing_dir, offset):
+    dirs_to_angle = {'n':180, 'e':90, 's':360, 'w':270,
+                'ne':135, 'se':35, 'sw':315, 'nw':225}
+    return (dirs_to_angle[facing_dir] + offset) % 360
+
 async def angle_swing(radius=15):
-    dir_to_angle = {'n':180, 'e':90, 's':360, 'w':270}
-    current_angle = dir_to_angle[state_dict['facing']]
+    current_angle = dir_to_angle(state_dict['facing'])
     while True:
-        pull_angle = dir_to_angle[state_dict['facing']]
+        pull_angle = dir_to_angle(state_dict['facing'])
         difference = current_angle - pull_angle
         if difference < -180:
             difference %= 360
@@ -3299,10 +3291,8 @@ async def directional_damage_alert(particle_count=40, source_angle=None,
             return
         source_angle = angle_actor_to_actor(actor_a='player', actor_b=source_actor)
     elif source_direction is not None:
-        source_directions = {'n':0, 'ne':45, 'e':90, 'se':135,
-                             's':180, 'sw':225, 'w':270, 'nw':315}
         if source_direction in source_directions:
-            source_angle = source_directions[source_direction]
+            source_angle = dir_to_angle(source_direction)
     elif source_angle is None:
         return
     source_angle = 180 - source_angle
