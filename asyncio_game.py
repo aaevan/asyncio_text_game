@@ -2255,6 +2255,7 @@ def map_init():
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     basement_door = (-28, 45)
+    draw_door(door_coord=(0, 10))
     #announcement_at_coord()
 
 def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
@@ -2514,10 +2515,15 @@ async def toggle_door(door_coord):
 
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
-    door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
-    for door in door_dirs:
-        door_coord = (x + door[0], y + door[1])
-        await toggle_door(door_coord)
+    player_coords = actor_dict['player'].coords()
+    facing = state_dict['facing']
+    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    door_coords = add_coords(player_coords, directions[facing])
+    await toggle_door(door_coords)
+    #door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
+    #for door in door_dirs:
+        #door_coord = (x + door[0], y + door[1])
+        #await toggle_door(door_coord)
 
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
