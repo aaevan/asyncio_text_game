@@ -2500,7 +2500,6 @@ async def toggle_door(door_coord):
         description = map_dict[door_coord].key
         output_text="The {} door is locked.".format(description)
         await append_to_log(message=output_text)
-        #return
     elif door_state in closed_doors :
         open_door_tile = open_doors[closed_doors.index(door_state)]
         open_door(door_coord, door_tile=open_door_tile)
