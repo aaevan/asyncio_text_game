@@ -818,15 +818,11 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
     """
     if facing_angle is None:
         facing_angle = dir_to_angle(state_dict['facing'], mirror_ns=True)
-        with term.location(60, 5):
-            print(822, facing_angle, checked_point, "    ")
         center = actor_dict['player'].coords()
     elif center is None:
         center = (0, 0)
     half_arc = arc_width / 2
     twelve_reference = (center[0], center[1] - 5)
-    with term.location(60, 7):
-        print("(829) twelve_reference:", twelve_reference)
     arc_range = ((facing_angle - half_arc) % 360,
                  (facing_angle + half_arc) % 360)
     found_angle = round(find_angle(p0=twelve_reference, p1=center, p2=checked_point))
@@ -1375,9 +1371,6 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key="bay_door_0",
         door_message = message_presets[message_preset]
     door_state = None
     while True:
-        if debug:
-            with term.location(80, 5):
-                print("1358: inside bay_door.", counter, patch_to_key)
         await asyncio.sleep(.1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
@@ -1432,8 +1425,6 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
             b_segments = span - a_segments
     else:
         return
-    with term.location(60, 8):
-        print("segments:", a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
@@ -1604,16 +1595,12 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
-    sound_effects = {'default':'*click*',
-                       'stone':'*stone on stone nearby*'}
-                    #'bay door':'*kssshhhhhh*'}
+    sound_effects = {'default':'*click*'}
     if positives is None:
         positives = ('player', 'weight', 'crate', 'static')
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
-        with term.location(80, 3):
-            print(triggered, patch_to_key, plate_id, 1572)
         positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
         if positive_result:
             if not triggered:
@@ -3173,46 +3160,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
                 last_print_choice = print_choice
             # only print something if it has changed:
 
-def find_brightness_tile(print_choice=None, distance=0):
-    """
-    returns the appropriate light-level shifted tile based on distance.
-    """
-    gradient_tile_pairs = {'░': ((0, ' '),          #dark
-                                 (7, "░"),
-                                 (8, "░"), 
-                                 (7, "▒"),
-                                 (8, "▒"), 
-                                 (7, "▓"), 
-                                 (7, "█"), 
-                                 *((8, "▓"),) * 2,
-                                 *((8, "█"),) * 6), #bright
-                           '𝄛': ((8, ' '),
-                                 (7, '𝄛'),
-                                 (7, '𝄛'),
-                                 (7, '𝄛'),
-                                 (7, '𝄛'),
-                                 (7, '𝄛'),
-                                 (7, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),
-                                 (8, '𝄛'),)}
-
-    bw_gradient = tuple([term.color(pair[0])(pair[1]) for pair in gradient_tile_pairs[print_choice]])
-    bright_to_dark = {num:val for num, val in enumerate(reversed(bw_gradient))}
-
-    brightness_index = distance
-    if brightness_index <= 0:
-        brightness_index = 0
-    elif brightness_index >= 15:
-        brightness_index = 14
-    print_choice = bright_to_dark[int(brightness_index)]
-    return print_choice
-
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
         actor_name = next(iter(map_dict[coord].actors))
@@ -3671,12 +3618,8 @@ async def waver(name_key=None, seek_key='player', **kwargs):
     if distance_to_player >= 15:
         movement_choice = await wander(name_key=name_key)
     elif within_fov and distance_to_player < 10:
-        with term.location(60, 6):
-            print("Flee!   ")
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=True)
     else:
-        with term.location(60, 6):
-            print("Attack!   ")
         movement_choice = await seek_actor(name_key=name_key, seek_key=seek_key, repel=False)
     return movement_choice
 
