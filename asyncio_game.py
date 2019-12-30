@@ -691,6 +691,7 @@ state_dict['plane'] = 'normal'
 state_dict['printing'] = False
 state_dict['known location'] = True
 state_dict['teleporting'] = False
+state_dict["view_tile_count"] = 0
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -1564,6 +1565,8 @@ async def display_current_tile():
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
+        with term.location(105, 5):
+            print("view_tile_count: {}".format(state_dict["view_tile_count"]))
         with term.location(105, 6):
             print("current tile: {}".format(current_tile))
         tile_color = map_dict[current_coords].color_num
@@ -3103,6 +3106,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
         angle_from_twelve = 360 - angle_from_twelve
     display = False
     while True:
+        state_dict["view_tile_count"] += 1
         await asyncio.sleep(distance * .015) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
@@ -3637,6 +3641,10 @@ async def angel_seek(name_key=None, seek_key='player'):
 
 #TODO: an invisible attribute for actors
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
+    """
+    The actor leaves a trail of tiles that are forgotten from the player's 
+    memory.
+    """
     actor_location = actor_dict[name_key].coords()
     for _ in range(forget_count):
         rand_point = point_within_circle(radius=radius, center=actor_location)
@@ -3644,6 +3652,7 @@ def fuzzy_forget(name_key=None, radius=3, forget_count=5):
 
 async def damage_door():
     """ allows actors to break down doors"""
+    #TODO
     pass
 
 #misc utility functions---------------------------------------------------------
