@@ -1557,7 +1557,7 @@ async def export_map(width=140, height=45):
     #return the tile to its original state:
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
-async def display_current_tile():
+async def display_current_tile(x_offset=105, y_offset=5):
     #TODO: a larger problem: store colors not on the tiles themselves but
     #      numbers to be retrieved when the tile or actor or item is accessed?
     await asyncio.sleep(1)
@@ -1565,18 +1565,18 @@ async def display_current_tile():
         await asyncio.sleep(.1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
-        with term.location(105, 5):
+        with term.location(x_offset, y_offset):
             print("view_tile_count: {}".format(state_dict["view_tile_count"]))
-        with term.location(105, 6):
+        with term.location(x_offset, y_offset + 1):
             print("current tile: {}".format(current_tile))
         tile_color = map_dict[current_coords].color_num
-        with term.location(105, 7):
+        with term.location(x_offset, y_offset + 2):
             print("tile_color: {}".format(tile_color))
-        with term.location(105, 8):
+        with term.location(x_offset, y_offset + 3):
             print("tile w/ color: {}".format(term.color(tile_color)(current_tile)))
-        with term.location(105, 9):
+        with term.location(x_offset, y_offset + 4):
             print("repr() of tile:")
-        with term.location(105, 10):
+        with term.location(x_offset, y_offset + 5):
             print("{}".format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
@@ -3425,7 +3425,23 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     else:
         asyncio.ensure_future(filter_print(output_text="Something is in the way."))
 
-async def printing_testing(distance=0, x_coord=90, y_coord=1):
+def get_relative_ui_coord(x_offset, y_offset):
+    width, height = term.width, term.height
+    x_return, y_return = 0, 0
+    if x_offset < 0:
+        x_return = width + x_offset
+    else:
+        x_return = x_offset
+    if y_offset < 0:
+        y_return = height + y_offset
+    else:
+        y_return = y_offset
+    return x_return, y_return
+
+async def printing_testing(distance=0, x_offset=-45, y_offset=1):
+    x_coord, y_coord = get_relative_ui_coord(x_offset, y_offset)
+    with term.location(60, 1):
+        print("x_coord:{}, y_coord:{}".format(x_coord, y_coord))
     bw_gradient = ((" "),                #0
                    term.color(7)("░"),   #1
                    term.color(8)("░"),   #3
