@@ -3090,6 +3090,40 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
 
+async def print_buffer(print_buffer_name="print_buffer", width=10, height=5,
+                       top_left_coord=(50, 15)):
+    """
+    looks at an entry in state_dict for the current contents of the print buffer.
+
+    Instead of many many print statements, updates to the screen happen inside
+    a series of horizontal bars.
+
+    allows for corruption/modification of the player's view without changing
+    the state of the world.
+    """
+    print_buffer_count = 0
+    state_dict[print_buffer_name] = [['X' for _ in range(width)]
+                                            for _ in range(height)]
+    asyncio.ensure_future(ui_box_draw(box_height=5, box_width=5,
+                          x_margin=top_left_coord[0], y_margin=top_left_coord[1]))
+    while True:
+        await asyncio.sleep(.1)
+        #for row in state_dict[print_buffer_name]:
+        with term.location(60, 5):
+            print(print_buffer_count, "   ")
+        print_buffer_count = (print_buffer_count + 1) % 100
+        with term.location(60, 4):
+            print(''.join(state_dict[print_buffer_name][0]))
+            #print(state_dict[print_buffer_name][0])
+
+async def map_listener(coord=(0, 0), offset=(0, 0)):
+    while True:
+        await asyncio.sleep(.1)
+        print_choice = await check_contents_of_tile(coord)
+        state_dict['print_buffer'][offset[0]][offset[1]] = print_choice
+        with term.location(*coord):
+            print(print_choice)
+
 async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
@@ -4516,6 +4550,9 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(death_check())
+    loop.create_task(print_buffer())
+    loop.create_task(map_listener(coord=(0, 1), offset=(0, 0)))
+    loop.create_task(map_listener(coord=(1, 1), offset=(1, 0)))
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
