@@ -1562,11 +1562,12 @@ async def display_current_tile(x_offset=105, y_offset=5):
     #      numbers to be retrieved when the tile or actor or item is accessed?
     await asyncio.sleep(1)
     while True:
-        await asyncio.sleep(.1)
+        await asyncio.sleep(1)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
         with term.location(x_offset, y_offset):
             print("view_tile_count: {}".format(state_dict["view_tile_count"]))
+        state_dict['view_tile_count'] = 0
         with term.location(x_offset, y_offset + 1):
             print("current tile: {}".format(current_tile))
         tile_color = map_dict[current_coords].color_num
@@ -3112,15 +3113,15 @@ async def print_buffer(print_buffer_name="print_buffer", width=10, height=5,
         with term.location(60, 5):
             print(print_buffer_count, "   ")
         print_buffer_count = (print_buffer_count + 1) % 100
-        with term.location(60, 4):
-            print(''.join(state_dict[print_buffer_name][0]))
-            #print(state_dict[print_buffer_name][0])
+        for index, row in enumerate(state_dict[print_buffer_name]):
+            with term.location(60, 4 + index):
+                print(''.join(row))
 
 async def map_listener(coord=(0, 0), offset=(0, 0)):
     while True:
         await asyncio.sleep(.1)
         print_choice = await check_contents_of_tile(coord)
-        state_dict['print_buffer'][offset[0]][offset[1]] = print_choice
+        state_dict['print_buffer'][offset[1]][offset[0]] = print_choice
         with term.location(*coord):
             print(print_choice)
 
@@ -3141,7 +3142,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     display = False
     while True:
         state_dict["view_tile_count"] += 1
-        await asyncio.sleep(distance * .015) #update speed
+        await asyncio.sleep(distance * .0075 + .1) #update speed
+        #await asyncio.sleep(.05) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         tile_coord_key = (x_display_coord, y_display_coord)
@@ -3343,12 +3345,16 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
     return
 
 async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
+    view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
+           view_tile_count += 1
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
+    with term.location(50, 0):
+        print("view_tile_count: {}".format(view_tile_count))
 
 async def minimap_init(loop, box_width=21, box_height=21):
     width_span = range(-20, 21, 2)
@@ -4497,7 +4503,7 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
               '▖', '▞', '▌', '▛', '▄', '▟', '▙', '█',)
     offsets = ((0, 1), (1, 1), (0, 0), (1, 0))
     listen_coords = [add_coords(offset, player_position_offset) for offset in offsets]
-    await asyncio.sleep(random()) #stagger update times
+    await asyncio.sleep(random()) #stagger starting update times
     if player_position_offset == (0, 0):
         blink_switch = cycle((0, 1))
     else:
@@ -4507,6 +4513,7 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
             await asyncio.sleep(1)
         else:
             await asyncio.sleep(random())
+        #await asyncio.sleep(random())
         player_coord = actor_dict['player'].coords()
         bin_string = ''.join([one_for_passable(add_coords(player_coord, coord)) for coord in listen_coords])
         actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
@@ -4551,8 +4558,8 @@ def main():
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(death_check())
     loop.create_task(print_buffer())
-    loop.create_task(map_listener(coord=(0, 1), offset=(0, 0)))
-    loop.create_task(map_listener(coord=(1, 1), offset=(1, 0)))
+    #loop.create_task(map_listener(coord=(0, 1), offset=(0, 0)))
+    #loop.create_task(map_listener(coord=(1, 1), offset=(1, 0)))
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
