@@ -692,6 +692,7 @@ state_dict['printing'] = False
 state_dict['known location'] = True
 state_dict['teleporting'] = False
 state_dict["view_tile_count"] = 0
+state_dict["scanner_status"] = False
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -1116,6 +1117,32 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', f
             paint_preset(tile_coords=point, preset=border_preset)
 
 #Actions------------------------------------------------------------------------
+async def toggle_scanner_state():
+    #state_dict['scanner_battery'] = 100
+    if state_dict['scanner_state'] == True:
+        state_dict['scanner_state'] = False
+    else:
+        state_dict['scanner_state'] = True
+    while state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0:
+        await asyncio.sleep(1)
+        state_dict['battery'] -= 1
+
+async def use_battery():
+    """
+    When used, if the battery is not topped off, refill the player's battery.
+
+    The battery then disappears.
+
+    TODO: create a battery item that can be used by the player.
+    """
+    if state_dict['battery'] == 100:
+        pass #log "the battery is already full
+    elif state_dict['battery'] < 100:
+        if state_dict['battery'] + batt_val < 100:
+            state_dict['battery'] = (state_dict['battery'] + batt_val)
+        else:
+            state_dict['battery'] = 100
+
 async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
     """
     Moves item from player's inventory to another tile at distance 
@@ -1829,6 +1856,8 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                             'broken_text':' is out of charges'},
                      'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
                             'power_kwargs':{'thrown_item_id':item_id}},
+                 'scanner':{'uses':9999, 'tile':term.green('⊞'), 'usable_power':toggle_map, 
+                            'power_kwargs':{'battery':100}},
             'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
                             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
          'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
@@ -2289,8 +2318,6 @@ async def get_key(help_wait_count=100):
                     state_dict['exiting'] = True
                 if key is not None:
                     player_health = actor_dict["player"].health
-                    #with term.location(0, 0):
-                        #print(f'health: {player_health}'.ljust(12, 'X'))
                     if player_health > 0:
                         await handle_input(key)
             if old_key == key:
@@ -3091,40 +3118,6 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
 
-async def print_buffer(print_buffer_name="print_buffer", width=10, height=5,
-                       top_left_coord=(50, 15)):
-    """
-    looks at an entry in state_dict for the current contents of the print buffer.
-
-    Instead of many many print statements, updates to the screen happen inside
-    a series of horizontal bars.
-
-    allows for corruption/modification of the player's view without changing
-    the state of the world.
-    """
-    print_buffer_count = 0
-    state_dict[print_buffer_name] = [['X' for _ in range(width)]
-                                            for _ in range(height)]
-    asyncio.ensure_future(ui_box_draw(box_height=5, box_width=5,
-                          x_margin=top_left_coord[0], y_margin=top_left_coord[1]))
-    while True:
-        await asyncio.sleep(.1)
-        #for row in state_dict[print_buffer_name]:
-        with term.location(60, 5):
-            print(print_buffer_count, "   ")
-        print_buffer_count = (print_buffer_count + 1) % 100
-        for index, row in enumerate(state_dict[print_buffer_name]):
-            with term.location(60, 4 + index):
-                print(''.join(row))
-
-async def map_listener(coord=(0, 0), offset=(0, 0)):
-    while True:
-        await asyncio.sleep(.1)
-        print_choice = await check_contents_of_tile(coord)
-        state_dict['print_buffer'][offset[1]][offset[0]] = print_choice
-        with term.location(*coord):
-            print(print_choice)
-
 async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
@@ -3143,7 +3136,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     while True:
         state_dict["view_tile_count"] += 1
         await asyncio.sleep(distance * .0075 + .1) #update speed
-        #await asyncio.sleep(.05) #update speed
         player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = add_coords(player_coords, (x_offset, y_offset))
         tile_coord_key = (x_display_coord, y_display_coord)
@@ -3344,7 +3336,8 @@ async def timer(x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1)
         timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
     return
 
-async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15):
+async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radius=15,
+        debug=False):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
@@ -3353,8 +3346,9 @@ async def view_tile_init(loop, term_x_radius=15, term_y_radius=15, max_view_radi
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
-    with term.location(50, 0):
-        print("view_tile_count: {}".format(view_tile_count))
+    if debug:
+        with term.location(50, 0):
+            print("view_tile_count: {}".format(view_tile_count))
 
 async def minimap_init(loop, box_width=21, box_height=21):
     width_span = range(-20, 21, 2)
@@ -3480,8 +3474,6 @@ def get_relative_ui_coord(x_offset, y_offset):
 
 async def printing_testing(distance=0, x_offset=-45, y_offset=1):
     x_coord, y_coord = get_relative_ui_coord(x_offset, y_offset)
-    with term.location(60, 1):
-        print("x_coord:{}, y_coord:{}".format(x_coord, y_coord))
     bw_gradient = ((" "),                #0
                    term.color(7)("░"),   #1
                    term.color(8)("░"),   #3
@@ -4513,7 +4505,10 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
             await asyncio.sleep(1)
         else:
             await asyncio.sleep(random())
-        #await asyncio.sleep(random())
+        if state_dict['scanner_status'] == False:
+            with term.location(*display_coord):
+                print(' ')
+            continue
         player_coord = actor_dict['player'].coords()
         bin_string = ''.join([one_for_passable(add_coords(player_coord, coord)) for coord in listen_coords])
         actor_presence = any(map_dict[add_coords(player_coord, coord)].actors for coord in listen_coords)
@@ -4557,9 +4552,6 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
     loop.create_task(death_check())
-    loop.create_task(print_buffer())
-    #loop.create_task(map_listener(coord=(0, 1), offset=(0, 0)))
-    #loop.create_task(map_listener(coord=(1, 1), offset=(1, 0)))
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
