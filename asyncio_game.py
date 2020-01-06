@@ -1118,7 +1118,6 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', f
 
 #Actions------------------------------------------------------------------------
 async def toggle_scanner_state():
-    #state_dict['scanner_battery'] = 100
     if state_dict['scanner_state'] == True:
         state_dict['scanner_state'] = False
     else:
