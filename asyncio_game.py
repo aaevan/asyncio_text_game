@@ -1455,7 +1455,12 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
         return
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
-        asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
+        if type(pressure_plate_coord[0]) == tuple:
+            for pair in pressure_plate_coord:
+                asyncio.ensure_future(pressure_plate(spawn_coord=pair, 
+                                             patch_to_key=patch_to_key,))
+            else:
+                asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
                                              patch_to_key=patch_to_key,))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
@@ -4565,8 +4570,10 @@ def main():
     loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door_pair((-7, 3), (-2, 3), patch_to_key='bay_door_pair_1',
         preset='thin', pressure_plate_coord=(-5, 0), message_preset='ksh')) #debug for map generation
-    loop.create_task(bay_door_pair((2, -15), (6, -15), patch_to_key='bay_door_pair_2',
-        preset='thick', pressure_plate_coord=(4, -13), message_preset='ksh')) #debug for map generation
+    #loop.create_task(bay_door_pair((2, -15), (6, -15), patch_to_key='bay_door_pair_2',
+        #preset='thick', pressure_plate_coord=(4, -13), message_preset='ksh')) #debug for map generation
+    loop.create_task(bay_door_pair((-26, 21), (-14, 21), patch_to_key='bay_door_pair_3',
+        preset='thick', pressure_plate_coord=(-20, 18), message_preset='ksh')) #debug for map generation
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
