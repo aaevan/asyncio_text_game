@@ -1458,10 +1458,10 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
                 asyncio.ensure_future(pressure_plate(spawn_coord=pair, 
-                                             patch_to_key=patch_to_key,))
-            else:
-                asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
-                                             patch_to_key=patch_to_key,))
+                                      patch_to_key=patch_to_key,))
+        else:
+            asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
+                                  patch_to_key=patch_to_key,))
     asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
                                    patch_to_key=patch_to_key,
                                    orientation=hinge_a_dir,
@@ -1739,10 +1739,11 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         await asyncio.sleep(retract_speed)
     state_dict['sword_out'] = False
 
-async def sword_item_ability(length=3, speed=.05):
+async def sword_item_ability(length=3, speed=.05, damage=20, sword_color=1):
     facing_dir = state_dict['facing']
     asyncio.ensure_future(sword(facing_dir, length=length, 
-                                speed=speed, retract_speed=speed))
+                                speed=speed, retract_speed=speed,
+                                damage=damage, sword_color=sword_color))
 
 async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
     if direction is None:
@@ -1880,8 +1881,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                             'usable_power':orbit, 'broken_text':wand_broken_text},
             'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
                             'usable_power':pass_between, 'broken_text':'Something went wrong.'},
-               'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':3},
-                            'usable_power':sword_item_ability, 'broken_text':'Something went wrong.'},
+               'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':9, 'speed':.1},
+                            'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
+                            'use_message':None},
+             'green sword':{'uses':9999, 'tile':term.green('ļ'),
+             'power_kwargs':{'length':9, 'speed':.05, 'damage':100, 'sword_color':2},
+                            'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
+                            'use_message':None},
                #'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
                             #'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
                             #'broken_text':wand_broken_text},
@@ -2383,6 +2389,8 @@ async def handle_input(key):
         if key in directions:
             push_return_val = None
             if key in 'wasd': #try to push adjacent things given movement keys
+                if state_dict['sword_out'] == True:
+                    return
                 if actor_dict['player'].stamina >= 20:
                     push(pusher='player', direction=key_to_compass[key])
                     walk_destination = add_coords(player_coords, directions[key])
@@ -2458,7 +2466,7 @@ async def handle_input(key):
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
-            await sword_item_ability(length=6)
+            await sword_item_ability(length=2)
         if key in '7':
             draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
         if key in '8':
@@ -2567,6 +2575,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                      '│  {}│'.format(term.red('╱')),
                      '│ {} │'.format(term.red('╱')),
                      '│{}  │'.format(term.bold(term.red('╳'))),
+                     '└───┘',),
+      'green sword':('┌───┐',
+                     '│  {}│'.format(term.green('╱')),
+                     '│ {} │'.format(term.green('╱')),
+                     '│{}  │'.format(term.bold(term.green('╳'))),
                      '└───┘',),
               'nut':('┌───┐',
                      '│/ \│', 
@@ -3405,6 +3418,8 @@ async def async_map_init():
     items = (((-3, 0), 'wand'), 
              ((-3, -3), 'red key'), 
              ((0, 1), 'scanner'), 
+             ((47, -31), 'red sword'), 
+             ((-1, -5), 'green sword'), 
              ((-2, -2), 'green key'),)
     for coord, item_name in items:
         spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
@@ -4566,14 +4581,14 @@ def main():
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
     loop.create_task(under_passage(start=(-1023, -981), end=(-1016, -979), width=2))
     loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(bay_door(hinge_coord=(-3, 0), orientation='e', patch_to_key='test', preset='secret')) #debug for map generation
-    loop.create_task(bay_door(hinge_coord=(8, 0), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(-3, 1), orientation='e', patch_to_key='test', preset='secret')) #debug for map generation
+    loop.create_task(bay_door(hinge_coord=(8, 1), orientation='w', patch_to_key='test', preset='secret')) #debug for map generation
     loop.create_task(bay_door_pair((-7, 3), (-2, 3), patch_to_key='bay_door_pair_1',
-        preset='thin', pressure_plate_coord=(-5, 0), message_preset='ksh')) #debug for map generation
-    #loop.create_task(bay_door_pair((2, -15), (6, -15), patch_to_key='bay_door_pair_2',
-        #preset='thick', pressure_plate_coord=(4, -13), message_preset='ksh')) #debug for map generation
+        preset='thin', pressure_plate_coord=(-5, 0), message_preset='ksh'))
+    loop.create_task(bay_door_pair((2, -15), (6, -15), patch_to_key='bay_door_pair_2',
+        preset='thick', pressure_plate_coord=((4, -13), (4, -17)), message_preset='ksh'))
     loop.create_task(bay_door_pair((-26, 21), (-14, 21), patch_to_key='bay_door_pair_3',
-        preset='thick', pressure_plate_coord=(-20, 18), message_preset='ksh')) #debug for map generation
+        preset='thick', pressure_plate_coord=(-20, 18), message_preset='ksh'))
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
