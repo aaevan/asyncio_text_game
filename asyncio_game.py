@@ -1409,7 +1409,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
                 if door_message is not None:
                     await append_to_log(message=door_message[0])
             for segment in reversed(segment_names):
-                await asyncio.sleep(.2)
+                await asyncio.sleep(.1)
                 actor_dict[segment[0]].update(('', '')) #move to nowhere
         else:
             if door_state is not 'close':
@@ -1417,7 +1417,7 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
                 if door_message is not None:
                     await append_to_log(message=door_message[1])
             for segment in segment_names:
-                await asyncio.sleep(.2)
+                await asyncio.sleep(.1)
                 actor_dict[segment[0]].update(segment[1])
 
 async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
