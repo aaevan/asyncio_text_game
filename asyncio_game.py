@@ -1592,7 +1592,6 @@ async def export_map(width=140, height=45):
 async def display_current_tile(x_offset=105, y_offset=5):
     #TODO: a larger problem: store colors not on the tiles themselves but
     #      numbers to be retrieved when the tile or actor or item is accessed?
-    await asyncio.sleep(1)
     while True:
         await asyncio.sleep(1)
         current_coords = actor_dict['player'].coords()
@@ -1682,13 +1681,6 @@ async def state_toggle(sequence=(0, 1), time_between_triggers=1, trigger_key='te
         state_dict[trigger_key][channel] = next(looping_values)
         map_dict[9, 9].tile = str(state_dict[trigger_key][channel])[0]
         await asyncio.sleep(time_between_triggers)
-
-async def flip_sync(listen_key='test', trigger_key='test2', channel=1, listen_interval=.1):
-    state_dict[trigger_key] = {channel:1}
-    while True:
-        state_dict[trigger_key][channel] = not state_dict[trigger_key][channel]
-        map_dict[11, 9].tile = str(state_dict[trigger_key][channel])[0]
-        await asyncio.sleep(listen_interval)
 
 async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed'):
     draw_door(door_coord=door_coord, description='iron', locked=True)
