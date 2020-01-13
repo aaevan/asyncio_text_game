@@ -1758,7 +1758,7 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     does a flash animation of drawing in particles then teleports the player
         to a given location.
-    uses 2adial_fountain in collapse mode for the effect
+    uses radial_fountain in collapse mode for the effect
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     """
@@ -1832,10 +1832,7 @@ async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
 #Item interaction---------------------------------------------------------------
 
 #TODO: create a weight that can be picked up and stored in one's inventory.
-#      alternatively: an item that disappears when used and returns when the
 #TODO: an item that when thrown, temporarily creates a circle of overriden_view == True
-#      acts like a security camera?
-#      cooldown expires.
 #TODO: items that are used immediately upon pickup
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
