@@ -1908,7 +1908,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         else:
             actor_dict[on_actor_id].holding_items[item_id] = True
 
-def adjacent_passable_tiles(base_coord=(0, 0), orthagonal=False):
+def adjacent_passable_tiles(base_coord=(0, 0)):
     """
     Returns the tiles adjacent to a given coordinate that are passable.
     """
@@ -2012,37 +2012,24 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
+def apply_to_map_coord(coord=(0, 0), tile=' ', passable=True, blocking=False):
+    map_dict[coord].tile = tile
+    map_dict[coord].passable = passable
+    map_dict[coord].blocking = blocking
+
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
     if segments == 2:
         if abs(x2-x1) > abs(y2-y1):
             for x_coord in range(x1, x2+1):
-                map_dict[(x_coord, y1)].tile = choice(palette)
-                map_dict[(x_coord, y1)].passable = True
-                map_dict[(x_coord, y1)].blocking = False
+                apply_to_map_coord((x_coord, y1), tile=choice(palette), passable=True, blocking=False)
             for y_coord in range(y1, y2+1):
-                map_dict[(x2, y_coord)].tile = choice(palette)
-                map_dict[(x2, y_coord)].passable = True
-                map_dict[(x2, y_coord)].blocking = False
+                apply_to_map_coord((x2, y_coord), tile=choice(palette), passable=True, blocking=False)
         else:
             for y_coord in range(y1, y2+1):
-                map_dict[(x1, y_coord)].tile = choice(palette)
-                map_dict[(x1, y_coord)].passable = True
-                map_dict[(x1, y_coord)].blocking = False
+                apply_to_map_coord((x1, y_coord), tile=choice(palette), passable=True, blocking=False)
             for x_coord in range(x1, x2+1):
-                map_dict[(x_coord, y2)].tile = choice(palette)
-                map_dict[(x_coord, y2)].passable = True
-                map_dict[(x_coord, y2)].blocking = False
-
-def center_of_box(x_top_left, y_top_left, width_x, height_y):
-    x_middle = round(x_top_left + width_x/2)
-    y_middle = round(y_top_left + height_y/2)
-    return (x_middle, y_middle)
-
-def pick_point_in_cone(cone_left_edge, cone_right_edge):
-    """returns a point at a given distance range in a clockwise propagating cone
-    to be used for map creation"""
-    pass
+                apply_to_map_coord((x_coord, y2), tile=choice(palette), passable=True, blocking=False)
 
 async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
                 passable=False, stamp=True, paint=True, color_num=1, description='',
