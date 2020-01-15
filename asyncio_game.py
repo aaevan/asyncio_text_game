@@ -2044,7 +2044,6 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             x_toss, y_toss = (randint(-radius, radius),
                               randint(-radius, radius),)
             throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
-        #doors will be ignored:
         toss_coord = add_coords((root_x, root_y), (x_toss, y_toss))
         if only_passable and not map_dict[toss_coord].passable:
             continue
@@ -2053,13 +2052,10 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         if map_dict[toss_coord].magic == True:
             continue
         if paint:
-            if map_dict[toss_coord].tile not in "▮▯":
-                #colored_tile = term.color(color_num)(map_dict[toss_coord].tile)
+            if map_dict[toss_coord].tile not in "▮▯": #ignore doors
                 map_dict[toss_coord].color_num = 1
-                #map_dict[toss_coord].tile = colored_tile
         else:
             random_tile = choice(palette)
-            #map_dict[toss_coord].tile = term.color(color_num)(random_tile)
             map_dict[toss_coord].color_num = color_num
         if not stamp:
             map_dict[toss_coord].passable = passable
@@ -2264,9 +2260,9 @@ def map_init():
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     basement_door = (-28, 45)
     draw_door(door_coord=(0, 10))
-    #announcement_at_coord()
 
-def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trigger=None):
+def announcement_at_coord(coord=(0, 0), announcement="Testing...", 
+                          distance_trigger=3, tile=None, describe_tile=False):
     """
     creates a one-time announcement at coord.
     split announcement up into separate sequential pieces with pipes
@@ -2275,6 +2271,10 @@ def announcement_at_coord(coord=(0, 0), announcement="Testing...", distance_trig
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
+    if tile is not None:
+        map_dict[coord].tile = tile
+    if describe_tile:
+        map_dict[coord].description = ''.join(announcement.split('|'))
 
 def isData(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
@@ -2783,11 +2783,12 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
     return True
 
 #Announcement/message handling--------------------------------------------------
-async def parse_announcement(tile_coord_key):
-    """ parses an annoucement, with a new line printed after each pipe """
+async def parse_announcement(tile_coord_key, delay=1):
+    """ parses an announcement, with a new line printed after each pipe """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
-    for delay, line in enumerate(announcement_sequence):
+    for line in announcement_sequence:
         await append_to_log(message=line)
+        await asyncio.sleep(delay)
 
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
     if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
@@ -2888,27 +2889,6 @@ def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
         else:
             return result
 
-async def point_angle_from_facing(actor_key='player', facing_dir=None, 
-                                  offset_angle=0, radius=5):
-    """
-    returns a point nearest to the given radius at angle offset_angle degrees 
-    from the given direction.
-
-    -20 degrees from 'n' is 340 degrees.
-     25 degrees from 'e' is 115 degrees.
-    """
-    if facing_dir is None:
-        facing_dir = state_dict['facing']
-    #negative numbers into modulo wrap back around the other way.
-    point_angle = (dir_to_angle(facing_dir) + offset_angle) % 360
-    actor_coords = actor_dict[actor_key].coords()
-    reference_point = (actor_coords[0], actor_coords[1] + 5)
-    point = point_at_distance_and_angle(angle_from_twelve=point_angle,
-                                              central_point=actor_coords,
-                                              reference_point=reference_point,
-                                              radius=radius)
-    return point
-
 def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
                                       reference_point=(0, 5), radius=10,
                                       rounded=True):
@@ -2943,7 +2923,7 @@ async def angle_checker(angle_from_twelve=0, fov=120):
                    (135, 135), (35, 35), (315, 315), (225, 225))
     dir_to_angle_pair = dict(zip(directions, angle_pairs))
     facing = state_dict['facing'] 
-    arc_pair = dir_to_angle_pair[facing] #of the format (angle, angle)
+    arc_pair = dir_to_angle_pair[facing] #in the format (angle, angle)
     is_in_left = (arc_pair[0] - half_fov) <= angle_from_twelve <= arc_pair[0] + half_fov
     is_in_right = (arc_pair[1] - half_fov) <= angle_from_twelve <= arc_pair[1] + half_fov
     if is_in_left or is_in_right:
@@ -2975,7 +2955,7 @@ async def angle_swing(radius=15):
         state_dict['current_angle'] = current_angle
         await asyncio.sleep(.01)
 
-async def crosshairs(radius=15, crosshair_chars=('.', '*', '.'), fov=30, 
+async def crosshairs(radius=16, crosshair_chars=('.', '*', '.'), fov=30, 
                      refresh_delay=.05):
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
@@ -3386,6 +3366,10 @@ async def async_map_init():
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
+    announcement_at_coord(coord=(8, 6), announcement="There's a body here. |... |Looks like you get their stuff.", describe_tile=True, tile="g")
+    announcement_at_coord(coord=(4, -13), announcement="There's a slightly raised section of floor here. |What happens if you step on it?", describe_tile=True, distance_trigger=1)
+    announcement_at_coord(coord=(-20, 24), announcement="The dooway shimmers slightly as you look through it.", describe_tile=True, distance_trigger=2)
+    announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=True, distance_trigger=3)
     #features drawing--------------------------------------
     containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
     for coord in containers:
@@ -3400,17 +3384,9 @@ async def async_map_init():
     for coord, item_name in items:
         spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
     #actor creation----------------------------------------
-    #for _ in range(10):
-        #x, y = randint(-18, 18), randint(-18, 18)
-        #loop.create_task(tentacled_mass(start_coord=(1000 + x, 1000 + y)))
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
-    #for i in range(3):
-        #asyncio.ensure_future(follower_vine(root_node_key='tester', 
-                                            #spawn_coord=tester_coord, 
-                                            #facing_dir='s',
-                                            #color_choice=2))
     loop.create_task(trap_init())
 
 async def trap_init():
