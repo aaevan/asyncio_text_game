@@ -391,7 +391,8 @@ class Multi_tile_entity:
 
     def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
                     segment_name='test', literal_name=True, animation_preset=None,
-                    blocking=False, fill_color=8, moveable=True, breakable=True):
+                    blocking=False, fill_color=8, moveable=True, breakable=True,
+                    description='mte_segment'):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {'tile':segment_tile, 
                                     'write_coord':write_coord,
@@ -411,7 +412,8 @@ class Multi_tile_entity:
                                          blocking=blocking,
                                          moveable=moveable,
                                          literal_name=True,
-                                         breakable=breakable)
+                                         breakable=breakable,
+                                         description=description)
         self.member_names.append(segment_name)
         return segment_name
 
@@ -723,8 +725,11 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
                'chasm':Map_tile(tile=' ', blocking=False, passable=False,
                                 description='A gaping void',
                                 magic=False, is_animated=False),
+               'tiles':Map_tile(tile='▞', blocking=False, passable=True, color_num=7,
+                                description='Shiny linoleum floor in a checkerboard pattern.',
+                                magic=False, is_animated=False),
                'grass':Map_tile(tile='▒', blocking=False, passable=True,
-                                description='Soft ankle length grass',
+                                description='Soft knee-high grass. It nods slightly in the breeze.',
                                 magic=False, is_animated=True, 
                                 animation=Animation(preset='grass')),
                'water':Map_tile(tile='█', blocking=False, passable=True,
@@ -1373,6 +1378,9 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
                    'thick':{'ns':'‖', 'ew':'═'},
                    'thin':{'ns':'│', 'ew':'─'},}
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
+    door_description_presets = {'secret':'A rough stone wall',
+                                'thick':'A thick steel door',
+                                'thin':'A door of stainless steel.'}
     door_segment_tile = door_style[preset][style_dir]
     if debug:
         print(preset, style_dir, door_segment_tile)
@@ -1393,7 +1401,8 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
                                    segment_name=segment_name,
                                    moveable=False,
                                    blocking=blocking, 
-                                   breakable=False)
+                                   breakable=False,
+                                   description=door_description_presets[preset])
     door_message = None
     if message_preset is not None and message_preset in message_presets: 
         door_message = message_presets[message_preset]
@@ -2447,9 +2456,8 @@ async def handle_input(key):
             draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
         if key in '8':
             center_coord = actor_dict['player'].coords()
-            endpoint = add_coords(center_coord, (90, 0))
+            endpoint = add_coords(center_coord, (50, 0))
             n_wide_passage(width = 5, coord_a=center_coord, coord_b=endpoint, 
-                           #fade_to_preset='water', fade_bracket=(.2, .8)) 
                            fade_to_preset='grass', fade_bracket=(.2, .8))
         if key in 'R': #generate a random cave room around the player
             player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
@@ -2681,8 +2689,9 @@ async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=
 async def append_to_log(message="This is a test"):
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
+    state_dict['same_count'] = 0 #help text won't interrupt
     for index_offset, line in enumerate(reversed(message_lines)):
-        await asyncio.sleep(.075)
+        await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
         asyncio.ensure_future(filter_into_log(message=line, line_index=line_index))
@@ -2772,11 +2781,11 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
         id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
         await get_item(coords=coords, item_id=id_choice)
 
-async def get_item(coords=(0, 0), item_id=None, target_actor='player'):
+async def get_item(coords=(0, 0), item_id=None, target_actor='player', source='ground'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
-    pickup_text = "You pick up the {}.".format(item_dict[item_id].name)
+    pickup_text = "You take the {} from the {}.".format(item_dict[item_id].name, source)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
     await append_to_log(message=pickup_text)
@@ -2787,7 +2796,8 @@ async def parse_announcement(tile_coord_key, delay=1):
     """ parses an announcement, with a new line printed after each pipe """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for line in announcement_sequence:
-        await append_to_log(message=line)
+        if line != '':
+            await append_to_log(message=line)
         await asyncio.sleep(delay)
 
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
@@ -2795,11 +2805,11 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
         if map_dict[tile_coord_key].distance_trigger:
             distance = point_to_point_distance(tile_coord_key, player_coords)
             if distance <= map_dict[tile_coord_key].distance_trigger:
-                await parse_announcement(tile_coord_key)
                 map_dict[tile_coord_key].seen = True
+                await parse_announcement(tile_coord_key)
         else:
-            await parse_announcement(tile_coord_key)
             map_dict[tile_coord_key].seen = True
+            await parse_announcement(tile_coord_key)
     else:
         map_dict[tile_coord_key].seen = True
 
@@ -3366,10 +3376,11 @@ async def async_map_init():
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
-    announcement_at_coord(coord=(8, 6), announcement="There's a body here. |... |Looks like you get their stuff.", describe_tile=True, tile="g")
+    announcement_at_coord(coord=(8, 6), announcement="There's a body here. |||Looks like you get their stuff.", describe_tile=True, tile="g")
     announcement_at_coord(coord=(4, -13), announcement="There's a slightly raised section of floor here. |What happens if you step on it?", describe_tile=True, distance_trigger=1)
     announcement_at_coord(coord=(-20, 24), announcement="The dooway shimmers slightly as you look through it.", describe_tile=True, distance_trigger=2)
-    announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=True, distance_trigger=3)
+    announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=False, distance_trigger=3)
+    announcement_at_coord(coord=(31, -28), announcement="A loose pebble tumbles off the edge. |||You don't hear it land.", describe_tile=False, distance_trigger=0)
     #features drawing--------------------------------------
     containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
     for coord in containers:
@@ -3377,7 +3388,8 @@ async def async_map_init():
     #item creation-----------------------------------------
     items = (((-3, 0), 'wand'), 
              ((-3, -3), 'red key'), 
-             ((0, 1), 'scanner'), 
+             ((7, 7), 'scanner'), 
+             ((8, 4), 'red potion'), 
              ((47, -31), 'red sword'), 
              ((-1, -5), 'green sword'), 
              ((-2, -2), 'green key'),)
