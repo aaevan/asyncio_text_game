@@ -774,9 +774,10 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
         paint_preset(tile_coords=point, preset=preset)
 
 def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
-                  filled=True, tile='░', passable=True):
+                  filled=True, preset="floor", passable=True):
     top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
-    draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, tile=tile)
+    draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, 
+             preset=preset)
 
 def draw_line(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
                     passable=True, blocking=False):
@@ -2042,7 +2043,7 @@ def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
 
 async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
                 passable=False, stamp=True, paint=True, color_num=1, description='',
-                pause_between=.02, only_passable=True):
+                pause_between=.02, only_passable=True, append_description=False):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -2069,7 +2070,12 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
         if not stamp:
             map_dict[toss_coord].passable = passable
         if description:
-            map_dict[toss_coord].description = description
+            current_description = map_dict[toss_coord].description
+            if append_description and (description not in current_description):
+                appended_description = '{} {}'.format(current_description, description)
+                map_dict[toss_coord].description = appended_description
+            else:
+                map_dict[toss_coord].description = description
 
 def clear():
     """
@@ -2088,7 +2094,7 @@ def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     secret_door(door_coord=wall_coord)
     announcement_at_coord(coord=room_center, announcement="You found a secret room!" )
     if square:
-        draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, tile="░")
+        draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, preset="floor")
     else:
         draw_circle(center_coord=room_center, radius=size)
 
@@ -2250,19 +2256,24 @@ def map_init():
     room_e = (-20, 20)
     room_f = (-35, 20)
     room_g = (28, -34)
+    room_h = (-40, -20)
+    room_i = (-40, -5)
     draw_circle(center_coord=room_a, radius=10)
     draw_circle(center_coord=room_b, radius=5)
     draw_circle(center_coord=room_c , radius=7)
     draw_circle(center_coord=room_d , radius=8)
     draw_circle(center_coord=room_e, radius=6)
     draw_circle(center_coord=room_g, radius=6, preset='chasm')
-    draw_centered_box(middle_coord=room_f, x_size=5, y_size=5, tile="░")
+    draw_centered_box(middle_coord=room_f, x_size=5, y_size=5, preset="floor")
+    n_wide_passage(coord_a=room_b, coord_b=room_h, width=1, fade_to_preset="tiles")
+    draw_centered_box(middle_coord=room_h, x_size=9, y_size=9, preset="tiles")
     n_wide_passage(coord_a=room_a, coord_b=room_b)
     n_wide_passage(coord_a=room_b, coord_b=room_c)
     n_wide_passage(coord_a=room_d, coord_b=room_c)
     n_wide_passage(coord_a=room_b, coord_b=room_d)
     n_wide_passage(coord_a=room_a, coord_b=room_e, width=5)
     n_wide_passage(coord_a=room_e, coord_b=room_f, width=1)
+    n_wide_passage(coord_a=room_e, coord_b=room_f, width=2)
     secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
@@ -3377,7 +3388,7 @@ async def async_map_init():
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
     announcement_at_coord(coord=(8, 6), announcement="There's a body here. |||Looks like you get their stuff.", describe_tile=True, tile="g")
-    announcement_at_coord(coord=(4, -13), announcement="There's a slightly raised section of floor here. |What happens if you step on it?", describe_tile=True, distance_trigger=1)
+    announcement_at_coord(coord=(4, -13), announcement="There's a slightly raised section of floor here.|||What happens if you step on it?", describe_tile=True, distance_trigger=1)
     announcement_at_coord(coord=(-20, 24), announcement="The dooway shimmers slightly as you look through it.", describe_tile=True, distance_trigger=2)
     announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=False, distance_trigger=3)
     announcement_at_coord(coord=(31, -28), announcement="A loose pebble tumbles off the edge. |||You don't hear it land.", describe_tile=False, distance_trigger=0)
@@ -3608,7 +3619,8 @@ async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=3
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
-                          seeds=randint(1, spatter_num), description="Blood.")
+                          seeds=randint(1, spatter_num), description="Blood.", 
+                          append_description=True)
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
