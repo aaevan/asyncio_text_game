@@ -113,6 +113,45 @@ class Actor:
         else:
             return term.color(self.tile_color)(self.tile)
 
+class Room:
+    """
+    A representation of a room to map_dict.
+    """
+    def __init__(self, center_coord=(-30, -30),
+                 dimensions=(10, 10),
+                 floor_preset='floor',):
+        self.center_coord = center_coord
+        self.dimensions = dimensions
+        self.floor_preset = floor_preset
+        # a way of representing which floor the room lives on?
+        # each floor has a unique offset that is large enough for floors to not
+        # bump into one another.
+
+    def draw_room(self):
+        """
+        draws a circle if given a number
+        draws a rectangle if given a 2-tuple
+        """
+        if type(self.dimensions) == int:
+            draw_circle(center_coord=self.center_coord,
+                        radius=self.dimensions, 
+                        preset=self.floor_preset)
+        elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
+            draw_centered_box(middle_coord=self.center_coord, 
+                              x_size=self.dimensions[0],
+                              y_size=self.dimensions[1], 
+
+                              preset=self.floor_preset)
+    def connect_to_room(self, room_coord=(100, 100), passage_width=2, fade_to_preset=None):
+        #connects on center with another coord
+        if room_coord is not None:
+            n_wide_passage(coord_a=self.center_coord,
+                           coord_b=room_coord, 
+                           width=passage_width,
+                           fade_to_preset=fade_to_preset)
+        else:
+            print("No room provided!")
+
 class Animation:
     def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
                  preset="none", background=None):
@@ -1103,13 +1142,16 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].tile = hash_char
 
 def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', filled=True,
-                border_thickness=0, border_preset='chasm'):
+                border_thickness=0, border_preset='chasm', annulus_radius=None):
     """
     draws a filled circle onto map_dict.
     """
     x_bounds = center_coord[0] - radius, center_coord[0] + radius
     y_bounds = center_coord[1] - radius, center_coord[1] + radius
     points = get_circle(center=center_coord, radius=radius)
+    if annulus_radius:
+        annulus_points = get_circle(center=center_coord, radius=annulus_radius)
+        points = list(set(points) - set(annulus_points))
     for point in points:
         if not map_dict[point].mutable:
             continue
@@ -2249,31 +2291,36 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
 
 def map_init():
     clear()
-    room_a = (0, 0)
-    room_b = (5, -20)
-    room_c = (28, -28)
-    room_d = (9, -39)
-    room_e = (-20, 20)
-    room_f = (-35, 20)
-    room_g = (28, -34)
-    room_h = (-40, -20)
-    room_i = (-40, -5)
-    draw_circle(center_coord=room_a, radius=10)
-    draw_circle(center_coord=room_b, radius=5)
-    draw_circle(center_coord=room_c , radius=7)
-    draw_circle(center_coord=room_d , radius=8)
-    draw_circle(center_coord=room_e, radius=6)
-    draw_circle(center_coord=room_g, radius=6, preset='chasm')
-    draw_centered_box(middle_coord=room_f, x_size=5, y_size=5, preset="floor")
-    n_wide_passage(coord_a=room_b, coord_b=room_h, width=1, fade_to_preset="tiles")
-    draw_centered_box(middle_coord=room_h, x_size=9, y_size=9, preset="tiles")
-    n_wide_passage(coord_a=room_a, coord_b=room_b)
-    n_wide_passage(coord_a=room_b, coord_b=room_c)
-    n_wide_passage(coord_a=room_d, coord_b=room_c)
-    n_wide_passage(coord_a=room_b, coord_b=room_d)
-    n_wide_passage(coord_a=room_a, coord_b=room_e, width=5)
-    n_wide_passage(coord_a=room_e, coord_b=room_f, width=1)
-    n_wide_passage(coord_a=room_e, coord_b=room_f, width=2)
+    rooms = {
+        'a': Room((0, 0), 10),
+        'b': Room((5, -20), 5),
+        'c': Room((28, -28), 7),
+        'd': Room((9, -39), 8),
+        'e': Room((-20, 20), 6),
+        'f': Room((-35, 20), (5, 5)),
+        'g': Room((28, -34), 6, 'chasm'),
+        'h': Room((-40, -20), (9, 9)),
+        'i': Room((-40, -5))
+    }
+    passage_tuples = [
+        ('a', 'b', 2, None), 
+        ('b', 'c', 2, None),
+        ('d', 'c', 2, None),
+        ('b', 'd', 2, None),
+        ('a', 'e', 5, None),
+        ('e', 'f', 2, None)
+    ]
+    for passage in passage_tuples:
+        source, destination, width, fade_to_preset = passage
+        destination_coord = (rooms[destination].center_coord)
+        with term.location(0, 0):
+            print(source, destination, width, destination_coord)
+        rooms[source].connect_to_room(room_coord=destination_coord,
+                                      passage_width=width,
+                                      fade_to_preset=fade_to_preset)
+    for room in rooms.values():
+        room.draw_room()
+    draw_circle(center_coord=(-20, 0), preset='floor', radius=15, annulus_radius=12)
     secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
