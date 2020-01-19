@@ -61,7 +61,8 @@ class Map_tile:
 class Actor:
     """ the representation of a single actor that lives on the map. """
     def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", 
-                 strength=1, health=50, stamina=50, hurtful=True, moveable=True,
+                 #strength=1, health=50, stamina=50, hurtful=True, moveable=True,
+                 strength=1, health=50, hurtful=True, moveable=True,
                  is_animated=False, animation="", holding_items={}, 
                  leaves_body=False, breakable=False, multi_tile_parent=None, 
                  blocking=False, tile_color=8, description="A featureless gray blob"):
@@ -77,7 +78,7 @@ class Actor:
             self.tile_color = tile_color
         self.coord = (x_coord, y_coord)
         self.strength, self.health, self.hurtful = strength, health, hurtful
-        self.stamina = stamina
+        #self.stamina = stamina
         self.max_health = self.health #max health is set to starting value
         self.alive = True
         self.moveable = moveable
@@ -119,10 +120,12 @@ class Room:
     """
     def __init__(self, center_coord=(-30, -30),
                  dimensions=(10, 10),
-                 floor_preset='floor',):
+                 floor_preset='floor',
+                 inner_radius=None):
         self.center_coord = center_coord
         self.dimensions = dimensions
         self.floor_preset = floor_preset
+        self.inner_radius = inner_radius
         # a way of representing which floor the room lives on?
         # each floor has a unique offset that is large enough for floors to not
         # bump into one another.
@@ -131,24 +134,40 @@ class Room:
         """
         draws a circle if given a number
         draws a rectangle if given a 2-tuple
+        if given an inner_radius value, the circle will be drawn as a ring.
         """
         if type(self.dimensions) == int:
             draw_circle(center_coord=self.center_coord,
                         radius=self.dimensions, 
-                        preset=self.floor_preset)
+                        preset=self.floor_preset,
+                        annulus_radius=self.inner_radius)
         elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
             draw_centered_box(middle_coord=self.center_coord, 
                               x_size=self.dimensions[0],
                               y_size=self.dimensions[1], 
 
                               preset=self.floor_preset)
-    def connect_to_room(self, room_coord=(100, 100), passage_width=2, fade_to_preset=None):
+    def connect_to_room(self, 
+            room_coord=(100, 100), 
+            passage_width=2, 
+            fade_to_preset=None, 
+            style=None):
         #connects on center with another coord
         if room_coord is not None:
-            n_wide_passage(coord_a=self.center_coord,
-                           coord_b=room_coord, 
-                           width=passage_width,
-                           fade_to_preset=fade_to_preset)
+            if style is None:
+                n_wide_passage(coord_a=self.center_coord,
+                               coord_b=room_coord, 
+                               width=passage_width,
+                               fade_to_preset=fade_to_preset)
+            if style is 'jagged':
+                carve_jagged_passage(
+                        start_point=self.center_coord,
+                        end_point=room_coord,
+                        num_points=5, 
+                        jitter=5, 
+                        width=passage_width, 
+                        preset=fade_to_preset)
+  
         else:
             print("No room provided!")
 
@@ -722,7 +741,8 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100, stamina=100)
+#actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100, stamina=100)
+actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100,)
 actor_dict['player'].just_teleported = False
 map_dict[actor_dict['player'].coords()].actors['player'] = True
 state_dict['facing'] = 'n'
@@ -935,8 +955,8 @@ def carve_jagged_passage(start_point=(0, 0), end_point=(10, 10),
     points = get_points_along_line(num_points=num_points,
                                   start_point=start_point,
                                   end_point=end_point,)
-    points = add_jitter_to_middle(cells=points, jitter=jitter)
-    multi_segment_passage(cells, width=3, preset=preset)
+    points = add_jitter_to_middle(points=points, jitter=jitter)
+    multi_segment_passage(points, width=3, preset=preset)
 
 def add_jitter_to_middle(points=None, jitter=5):
     """
@@ -2300,24 +2320,32 @@ def map_init():
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
         'h': Room((-40, -20), (9, 9)),
-        'i': Room((-40, -5))
+        'i': Room((-40, -5)),
+        'j': Room((-20, -45), (12, 6), 'tiles'),
+        'k': Room((9, -47), (1, 1), 'grass'),
+        'l': Room((0, 0), 100, 'grass', inner_radius=70),
+        'm': Room((9, -69), 5,),
     }
     passage_tuples = [
-        ('a', 'b', 2, None), 
-        ('b', 'c', 2, None),
-        ('d', 'c', 2, None),
-        ('b', 'd', 2, None),
-        ('a', 'e', 5, None),
-        ('e', 'f', 2, None)
+        ('a', 'b', 2, None, None), 
+        ('b', 'c', 2, None, None),
+        ('d', 'c', 2, None, None),
+        ('b', 'd', 2, None, None),
+        ('a', 'e', 5, None, None),
+        ('e', 'f', 2, None, None),
+        ('d', 'j', 2, 'tiles', None),
+        ('k', 'm', 2, 'grass', 'jagged'),
     ]
+    #carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), num_points=5, jitter=5, width=3, preset='floor'):
     for passage in passage_tuples:
-        source, destination, width, fade_to_preset = passage
+        source, destination, width, fade_to_preset, style = passage
         destination_coord = (rooms[destination].center_coord)
         with term.location(0, 0):
             print(source, destination, width, destination_coord)
         rooms[source].connect_to_room(room_coord=destination_coord,
                                       passage_width=width,
-                                      fade_to_preset=fade_to_preset)
+                                      fade_to_preset=fade_to_preset,
+                                      style=style)
     for room in rooms.values():
         room.draw_room()
     draw_circle(center_coord=(-20, 0), preset='floor', radius=15, annulus_radius=12)
@@ -2403,7 +2431,8 @@ async def handle_input(key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
     key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
                       'W':'n', 'A':'w', 'S':'s', 'D':'e', 
-                      'i':'n', 'j':'w', 'k':'s', 'l':'e'}
+                      'i':'n', 'j':'w', 'k':'s', 'l':'e',
+                      'I':'n', 'J':'w', 'K':'s', 'L':'e'}
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
@@ -2434,22 +2463,14 @@ async def handle_input(key):
             if key in 'wasd': #try to push adjacent things given movement keys
                 if state_dict['sword_out'] == True:
                     return
-                if actor_dict['player'].stamina >= 20:
-                    push(pusher='player', direction=key_to_compass[key])
-                    walk_destination = add_coords(player_coords, directions[key])
-                    if occupied(walk_destination):
-                        actor_dict['player'].stamina -= 2
-                        x_shift, y_shift = directions[key]
-                else:
-                    await append_to_log(message='Out of breath!')
+                push(pusher='player', direction=key_to_compass[key])
+                walk_destination = add_coords(player_coords, directions[key])
+                if occupied(walk_destination):
+                    x_shift, y_shift = directions[key]
             actor_dict['player'].just_teleported = False #used by magic_doors
         if key in 'WASD': 
-            if actor_dict['player'].stamina >= 15:
-                asyncio.ensure_future(dash_ability(dash_length=5, direction=key_to_compass[key], 
-                                                   time_between_steps=.04))
-                actor_dict['player'].stamina -= 15
-            else:
-                await append_to_log(message='Out of breath!')
+            asyncio.ensure_future(dash_ability(dash_length=randint(2, 3), direction=key_to_compass[key], 
+                                               time_between_steps=.04))
         if key in '?':
             await display_help() 
         if key in '3': #shift dimensions
@@ -2532,7 +2553,7 @@ async def handle_input(key):
             actor_dict['player'].update(coord=add_coords((x, y), (x_shift, y_shift)))
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
-        if key in "ijkl": #change viewing direction
+        if key in "ijklIJKL": #change viewing direction
             state_dict['facing'] = key_to_compass[key]
 
 async def examine_facing():
@@ -3058,6 +3079,7 @@ async def display_help():
     """
     x_offset, y_offset = offset_of_center(x_offset=-10, y_offset=-5)
     help_text = ( " wasd: move               ",
+                  "shift: use with wasd to run",
                   "space: open/close doors   ",
                   " ijkl: look               ",
                   "    g: grab item menu,    ",
@@ -3439,6 +3461,9 @@ async def async_map_init():
     announcement_at_coord(coord=(-20, 24), announcement="The dooway shimmers slightly as you look through it.", describe_tile=True, distance_trigger=2)
     announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=False, distance_trigger=3)
     announcement_at_coord(coord=(31, -28), announcement="A loose pebble tumbles off the edge. |||You don't hear it land.", describe_tile=False, distance_trigger=0)
+    announcement_at_coord(coord=(25, -27), announcement="The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", describe_tile=False, distance_trigger=0)
+    announcement_at_coord(coord=(-17, -44), announcement="This room might have been a cafeteria.|||Looks like business is closed.", describe_tile=False, distance_trigger=0)
+    announcement_at_coord(coord=(10, -68), announcement="It's pretty but there's nothing much going on out here.", describe_tile=False, distance_trigger=0)
     #features drawing--------------------------------------
     containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
     for coord in containers:
@@ -3455,6 +3480,8 @@ async def async_map_init():
         spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
     #actor creation----------------------------------------
     loop.create_task(create_magic_door_pair(door_a_coords=(-8, -8), door_b_coords=(1005, 1005),
+                                            destination_plane='nightmare'))
+    loop.create_task(create_magic_door_pair(door_a_coords=(-9, -8), door_b_coords=(1004, 1005),
                                             destination_plane='nightmare'))
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
     loop.create_task(trap_init())
@@ -3587,11 +3614,11 @@ async def player_coord_readout(x_offset=0, y_offset=0, refresh_time=.1, centered
         with term.location(*add_coords(print_coord, (0, 1))):
             print("❌ {}      ".format(printed_coords))
 
-async def stamina_regen():
-    while True:
-        await asyncio.sleep(.1)
-        if actor_dict['player'].stamina < 100:
-            actor_dict['player'].stamina += 1
+#async def stamina_regen():
+    #while True:
+        #await asyncio.sleep(.1)
+        #if actor_dict['player'].stamina < 100:
+            #actor_dict['player'].stamina += 1
 
 async def ui_setup():
     """
@@ -3604,11 +3631,11 @@ async def ui_setup():
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
-    stamina_title = "{} ".format(term.color(3)("⚡"))
+    #stamina_title = "{} ".format(term.color(3)("⚡"))
     #loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
-    loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
-    loop.create_task(stamina_regen())
+    #loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
+    #loop.create_task(stamina_regen())
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
@@ -3833,7 +3860,7 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
     for number, shroud_coord in enumerate(shroud_locations):
         shroud_piece_names.append("{}_piece_{}".format(core_name_key, number))
     for number, name in enumerate(shroud_piece_names):
-        actor_dict[name] = Actor(name=name, moveable=False, x_coord=start_x, y_coord=start_y, tile=' ')
+        actor_dict[name] = Actor(name=name, moveable=True, x_coord=start_x, y_coord=start_y, tile=' ')
     wait = 0
     while True:
         await asyncio.sleep(speed)
@@ -3846,7 +3873,6 @@ async def shrouded_horror(start_x=0, start_y=0, speed=.1, shroud_pieces=50, core
         core_location = actor_dict[core_name_key].coords()
         if wait > 0:
             wait -= 1
-            pass 
         else:
             new_core_location = await choose_core_move(core_name_key=core_name_key)
         if new_core_location:
@@ -4588,7 +4614,7 @@ async def quitter_daemon():
 def main():
     map_init()
     state_dict["player_health"] = 100
-    state_dict["player_stamina"] = 100
+    #state_dict["player_stamina"] = 100
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
@@ -4597,7 +4623,7 @@ def main():
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(async_map_init())
-    #loop.create_task(shrouded_horror(start_x=-8, start_y=-8))
+    #loop.create_task(shrouded_horror(start_x=29, start_y=-25))
     loop.create_task(death_check())
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
