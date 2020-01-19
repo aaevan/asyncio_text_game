@@ -2328,6 +2328,7 @@ def map_init():
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
+        ('a', 'i', 2, None, None), 
         ('b', 'c', 2, None, None),
         ('d', 'c', 2, None, None),
         ('b', 'd', 2, None, None),
@@ -2348,7 +2349,6 @@ def map_init():
                                       style=style)
     for room in rooms.values():
         room.draw_room()
-    draw_circle(center_coord=(-20, 0), preset='floor', radius=15, annulus_radius=12)
     secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
@@ -3463,7 +3463,7 @@ async def async_map_init():
     announcement_at_coord(coord=(31, -28), announcement="A loose pebble tumbles off the edge. |||You don't hear it land.", describe_tile=False, distance_trigger=0)
     announcement_at_coord(coord=(25, -27), announcement="The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", describe_tile=False, distance_trigger=0)
     announcement_at_coord(coord=(-17, -44), announcement="This room might have been a cafeteria.|||Looks like business is closed.", describe_tile=False, distance_trigger=0)
-    announcement_at_coord(coord=(10, -68), announcement="It's pretty but there's nothing much going on out here.", describe_tile=False, distance_trigger=0)
+    announcement_at_coord(coord=(10, -68), announcement="It's pretty but there's nothing much going on out here.||It's hard to see much in this darkness.", describe_tile=False, distance_trigger=0)
     #features drawing--------------------------------------
     containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
     for coord in containers:
