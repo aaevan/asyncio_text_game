@@ -1471,6 +1471,11 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
         door_message = message_presets[message_preset]
     door_state = None
     while True:
+        player_coords = actor_dict['player'].coords()
+        dist_from_player = point_to_point_distance(point_a=hinge_coord, point_b=player_coords)
+        if dist_from_player > 30:
+            await asyncio.sleep(1)
+            continue
         await asyncio.sleep(.1)
         for segment in segment_names:
             if segment_name[0] not in actor_dict:
@@ -4623,7 +4628,7 @@ def main():
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(async_map_init())
-    #loop.create_task(shrouded_horror(start_x=29, start_y=-25))
+    loop.create_task(shrouded_horror(start_x=29, start_y=-25))
     loop.create_task(death_check())
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
