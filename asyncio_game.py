@@ -2073,14 +2073,18 @@ async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10,
         with term.location(*print_coord):
             print(fill_char)
 
-def print_screen_grid():
+def print_debug_grid():
     """
     prints an overlay for finding positions of text
     """
     for y in range(term.height // 5):
         for x in range(term.width // 5):
             with term.location(x * 5, y * 5):
-                print('.')
+                print('┼')
+            with term.location(x * 5, y * 5 + 1):
+                print(' {0: >2}'.format(x))
+            with term.location(x * 5, y * 5 + 2):
+                print(' {0: >2}'.format(y))
 
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -2493,7 +2497,7 @@ async def handle_input(key):
             for point in points:
                 map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
-            print_screen_grid() 
+            print_debug_grid() 
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
