@@ -2334,6 +2334,8 @@ def map_init():
         'k': Room((9, -47), (1, 1), 'grass'),
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
         'm': Room((9, -69), 5,),
+        'n': Room((0, -20), 1,),
+        'o': Room((-10, -20), 1,),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -2345,6 +2347,7 @@ def map_init():
         ('e', 'f', 2, None, None),
         ('d', 'j', 2, 'tiles', None),
         ('k', 'm', 2, 'grass', 'jagged'),
+        ('n', 'o', 1, None, None),
     ]
     #carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), num_points=5, jitter=5, width=3, preset='floor'):
     for passage in passage_tuples:
@@ -3461,7 +3464,6 @@ async def async_map_init():
 
     One is barren except for a few very scary monsters? 
     """
-    #scary nightmare land
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
@@ -3499,21 +3501,21 @@ async def trap_init():
     loop = asyncio.get_event_loop()
     node_offsets = ((-6, 's'), (6, 'n'))
     nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
-    base_coord = (35, 20)
+    base_coord = (9, -41)
     rand_coords = {(randint(-5, 5) + base_coord[0], 
                     randint(-5, 5) + base_coord[1]) for _ in range(20)}
     state_dict['switch_1'] = {}
-    #for coord in rand_coords:
-       #loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
-    #loop.create_task(multi_spike_trap(nodes=nodes, base_coord=(35, 20), patch_to_key='switch_1'))
-    #state_dict['switch_2'] = {}
-    #loop.create_task(pressure_plate(spawn_coord=(19, 19), patch_to_key='switch_2'))
+    for coord in rand_coords:
+       loop.create_task(pressure_plate(spawn_coord=coord, patch_to_key='switch_1'))
+    loop.create_task(multi_spike_trap(nodes=nodes, base_coord=base_coord, patch_to_key='switch_1'))
+    state_dict['switch_2'] = {}
+    loop.create_task(pressure_plate(spawn_coord=(6, -20), patch_to_key='switch_2'))
+    loop.create_task(trigger_door(door_coord=(-1, -20), patch_to_key='switch_2'))
     #loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     #loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
     #state_dict['switch_3'] = {}
     #loop.create_task(pressure_plate(spawn_coord=(54, 19), patch_to_key='switch_3'))
     #loop.create_task(spawn_turret())
-    #loop.create_task(trigger_door(door_coord=(25, 20), patch_to_key='switch_2'))
     #loop.create_task(state_toggle(trigger_key='test'))
     #loop.create_task(puzzle_pair(puzzle_name='brown'))
     #loop.create_task(puzzle_pair(puzzle_name='cyan', block_coord=(-10, -7), plate_coord=(-7, -7), color_num=6))
@@ -4632,7 +4634,7 @@ def main():
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(async_map_init())
-    loop.create_task(shrouded_horror(start_x=29, start_y=-25))
+    #loop.create_task(shrouded_horror(start_x=29, start_y=-25))
     loop.create_task(death_check())
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
