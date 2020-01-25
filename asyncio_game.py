@@ -1027,8 +1027,6 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
 def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10), 
                              point=(5, 5), fade_bracket=(.25, .75)):
     fade_slope = 1 / (fade_bracket[1] - fade_bracket[0])
-    with term.location(80, 0):
-        print(fade_slope)
     fade_intercept = fade_slope * -fade_bracket[0]
     total_distance = point_to_point_distance(point_a=start_point, point_b=end_point)
     point_distance = point_to_point_distance(point_a=start_point, point_b=point)
@@ -1152,8 +1150,6 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
     """
     for coord, value in room.items():
         write_coord = add_coords(coord, top_left_coord)
-        with term.location(80, 0):
-            print(write_coord, value)
         if value == space_char:
             continue
         if value == hash_char:
@@ -1591,7 +1587,7 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
 async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
                            nodes=[(i, -5, 's') for i in range(-5, 4)],
                            damage=75, length=7, rate=.25,
-                           speed=.1, retract_speed=1, patch_to_key='switch_1',
+                           speed=.1, retract_speed=.1, patch_to_key='switch_1',
                            mid_trap_delay_time=.1):
     """
     pressure plate is centered, nodes are arrayed in offsets around
@@ -1613,9 +1609,18 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             for node in node_data:
-                asyncio.ensure_future(sword(direction=node[1], actor=node[0], length=length, 
-                                            damage=damage, sword_color=7, speed=speed, 
-                                            retract_speed=retract_speed))
+                asyncio.ensure_future(
+                    start_delay_wrapper(start_delay=random(), delay_func=sword, 
+                        direction=node[1], 
+                        actor=node[0], 
+                        length=length, 
+                        damage=damage, 
+                        sword_color=7, 
+                        speed=speed, 
+                        retract_speed=retract_speed, 
+                        player_sword_track=False
+                    )
+                )
 
 async def spike_trap(base_name='spike_trap', coord=(10, 10), 
                      direction='n', damage=20, length=5, rate=.25, 
@@ -1632,7 +1637,8 @@ async def spike_trap(base_name='spike_trap', coord=(10, 10),
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
-                                        damage=damage, sword_color=7, speed=speed))
+                                        damage=damage, sword_color=7, speed=speed,
+                                        player_sword_track=False))
 
 async def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
@@ -1775,16 +1781,22 @@ async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state
             else:
                 open_door(door_coord)
 
+async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
+    await asyncio.sleep(start_delay)
+    asyncio.ensure_future(delay_func(**kwargs))
+
 async def sword(direction='n', actor='player', length=5, name='sword', 
-                speed=.1, retract_speed=.1, damage=100, sword_color=1):
+                speed=.1, retract_speed=.1, damage=100, sword_color=1,
+                player_sword_track=True):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
-    if 'sword_out' in state_dict and state_dict['sword_out'] == True:
-        return False
-    state_dict['sword_out'] = True
+    if player_sword_track:
+        if 'sword_out' in state_dict and state_dict['sword_out'] == True:
+            return False
+        state_dict['sword_out'] = True
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = generate_id(base_name=name)
@@ -1806,7 +1818,8 @@ async def sword(direction='n', actor='player', length=5, name='sword',
             del map_dict[segment_coord].actors[segment_name]
         del actor_dict[segment_name]
         await asyncio.sleep(retract_speed)
-    state_dict['sword_out'] = False
+    if player_sword_track:
+        state_dict['sword_out'] = False
 
 async def sword_item_ability(length=3, speed=.05, damage=20, sword_color=1):
     facing_dir = state_dict['facing']
@@ -2353,8 +2366,8 @@ def map_init():
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
         destination_coord = (rooms[destination].center_coord)
-        with term.location(0, 0):
-            print(source, destination, width, destination_coord)
+        #with term.location(0, 0):
+            #print(source, destination, width, destination_coord)
         rooms[source].connect_to_room(room_coord=destination_coord,
                                       passage_width=width,
                                       fade_to_preset=fade_to_preset,
@@ -2626,10 +2639,6 @@ async def toggle_doors():
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     door_coords = add_coords(player_coords, directions[facing])
     await toggle_door(door_coords)
-    #door_dirs = {(-1, 0), (1, 0), (0, -1), (0, 1)}
-    #for door in door_dirs:
-        #door_coord = (x + door[0], y + door[1])
-        #await toggle_door(door_coord)
 
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
@@ -4164,8 +4173,6 @@ async def health_potion(item_id=None, actor_key='player', total_restored=25,
     health_per_step = total_restored / num_steps
     asyncio.ensure_future(damage_numbers(actor='player', damage=-total_restored))
     for i in range(int(num_steps)):
-        with term.location(80, 0):
-            print(i)
         await asyncio.sleep(sub_second_step)
         if (actor_dict[actor_key].health + health_per_step >= actor_dict[actor_key].max_health):
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
