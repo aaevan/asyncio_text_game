@@ -1,3 +1,4 @@
+
 import asyncio
 import re
 import os
@@ -17,6 +18,11 @@ from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 from time import sleep
+
+#TODO pause player during wrapper function (pass it a function and its kwargs,
+#     holds player in place until it returns)
+#TODO change all instances of map_dict, actor_dict, state_dict to be passed
+#     by reference instead of as globals
 
 #Class definitions--------------------------------------------------------------
 
@@ -155,10 +161,11 @@ class Room:
         #connects on center with another coord
         if room_coord is not None:
             if style is None:
-                n_wide_passage(coord_a=self.center_coord,
-                               coord_b=room_coord, 
-                               width=passage_width,
-                               fade_to_preset=fade_to_preset)
+                n_wide_passage(
+                    coord_a=self.center_coord,
+                    coord_b=room_coord, 
+                    width=passage_width,
+                    fade_to_preset=fade_to_preset)
             if style is 'jagged':
                 carve_jagged_passage(
                         start_point=self.center_coord,
@@ -1794,9 +1801,9 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if player_sword_track:
-        if 'sword_out' in state_dict and state_dict['sword_out'] == True:
+        if 'player_busy' in state_dict and state_dict['player_busy'] == True:
             return False
-        state_dict['sword_out'] = True
+        state_dict['player_busy'] = True
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = generate_id(base_name=name)
@@ -1819,7 +1826,7 @@ async def sword(direction='n', actor='player', length=5, name='sword',
         del actor_dict[segment_name]
         await asyncio.sleep(retract_speed)
     if player_sword_track:
-        state_dict['sword_out'] = False
+        state_dict['player_busy'] = False
 
 async def sword_item_ability(length=3, speed=.05, damage=20, sword_color=1):
     facing_dir = state_dict['facing']
@@ -1866,8 +1873,6 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     
 async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
-    await asyncio.sleep(.2)
-    actor_dict[actor].update(coord=(500, 500))
     await asyncio.sleep(.2)
     while True:
         await asyncio.sleep(.01)
@@ -1964,7 +1969,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                             'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
                             'use_message':None},
              'green sword':{'uses':9999, 'tile':term.green('ļ'),
-             'power_kwargs':{'length':9, 'speed':.05, 'damage':100, 'sword_color':2},
+                            'power_kwargs':{'length':9, 'speed':.05, 'damage':100, 'sword_color':2},
                             'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
                             'use_message':None},
                #'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
@@ -1982,7 +1987,9 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                             'power_kwargs':{'opens':'rusty'}, 'broken_text':'the key breaks off in the lock',
                             'use_message':None},
              'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
-                            'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text}}
+                            'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text},
+              'hop amulet':{'uses':9999, 'tile':term.red('O̧'), 'usable_power':teleport_in_direction, 
+                            'power_kwargs':{'distance':10}, 'broken_text':wand_broken_text}}
     #item generation:
     if instance_of in item_catalog:
         item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
@@ -2348,7 +2355,7 @@ def map_init():
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
         'm': Room((9, -69), 5,),
         'n': Room((0, -20), 1,),
-        'o': Room((-10, -20), 1,),
+        'o': Room((-10, -20), (3, 3)),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -2362,12 +2369,9 @@ def map_init():
         ('k', 'm', 2, 'grass', 'jagged'),
         ('n', 'o', 1, None, None),
     ]
-    #carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), num_points=5, jitter=5, width=3, preset='floor'):
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
         destination_coord = (rooms[destination].center_coord)
-        #with term.location(0, 0):
-            #print(source, destination, width, destination_coord)
         rooms[source].connect_to_room(room_coord=destination_coord,
                                       passage_width=width,
                                       fade_to_preset=fade_to_preset,
@@ -2486,7 +2490,7 @@ async def handle_input(key):
         if key in directions:
             push_return_val = None
             if key in 'wasd': #try to push adjacent things given movement keys
-                if state_dict['sword_out'] == True:
+                if state_dict['player_busy'] == True:
                     return
                 push(pusher='player', direction=key_to_compass[key])
                 walk_destination = add_coords(player_coords, directions[key])
@@ -2698,7 +2702,12 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
      'shift amulet':('┌───┐',
                      '│╭─╮│', 
                      '││ ││',
-                     '│╰ʘ╯│',
+                     '│╰{}╯│'.format(term.blue('ʘ')),
+                     '└───┘',),
+       'hop amulet':('┌───┐',
+                     '│╭─╮│', 
+                     '││ ││',
+                     '│╰{}╯│'.format(term.red('ʘ')),
                      '└───┘',),
       'eye trinket':('┌───┐',
                      '│   │', 
@@ -3495,6 +3504,7 @@ async def async_map_init():
              ((8, 4), 'red potion'), 
              ((47, -31), 'red sword'), 
              ((-1, -5), 'green sword'), 
+             ((-11, -20), 'hop amulet'), 
              ((-2, -2), 'green key'),)
     for coord, item_name in items:
         spawn_item_at_coords(coord=coord, instance_of=item_name, on_actor_id=False)
