@@ -19,8 +19,6 @@ from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 from time import sleep
 
-#TODO pause player during wrapper function (pass it a function and its kwargs,
-#     holds player in place until it returns)
 #TODO change all instances of map_dict, actor_dict, state_dict to be passed
 #     by reference instead of as globals
 
@@ -748,19 +746,9 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-#actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100, stamina=100)
 actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100,)
-actor_dict['player'].just_teleported = False
-map_dict[actor_dict['player'].coords()].actors['player'] = True
-state_dict['facing'] = 'n'
-state_dict['menu_choices'] = []
-state_dict['plane'] = 'normal'
-state_dict['printing'] = False
-state_dict['known location'] = True
-state_dict['teleporting'] = False
-state_dict['view_tile_count'] = 0
-state_dict['scanner_state'] = False
-state_dict['battery'] = 100
+#actor_dict['player'].just_teleported = False
+actor_dict['player'].update((4, -11))
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -2267,7 +2255,8 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
-        just_teleported = actor_dict['player'].just_teleported
+        #just_teleported = actor_dict['player'].just_teleported
+        just_teleported = state_dict['just teleported']
         #TODO: add an option for non-player actors to go through.
         if player_coords == start_coord and not just_teleported:
             last_location = state_dict['last_location']
@@ -2279,7 +2268,7 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
                     await append_to_log(message="You are teleported.")
                 map_dict[player_coords].passable=True
                 actor_dict['player'].update(coord=destination)
-                actor_dict['player'].just_teleported = True
+                state_dict['just teleported'] = True
                 state_dict['plane'] = destination_plane
 
 async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25), silent=False,
@@ -2496,7 +2485,7 @@ async def handle_input(key):
                 walk_destination = add_coords(player_coords, directions[key])
                 if occupied(walk_destination):
                     x_shift, y_shift = directions[key]
-            actor_dict['player'].just_teleported = False #used by magic_doors
+            state_dict['just teleported'] = False #used by magic_doors
         if key in 'WASD': 
             asyncio.ensure_future(dash_ability(dash_length=randint(2, 3), direction=key_to_compass[key], 
                                                time_between_steps=.04))
@@ -4639,10 +4628,22 @@ async def quitter_daemon():
             loop.stop()
             loop.close()
 
-def main():
-    map_init()
+def state_setup():
+    state_dict['just teleported'] = False
     state_dict["player_health"] = 100
-    #state_dict["player_stamina"] = 100
+    state_dict['facing'] = 'n'
+    state_dict['menu_choices'] = []
+    state_dict['plane'] = 'normal'
+    state_dict['printing'] = False
+    state_dict['known location'] = True
+    state_dict['teleporting'] = False
+    state_dict['view_tile_count'] = 0
+    state_dict['scanner_state'] = False
+    state_dict['battery'] = 100
+
+def main():
+    state_setup()
+    map_init()
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key())
