@@ -18,7 +18,6 @@ from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 from time import sleep
-from zalgo_text import zalgo
 
 #TODO change all instances of map_dict, actor_dict, state_dict to be passed
 #     by reference instead of as globals
@@ -2508,7 +2507,7 @@ async def handle_input(key):
                 map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
             #print_debug_grid() 
-            asyncio.ensure_future(zalgo_log())
+            asyncio.ensure_future(append_to_log("This is an even longer test!", wipe=True))
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -2786,36 +2785,32 @@ async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
 
-async def append_to_log(message="This is a test"):
+async def append_to_log(message="This is a test", wipe=False, wipe_time=5,
+                        wipe_char_time=.1):
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
     state_dict['same_count'] = 0 #help text won't interrupt
+    if wipe:
+        wipe_text = ' ' * len(message)
     for index_offset, line in enumerate(reversed(message_lines)):
         await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
-        asyncio.ensure_future(filter_into_log(message=line, line_index=line_index))
-
-async def zalgo_log(message="This is a test", countdown=100):
-    await append_to_log(message)
-    starting_message = state_dict['messages'][-1]
-    while True:
-        countdown -= 1
-        if countdown <= 0:
-            return
-        await asyncio.sleep(random() * .2)
-        split_message = list(message)
-        temp_output = []
-        for char in message:
-            if random() > .7:
-                temp_output.append(zalgo.zalgo().zalgofy(char))
-            else:
-                temp_output.append(char)
-        state_dict['messages'][-1] = ''.join(temp_output)
+        await asyncio.ensure_future(filter_into_log(message=line, line_index=line_index))
+    if wipe:
+        for index_offset, line in enumerate(reversed(message_lines)):
+            await asyncio.sleep(wipe_time)
+            asyncio.ensure_future(filter_into_log(starting_text=line,
+                                                  message=wipe_text,
+                                                  line_index=line_index,
+                                                  time_between_chars=.02))
 
 async def filter_into_log(message="This is a test", line_index=0, 
-                          time_between_chars=.02):
-    written_string = [' '] * len(message)
+                          time_between_chars=.02, starting_text=''):
+    if starting_text == '':
+        written_string = [' '] * len(message)
+    else:
+        written_string = list(starting_text)
     indexes = [index for index in range(len(message))]
     shuffle(indexes)
     for index in indexes:
