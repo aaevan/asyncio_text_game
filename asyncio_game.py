@@ -28,13 +28,29 @@ class Map_tile:
     """ 
     Holds the appearance, contents and state of each tile. 
     """
-    def __init__(self, passable=True, tile='𝄛', blocking=True, 
-                 description='A rough stone wall.', announcing=False, seen=False,
-                 announcement='', distance_trigger=None, is_animated=False,
-                 animation='', actors=None, items=None, 
-                 magic=False, magic_destination=False, 
-                 mutable=True, override_view=False, color_num=8,
-                 is_door=False, locked=False, key=''):
+    def __init__(
+        self, 
+        passable=True,                      #actors can step through
+        tile='𝄛',                           #displayed as if not an animation
+        blocking=True,                      #line of sight is occluded
+        description='A rough stone wall.',  #description when examined
+        announcing=False,                   #used by announce_at_
+        seen=False,
+        announcement='', 
+        distance_trigger=None, 
+        is_animated=False,
+        animation='', 
+        actors=None, 
+        items=None, 
+        magic=False,                        #used by magic_door
+        magic_destination=False,            #the destination of any magic door
+        mutable=True, 
+        override_view=False,                #show up when hidden or not in FOV
+        color_num=8,                        #color to display character
+        is_door=False,                      
+        locked=False,
+        key_type=''
+    ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
         A Map_tile is accessed from map_dict via a tuple key, ex. (0, 0).
@@ -43,9 +59,13 @@ class Map_tile:
         actors is a dictionary of actor names with value == True if 
         occupied by that actor, otherwise the key is deleted.
         """
-        self.tile, self.passable, self.blocking = (tile, passable, blocking)
+        self.tile = tile
+        self.passable = passable
+        self.blocking = blocking
         self.description = description
-        self.announcing, self.seen, self.announcement = announcing, seen, announcement
+        self.announcing = announcing
+        self.seen = seen
+        self.announcement = announcement
         self.distance_trigger = distance_trigger
         if not actors:
             self.actors = defaultdict(lambda:None)
@@ -53,27 +73,53 @@ class Map_tile:
         else:
             self.actors = actors
         self.items = defaultdict(lambda:None)
-        self.is_animated, self.animation = is_animated, animation
-        self.magic, self.magic_destination = magic, magic_destination
+        self.is_animated = is_animated
+        self.animation = animation
+        self.magic = magic
+        self.magic_destination = magic_destination
         self.mutable = mutable
         self.override_view = override_view
         self.color_num = color_num
         self.is_door = is_door
         self.locked = locked
-        self.key = key #holds what keys fit this tile (if it's a door)
+        self.key_type = key_type #holds what keys fit this tile if it's a door
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
-    def __init__(self, name='', x_coord=0, y_coord=0, speed=.2, tile="?", 
-                 #strength=1, health=50, stamina=50, hurtful=True, moveable=True,
-                 strength=1, health=50, hurtful=True, moveable=True,
-                 is_animated=False, animation="", holding_items={}, 
-                 leaves_body=False, breakable=False, multi_tile_parent=None, 
-                 blocking=False, tile_color=8, description="A featureless gray blob"):
-        tile_color_lookup = {'black':0, 'red':1, 'green':2, 'orange':3, 
-                             'blue':4, 'purple':5, 'cyan':6, 'grey':7}
+    def __init__(
+        self,
+        name='',
+        x_coord=0,
+        y_coord=0,
+        speed=.2, 
+        tile="?", 
+        base_attack=1,
+        health=50,
+        hurtful=True,
+        moveable=True,
+        is_animated=False,
+        animation="",
+        holding_items={},
+        leaves_body=False,
+        breakable=False,
+        multi_tile_parent=None, 
+        blocking=False,
+        tile_color=8,
+        description="A featureless gray blob"
+    ):
+        tile_color_lookup = {
+            'black':0, 
+            'red':1,
+            'green':2,
+            'orange':3, 
+            'blue':4,
+            'purple':5,
+            'cyan':6,
+            'grey':7
+        }
         self.name = name
-        self.x_coord, self.y_coord, = (x_coord, y_coord)
+        self.x_coord = x_coord
+        self.y_coord = y_coord
         self.speed = speed
         self.tile = tile
         if tile_color in tile_color_lookup:
@@ -81,9 +127,11 @@ class Actor:
         else:
             self.tile_color = tile_color
         self.coord = (x_coord, y_coord)
-        self.strength, self.health, self.hurtful = strength, health, hurtful
-        #self.stamina = stamina
-        self.max_health = self.health #max health is set to starting value
+        self.base_attack = base_attack
+        self.health = health
+        self.hurtful = hurtful
+        #max health is set to starting value
+        self.max_health = self.health 
         self.alive = True
         self.moveable = moveable
         self.is_animated = is_animated
@@ -98,7 +146,8 @@ class Actor:
 
     def update(self, coord=(0, 0)):
         self.last_location = (self.x_coord, self.y_coord)
-        map_dict[self.last_location].passable = True #make previous space passable
+        #make previous space passable:
+        map_dict[self.last_location].passable = True 
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.x_coord, self.y_coord = coord
@@ -122,10 +171,13 @@ class Room:
     """
     A representation of a room to map_dict.
     """
-    def __init__(self, center_coord=(-30, -30),
-                 dimensions=(10, 10),
-                 floor_preset='floor',
-                 inner_radius=None):
+    def __init__(
+        self, 
+        center_coord=(-30, -30),
+        dimensions=(10, 10),
+        floor_preset='floor',
+        inner_radius=None
+    ):
         self.center_coord = center_coord
         self.dimensions = dimensions
         self.floor_preset = floor_preset
@@ -1284,9 +1336,11 @@ async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='p
 
 
 async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
+    damage_message = "{} damage from {}!".format(damage, source_actor)
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
+            asyncio.ensure_future(append_to_log(message=damage_message))
             asyncio.ensure_future(directional_damage_alert(source_actor=source_actor))
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
@@ -1353,8 +1407,8 @@ async def unlock_door(actor_key='player', opens='red'):
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, directions[check_dir])
-    door_type = map_dict[door_coord].key
-    if opens in map_dict[door_coord].key and map_dict[door_coord].is_door:
+    door_type = map_dict[door_coord].key_type
+    if opens in map_dict[door_coord].key_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
             output_text = 'You unlock the {} door.'.format(opens)
             map_dict[door_coord].locked = False
@@ -1428,13 +1482,17 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
         style_dir = 'ns'
     elif orientation in ('e', 'w'):
         style_dir = 'ew'
-    door_style = { 'secret':{'ns':'𝄛', 'ew':'𝄛'},
-                   'thick':{'ns':'‖', 'ew':'═'},
-                   'thin':{'ns':'│', 'ew':'─'},}
+    door_style = {
+            'secret':{'ns':'𝄛', 'ew':'𝄛'},
+            'thick':{'ns':'‖', 'ew':'═'},
+            'thin':{'ns':'│', 'ew':'─'},
+    }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
-    door_description_presets = {'secret':'A rough stone wall',
-                                'thick':'A thick steel door',
-                                'thin':'A door of stainless steel.'}
+    door_description_presets = {
+            'secret':'A rough stone wall',
+            'thick':'A thick steel door',
+            'thin':'A door of stainless steel.'
+    }
     door_segment_tile = door_style[preset][style_dir]
     if debug:
         print(preset, style_dir, door_segment_tile)
@@ -1449,14 +1507,15 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(door_id, segment_num)
         segment_names.append((segment_name, spawn_coord))
-        mte_dict[door].add_segment(write_coord=spawn_coord,
-                                   segment_tile=door_segment_tile,
-                                   offset=offset,
-                                   segment_name=segment_name,
-                                   moveable=False,
-                                   blocking=blocking, 
-                                   breakable=False,
-                                   description=door_description_presets[preset])
+        mte_dict[door].add_segment(
+                write_coord=spawn_coord,
+                segment_tile=door_segment_tile,
+                offset=offset,
+                segment_name=segment_name,
+                moveable=False,
+                blocking=blocking, 
+                breakable=False,
+                description=door_description_presets[preset])
     door_message = None
     if message_preset is not None and message_preset in message_presets: 
         door_message = message_presets[message_preset]
@@ -2173,7 +2232,7 @@ def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     room_center = add_coords(wall_coord, room_offset)
     n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
     secret_door(door_coord=wall_coord)
-    announcement_at_coord(coord=room_center, announcement="You found a secret room!" )
+    announcement_at_coord("You found a secret room!", coord=room_center, )
     if square:
         draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, preset="floor")
     else:
@@ -2200,7 +2259,7 @@ def draw_door(door_coord=(0, 0), closed=True, locked=False, description='wooden'
     map_dict[door_coord].blocking = blocking
     map_dict[door_coord].is_door = is_door
     map_dict[door_coord].locked = locked
-    map_dict[door_coord].key = description
+    map_dict[door_coord].key_type = description
     map_dict[door_coord].mutable = False
 
 async def fake_stairs(coord_a=(8, 0), coord_b=(-10, 0), 
@@ -2376,8 +2435,12 @@ def map_init():
     basement_door = (-28, 45)
     draw_door(door_coord=(0, 10))
 
-def announcement_at_coord(coord=(0, 0), announcement="Testing...", 
-                          distance_trigger=3, tile=None, describe_tile=False):
+def announcement_at_coord(
+        announcement, 
+        coord=(0, 0),
+        distance_trigger=3, 
+        tile=None, 
+        describe_tile=False):
     """
     creates a one-time announcement at coord.
     split announcement up into separate sequential pieces with pipes
@@ -2613,7 +2676,7 @@ async def toggle_door(door_coord):
     secret_tile = term.color(7)('𝄛')
     closed_doors.append(secret_tile)
     if map_dict[door_coord].locked:
-        description = map_dict[door_coord].key
+        description = map_dict[door_coord].key_type
         output_text="The {} door is locked.".format(description)
         await append_to_log(message=output_text)
     elif door_state in closed_doors :
@@ -3490,16 +3553,50 @@ async def async_map_init():
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
     draw_circle(center_coord=(1000, 1000), radius=50, preset='noise')
-    announcement_at_coord(coord=(8, 6), announcement="There's a body here. |||Looks like you get their stuff.", describe_tile=True, tile="g")
-    announcement_at_coord(coord=(4, -13), announcement="There's a slightly raised section of floor here.|||What happens if you step on it?", describe_tile=True, distance_trigger=1)
-    announcement_at_coord(coord=(-20, 24), announcement="The dooway shimmers slightly as you look through it.", describe_tile=True, distance_trigger=2)
-    announcement_at_coord(coord=(-1020, -969), announcement="You feel momentarily nauseous.", describe_tile=False, distance_trigger=3)
-    announcement_at_coord(coord=(31, -28), announcement="A loose pebble tumbles off the edge. |||You don't hear it land.", describe_tile=False, distance_trigger=0)
-    announcement_at_coord(coord=(25, -27), announcement="The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", describe_tile=False, distance_trigger=0)
-    announcement_at_coord(coord=(-17, -44), announcement="This room might have been a cafeteria.|||Looks like business is closed.", describe_tile=False, distance_trigger=0)
-    announcement_at_coord(coord=(10, -68), announcement="It's pretty but there's nothing much going on out here.||It's hard to see much in this darkness.", describe_tile=False, distance_trigger=0)
+    announcement_at_coord(
+            "There's a body here. |||Looks like you get their stuff.",
+            coord=(8, 6), 
+            #announcement="There's a body here. |||Looks like you get their stuff.",
+            describe_tile=True, 
+            tile="g")
+    announcement_at_coord(
+            "There's a slightly raised section of floor here.|||What happens if you step on it?",
+            coord=(4, -13),
+            describe_tile=True,
+            distance_trigger=1)
+    announcement_at_coord(
+            "The dooway shimmers slightly as you look through it.",
+            coord=(-20, 24),
+            describe_tile=True,
+            distance_trigger=2)
+    announcement_at_coord(
+            "You feel momentarily nauseous.",
+            coord=(-1020, -969),
+            describe_tile=False, 
+            distance_trigger=3)
+    announcement_at_coord(
+            "A loose pebble tumbles off the edge. |||You don't hear it land.", 
+            coord=(31, -28), 
+            describe_tile=False, 
+            distance_trigger=0)
+    announcement_at_coord(
+            "The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", 
+            coord=(25, -27), 
+            describe_tile=False, 
+            distance_trigger=0)
+    announcement_at_coord(
+            "This room might have been a cafeteria.|||Looks like business is closed.",
+            coord=(-17, -44),
+            describe_tile=False,
+            distance_trigger=0)
+    announcement_at_coord(
+            "It's pretty but there's nothing much going on out here.||It's hard to see much in this darkness.",
+            coord=(10, -68), 
+            describe_tile=False,
+            distance_trigger=0)
     #features drawing--------------------------------------
-    containers = [(3, -2), (3, -3), (-44, 21), (-36, 18), (-36, 22)]
+    containers = [(3, -2), (3, -3), (-44, 21), 
+                  (-36, 18), (-36, 22), (4, -24)]
     for coord in containers:
         loop.create_task(spawn_container(spawn_coord=coord))
     #item creation-----------------------------------------
@@ -3707,15 +3804,24 @@ async def wander(name_key=None, **kwargs):
     else:
         return x_current, y_current
 
-async def delay_follow(name_key='player', window_length=20, speed=.02, delay_offset=10):
+async def delay_follow(
+    name_key='player', window_length=20, speed=.02, delay_offset=10
+):
     moves = [[None, None]] * window_length
     grab_index = 0
     delay_index = delay_offset
     current_coords = actor_dict[name_key].coords()
-    delay_id = spawn_static_actor(base_name='static', spawn_coord=current_coords, tile=' ',
-                                  breakable=False, moveable=False,
-                                  multi_tile_parent=None, blocking=False, literal_name=False,
-                                  description='Your shadow.')
+    delay_id = spawn_static_actor(
+        base_name='static',
+        spawn_coord=current_coords, 
+        tile=' ',
+        breakable=False,
+        moveable=False,
+        multi_tile_parent=None, 
+        blocking=False, 
+        literal_name=False,
+        description='Your shadow.'
+    )
     while True:
         await asyncio.sleep(speed)
         grab_index = (grab_index + 1) % window_length
@@ -3724,8 +3830,10 @@ async def delay_follow(name_key='player', window_length=20, speed=.02, delay_off
         if None not in moves[delay_index]:
             actor_dict[delay_id].update(moves[delay_index])
 
-async def attack(attacker_key=None, defender_key=None, blood=True, spatter_num=3):
-    attacker_strength = actor_dict[attacker_key].strength
+async def attack(
+    attacker_key=None, defender_key=None, blood=True, spatter_num=3
+):
+    attacker_strength = actor_dict[attacker_key].base_attack
     target_x, target_y = actor_dict[defender_key].coords()
     if blood:
         await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
@@ -3947,7 +4055,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
 
 async def basic_actor(start_x=0, start_y=0, speed=1, tile="*", 
         movement_function=wander, name_key="test", hurtful=False,
-        strength=5, is_animated=False, animation=" ", holding_items=[],
+        base_attack=5, is_animated=False, animation=" ", holding_items=[],
         movement_function_kwargs={}, description='A featureless blob'):
     """
     actors can:
@@ -3959,7 +4067,7 @@ async def basic_actor(start_x=0, start_y=0, speed=1, tile="*",
     """
     actor_dict[(name_key)] = Actor(name=name_key, x_coord=start_x, y_coord=start_y, 
                                    speed=speed, tile=tile, hurtful=hurtful, 
-                                   leaves_body=True, strength=strength, 
+                                   leaves_body=True, base_attack=base_attack, 
                                    is_animated=is_animated, animation=animation,
                                    holding_items=holding_items, description=description)
     coords = actor_dict[name_key].coords()
@@ -3983,7 +4091,7 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     b_coord = actor_dict[actor_b].coords()
     return point_to_point_distance(point_a=a_coord, point_b=b_coord)
 
-async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15):
+async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15, damage=5):
     if track_to_actor == None:
         return
     while True:
@@ -3994,10 +4102,13 @@ async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15):
         distance_to_player = distance_to_actor(actor_a=track_to_actor, actor_b='player')
         if distance_to_player <= reach:
             firing_angle = angle_actor_to_actor(actor_a=track_to_actor, actor_b='player') - 90
-            asyncio.ensure_future(fire_projectile(actor_key=track_to_actor, 
-                                                  firing_angle=firing_angle,
-                                                  degree_spread=(-5, 5),
-                                                  animation_preset='bullet'))
+            asyncio.ensure_future(fire_projectile(
+                actor_key=track_to_actor, 
+                firing_angle=firing_angle,
+                degree_spread=(-5, 5),
+                animation_preset='bullet',
+                damage=damage,
+            ))
         
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     coords = actor_dict[name_key].coords()
@@ -4267,9 +4378,11 @@ async def spawn_turret(spawn_coord=(54, 16), firing_angle=180, trigger_key='swit
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=trigger_key):
-            asyncio.ensure_future(fire_projectile(actor_key=turret_id, 
-                                                  firing_angle=firing_angle,
-                                                  radius_spread=(5, 8)))
+            asyncio.ensure_future(fire_projectile(
+                actor_key=turret_id, 
+                firing_angle=firing_angle,
+                radius_spread=(5, 8)
+            ))
             actor_dict[turret_id].tile = open_tile
         else:
             actor_dict[turret_id].tile = closed_tile
@@ -4303,10 +4416,15 @@ async def fire_projectile(actor_key='player', firing_angle=45, radius=10,
     end_coords = add_coords(actor_coords, (x_shift, y_shift))
     actor_coords = actor_dict[actor_key].coords()
     start_coords = actor_coords
-    await travel_along_line(name='particle', start_coord=start_coords, 
-                            end_coords=end_coords, damage=damage, 
-                            animation=Animation(preset=animation_preset), 
-                            ignore_head=True, source_actor=actor_key)
+    await travel_along_line(
+        name='particle', 
+        start_coord=start_coords, 
+        end_coords=end_coords, 
+        damage=damage, 
+        animation=Animation(preset=animation_preset), 
+        ignore_head=True,
+        source_actor=actor_key
+    )
 
 def point_given_angle_and_radius(angle=0, radius=10):
     x = round(cos(radians(angle)) * radius)
@@ -4564,23 +4682,49 @@ async def spawn_preset_actor(coords=(0, 0), preset='blob', speed=1, holding_item
     if preset == 'blob':
         item_drops = ['red potion']
         description = 'A gibbering mass of green slime that pulses and writhes before your eyes.'
-        loop.create_task(basic_actor(*coords, speed=.3, movement_function=waver, 
-                                     tile='ö', name_key=name, hurtful=True, strength=0,
-                                     is_animated=True, animation=Animation(preset="blob"),
-                                     holding_items=item_drops, description=description))
-    if preset == 'angel':
+        loop.create_task(basic_actor(
+            *coords,
+            speed=.3,
+            movement_function=waver, 
+            tile='ö',
+            name_key=name,
+            hurtful=True,
+            base_attack=5,
+            is_animated=True,
+            animation=Animation(preset="blob"),
+            holding_items=item_drops,
+            description=description
+        ))
+    elif preset == 'angel':
         item_drops = ['dash trinket']
-        loop.create_task(basic_actor(*coords, speed=.15, movement_function=angel_seek, 
-                                     tile='A', name_key=name, hurtful=True, strength=20,
-                                     is_animated=None, holding_items=item_drops))
-    if preset == 'test':
+        loop.create_task(basic_actor(
+            *coords,
+            speed=.15,
+            movement_function=angel_seek, 
+            tile='A',
+            name_key=name,
+            hurtful=True,
+            base_attack=20,
+            is_animated=None,
+            holding_items=item_drops,
+        ))
+    elif preset == 'test':
         item_drops = ['nut']
-        loop.create_task(basic_actor(*coords, speed=.75, movement_function=seek_actor, 
-                                     tile='?', name_key=name, hurtful=True, strength=33,
-                                     is_animated=True, animation=Animation(preset="mouth"),
-                                     holding_items=item_drops))
-        loop.create_task(actor_turret(track_to_actor=name, fire_rate=.5, reach=10))
-
+        loop.create_task(basic_actor(
+            *coords,
+            speed=.75,
+            movement_function=seek_actor, 
+            tile='?',
+            name_key=name,
+            hurtful=True,
+            base_attack=10,
+            is_animated=True,
+            animation=Animation(preset="mouth"),
+            holding_items=item_drops
+        ))
+        loop.create_task(actor_turret(
+            track_to_actor=name, fire_rate=.5, reach=10, damage=5
+        ))
     else:
         pass
 
@@ -4671,6 +4815,7 @@ def main():
     loop.create_task(async_map_init())
     #loop.create_task(shrouded_horror(start_x=29, start_y=-25))
     loop.create_task(death_check())
+    loop.create_task(delay_follow())
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
     loop.create_task(under_passage(start=(-13, 20), end=(-26, 20), direction='ew'))
@@ -4688,6 +4833,8 @@ def main():
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+
+    loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
