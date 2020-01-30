@@ -1687,7 +1687,7 @@ async def display_current_tile(x_offset=105, y_offset=5):
         with term.location(x_offset, y_offset + 4):
             print('repr() of tile:')
         with term.location(x_offset, y_offset + 5):
-            print('{}'.format(repr(current_tile)))
+            print('{}        '.format(repr(current_tile)))
 
 async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
                          patch_to_key='switch_1', off_delay=.5, 
@@ -1710,7 +1710,7 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     exclusions = ('sword', 'particle')
     sound_effects = {'default':'*click*'}
     if positives is None:
-        positives = ('player', 'weight', 'crate', 'static')
+        positives = ('player', 'box', 'weight', 'crate', 'static')
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
@@ -1760,11 +1760,13 @@ async def state_toggle(sequence=(0, 1), time_between_triggers=1, trigger_key='te
         map_dict[9, 9].tile = str(state_dict[trigger_key][channel])[0]
         await asyncio.sleep(time_between_triggers)
 
-async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed'):
+async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed', invert=False):
     draw_door(door_coord=door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
         trigger_state = await any_true(trigger_key=patch_to_key)
+        if invert:
+            trigger_state = not trigger_state
         if trigger_state == True:
             if default_state == 'closed':
                 open_door(door_coord)
@@ -2090,9 +2092,9 @@ def print_debug_grid():
             with term.location(x * 5, y * 5):
                 print('┼')
             with term.location(x * 5, y * 5 + 1):
-                print(' {0: >2}'.format(x))
+                print(' {0: >2}'.format(x * 5))
             with term.location(x * 5, y * 5 + 2):
-                print(' {0: >2}'.format(y))
+                print(' {0: >2}'.format(y * 5))
 
 def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
     x_tuple = (top_left[0], top_left[0] + x_size)
@@ -2506,8 +2508,8 @@ async def handle_input(key):
             for point in points:
                 map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
-            #print_debug_grid() 
-            asyncio.ensure_future(append_to_log("This is an even longer test!", wipe=True))
+            print_debug_grid() 
+            #asyncio.ensure_future(append_to_log("This is an even longer test!", wipe=True))
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -3533,6 +3535,7 @@ async def trap_init():
     state_dict['switch_2'] = {}
     loop.create_task(pressure_plate(spawn_coord=(6, -20), patch_to_key='switch_2'))
     loop.create_task(trigger_door(door_coord=(-1, -20), patch_to_key='switch_2'))
+    loop.create_task(trigger_door(door_coord=(-8, -20), patch_to_key='switch_2', invert=True))
     #loop.create_task(pressure_plate(spawn_coord=(20, 20), patch_to_key='switch_2'))
     #loop.create_task(pressure_plate(spawn_coord=(21, 21), patch_to_key='switch_2'))
     #state_dict['switch_3'] = {}
