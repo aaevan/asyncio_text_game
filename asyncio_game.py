@@ -193,16 +193,19 @@ class Room:
         if given an inner_radius value, the circle will be drawn as a ring.
         """
         if type(self.dimensions) == int:
-            draw_circle(center_coord=self.center_coord,
-                        radius=self.dimensions, 
-                        preset=self.floor_preset,
-                        annulus_radius=self.inner_radius)
+            draw_circle(
+                center_coord=self.center_coord,
+                radius=self.dimensions, 
+                preset=self.floor_preset,
+                annulus_radius=self.inner_radius
+            )
         elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
-            draw_centered_box(middle_coord=self.center_coord, 
-                              x_size=self.dimensions[0],
-                              y_size=self.dimensions[1], 
-
-                              preset=self.floor_preset)
+            draw_centered_box(
+                middle_coord=self.center_coord, 
+                x_size=self.dimensions[0],
+                y_size=self.dimensions[1], 
+                preset=self.floor_preset
+            )
     def connect_to_room(self, 
             room_coord=(100, 100), 
             passage_width=2, 
@@ -215,76 +218,122 @@ class Room:
                     coord_a=self.center_coord,
                     coord_b=room_coord, 
                     width=passage_width,
-                    fade_to_preset=fade_to_preset)
+                    fade_to_preset=fade_to_preset
+                )
             if style is 'jagged':
                 carve_jagged_passage(
-                        start_point=self.center_coord,
-                        end_point=room_coord,
-                        num_points=5, 
-                        jitter=5, 
-                        width=passage_width, 
-                        preset=fade_to_preset)
-  
+                    start_point=self.center_coord,
+                    end_point=room_coord,
+                    num_points=5, 
+                    jitter=5, 
+                    width=passage_width, 
+                    preset=fade_to_preset
+                )
         else:
             print("No room provided!")
 
 class Animation:
-    def __init__(self, animation=None, base_tile='o', behavior=None, color_choices=None, 
-                 preset="none", background=None):
-        presets = {'fire':{'animation':'^∧', 
-                           'behavior':'random', 
-                           'color_choices':'3331'},
-                  'water':{'animation':'███████▒▓▒', 
-                           'behavior':'walk both',
-                           'color_choices':('6' * 10 + '4')},
-                  'grass':{'animation':('▒' * 20 + '▓'), 
-                           'behavior':'random',
-                           'color_choices':('2'),},
-                   'blob':{'animation':('ööööÖ'),
-                           'behavior':'loop tile',
-                           'color_choices':('2')},
-                  'mouth':{'animation':('✳✳✳✳✳✸✸'),
-                           'behavior':'loop tile',
-                           'color_choices':('456')},
-                  'noise':{'animation':('      ▒▓▒ ▒▓▒'), 
-                           'behavior':'loop tile', 
-                           'color_choices':'4'},
-                  'chasm':{'animation':(' ' * 10 + '.'), 
-                           'behavior':'random', 'color_choices':'8'},
-           'sparse noise':{'animation':(' ' * 100 + '█▓▒'), 
-                           'behavior':'random', 
-                           'color_choices':'1' * 5 + '7'},
-                'shimmer':{'animation':(base_tile), 
-                           'behavior':'random', 
-                           'color_choices':'1234567'},
-            'energy block':{'animation':'▤▥▦▧▨▩', 
-                           'behavior':'random', 
-                           'color_choices':'456'},
-                  'blank':{'animation':' ', 
-                           'behavior':'random', 
-                           'color_choices':'0'},
-              'explosion':{'animation':('█▓▒'), 
-                           'behavior':'random', 
-                           'color_choices':'111333',
-                           'background':'0111333'},
-              'loop test':{'animation':('0123456789abcdefghi'), 
-                           'behavior':'walk both', 
-                           'color_choices':'33333344444'},
-                   'bars':{'animation':(' ▁▂▃▄▅▆▇█'), 
-                           'behavior':'walk both', 
-                           'color_choices':'2'},
-                 'spikes':{'animation':('∧∧∧∧‸‸‸     '), 
-                           'behavior':'loop both', 
-                           'color_choices':'7'},
-                 'bullet':{'animation':('◦◦◦○'),
-                           'behavior':'random',
-                           'color_choices':'446'},
-                   'door':{'animation':('▯'), 
-                           'behavior':'random', 
-                           'color_choices':'78888'},
-                 'writhe':{'animation':('╭╮╯╰╭╮╯╰'),
-                           'behavior':'random',
-                           'color_choices':'456'}}
+    def __init__(
+        self,
+        animation=None,
+        base_tile='o',
+        behavior=None,
+        color_choices=None,
+        preset="none",
+        background=None
+    ):
+        presets = {
+            'fire':{
+                'animation':'^∧', 
+                'behavior':'random', 
+                'color_choices':'3331'
+            },
+            'water':{
+                'animation':'███████▒▓▒', 
+                'behavior':'walk both',
+                'color_choices':('6' * 10 + '4')
+            },
+            'grass':{
+                'animation':('▒' * 20 + '▓'), 
+                'behavior':'random',
+                'color_choices':('2'),
+            },
+            'blob':{
+                'animation':('ööööÖ'),
+                'behavior':'loop tile',
+                'color_choices':('2')
+            },
+            'mouth':{
+                'animation':('✳✳✳✳✳✸✸'),
+                'behavior':'loop tile',
+                'color_choices':('456')
+            },
+            'noise':{
+                'animation':('      ▒▓▒ ▒▓▒'), 
+                'behavior':'loop tile', 
+                'color_choices':'4'
+            },
+            'chasm':{
+                'animation':(' ' * 10 + '.'), 
+                'behavior':'random', 'color_choices':'8'
+            },
+            'sparse noise':{
+                'animation':(' ' * 100 + '█▓▒'), 
+                'behavior':'random', 
+                'color_choices':'1' * 5 + '7'
+            },
+            'shimmer':{
+                'animation':(base_tile), 
+                'behavior':'random', 
+                'color_choices':'1234567'
+            },
+            'energy block':{
+                'animation':'▤▥▦▧▨▩', 
+                'behavior':'random', 
+                'color_choices':'456'
+            },
+            'blank':{
+                'animation':' ', 
+                'behavior':'random', 
+                'color_choices':'0'
+            },
+            'explosion':{
+                'animation':('█▓▒'), 
+                'behavior':'random', 
+                'color_choices':'111333',
+                'background':'0111333'
+            },
+            'loop test':{
+                'animation':('0123456789abcdefghi'), 
+                'behavior':'walk both', 
+                'color_choices':'33333344444'
+            },
+            'bars':{
+                'animation':(' ▁▂▃▄▅▆▇█'), 
+                'behavior':'walk both', 
+                'color_choices':'2'
+            },
+            'spikes':{
+                'animation':('∧∧∧∧‸‸‸     '), 
+                'behavior':'loop both', 
+                'color_choices':'7'
+            },
+            'bullet':{
+                'animation':('◦◦◦○'),
+                'behavior':'random',
+                'color_choices':'446'
+            },
+            'door':{
+                'animation':('▯'), 
+                'behavior':'random', 
+                'color_choices':'78888'
+            },
+            'writhe':{
+                'animation':('╭╮╯╰╭╮╯╰'),
+                'behavior':'random',
+                'color_choices':'456'
+            }
+        }
         if preset:
             preset_kwargs = presets[preset]
             #calls init again using kwargs, but with preset set to None to 
@@ -300,14 +349,16 @@ class Animation:
             self.background = background
     
     def __next__(self):
-        behavior_lookup = {'random':{'color':'random', 'tile':'random'},
-                           'loop color':{'color':'loop', 'tile':'random'},
-                           'loop tile':{'color':'random', 'tile':'loop'},
-                           'loop both':{'color':'loop', 'tile':'loop'},
-                           'walk color':{'color':'walk', 'tile':'random'},
-                           'walk frame':{'color':'random', 'tile':'walk'},
-                           'walk both':{'color':'walk', 'tile':'walk'},
-                           'breathe':{'color':'breathe', 'tile':'breathe'}}
+        behavior_lookup = {
+            'random':{'color':'random', 'tile':'random'},
+            'loop color':{'color':'loop', 'tile':'random'},
+            'loop tile':{'color':'random', 'tile':'loop'},
+            'loop both':{'color':'loop', 'tile':'loop'},
+            'walk color':{'color':'walk', 'tile':'random'},
+            'walk frame':{'color':'random', 'tile':'walk'},
+            'walk both':{'color':'walk', 'tile':'walk'},
+            'breathe':{'color':'breathe', 'tile':'breathe'}
+        }
 
         current_behavior = behavior_lookup[self.behavior]
         #color behavior------------------------------------
@@ -1454,8 +1505,6 @@ def push(direction='n', pusher='player'):
         pushed_destination = add_coords(pushed_coords, chosen_dir)
         if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
             actor_dict[pushed_name].update(coord=pushed_destination)
-
-#REVIEWED TO HERE
 
 async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0', 
                    orientation='n', segments=5, blocking=True, 
@@ -3805,7 +3854,7 @@ async def wander(name_key=None, **kwargs):
         return x_current, y_current
 
 async def delay_follow(
-    name_key='player', window_length=20, speed=.02, delay_offset=10
+    name_key='player', window_length=20, speed=.05, delay_offset=10
 ):
     moves = [[None, None]] * window_length
     grab_index = 0
