@@ -415,10 +415,21 @@ class Item:
         can be used (via its usable_power and given power_kwargs (for different
                 versions of the same item)
     """
-    def __init__(self, name='generic_item', item_id=None, spawn_coord=(0, 0), uses=None, 
-                 tile='?', current_location=None, usable_power=None, power_kwargs={}, 
-                 broken=False, use_message='You use the item.',
-                 broken_text=" is broken.", mutable=True):
+    def __init__(
+        self,
+        name='generic_item',
+        item_id=None,
+        spawn_coord=(0, 0),
+        uses=None,
+        tile='?',
+        current_location=None,
+        usable_power=None,
+        power_kwargs={}, 
+        broken=False,
+        use_message='You use the item.',
+        broken_text=" is broken.",
+        mutable=True
+    ):
         self.name = name
         self.item_id = item_id
         self.spawn_coord = spawn_coord
@@ -485,8 +496,15 @@ class Multi_tile_entity:
     MTE is only updated after checking whether the ground is clear.
     """
  
-    def __init__(self, name='mte', anchor_coord=(0, 0), preset='fireball', 
-                 blocking=False, fill_color=3, offset=(-1, -1)):
+    def __init__(
+        self,
+        name='mte',
+        anchor_coord=(0, 0),
+        preset='fireball', 
+        blocking=False,
+        fill_color=3,
+        offset=(-1, -1)
+    ):
         self.name = name
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {'2x2':(('┏', '┓'),
@@ -555,10 +573,20 @@ class Multi_tile_entity:
                                  blocking=blocking,
                                  fill_color=fill_color)
 
-    def add_segment(self, segment_tile='?', write_coord=(0, 0), offset=(0, 0), 
-                    segment_name='test', literal_name=True, animation_preset=None,
-                    blocking=False, fill_color=8, moveable=True, breakable=True,
-                    description='mte_segment'):
+    def add_segment(
+        self,
+        segment_tile='?',
+        write_coord=(0, 0),
+        offset=(0, 0), 
+        segment_name='test',
+        literal_name=True,
+        animation_preset=None,
+        blocking=False,
+        fill_color=8,
+        moveable=True,
+        breakable=True,
+        description='mte_segment'
+    ):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {'tile':segment_tile, 
                                     'write_coord':write_coord,
@@ -609,9 +637,12 @@ class Multi_tile_entity:
     def move(self, move_by=(3, 3)):
         for member_name in self.member_names:
             current_coord = actor_dict[member_name].coords()
-            actor_dict[member_name].update(coord=add_coords(current_coord, move_by))
+            next_coord = add_coords(current_coord, move_by)
+            actor_dict[member_name].update(coord=next_coord)
 
-    def find_connected(self, root_node=None, traveled=None, depth=0, exclusions=set()):
+    def find_connected(
+        self, root_node=None, traveled=None, depth=0, exclusions=set()
+    ):
         """
         does a recursive search through the parts of an mte, starting at a given
         root node and returning the connected (adjacent without gaps) cells.
