@@ -927,33 +927,78 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
 
     Each attribute is individually set so that actors and items are preserved.
     """
-    presets = {'floor':Map_tile(tile='░', blocking=False, passable=True,
-                                description='A smooth patch of stone floor.',
-                                magic=False, is_animated=False, animation=None),
-                'wall':Map_tile(tile='𝄛', blocking=False, passable=True,
-                                description='A rough stone wall.',
-                                magic=False, is_animated=False, animation=None),
-               'noise':Map_tile(tile='.', blocking=False, passable=True,
-                                description='A shimmering insubstantial surface.',
-                                magic=False, is_animated=True, 
-                                animation=Animation(preset='noise')),
-               'chasm':Map_tile(tile=' ', blocking=False, passable=False,
-                                description='A gaping void',
-                                magic=False, is_animated=False),
-               'tiles':Map_tile(tile='▞', blocking=False, passable=True, color_num=7,
-                                description='Shiny linoleum floor in a checkerboard pattern.',
-                                magic=False, is_animated=False),
-               'grass':Map_tile(tile='▒', blocking=False, passable=True,
-                                description='Soft knee-high grass. It nods slightly in the breeze.',
-                                magic=False, is_animated=True, 
-                                animation=Animation(preset='grass')),
-               'water':Map_tile(tile='█', blocking=False, passable=True,
-                                description='Water.',
-                                magic=False, is_animated=True, 
-                                animation=Animation(preset='water')),
-               'error':Map_tile(tile='?', blocking=False, passable=True,
-                                description='ERROR',
-                                magic=False, is_animated=False)}
+    presets = {
+        'floor':Map_tile(
+            tile='░',
+            blocking=False,
+            passable=True,
+            description='A smooth patch of stone floor.',
+            magic=False,
+            is_animated=False,
+            animation=None
+        ),
+        'wall':Map_tile(
+            tile='𝄛',
+            blocking=False,
+            passable=True,
+            description='A rough stone wall.',
+            magic=False,
+            is_animated=False,
+            animation=None
+        ),
+        'noise':Map_tile(
+            tile='.',
+            blocking=False,
+            passable=True,
+            description='A shimmering insubstantial surface.',
+            magic=False,
+            is_animated=True, 
+            animation=Animation(preset='noise')
+        ),
+        'chasm':Map_tile(
+            tile=' ',
+            blocking=False,
+            passable=False,
+            description='A gaping void',
+            magic=False,
+            is_animated=False
+        ),
+        'tiles':Map_tile(
+            tile='▞',
+            blocking=False,
+            passable=True,
+            color_num=7,
+            description='Shiny linoleum floor in a checkerboard pattern.',
+            magic=False,
+            is_animated=False
+        ),
+        'grass':Map_tile(
+            tile='▒',
+            blocking=False,
+            passable=True,
+            description='Soft knee-high grass. It nods slightly in the breeze.',
+            magic=False,
+            is_animated=True, 
+            animation=Animation(preset='grass')
+        ),
+        'water':Map_tile(
+            tile='█',
+            blocking=False,
+            passable=True,
+            description='Water.',
+            magic=False,
+            is_animated=True, 
+            animation=Animation(preset='water')
+        ),
+        'error':Map_tile(
+            tile='?',
+            blocking=False,
+            passable=True,
+            description='ERROR',
+            magic=False,
+            is_animated=False
+        )
+    }
     map_dict[tile_coords].passable = presets[preset].passable
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
@@ -964,8 +1009,15 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     else:
         map_dict[tile_coords].is_animated = False
 
-def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True, 
-             tile='.', passable=True, preset='floor'):
+def draw_box(
+    top_left=(0, 0),
+    x_size=1,
+    y_size=1,
+    filled=True,
+    tile='.',
+    passable=True,
+    preset='floor',
+):
     """ Draws a box to map_dict at the given coordinates."""
     x_min, y_min = top_left[0], top_left[1]
     x_max, y_max = x_min + x_size, y_min + y_size
@@ -988,14 +1040,30 @@ def draw_box(top_left=(0, 0), x_size=1, y_size=1, filled=True,
     for point in write_coords:
         paint_preset(tile_coords=point, preset=preset)
 
-def draw_centered_box(middle_coord=(0, 0), x_size=10, y_size=10, 
-                  filled=True, preset="floor", passable=True):
+def draw_centered_box(
+    middle_coord=(0, 0),
+    x_size=10,
+    y_size=10, 
+    filled=True,
+    preset="floor",
+    passable=True
+):
     top_left = (middle_coord[0] - x_size//2, middle_coord[1] - y_size//2)
-    draw_box(top_left=top_left, x_size=x_size, y_size=y_size, filled=filled, 
-             preset=preset)
+    draw_box(
+        top_left=top_left,
+        x_size=x_size,
+        y_size=y_size,
+        filled=filled, 
+        preset=preset
+    )
 
-def draw_line(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
-                    passable=True, blocking=False):
+def draw_line(
+    coord_a=(0, 0),
+    coord_b=(5, 5),
+    preset='floor',
+    passable=True,
+    blocking=False
+):
     """draws a line to the map_dict connecting the two given points."""
     points = get_line(coord_a, coord_b)
     for point in points:
