@@ -644,8 +644,9 @@ class Multi_tile_entity:
         self, root_node=None, traveled=None, depth=0, exclusions=set()
     ):
         """
-        does a recursive search through the parts of an mte, starting at a given
-        root node and returning the connected (adjacent without gaps) cells.
+        does a recursive search through the parts of an mte, starting at a
+        given root node and returning the connected (adjacent without gaps)
+        cells.
 
          1 and 2   |     1 and 2
         connected: |  not connected:
@@ -679,7 +680,9 @@ class Multi_tile_entity:
         neighbor_dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
         if traveled == None:
             traveled = set()
-        segment_keys = {key for key in self.member_data if key not in traveled}
+        segment_keys = {
+            key for key in self.member_data if key not in traveled
+        }
         if exclusions is not set():
             segment_keys -= exclusions
         if segment_keys == set():
@@ -687,13 +690,18 @@ class Multi_tile_entity:
         if root_node is None:
             root_node = next(iter(segment_keys))
         traveled.add(root_node)
-        possible_paths = {add_coords(neighbor_dir, root_node) for neighbor_dir in neighbor_dirs}
+        possible_paths = {
+            add_coords(neighbor_dir, root_node)
+            for neighbor_dir in neighbor_dirs
+        }
         walkable = set(segment_keys) & set(possible_paths) #intersection
         traveled |= walkable #union
         if walkable == set(): #is empty set
             return {root_node} #i.e. {(0, 0)}
         for direction in walkable:
-            child_path = self.find_connected(root_node=direction, traveled=traveled, depth=depth + 1)
+            child_path = self.find_connected(
+                root_node=direction, traveled=traveled, depth=depth + 1
+            )
             traveled |= child_path #union
         return traveled
 
@@ -760,13 +768,13 @@ class Multi_tile_entity:
             unchecked_cells -= found_region #a set operation
             seen_cells |= found_region
             regions.append(found_region)
-        colors = [i for i in range(10)]
-        for number, region in enumerate(regions):
-            if debug:
+        if debug:
+            for number, region in enumerate(regions):
                 for cell in region:
                     actor_name = self.member_data[cell]['name']
                     if hasattr(actor_dict[actor_name], 'tile'):
-                        actor_dict[actor_name].tile = term.color(number + 1)(str(number + 1))
+                        tile_repr = term.color(number + 1)(str(number + 1))
+                        actor_dict[actor_name].tile = tile_repr
                     else:
                         pass
                         print("549: doesn't hasattr")
@@ -781,18 +789,19 @@ class Multi_tile_entity:
             mte_dict[new_mte_name] = Multi_tile_entity(name=new_mte_name, preset='empty')
             for segment in region:
                 segment_data = self.member_data[segment]
-                if not debug:
-                    new_tile = segment_data['tile']
-                else:
+                if debug:
                     new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
+                else:
+                    new_tile = segment_data['tile']
                 current_location = actor_dict[segment_data['name']].coords()
                 mte_dict[new_mte_name].add_segment(
-                        segment_tile=new_tile,
-                        write_coord=current_location,
-                        offset=segment_data['offset'],
-                        segment_name='{}_{}'.format(segment_data['name'], number),
-                        blocking=segment_data['blocking'],
-                        literal_name=True, animation_preset=None)
+                    segment_tile=new_tile,
+                    write_coord=current_location,
+                    offset=segment_data['offset'],
+                    segment_name='{}_{}'.format(segment_data['name'], number),
+                    blocking=segment_data['blocking'],
+                    literal_name=True, animation_preset=None
+                )
         for member_name in self.member_names:
             del map_dict[actor_dict[member_name].coords()].actors[member_name]
         del mte_dict[self.name]
@@ -829,12 +838,16 @@ async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
-    start_point = actor_dict[actor_name].coords()
-    end_point = add_coords(start_point, point_given_angle_and_radius(angle=rand_angle, radius=rand_radius))
+    end_point = add_coords(
+        start_point = actor_dict[actor_name].coords()
+        point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
+    )
     if map_dict[end_point].passable:
         actor_dict[actor_name].update(coord=end_point)
 
-async def drag_actor_along_line(actor_name='player', line=None, linger_time=.02):
+async def drag_actor_along_line(
+    actor_name='player', line=None, linger_time=.02
+):
     """
     Takes a list of coordinates as input.
     Moves an actor along the given points pausing linger_time seconds each step.
@@ -886,12 +899,26 @@ actor_dict['player'].update((4, -11))
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
-    presets = {'floor':Map_tile(tile='░', blocking=False, passable=True,
-                                description='A smooth patch of stone floor.',
-                                magic=True, is_animated=False, animation=None),
-                'wall':Map_tile(tile='𝄛', blocking=False, passable=True,
-                                description='A rough stone wall.',
-                                magic=True, is_animated=False, animation=None)}
+    presets = {
+        'floor':Map_tile(
+            tile='░', 
+            blocking=False,
+            passable=True,
+            description='A smooth patch of stone floor.',
+            magic=True,
+            is_animated=False,
+            animation=None
+        ),
+        'wall':Map_tile(
+            tile='𝄛',
+            blocking=False,
+            passable=True,
+            description='A rough stone wall.',
+            magic=True,
+            is_animated=False,
+            animation=None
+        )
+    }
     return presets[preset]
 
 def paint_preset(tile_coords=(0, 0), preset='floor'):
