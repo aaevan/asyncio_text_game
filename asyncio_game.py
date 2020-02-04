@@ -838,8 +838,9 @@ async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
+    start_point = actor_dict[actor_name].coords(),
     end_point = add_coords(
-        start_point = actor_dict[actor_name].coords()
+        start_point,
         point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
     )
     if map_dict[end_point].passable:
@@ -850,7 +851,9 @@ async def drag_actor_along_line(
 ):
     """
     Takes a list of coordinates as input.
-    Moves an actor along the given points pausing linger_time seconds each step.
+
+    Moves an actor along the given points pausing along each step for
+    linger_time seconds.
     """
     if actor_name is None:
         return False
@@ -893,7 +896,9 @@ room_centers = set()
 actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
-actor_dict['player'] = Actor(name='player', tile='@', tile_color='cyan', health=100,)
+actor_dict['player'] = Actor(
+    name='player', tile='@', tile_color='cyan', health=100,
+)
 #actor_dict['player'].just_teleported = False
 actor_dict['player'].update((4, -11))
 
@@ -1064,7 +1069,10 @@ def draw_line(
     passable=True,
     blocking=False
 ):
-    """draws a line to the map_dict connecting the two given points."""
+    """
+    draws a line to the map_dict connecting coord_a to coord_b
+    composed of the given preset.
+    """
     points = get_line(coord_a, coord_b)
     for point in points:
         paint_preset(tile_coords=point, preset=preset)
@@ -1079,8 +1087,11 @@ def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     y_diff = point_b[1] - point_a[1]
     return add_coords(point_a, (x_diff//2, y_diff//2))
 
-
 def find_centroid(points=((0, 0), (2, 2), (-1, -1)), rounded=True):
+    """
+    finds the centroid of any given number of points provided, rounded to the
+    nearest whole x and y valued tile.
+    """
     sum_x = sum(point[0] for point in points)
     sum_y = sum(point[1] for point in points)
     result = (sum_x / len(points), sum_y / len(points))
@@ -1096,13 +1107,16 @@ def point_within_square(radius=20, center=(0, 0)):
 def point_within_circle(radius=20, center=(0, 0)):
     while True:
         point = point_within_square(radius=radius, center=center)
-        distance_from_center = abs(point_to_point_distance(point_a=point, point_b=center))
+        distance_from_center = abs(
+            point_to_point_distance(point_a=point, point_b=center)
+        )
         if distance_from_center <= radius:
             break
     return point
 
-
-def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=90, center=None):
+def check_point_within_arc(
+    checked_point=(-5, 5), facing_angle=None, arc_width=90, center=None
+):
     """
     checks whether a point falls within an arc sighted from another point.
     """
@@ -1115,14 +1129,17 @@ def check_point_within_arc(checked_point=(-5, 5), facing_angle=None, arc_width=9
     twelve_reference = (center[0], center[1] - 5)
     arc_range = ((facing_angle - half_arc) % 360,
                  (facing_angle + half_arc) % 360)
-    found_angle = round(find_angle(p0=twelve_reference, p1=center, p2=checked_point))
+    found_angle = round(
+        find_angle(p0=twelve_reference, p1=center, p2=checked_point)
+    )
     if checked_point[0] < center[0]:
         found_angle = 360 - found_angle
-    result = angle_in_arc(given_angle=found_angle,
-                          arc_begin=arc_range[0], 
-                          arc_end=arc_range[1])
+    result = angle_in_arc(
+        given_angle=found_angle,
+        arc_begin=arc_range[0], 
+        arc_end=arc_range[1]
+    )
     return result
-
 
 def angle_in_arc(given_angle, arc_begin=45, arc_end=135):
     if arc_begin > arc_end:
@@ -1156,14 +1173,14 @@ def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0),
                                                    radius=rand_radius))
     return points
 
-def get_points_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
+def get_points_along_line(
+    start_point=(0, 0), end_point=(10, 10), num_points=5
+):
     """
     Writes a jagged passage between two points of a variable number of segments
     to map_dict.
 
     Uses np.linspace, np.astype and .tolist()
-
-    returns nothing
     """
     x_value_range = (start_point[0], end_point[0])
     y_value_range = (start_point[1], end_point[1])
@@ -1172,13 +1189,19 @@ def get_points_along_line(start_point=(0, 0), end_point=(10, 10), num_points=5):
     points = list(zip(x_values.tolist(), y_values.tolist()))
     return points
 
-
-def carve_jagged_passage(start_point=(0, 0), end_point=(10, 10), 
-                         num_points=5, jitter=5, width=3,
-                         preset='floor'):
-    points = get_points_along_line(num_points=num_points,
-                                  start_point=start_point,
-                                  end_point=end_point,)
+def carve_jagged_passage(
+    start_point=(0, 0), 
+    end_point=(10, 10), 
+    num_points=5, 
+    jitter=5, 
+    width=3,
+    preset='floor'
+):
+    points = get_points_along_line(
+        num_points=num_points,
+        start_point=start_point,
+        end_point=end_point,
+    )
     points = add_jitter_to_middle(points=points, jitter=jitter)
     multi_segment_passage(points, width=3, preset=preset)
 
@@ -1198,7 +1221,6 @@ def add_jitter_to_middle(points=None, jitter=5):
     else:
         return []
 
-
 def chained_pairs(pairs=None):
     """
     Used for taking a list of points and returning pairs of points for drawing
@@ -1211,25 +1233,44 @@ def chained_pairs(pairs=None):
         pairs = [(i, i * 2) for i in range(10)]
     return [(pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1)]
 
-def multi_segment_passage(points=None, preset='floor', width=3, 
-                          passable=True, blocking=False):
+def multi_segment_passage(
+    points=None, 
+    preset='floor', 
+    width=3, 
+    passable=True, 
+    blocking=False
+):
     coord_pairs = chained_pairs(pairs=points)
     for coord_pair in coord_pairs:
-        n_wide_passage(coord_a=coord_pair[0], coord_b=coord_pair[1],
-                       width=width, passable=passable, blocking=blocking,
-                       preset=preset)
+        n_wide_passage(
+            coord_a=coord_pair[0],
+            coord_b=coord_pair[1],
+            width=width,
+            passable=passable,
+            blocking=blocking,
+            preset=preset
+        )
 
-def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
-                   passable=True, blocking=False, width=3,
-                   fade_to_preset=None, fade_bracket=(.25, .75)):
+def n_wide_passage(
+    coord_a=(0, 0),
+    coord_b=(5, 5),
+    preset='floor',
+    passable=True,
+    blocking=False,
+    width=3,
+    fade_to_preset=None,
+    fade_bracket=(.25, .75)
+):
     total_distance = point_to_point_distance(point_a=coord_a, point_b=coord_b)
     origin = (0, 0)
     if width == 0:
         return
     offsets = ((x, y) for x in range(-width, width + 1) 
                       for y in range(-width, width + 1))
-    trimmed_offsets = {offset for offset in offsets if
-                       point_to_point_distance(point_a=offset, point_b=origin) <= width / 2}
+    trimmed_offsets = {
+        offset for offset in offsets if
+        point_to_point_distance(point_a=offset, point_b=origin) <= width / 2
+    }
     points_to_write = set()
     for offset in trimmed_offsets:
         offset_coord_a = add_coords(coord_a, offset)
@@ -1239,8 +1280,10 @@ def n_wide_passage(coord_a=(0, 0), coord_b=(5, 5), preset='floor',
             points_to_write.add(point)
     for point in points_to_write:
         if fade_to_preset is not None:
-            if prob_fade_point_to_point(start_point=coord_a, end_point=coord_b, 
-                                        point=point, fade_bracket=fade_bracket):
+            if prob_fade_point_to_point(
+                start_point=coord_a, end_point=coord_b, 
+                point=point, fade_bracket=fade_bracket
+            ):
                 write_preset = preset
             else:
                 write_preset = fade_to_preset
@@ -1266,14 +1309,22 @@ def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10),
     else:
         return True
 
-def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4, 
-                  fixed_angle_increment=5, segments=10, random_shift=True,
-                  shift_choices=(-10, 10)):
+def arc_of_points(
+    start_coord=(0, 0),
+    starting_angle=0,
+    segment_length=4,
+    fixed_angle_increment=5,
+    segments=10,
+    random_shift=True,
+    shift_choices=(-10, 10)
+):
     last_point, last_angle = start_coord, starting_angle
     output_points = [start_coord]
     for _ in range(segment_length):
-        coord_shift = point_given_angle_and_radius(angle=last_angle, 
-                                                   radius=segment_length)
+        coord_shift = point_given_angle_and_radius(
+            angle=last_angle, 
+            radius=segment_length
+        )
         next_point = add_coords(last_point, coord_shift)
         output_points.append(next_point)
         last_point = next_point
@@ -1283,8 +1334,14 @@ def arc_of_points(start_coord=(0, 0), starting_angle=0, segment_length=4,
             last_angle += fixed_angle_increment
     return output_points, last_angle
 
-def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90, 
-                  width=(2, 20), draw_mode='even', preset='floor'):
+def chain_of_arcs(
+    start_coord=(0, 0),
+    num_arcs=20,
+    starting_angle=90, 
+    width=(2, 20),
+    draw_mode='even',
+    preset='floor'
+):
     """
     chain of arcs creates a chain of curved passages of optionally variable width.
 
@@ -1302,18 +1359,27 @@ def chain_of_arcs(start_coord=(0, 0), num_arcs=20, starting_angle=90,
         segment_widths = linspace(*width, num=num_arcs).astype(int)
     for segment_width in segment_widths:
         rand_segment_angle = choice((-20, -10, 10, 20))
-        points, starting_angle = arc_of_points(starting_angle=starting_angle, 
-                                               fixed_angle_increment=rand_segment_angle,
-                                               start_coord=arc_start,
-                                               random_shift=False)
+        points, starting_angle = arc_of_points(
+            starting_angle=starting_angle, 
+            fixed_angle_increment=rand_segment_angle,
+            start_coord=arc_start,
+            random_shift=False
+        )
         for point in points:
             map_dict[point].tile = term.red('X')
         arc_start = points[-1] #set the start point of the next passage.
         multi_segment_passage(points=points, width=segment_width, preset=preset)
 
-def cave_room(trim_radius=40, width=100, height=100, 
-              iterations=20, debug=False, 
-              kernel=True, kernel_offset=(0, 0), kernel_radius=3):
+def cave_room(
+    trim_radius=40,
+    width=100,
+    height=100, 
+    iterations=20,
+    debug=False, 
+    kernel=True,
+    kernel_offset=(0, 0),
+    kernel_radius=3
+):
     """
     Generates a smooth cave-like series of rooms within a given radius
     and around a given starting point.
@@ -1325,15 +1391,24 @@ def cave_room(trim_radius=40, width=100, height=100,
     if kernel:
         middle_coord = (width // 2, height // 2)
         kernel_base_coord = add_coords(kernel_offset, middle_coord)
-        kernel_cells = {coord:'#' for coord in 
-                        get_circle(center=kernel_base_coord, radius=kernel_radius)}
+        kernel_cells = {
+            coord:'#' for coord in 
+            get_circle(
+                center=kernel_base_coord, 
+                radius=kernel_radius
+            )
+        }
     #initialize the room:
     input_space = {(x, y):choice(['#', ' ']) 
                    for x in range(width) 
                    for y in range(height)}
     if trim_radius:
-        input_space = trim_outside_circle(input_dict=input_space, width=width,
-                                          height=height, trim_radius=trim_radius)
+        input_space = trim_outside_circle(
+            input_dict=input_space,
+            width=width,
+            height=height,
+            trim_radius=trim_radius
+        )
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
     check_coords = [(x, y) for x in range(width)
                            for y in range(height)]
