@@ -1108,7 +1108,7 @@ def point_within_circle(radius=20, center=(0, 0)):
     while True:
         point = point_within_square(radius=radius, center=center)
         distance_from_center = abs(
-            point_to_point_distance(point_a=point, point_b=center)
+            point_to_point_distance(point, center)
         )
         if distance_from_center <= radius:
             break
@@ -1261,15 +1261,15 @@ def n_wide_passage(
     fade_to_preset=None,
     fade_bracket=(.25, .75)
 ):
-    total_distance = point_to_point_distance(point_a=coord_a, point_b=coord_b)
+    total_distance = point_to_point_distance(coord_a, coord_b)
     origin = (0, 0)
     if width == 0:
         return
     offsets = ((x, y) for x in range(-width, width + 1) 
                       for y in range(-width, width + 1))
     trimmed_offsets = {
-        offset for offset in offsets if
-        point_to_point_distance(point_a=offset, point_b=origin) <= width / 2
+        offset for offset in offsets
+        if point_to_point_distance(offset, origin) <= width / 2
     }
     points_to_write = set()
     for offset in trimmed_offsets:
@@ -1281,8 +1281,10 @@ def n_wide_passage(
     for point in points_to_write:
         if fade_to_preset is not None:
             if prob_fade_point_to_point(
-                start_point=coord_a, end_point=coord_b, 
-                point=point, fade_bracket=fade_bracket
+                start_point=coord_a, 
+                end_point=coord_b, 
+                active_point=point, 
+                fade_bracket=fade_bracket
             ):
                 write_preset = preset
             else:
@@ -1291,12 +1293,32 @@ def n_wide_passage(
         else:
             paint_preset(tile_coords=point, preset=preset)
 
-def prob_fade_point_to_point(start_point=(0, 0), end_point=(10, 10), 
-                             point=(5, 5), fade_bracket=(.25, .75)):
+def prob_fade_point_to_point(
+    start_point=(0, 0), 
+    end_point=(10, 10), 
+    active_point=(5, 5),
+    fade_bracket=(.25, .75)
+):
+    """
+    start_point is the beginning of the random gradient
+
+    end_point is the end
+
+    active_point is the point being currently generated
+
+    fade_bracket is the ratio through the distance between start_point and 
+    end_point between which the starting preset tile is faded into the ending
+    preset
+
+    based on a fade_bracket of (.25, .75),
+    0% to 25% of the way through the total line will be guaranteed to be True
+    75% to 100% of the way through the total line will be guaranteed to be False
+    the 25% to 75% window will become progressively more likely to False
+    """
     fade_slope = 1 / (fade_bracket[1] - fade_bracket[0])
     fade_intercept = fade_slope * -fade_bracket[0]
-    total_distance = point_to_point_distance(point_a=start_point, point_b=end_point)
-    point_distance = point_to_point_distance(point_a=start_point, point_b=point)
+    total_distance = point_to_point_distance(start_point, end_point)
+    point_distance = point_to_point_distance(start_point, active_point)
     if total_distance == 0:
         return False
     fade_threshold = ((point_distance / total_distance) * fade_slope) + fade_intercept
@@ -1410,8 +1432,7 @@ def cave_room(
             trim_radius=trim_radius
         )
     adjacency = {(x, y):0 for x in range(width) for y in range(height)}
-    check_coords = [(x, y) for x in range(width)
-                           for y in range(height)]
+    check_coords = [(x, y) for x in range(width) for y in range(height)]
     if kernel:
         for coord, value in kernel_cells.items():
             input_space[coord] = '#'
@@ -1434,16 +1455,19 @@ def cave_room(
                 input_space[coord] = ' '
     return input_space
 
-def trim_outside_circle(input_dict={}, width=20, height=20, trim_radius=8, outside_radius_char=' '):
+def trim_outside_circle(
+    input_dict={}, width=20, height=20, trim_radius=8, outside_radius_char=' ',
+):
     center_coord = width // 2, height // 2
     for coord in input_dict:
-        distance_from_center = point_to_point_distance(point_a=coord, point_b=center_coord)
+        distance_from_center = point_to_point_distance(coord, center_coord)
         if distance_from_center >= trim_radius:
             input_dict[coord] = outside_radius_char
     return input_dict
 
-
-def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'):
+def write_room_to_map(
+    room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'
+):
     """
     Writes a dictionary representation of a region of space into the map_dict.
     """
@@ -1456,8 +1480,16 @@ def write_room_to_map(room={}, top_left_coord=(0, 0), space_char=' ', hash_char=
             map_dict[write_coord].blocking = False
             map_dict[write_coord].tile = hash_char
 
-def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', filled=True,
-                border_thickness=0, border_preset='chasm', annulus_radius=None):
+def draw_circle(
+    center_coord=(0, 0),
+    radius=5,
+    animation=None,
+    preset='floor',
+    filled=True,
+    border_thickness=0,
+    border_preset='chasm',
+    annulus_radius=None
+):
     """
     draws a filled circle onto map_dict.
     """
@@ -1470,11 +1502,12 @@ def draw_circle(center_coord=(0, 0), radius=5, animation=None, preset='floor', f
     for point in points:
         if not map_dict[point].mutable:
             continue
-        distance_to_center = point_to_point_distance(point_a=center_coord, point_b=point)
+        distance_to_center = point_to_point_distance(center_coord, point)
         if distance_to_center <= radius:
             paint_preset(tile_coords=point, preset=preset)
     if border_thickness > 0:
-        boundary_circle = get_circle(radius=radius + border_thickness, center=center_coord)
+        radius = radius + border_thickness
+        boundary_circle = get_circle( radius=radius, center=center_coord)
         for point in set(boundary_circle) - set(points):
             paint_preset(tile_coords=point, preset=border_preset)
 
@@ -1486,7 +1519,9 @@ async def toggle_scanner_state(batt_use=1):
     else:
         state_dict['scanner_state'] = True
         await append_to_log(message='You turn on the scanner.')
-    while state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0:
+    while (
+        state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0
+    ):
         await asyncio.sleep(1)
         state_dict['battery'] -= batt_use
 
@@ -1506,7 +1541,13 @@ async def use_battery():
         else:
             state_dict['battery'] = 100
 
-async def throw_item(thrown_item_id=False, source_actor='player', direction=None, throw_distance=13, rand_drift=2):
+async def throw_item(
+    thrown_item_id=False,
+    source_actor='player', 
+    direction=None, 
+    throw_distance=13, 
+    rand_drift=2
+):
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
@@ -1521,15 +1562,17 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
         return False
     del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
-    throw_vector = (direction_tuple[0] * throw_distance,
-                    direction_tuple[1] * throw_distance)
+    throw_vector = (
+        direction_tuple[0] * throw_distance,
+        direction_tuple[1] * throw_distance
+    )
     destination = add_coords(starting_point, throw_vector)
     if rand_drift:
         drift = randint(0, rand_drift), randint(0, rand_drift)
         destination = add_coords(destination, drift)
     if not hasattr(item_dict[thrown_item_id], 'tile'):
         return False
-    line_of_sight_result = await check_line_of_sight(coord_a=starting_point, coord_b=destination)
+    line_of_sight_result = await check_line_of_sight(starting_point, destination)
     #find last open tile before wall and place item there.
     if not line_of_sight_result:
         last_open = None
@@ -1544,9 +1587,15 @@ async def throw_item(thrown_item_id=False, source_actor='player', direction=None
     item_tile = item_dict[thrown_item_id].tile
     throw_text = 'throwing {} {}.'.format(item_dict[thrown_item_id].name)
     await append_to_log(message=throw_text)
-    await travel_along_line(name='thrown_item_id', start_coord=starting_point, 
-                            end_coords=destination, speed=.05, tile=item_tile, 
-                            animation=None, debris=None)
+    await travel_along_line(
+        name='thrown_item_id',
+        start_coord=starting_point, 
+        end_coords=destination,
+        speed=.05,
+        tile=item_tile, 
+        animation=None,
+        debris=None
+    )
     map_dict[destination].items[thrown_item_id] = True
     item_dict[thrown_item_id].current_location = destination
     return True
@@ -1561,39 +1610,73 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
     if reset_tile:
         item_dict[item_id].tile = original_tile
 
-
-async def explosion_effect(center=(0, 0), radius=6, damage=75, particle_count=25, destroys_terrain=True):
-    await radial_fountain(tile_anchor=center, anchor_actor='player', 
-                          frequency=.001, radius=(radius, radius + 3), speed=(1, 2), 
-                          collapse=False, debris='`.,\'', deathclock=particle_count,
-                          animation=Animation(preset='explosion'))
+async def explosion_effect(
+    center=(0, 0),
+    radius=6,
+    damage=75,
+    particle_count=25,
+    destroys_terrain=True
+):
+    await radial_fountain(
+        tile_anchor=center,
+        anchor_actor='player', 
+        frequency=.001,
+        radius=(radius, radius + 3),
+        speed=(1, 2), 
+        collapse=False,
+        debris='`.,\'',
+        deathclock=particle_count,
+        animation=Animation(preset='explosion')
+    )
     if destroys_terrain:
         draw_circle(center_coord=center, radius=radius)
     if damage:
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
-async def fused_throw_action(fuse_length=3, thrown_item_id=None, source_actor='player', 
-                             direction=None, throw_distance=13, rand_drift=2, 
-                             radius=6, damage=75, particle_count=25):
-    await throw_item(thrown_item_id=thrown_item_id, source_actor=source_actor,
-                     direction=direction, throw_distance=throw_distance, 
-                     rand_drift=rand_drift)
+async def fused_throw_action(
+    fuse_length=3,
+    thrown_item_id=None,
+    source_actor='player', 
+    direction=None,
+    throw_distance=13,
+    rand_drift=2, 
+    radius=6,
+    damage=75,
+    particle_count=25
+):
+    await throw_item(
+        thrown_item_id=thrown_item_id,
+        source_actor=source_actor,
+        direction=direction,
+        throw_distance=throw_distance, 
+        rand_drift=rand_drift
+    )
     item_location = item_dict[thrown_item_id].current_location
     await display_fuse(fuse_length=fuse_length, item_id=thrown_item_id)
     if thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
     del item_dict[thrown_item_id]
-    await explosion_effect(center=item_location, radius=radius, 
-                           damage=damage, particle_count=particle_count)
+    await explosion_effect(
+        center=item_location,
+        radius=radius,
+        damage=damage,
+        particle_count=particle_count
+    )
 
 
-async def damage_all_actors_at_coord(coord=(0, 0), damage=10, source_actor=None):
+async def damage_all_actors_at_coord(
+    coord=(0, 0), damage=10, source_actor=None
+):
     damage_message = "{} damage from {}!".format(damage, source_actor)
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
-            asyncio.ensure_future(append_to_log(message=damage_message))
-            asyncio.ensure_future(directional_damage_alert(source_actor=source_actor))
+            asyncio.ensure_future(
+                append_to_log(message=damage_message)
+            )
+            asyncio.ensure_future(
+                directional_damage_alert(source_actor=source_actor)
+            )
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
 async def damage_within_circle(center=(0, 0), radius=6, damage=75):
@@ -1601,8 +1684,14 @@ async def damage_within_circle(center=(0, 0), radius=6, damage=75):
     for coord in area_of_effect:
         await damage_all_actors_at_coord(coord=coord, damage=damage)
 
-async def damage_actor(actor=None, damage=10, display_above=True,
-                       leaves_body=False, blood=False, material='wood'):
+async def damage_actor(
+    actor=None,
+    damage=10,
+    display_above=True,
+    leaves_body=False,
+    blood=False,
+    material='wood'
+):
     debris_dict = {'wood':('SMASH!', ',.\''),
                    'stone':('SMASH!', '..:o')}
     if hasattr(actor_dict[actor], 'health'):
@@ -1622,20 +1711,32 @@ async def damage_actor(actor=None, damage=10, display_above=True,
     if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
         message, palette = debris_dict[material]
         await append_to_log(message=message)
-        root_x, root_y = actor_dict[actor].coords()
-        asyncio.ensure_future(sow_texture(root_x, root_y, palette=palette, radius=3, seeds=6, 
-                              passable=True, stamp=True, paint=False, color_num=8,
-                              description='Broken {}.'.format(material),
-                              pause_between=.06))
+        root_coord = actor_dict[actor].coords()
+        asyncio.ensure_future(
+            sow_texture(
+                root_coord,
+                palette=palette,
+                radius=3,
+                seeds=6, 
+                passable=True,
+                stamp=True,
+                paint=False,
+                color_num=8,
+                description='Broken {}.'.format(material),
+                pause_between=.06
+            )
+        )
         await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     if not hasattr(actor_dict[actor], 'coords'):
         return
     actor_coords = actor_dict[actor].coords()
-    digit_to_superscript = {'1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
-                            '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
-                            '-':'⁻', '+':'⁺'}
+    digit_to_superscript = {
+        '1':'¹', '2':'²', '3':'³', '4':'⁴', '5':'⁵',
+        '6':'⁶', '7':'⁷', '8':'⁸', '9':'⁹', '0':'⁰',
+        '-':'⁻', '+':'⁺'
+    }
     if damage >= 0:
         damage = '-' + str(damage)
     else:
@@ -1647,12 +1748,16 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
             tile = term.red(digit_to_superscript[digit])
         else:
             tile = term.green(digit_to_superscript[digit])
-        asyncio.ensure_future(travel_along_line(tile=tile,
-                                                speed=.12,
-                                                start_coord=start_coord, 
-                                                end_coords=end_coords,
-                                                debris=False,
-                                                animation=False))
+        asyncio.ensure_future(
+            travel_along_line(
+                tile=tile,
+                speed=.12,
+                start_coord=start_coord, 
+                end_coords=end_coords,
+                debris=False,
+                animation=False
+            )
+        )
 
 async def unlock_door(actor_key='player', opens='red'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -1678,7 +1783,12 @@ async def unlock_door(actor_key='player', opens='red'):
 #      billiard balls?
 
 def occupied(checked_coords=(0, 0)):
-    if not map_dict[checked_coords].actors and map_dict[checked_coords].passable:
+    """
+        returns True if the square is passable and there are no actors in it.
+    """
+    has_no_actors = not map_dict[checked_coords].actors
+    is_passable = map_dict[checked_coords].passable
+    if has_no_actors and is_passable:
         return True
     else:
         return False
@@ -1704,13 +1814,20 @@ def push(direction='n', pusher='player'):
     else:
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coords, chosen_dir)
-        if not map_dict[pushed_destination].actors and map_dict[pushed_destination].passable:
+        if occupied(pushed_destination):
             actor_dict[pushed_name].update(coord=pushed_destination)
 
-async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0', 
-                   orientation='n', segments=5, blocking=True, 
-                   color_num=6, preset='thin', debug=False,
-                   message_preset=None):
+async def bay_door(
+    hinge_coord=(3, 3),
+    patch_to_key='bay_door_0', 
+    orientation='n',
+    segments=5,
+    blocking=True, 
+    color_num=6,
+    preset='thin',
+    debug=False,
+    message_preset=None
+):
     """
     Instantiates an MTE that moves to one side when a pressure plate 
     (or other trigger) is activated.
@@ -1733,9 +1850,9 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
     elif orientation in ('e', 'w'):
         style_dir = 'ew'
     door_style = {
-            'secret':{'ns':'𝄛', 'ew':'𝄛'},
-            'thick':{'ns':'‖', 'ew':'═'},
-            'thin':{'ns':'│', 'ew':'─'},
+        'secret':{'ns':'𝄛', 'ew':'𝄛'},
+        'thick':{'ns':'‖', 'ew':'═'},
+        'thin':{'ns':'│', 'ew':'─'},
     }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_description_presets = {
@@ -1746,33 +1863,38 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
     door_segment_tile = door_style[preset][style_dir]
     if debug:
         print(preset, style_dir, door_segment_tile)
-    door = await spawn_mte(base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty')
+    door = await spawn_mte(
+        base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty'
+    )
     dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     dir_coord_increment = dir_offsets[orientation]
     segment_names = []
     door_id = generate_id(base_name=patch_to_key)
     for segment_num in range(segments):
-        offset = (dir_coord_increment[0] * (1 + segment_num), 
-                  dir_coord_increment[1] * (1 + segment_num))
+        offset = (
+            dir_coord_increment[0] * (1 + segment_num), 
+            dir_coord_increment[1] * (1 + segment_num)
+        )
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(door_id, segment_num)
         segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(
-                write_coord=spawn_coord,
-                segment_tile=door_segment_tile,
-                offset=offset,
-                segment_name=segment_name,
-                moveable=False,
-                blocking=blocking, 
-                breakable=False,
-                description=door_description_presets[preset])
+            write_coord=spawn_coord,
+            segment_tile=door_segment_tile,
+            offset=offset,
+            segment_name=segment_name,
+            moveable=False,
+            blocking=blocking, 
+            breakable=False,
+            description=door_description_presets[preset]
+        )
     door_message = None
     if message_preset is not None and message_preset in message_presets: 
         door_message = message_presets[message_preset]
     door_state = None
     while True:
         player_coords = actor_dict['player'].coords()
-        dist_from_player = point_to_point_distance(point_a=hinge_coord, point_b=player_coords)
+        dist_from_player = point_to_point_distance(hinge_coord, player_coords)
         if dist_from_player > 30:
             await asyncio.sleep(1)
             continue
@@ -1797,8 +1919,14 @@ async def bay_door(hinge_coord=(3, 3), patch_to_key='bay_door_0',
                 await asyncio.sleep(.1)
                 actor_dict[segment[0]].update(segment[1])
 
-async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pair_1',
-        preset='thin', pressure_plate_coord=None, message_preset=None):
+async def bay_door_pair(
+    hinge_a_coord,
+    hinge_b_coord,
+    patch_to_key='bay_door_pair_1',
+    preset='thin',
+    pressure_plate_coord=None,
+    message_preset=None
+):
     """
     writes a pair of bay_doors to the map that listen on the same key.
     
@@ -1834,48 +1962,80 @@ async def bay_door_pair(hinge_a_coord, hinge_b_coord, patch_to_key='bay_door_pai
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
-                asyncio.ensure_future(pressure_plate(spawn_coord=pair, 
-                                      patch_to_key=patch_to_key,))
+                asyncio.ensure_future(
+                    pressure_plate(
+                        spawn_coord=pair, 
+                        patch_to_key=patch_to_key,
+                    )
+                )
         else:
-            asyncio.ensure_future(pressure_plate(spawn_coord=pressure_plate_coord,
-                                  patch_to_key=patch_to_key,))
-    asyncio.ensure_future(bay_door(hinge_coord=hinge_a_coord,
-                                   patch_to_key=patch_to_key,
-                                   orientation=hinge_a_dir,
-                                   segments=a_segments,
-                                   preset=preset,
-                                   message_preset=message_preset)) 
-    #one door is silent to prevent message repeats
-    asyncio.ensure_future(bay_door(hinge_coord=hinge_b_coord,
-                                   patch_to_key=patch_to_key,
-                                   orientation=hinge_b_dir,
-                                   segments=b_segments,
-                                   preset=preset,
-                                   message_preset=None))
+            asyncio.ensure_future(
+                pressure_plate(
+                    spawn_coord=pressure_plate_coord,
+                    patch_to_key=patch_to_key,
+                )
+            )
+    asyncio.ensure_future(
+        bay_door(
+            hinge_coord=hinge_a_coord,
+            patch_to_key=patch_to_key,
+            orientation=hinge_a_dir,
+            segments=a_segments,
+            preset=preset,
+            message_preset=message_preset
+        )
+    ) 
+    asyncio.ensure_future(
+        bay_door(
+            hinge_coord=hinge_b_coord,
+            patch_to_key=patch_to_key,
+            orientation=hinge_b_dir,
+            segments=b_segments,
+            preset=preset,
+            message_preset=None #one door is silent to prevent message repeats
+        )
+    )
 
-async def follower_actor(name='follower', refresh_speed=.01, parent_actor='player', 
-                         offset=(-1,-1), alive=True, tile=' '):
+async def follower_actor(
+    name='follower',
+    refresh_speed=.01,
+    parent_actor='player', 
+    offset=(-1, -1),
+    alive=True,
+    tile=' '
+):
     await asyncio.sleep(refresh_speed)
     follower_id = generate_id(base_name=name)
     actor_dict[follower_id] = Actor(name=follower_id, tile=tile)
     while alive:
         await asyncio.sleep(refresh_speed)
         parent_coords = actor_dict[parent_actor].coords()
-        follow_x, follow_y = (parent_coords[0] + offset[0], 
-                              parent_coords[1] + offset[1])
+        follow_x, follow_y = (
+            parent_coords[0] + offset[0], parent_coords[1] + offset[1]
+        )
         actor_dict[follower_id].update(coord=(follow_x, follow_y))
 
-async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4):
+async def circle_of_darkness(
+    start_coord=(0, 0), name='darkness', circle_size=4
+):
     actor_id = generate_id(base_name=name)
     loop = asyncio.get_event_loop()
-    loop.create_task(basic_actor(*start_coord, speed=.5, movement_function=seek_actor, 
-                                 tile=' ', name_key=actor_id, hurtful=True,
-                                 is_animated=True, animation=Animation(preset='none')))
+    loop.create_task(
+        basic_actor(
+            *start_coord,
+            speed=.5,
+            movement_function=seek_actor, 
+            tile=' ',
+            name_key=actor_id,
+            hurtful=True,
+            is_animated=True,
+            animation=Animation(preset='none')
+        )
+    )
     range_tuple = (-circle_size, circle_size + 1)
     for x in range(*range_tuple):
         for y in range(*range_tuple):
-            distance_to_center = point_to_point_distance(point_a=(0, 0), 
-                                                         point_b=(x, y))
+            distance_to_center = point_to_point_distance((0, 0), (x, y))
             if distance_to_center <= circle_size:
                 loop.create_task(follower_actor(parent_actor=actor_id, 
                                                 offset=(x, y)))
@@ -1885,14 +2045,25 @@ async def circle_of_darkness(start_coord=(0, 0), name='darkness', circle_size=4)
                                                 offset=(1000 + x, 1000 + y)))
             else:
                 pass
-    loop.create_task(radial_fountain(anchor_actor=actor_id,
-                                     animation=Animation(preset='sparse noise')))
+    loop.create_task(
+        radial_fountain(
+            anchor_actor=actor_id,
+            animation=Animation(preset='sparse noise')
+        )
+    )
 
-async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10), 
-                           nodes=[(i, -5, 's') for i in range(-5, 4)],
-                           damage=75, length=7, rate=.25,
-                           speed=.1, retract_speed=.1, patch_to_key='switch_1',
-                           mid_trap_delay_time=.1):
+async def multi_spike_trap(
+    base_name='multitrap',
+    base_coord=(10, 10), 
+    nodes=[(i, -5, 's') for i in range(-5, 4)],
+    damage=75,
+    length=7,
+    rate=.25,
+    speed=.1,
+    retract_speed=.1,
+    patch_to_key='switch_1',
+    mid_trap_delay_time=.1
+):
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -1900,21 +2071,29 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
     """
     loop = asyncio.get_event_loop()
     state_dict[patch_to_key] = {}
-    loop.create_task(pressure_plate(spawn_coord=base_coord, patch_to_key=patch_to_key))
+    loop.create_task(
+        pressure_plate(
+            spawn_coord=base_coord,
+            patch_to_key=patch_to_key
+        )
+    )
     node_data = []
     for number, node in enumerate(nodes):
         node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
-        actor_dict[node_name] = Actor(name=node_name, moveable=False,
-                                           tile='◘', tile_color='grey')
+        actor_dict[node_name] = Actor(
+            name=node_name, moveable=False, tile='◘', tile_color='grey'
+        )
         actor_dict[node_name].update(coord=node_coord)
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             for node in node_data:
                 asyncio.ensure_future(
-                    start_delay_wrapper(start_delay=random(), delay_func=sword, 
+                    start_delay_wrapper(
+                        start_delay=random(), 
+                        delay_func=sword, 
                         direction=node[1], 
                         actor=node[0], 
                         length=length, 
@@ -1926,23 +2105,39 @@ async def multi_spike_trap(base_name='multitrap', base_coord=(10, 10),
                     )
                 )
 
-async def spike_trap(base_name='spike_trap', coord=(10, 10), 
-                     direction='n', damage=20, length=5, rate=.25, 
-                     speed=.1, patch_to_key='switch_1'):
+async def spike_trap(
+    base_name='spike_trap',
+    coord=(10, 10), 
+    direction='n',
+    damage=20,
+    length=5,
+    rate=.25, 
+    speed=.1,
+    patch_to_key='switch_1'
+):
     """
     Generate a stationary, actor that periodically puts out spikes in each
     direction given at rate spike_rate.
     """
     trap_origin_id = generate_id(base_name=base_name)
-    actor_dict[trap_origin_id] = Actor(name=trap_origin_id, moveable=False,
-                                       tile='◘', tile_color='grey')
+    actor_dict[trap_origin_id] = Actor(
+        name=trap_origin_id, moveable=False, tile='◘', tile_color='grey'
+    )
     actor_dict[trap_origin_id].update(coord=coord)
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
-            asyncio.ensure_future(sword(direction=direction, actor=trap_origin_id, length=length, 
-                                        damage=damage, sword_color=7, speed=speed,
-                                        player_sword_track=False))
+            asyncio.ensure_future(
+                sword(
+                    direction=direction,
+                    actor=trap_origin_id,
+                    length=length, 
+                    damage=damage,
+                    sword_color=7,
+                    speed=speed,
+                    player_sword_track=False
+                )
+            )
 
 async def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
@@ -1962,14 +2157,19 @@ async def export_map(width=140, height=45):
     if os.path.exists(filename): 
         os.remove(filename)
     player_location = actor_dict['player'].coords()
-    x_spread = (-width // 2 + player_location[0], 
-                 width // 2 + player_location[0])
-    y_spread = (-height // 2 + player_location[1], 
-                 height // 2 + player_location[1])
+    x_spread = (
+        -width // 2 + player_location[0], width // 2 + player_location[0]
+    )
+    y_spread = (
+        -height // 2 + player_location[1], height // 2 + player_location[1]
+    )
     with open(filename, 'a') as map_file:
         for y_pos, y in enumerate(range(*y_spread)):
             with term.location(60, y_pos):
-                line_output = '{}\n'.format(''.join([map_dict[i, y].tile for i in range(*x_spread)]))
+                row_output = ''.join(
+                    [map_dict[i, y].tile for i in range(*x_spread)]
+                )
+                line_output = '{}\n'.format(row_output)
                 map_file.write(line_output)
     with term.location(80, 0):
         print('finished writing map segment to {}.'.format(filename))
@@ -1992,16 +2192,27 @@ async def display_current_tile(x_offset=105, y_offset=5):
         with term.location(x_offset, y_offset + 2):
             print('tile_color: {}'.format(tile_color))
         with term.location(x_offset, y_offset + 3):
-            print('tile w/ color: {}'.format(term.color(tile_color)(current_tile)))
+            print(
+                'tile w/ color: {}'.format(
+                    term.color(tile_color)(current_tile)
+                )
+            )
         with term.location(x_offset, y_offset + 4):
             print('repr() of tile:')
         with term.location(x_offset, y_offset + 5):
             print('{}        '.format(repr(current_tile)))
 
-async def pressure_plate(appearance='▓░', spawn_coord=(4, 0), 
-                         patch_to_key='switch_1', off_delay=.5, 
-                         tile_color=7, test_rate=.1, display_timer=False,
-                         positives=None, sound_choice='default'):
+async def pressure_plate(
+    appearance='▓░',
+    spawn_coord=(4, 0), 
+    patch_to_key='switch_1',
+    off_delay=.5, 
+    tile_color=7,
+    test_rate=.1,
+    display_timer=False,
+    positives=None,
+    sound_choice='default'
+):
     #TODO: rewrite pressure plate to be a thing that reacts to change rather
     #than constantly check for change.
     """
@@ -2023,7 +2234,9 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
-        positive_result = await check_actors_on_tile(coords=spawn_coord, positives=positives)
+        positive_result = await check_actors_on_tile(
+            coords=spawn_coord, positives=positives
+        )
         if positive_result:
             if not triggered:
                 await append_to_log(message=sound_effects[sound_choice])
@@ -2031,9 +2244,16 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             map_dict[spawn_coord].tile = appearance[1]
             state_dict[patch_to_key][plate_id] = True
             if display_timer:
-                x_pos, y_pos = (int(term.width / 2 - 2), 
-                                int(term.height / 2 - 2),)
-                await timer(x_pos=x_pos - 8, y_pos=(y_pos + 15), time_minutes=0, time_seconds=5, resolution=1)
+                x_pos, y_pos = (
+                    int(term.width / 2 - 2), int(term.height / 2 - 2),
+                )
+                await timer(
+                    x_pos=x_pos - 8,
+                    y_pos=(y_pos + 15),
+                    time_minutes=0,
+                    time_seconds=5,
+                    resolution=1
+                )
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
@@ -2041,27 +2261,42 @@ async def pressure_plate(appearance='▓░', spawn_coord=(4, 0),
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].tile = appearance[0]
 
-async def puzzle_pair(block_coord=(-10, -10), plate_coord=(-10, -7), puzzle_name='puzzle_0', 
-                      color_num=3, block_char='☐'):
+async def puzzle_pair(
+    block_coord=(-10, -10),
+    plate_coord=(-10, -7),
+    puzzle_name='puzzle_0', 
+    color_num=3,
+    block_char='☐'
+):
     """
     creates a paired pressure plate and uniquely keyed block that will trigger
     the plate when pushed atop
     """
     state_dict[puzzle_name] = {}
     block_tile = term.color(color_num)(block_char)
-    asyncio.ensure_future(spawn_weight(base_name=puzzle_name, 
-                                       spawn_coord=block_coord, 
-                                       tile=block_tile))
-    asyncio.ensure_future(pressure_plate(spawn_coord=plate_coord, 
-                                         tile_color=color_num,
-                                         positives=(puzzle_name, 'null'), #positives needs to be a tuple
-                                         patch_to_key=puzzle_name))
+    asyncio.ensure_future(
+        spawn_weight(
+            base_name=puzzle_name, 
+            spawn_coord=block_coord, 
+            tile=block_tile
+        )
+    )
+    asyncio.ensure_future(
+        pressure_plate(
+            spawn_coord=plate_coord, 
+            tile_color=color_num,
+            positives=(puzzle_name, 'null'), #positives needs to be a tuple
+            patch_to_key=puzzle_name
+        )
+    )
     return puzzle_name
             
 async def any_true(trigger_key):
     return any(i for i in state_dict[trigger_key].values())
 
-async def state_toggle(sequence=(0, 1), time_between_triggers=1, trigger_key='test', channel=1):
+async def state_toggle(
+    sequence=(0, 1), time_between_triggers=1, trigger_key='test', channel=1
+):
     looping_values = cycle(sequence)
     state_dict[trigger_key] = {channel:1}
     while True:
@@ -2069,7 +2304,12 @@ async def state_toggle(sequence=(0, 1), time_between_triggers=1, trigger_key='te
         map_dict[9, 9].tile = str(state_dict[trigger_key][channel])[0]
         await asyncio.sleep(time_between_triggers)
 
-async def trigger_door(patch_to_key='switch_1', door_coord=(0, 0), default_state='closed', invert=False):
+async def trigger_door(
+    patch_to_key='switch_1',
+    door_coord=(0, 0),
+    default_state='closed',
+    invert=False
+):
     draw_door(door_coord=door_coord, description='iron', locked=True)
     while True:
         await asyncio.sleep(.25)
@@ -2091,13 +2331,26 @@ async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
     asyncio.ensure_future(delay_func(**kwargs))
 
-async def sword(direction='n', actor='player', length=5, name='sword', 
-                speed=.1, retract_speed=.1, damage=100, sword_color=1,
-                player_sword_track=True):
+async def sword(
+    direction='n',
+    actor='player',
+    length=5,
+    name='sword', 
+    speed=.1,
+    retract_speed=.1,
+    damage=100,
+    sword_color=1,
+    player_sword_track=True
+):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
-    dir_coords = {'n':(0, -1, '│'), 'e':(1, 0, '─'), 's':(0, 1, '│'), 'w':(-1, 0, '─')}
+    dir_coords = {
+        'n':(0, -1, '│'),
+        'e':(1, 0, '─'),
+        's':(0, 1, '│'),
+        'w':(-1, 0, '─')
+    }
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if player_sword_track:
         if 'player_busy' in state_dict and state_dict['player_busy'] == True:
@@ -2106,17 +2359,26 @@ async def sword(direction='n', actor='player', length=5, name='sword',
     starting_coords = actor_dict[actor].coords()
     chosen_dir = dir_coords[direction]
     sword_id = generate_id(base_name=name)
-    sword_segment_names = ['{}_{}_{}'.format(name, sword_id, segment) for segment in range(1, length)]
-    segment_coords = [(starting_coords[0] + chosen_dir[0] * i, 
-                       starting_coords[1] + chosen_dir[1] * i) 
-                      for i in range(1, length)]
+    sword_segment_names = [
+        '{}_{}_{}'.format(name, sword_id, segment) for segment in range(1, length)
+    ]
+    segment_coords = [
+        (starting_coords[0] + chosen_dir[0] * i, starting_coords[1] + chosen_dir[1] * i) 
+        for i in range(1, length)
+    ]
     to_damage_names = []
     player_coords = actor_dict['player'].coords()
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
-        actor_dict[segment_name] = Actor(name=segment_name, moveable=False,
-                                         tile=chosen_dir[2], tile_color=sword_color)
+        actor_dict[segment_name] = Actor(
+            name=segment_name,
+            moveable=False,
+            tile=chosen_dir[2],
+            tile_color=sword_color
+        )
         map_dict[segment_coord].actors[segment_name] = True
-        await damage_all_actors_at_coord(coord=segment_coord, damage=damage, source_actor='player')
+        await damage_all_actors_at_coord(
+            coord=segment_coord, damage=damage, source_actor='player'
+        )
         await asyncio.sleep(speed)
     retract_order = zip(reversed(segment_coords), reversed(sword_segment_names))
     for segment_coord, segment_name in retract_order:
@@ -2129,21 +2391,31 @@ async def sword(direction='n', actor='player', length=5, name='sword',
 
 async def sword_item_ability(length=3, speed=.05, damage=20, sword_color=1):
     facing_dir = state_dict['facing']
-    asyncio.ensure_future(sword(facing_dir, length=length, 
-                                speed=speed, retract_speed=speed,
-                                damage=damage, sword_color=sword_color))
+    asyncio.ensure_future(
+        sword(
+            facing_dir, length=length, 
+            speed=speed, retract_speed=speed,
+            damage=damage, sword_color=sword_color
+        )
+    )
 
 async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
     if direction is None:
         direction = state_dict['facing']
-    asyncio.ensure_future(dash_along_direction(distance=dash_length, direction=direction, 
-                                               time_between_steps=time_between_steps))
+    asyncio.ensure_future(
+        dash_along_direction(
+            distance=dash_length, direction=direction, 
+            time_between_steps=time_between_steps
+        )
+    )
 
 async def teleport_in_direction(direction=None, distance=15, flashy=True):
     if direction is None:
         direction = state_dict['facing']
-    directions_to_offsets = {'n':(0, -distance), 'e':(distance, 0), 
-                             's':(0, distance), 'w':(-distance, 0),}
+    directions_to_offsets = {
+        'n':(0, -distance), 'e':(distance, 0), 
+        's':(0, distance), 'w':(-distance, 0),
+    }
     player_coords = actor_dict['player'].coords()
     destination_offset = directions_to_offsets[direction]
     destination = add_coords(player_coords, destination_offset)
@@ -2160,13 +2432,20 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
-        await radial_fountain(frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1))
+        await radial_fountain(
+            frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1)
+        )
         await asyncio.sleep(.2)
         actor_dict[actor].update(coord=(1000, 1000))
         await asyncio.sleep(.8)
         actor_dict[actor].update(coord=(destination))
-        await radial_fountain(frequency=.002, collapse=False, radius=(5, 12),
-                              deathclock=30, speed=(1, 1))
+        await radial_fountain(
+            frequency=.002,
+            collapse=False,
+            radius=(5, 12),
+            deathclock=30,
+            speed=(1, 1)
+        )
     else:
         await append_to_log(message='Something is in the way.')
     
@@ -2178,11 +2457,10 @@ async def random_blink(actor='player', radius=20):
         rand_x = randint(-radius, radius) + current_location[0]
         rand_y = randint(-radius, radius) + current_location[1]
         blink_to = (rand_x, rand_y)
-        distance = point_to_point_distance(point_a=blink_to, 
-                                           point_b=current_location)
+        distance = point_to_point_distance(blink_to, current_location)
         if distance > radius:
             continue
-        line_of_sight_result = await check_line_of_sight(coord_a=current_location, coord_b=blink_to)
+        line_of_sight_result = await check_line_of_sight(current_location, blink_to)
         if line_of_sight_result is None:
             continue
         if type(line_of_sight_result) is bool:
@@ -2431,9 +2709,20 @@ def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
             for x_coord in range(x1, x2+1):
                 apply_to_map_coord((x_coord, y2), tile=choice(palette), passable=True, blocking=False)
 
-async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20, 
-                passable=False, stamp=True, paint=True, color_num=1, description='',
-                pause_between=.02, only_passable=True, append_description=False):
+async def sow_texture(
+    root_coord,
+    palette=",.'\"`",
+    radius=5,
+    seeds=20, 
+    passable=False,
+    stamp=True,
+    paint=True,
+    color_num=1,
+    description='',
+    pause_between=.02,
+    only_passable=True,
+    append_description=False
+):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
     """
@@ -2444,7 +2733,7 @@ async def sow_texture(root_x, root_y, palette=",.'\"`", radius=5, seeds=20,
             x_toss, y_toss = (randint(-radius, radius),
                               randint(-radius, radius),)
             throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
-        toss_coord = add_coords((root_x, root_y), (x_toss, y_toss))
+        toss_coord = add_coords(root_coord, (x_toss, y_toss))
         if only_passable and not map_dict[toss_coord].passable:
             continue
         if map_dict[toss_coord].mutable == False:
@@ -3241,7 +3530,7 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
         map_dict[tile_coord_key].seen = True
 
 #Geometry functions-------------------------------------------------------------
-def point_to_point_distance(point_a=(0, 0), point_b=(5, 5)):
+def point_to_point_distance(point_a, point_b):
     """ finds 2d distance between two points """
     x_run, y_run = [abs(point_a[i] - point_b[i]) for i in (0, 1)]
     distance = round(sqrt(x_run ** 2 + y_run ** 2))
@@ -3465,7 +3754,7 @@ async def tile_debug_info(x_print=18, y_print=0):
                 print(line)
         await asyncio.sleep(.2)
 
-async def check_line_of_sight(coord_a=(0, 0), coord_b=(5, 5)):
+async def check_line_of_sight(coord_a, coord_b):
     """
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
@@ -4081,14 +4370,19 @@ async def delay_follow(
             actor_dict[delay_id].update(moves[delay_index])
 
 async def attack(
-    attacker_key=None, defender_key=None, blood=True, spatter_num=3
+    attacker_key=None, defender_key=None, blood=True, spatter_range=(1, 3)
 ):
     attacker_strength = actor_dict[attacker_key].base_attack
-    target_x, target_y = actor_dict[defender_key].coords()
+    target_coord = actor_dict[defender_key].coords()
     if blood:
-        await sow_texture(root_x=target_x, root_y=target_y, radius=3, paint=True,
-                          seeds=randint(1, spatter_num), description="Blood.", 
-                          append_description=True)
+        await sow_texture(
+            root_coord=target_coord,
+            radius=3,
+            paint=True,
+            seeds=randint(*spatter_range),
+            description="Blood.", 
+            append_description=True
+        )
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
@@ -4339,7 +4633,7 @@ def distance_to_actor(actor_a=None, actor_b='player'):
         return 0
     a_coord = actor_dict[actor_a].coords()
     b_coord = actor_dict[actor_b].coords()
-    return point_to_point_distance(point_a=a_coord, point_b=b_coord)
+    return point_to_point_distance(a_coord, b_coord)
 
 async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15, damage=5):
     if track_to_actor == None:
@@ -4361,7 +4655,7 @@ async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15, damage=5):
             ))
         
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
-    coords = actor_dict[name_key].coords()
+    actor_coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
@@ -4372,19 +4666,18 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         for entry in mte_dict[parent_name].member_data.values():
             if name_key in entry.values():
                 segment_key = entry['offset']
-                #print(f'segment_key: {segment_key}')
         #delete MTE segment then try to split remaining segments:
         del mte_dict[parent_name].member_data[segment_key]
         mte_dict[parent_name].split_along_subregions()
     del actor_dict[name_key]
-    del map_dict[coords].actors[name_key]
+    del map_dict[actor_coords].actors[name_key]
     if blood:
-        await sow_texture(root_x=coords[0], root_y=coords[1], radius=3, paint=True, 
+        await sow_texture(root_coord=actor_coords, radius=3, paint=True, 
                           seeds=5, description="blood.")
     if leaves_body:
-        map_dict[coords].tile = body_tile
-        map_dict[coords].description = "A body."
-    spawn_item_spray(base_coord=coords, items=holding_items)
+        map_dict[actor_coords].tile = body_tile
+        map_dict[actor_coords].description = "A body."
+    spawn_item_spray(base_coord=actor_coords, items=holding_items)
     return
 
 def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
