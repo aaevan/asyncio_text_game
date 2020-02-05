@@ -1169,8 +1169,11 @@ def points_around_point(radius=5, radius_spread=2, middle_point=(0, 0),
     for _ in range(num_points):
         rand_angle = randint(*in_cone)
         rand_radius = randint(*radius_range)
-        points.append(point_given_angle_and_radius(angle=rand_angle, 
-                                                   radius=rand_radius))
+        points.append(
+            point_given_angle_and_radius(
+                angle=rand_angle, radius=rand_radius
+            )
+        )
     return points
 
 def get_points_along_line(
@@ -3045,7 +3048,8 @@ async def magic_door(
         animation=animation
     )
     #reviewed to here!
-    map_dict[start_coord].description = "The air shimmers slightly between you and the space beyond."
+    description = "The air shimmers slightly between you and the space beyond."
+    map_dict[start_coord].description = description
     map_dict[start_coord].tile = "M"
     while(True):
         await asyncio.sleep(.1)
@@ -3055,8 +3059,10 @@ async def magic_door(
         #TODO: add an option for non-player actors to go through.
         if player_coords == start_coord and not just_teleported:
             last_location = state_dict['last_location']
-            difference_from_door_coords = (start_coord[0] - last_location[0], 
-                                           start_coord[1] - last_location[1])
+            difference_from_door_coords = (
+                start_coord[0] - last_location[0], 
+                start_coord[1] - last_location[1]
+            )
             destination = add_coords(end_coords, difference_from_door_coords)
             if map_dict[destination].passable:
                 if not silent:
@@ -3066,23 +3072,51 @@ async def magic_door(
                 state_dict['just teleported'] = True
                 state_dict['plane'] = destination_plane
 
-async def create_magic_door_pair(door_a_coords=(5, 5), door_b_coords=(-25, -25), silent=False,
-                                 source_plane='normal', destination_plane='normal'):
+async def create_magic_door_pair(
+    door_a_coords=(5, 5),
+    door_b_coords=(-25, -25),
+    silent=False,
+    source_plane='normal',
+    destination_plane='normal'
+):
     loop = asyncio.get_event_loop()
-    loop.create_task(magic_door(start_coord=(door_a_coords), end_coords=(door_b_coords), silent=silent, 
-                                destination_plane=destination_plane),)
-    loop.create_task(magic_door(start_coord=(door_b_coords), end_coords=(door_a_coords), silent=silent,
-                                destination_plane=source_plane))
+    loop.create_task(
+        magic_door(
+            start_coord=(door_a_coords),
+            end_coords=(door_b_coords),
+            silent=silent, 
+            destination_plane=destination_plane
+        ),
+    )
+    loop.create_task(
+        magic_door(
+            start_coord=(door_b_coords),
+            end_coords=(door_a_coords),
+            silent=silent,
+            destination_plane=source_plane
+        )
+    )
 
-async def spawn_container(base_name='box', spawn_coord=(5, 5), tile='☐',
-                          breakable=True, moveable=True, preset='random',
-                          description='A wooden box'):
+async def spawn_container(
+    base_name='box',
+    spawn_coord=(5, 5),
+    tile='☐',
+    breakable=True,
+    moveable=True,
+    preset='random',
+    description='A wooden box'
+):
     box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
-    container_id = spawn_static_actor(base_name=base_name, spawn_coord=spawn_coord,
-                                      tile=tile, moveable=moveable, breakable=breakable,
-                                      description=description)
+    container_id = spawn_static_actor(
+        base_name=base_name,
+        spawn_coord=spawn_coord,
+        tile=tile,
+        moveable=moveable,
+        breakable=breakable,
+        description=description
+    )
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
@@ -3090,15 +3124,26 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
     """
     spawns a pushable box to trigger pressure plates or other puzzle elements.
     """
-    weight_id = spawn_static_actor(base_name=base_name, 
-                                   spawn_coord=spawn_coord,
-                                   tile=tile, breakable=False, 
-                                   moveable=True)
+    weight_id = spawn_static_actor(
+        base_name=base_name, 
+        spawn_coord=spawn_coord,
+        tile=tile,
+        breakable=False, 
+        moveable=True
+    )
 
-def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
-                       animation_preset=None, breakable=True, moveable=False,
-                       multi_tile_parent=None, blocking=False, literal_name=False,
-                       description='STATIC ACTOR'):
+def spawn_static_actor(
+    base_name='static',
+    spawn_coord=(5, 5),
+    tile='☐',
+    animation_preset=None,
+    breakable=True,
+    moveable=False,
+    multi_tile_parent=None,
+    blocking=False,
+    literal_name=False,
+    description='STATIC ACTOR'
+):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
@@ -3113,12 +3158,19 @@ def spawn_static_actor(base_name='static', spawn_coord=(5, 5), tile='☐',
     else:
         is_animated = False
         animation = None
-    actor_dict[actor_id] = Actor(name=actor_id, tile=tile,
-                                 is_animated=is_animated, animation=animation,
-                                 x_coord=spawn_coord[0], y_coord=spawn_coord[1], 
-                                 breakable=breakable, moveable=moveable,
-                                 multi_tile_parent=multi_tile_parent,
-                                 blocking=blocking, description=description)
+    actor_dict[actor_id] = Actor(
+        name=actor_id,
+        tile=tile,
+        is_animated=is_animated,
+        animation=animation,
+        x_coord=spawn_coord[0],
+        y_coord=spawn_coord[1], 
+        breakable=breakable,
+        moveable=moveable,
+        multi_tile_parent=multi_tile_parent,
+        blocking=blocking,
+        description=description
+    )
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
 
@@ -3156,10 +3208,12 @@ def map_init():
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
         destination_coord = (rooms[destination].center_coord)
-        rooms[source].connect_to_room(room_coord=destination_coord,
-                                      passage_width=width,
-                                      fade_to_preset=fade_to_preset,
-                                      style=style)
+        rooms[source].connect_to_room(
+            room_coord=destination_coord,
+            passage_width=width,
+            fade_to_preset=fade_to_preset,
+            style=style
+        )
     for room in rooms.values():
         room.draw_room()
     secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
@@ -3170,11 +3224,12 @@ def map_init():
     draw_door(door_coord=(0, 10))
 
 def announcement_at_coord(
-        announcement, 
-        coord=(0, 0),
-        distance_trigger=3, 
-        tile=None, 
-        describe_tile=False):
+    announcement, 
+    coord=(0, 0),
+    distance_trigger=3, 
+    tile=None, 
+    describe_tile=False
+):
     """
     creates a one-time announcement at coord.
     split announcement up into separate sequential pieces with pipes
@@ -3189,7 +3244,7 @@ def announcement_at_coord(
         map_dict[coord].description = ''.join(announcement.split('|'))
 
 def isData(): 
-    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []) 
+    return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
 def is_number(number="0"):
     try:
@@ -3225,9 +3280,13 @@ async def get_key(help_wait_count=100):
             else:
                 state_dict['same_count'] = 0
             old_key = key
-            if (state_dict['same_count'] >= help_wait_count and 
-                state_dict['same_count'] % help_wait_count == 0):
-                if not any (help_text in line for line in state_dict['messages'][-10:]):
+            if (
+                state_dict['same_count'] >= help_wait_count and 
+                state_dict['same_count'] % help_wait_count == 0
+            ):
+                if not any (
+                    help_text in line for line in state_dict['messages'][-10:]
+                ):
                     await append_to_log(message=help_text)
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
@@ -3246,10 +3305,12 @@ async def handle_input(key):
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
-    key_to_compass = {'w':'n', 'a':'w', 's':'s', 'd':'e', 
-                      'W':'n', 'A':'w', 'S':'s', 'D':'e', 
-                      'i':'n', 'j':'w', 'k':'s', 'l':'e',
-                      'I':'n', 'J':'w', 'K':'s', 'L':'e'}
+    key_to_compass = {
+        'w':'n', 'a':'w', 's':'s', 'd':'e', 
+        'W':'n', 'A':'w', 'S':'s', 'D':'e', 
+        'i':'n', 'j':'w', 'k':'s', 'l':'e',
+        'I':'n', 'J':'w', 'K':'s', 'L':'e'
+    }
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
@@ -3264,7 +3325,9 @@ async def handle_input(key):
         middle_x, middle_y = (int(term.width / 2 - 2), 
                               int(term.height / 2 - 2),)
         quit_question_text = 'Really quit? (y/n)'
-        term_location = (middle_x - int(len(quit_question_text)/2), middle_y - 16)
+        term_location = (
+            middle_x - int(len(quit_question_text)/2), middle_y - 16
+        )
         with term.location(*term_location):
             print(quit_question_text)
         if key in 'yY':
@@ -3286,12 +3349,23 @@ async def handle_input(key):
                     x_shift, y_shift = directions[key]
             state_dict['just teleported'] = False #used by magic_doors
         if key in 'WASD': 
-            asyncio.ensure_future(dash_ability(dash_length=randint(2, 3), direction=key_to_compass[key], 
-                                               time_between_steps=.04))
+            asyncio.ensure_future(
+                dash_ability(
+                    dash_length=randint(2, 3),
+                    direction=key_to_compass[key], 
+                    time_between_steps=.04
+                )
+            )
         if key in '?':
             await display_help() 
         if key in '3': #shift dimensions
-            asyncio.ensure_future(pass_between(x_offset=1000, y_offset=1000, plane_name='nightmare'))
+            asyncio.ensure_future(
+                pass_between(
+                    x_offset=1000,
+                    y_offset=1000,
+                    plane_name='nightmare'
+                )
+            )
         if key in '4':
             draw_net()
         #if key in '8': #export map
@@ -3306,7 +3380,6 @@ async def handle_input(key):
                 map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
             print_debug_grid() 
-            #asyncio.ensure_future(append_to_log("This is an even longer test!", wipe=True))
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -3315,7 +3388,11 @@ async def handle_input(key):
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
             facing_angle = dir_to_angle(state_dict['facing'])
-            chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
+            chain_of_arcs(
+                starting_angle=facing_angle,
+                start_coord=player_coords,
+                num_arcs=5
+            )
         if key in 'g': #pick up an item from the ground
             asyncio.ensure_future(item_choices(coords=(x, y)))
         if key in 'Q': #equip an item to slot q
@@ -3334,7 +3411,9 @@ async def handle_input(key):
             asyncio.ensure_future(use_chosen_item())
         if key in 'M':
             spawn_coords = add_coords(player_coords, (2, 2))
-            mte_id = await spawn_mte(spawn_coord=spawn_coords, preset='test_block')
+            mte_id = await spawn_mte(
+                spawn_coord=spawn_coords, preset='test_block'
+            )
         if key in 'y':
             #actor_dict['player'].update(coord=(-32, 20)) #jump to debug location
             destination = (-32, 20)
@@ -3344,31 +3423,53 @@ async def handle_input(key):
             return
         if key in 'Y':
             player_coords = actor_dict['player'].coords()
-            asyncio.ensure_future(temp_view_circle(center_coord=player_coords))
+            asyncio.ensure_future(
+                temp_view_circle(
+                    center_coord=player_coords
+                )
+            )
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
             await sword_item_ability(length=2)
         if key in '7':
-            draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
+            draw_circle(
+                center_coord=actor_dict['player'].coords(), preset='floor'
+            )
         if key in '8':
             center_coord = actor_dict['player'].coords()
             endpoint = add_coords(center_coord, (50, 0))
-            n_wide_passage(width = 5, coord_a=center_coord, coord_b=endpoint, 
-                           fade_to_preset='grass', fade_bracket=(.2, .8))
+            n_wide_passage(
+                width = 5,
+                coord_a=center_coord,
+                coord_b=endpoint, 
+                fade_to_preset='grass',
+                fade_bracket=(.2, .8)
+            )
         if key in 'R': #generate a random cave room around the player
-            player_coords = add_coords(actor_dict['player'].coords(), (-50, -50))
+            player_coords = add_coords(
+                actor_dict['player'].coords(), (-50, -50)
+            )
             test_room = cave_room()
             write_room_to_map(room=test_room, top_left_coord=player_coords)
         if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(rand_blink())
         if key in '1': #draw a passage on the map back to (0, 0).
-            n_wide_passage(coord_a=(actor_dict['player'].coords()), coord_b=(0, 0), preset='floor', width=5)
+            n_wide_passage(
+                coord_a=(actor_dict['player'].coords()),
+                coord_b=(0, 0),
+                preset='floor', width=5
+            )
         shifted_x, shifted_y = x + x_shift, y + y_shift
-        if map_dict[(shifted_x, shifted_y)].passable and (shifted_x, shifted_y) is not (0, 0):
+        if (
+            map_dict[(shifted_x, shifted_y)].passable and 
+            (shifted_x, shifted_y) is not (0, 0)
+        ):
             state_dict['last_location'] = (x, y)
             map_dict[(x, y)].passable = True #make previous space passable
-            actor_dict['player'].update(coord=add_coords((x, y), (x_shift, y_shift)))
+            actor_dict['player'].update(
+                coord=add_coords((x, y), (x_shift, y_shift))
+            )
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijklIJKL": #change viewing direction
