@@ -2473,16 +2473,27 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(coord=(line_of_sight_result))
             return
 
+
 async def temporary_block(duration=5, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
-    spawn_coord = (actor_coords[0] + facing_dir_offset[0],
-                   actor_coords[1] + facing_dir_offset[1])
+    spawn_coord = (
+        actor_coords[0] + facing_dir_offset[0],
+        actor_coords[1] + facing_dir_offset[1]
+    )
     block_id = generate_id(base_name='weight')
-    asyncio.ensure_future(timed_actor(death_clock=duration, name=block_id, coords=spawn_coord,
-                          rand_delay=0, solid=False, moveable=True, 
-                          animation_preset=animation_preset))
+    asyncio.ensure_future(
+        timed_actor(
+            death_clock=duration,
+            name=block_id,
+            coords=spawn_coord,
+            rand_delay=0,
+            solid=False,
+            moveable=True, 
+            animation_preset=animation_preset
+        )
+    )
 
 
 async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
@@ -2509,68 +2520,171 @@ async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     wand_broken_text = ' is out of charges.'
-    shift_amulet_kwargs = {'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'}
-    possible_items = ('wand', 'nut', 'fused charge', 'shield wand', 'red potion',
-                      'shiny stone', 'shift amulet', 'red sword', 'vine wand',
-                      'eye trinket', 'high explosives', 'red key', 'green key', 
-                      'rusty key')
+    shift_amulet_kwargs = {
+        'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'
+    }
+    possible_items = (
+        'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
+        'shiny stone', 'shift amulet', 'red sword', 'vine wand',
+        'eye trinket', 'high explosives', 'red key', 'green key', 
+        'rusty key'
+    )
     block_wand_text = 'A shimmering block appears.'
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = generate_id(base_name=instance_of)
-    item_catalog = {'wand':{'uses':10, 'tile':term.blue('/'), 'usable_power':temporary_block,
-                            'power_kwargs':{'duration':5}, 'use_message':block_wand_text,
-                            'broken_text':' is out of charges'},
-                     'nut':{'uses':9999, 'tile':term.red('⏣'), 'usable_power':throw_item, 
-                            'power_kwargs':{'thrown_item_id':item_id}},
-                 'scanner':{'uses':9999, 'tile':term.green('𝄮'), 
-                            'usable_power':toggle_scanner_state, 'use_message':None,
-                            'power_kwargs':{'batt_use':1}},
-            'fused charge':{'uses':9999, 'tile':term.green('⏣'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id, 'radius':6}},
-         'high explosives':{'uses':9999, 'tile':term.red('\\'), 'usable_power':fused_throw_action, 
-                            'power_kwargs':{'thrown_item_id':item_id, 'throw_distance':1, 
-                                            'radius':15, 'damage':150, 'fuse_length':9,
-                                            'particle_count':30, 'rand_drift':0}},
-             'shield wand':{'uses':10, 'tile':term.blue('/'), 'power_kwargs':{'radius':6},
-                            'usable_power':spawn_bubble, 'broken_text':wand_broken_text},
-              'red potion':{'uses':1, 'tile':term.red('◉'), 'power_kwargs':{'item_id':item_id, 
-                            'total_restored':50}, 'usable_power':health_potion, 
-                            'broken_text':wand_broken_text},
-             'shiny stone':{'uses':9999, 'tile':term.blue('o'), 
-                            'power_kwargs':{'radius':5, 'track_actor':'player'}, 
-                            'usable_power':orbit, 'broken_text':wand_broken_text},
-            'shift amulet':{'uses':999, 'tile':term.blue('O̧'), 'power_kwargs':shift_amulet_kwargs,
-                            'usable_power':pass_between, 'broken_text':'Something went wrong.'},
-               'red sword':{'uses':9999, 'tile':term.red('ļ'), 'power_kwargs':{'length':9, 'speed':.1},
-                            'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
-                            'use_message':None},
-             'green sword':{'uses':9999, 'tile':term.green('ļ'),
-                            'power_kwargs':{'length':9, 'speed':.05, 'damage':100, 'sword_color':2},
-                            'usable_power':sword_item_ability, 'broken_text':'Something went wrong.',
-                            'use_message':None},
-               #'vine wand':{'uses':9999, 'tile':term.green('/'), 'usable_power':vine_grow, 
-                            #'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
-                            #'broken_text':wand_broken_text},
-            'dash trinket':{'uses':9999, 'tile':term.blue('⥌'), 'usable_power':dash_ability, 
-                            'power_kwargs':{'dash_length':20}, 'broken_text':wand_broken_text},
-                 'red key':{'uses':9999, 'tile':term.red('⚷'), 'usable_power':unlock_door, 
-                            'power_kwargs':{'opens':'red'}, 'broken_text':wand_broken_text,
-                            'use_message':''},
-               'green key':{'uses':9999, 'tile':term.green('⚷'), 'usable_power':unlock_door, 
-                            'power_kwargs':{'opens':'green'}, 'broken_text':wand_broken_text,
-                            'use_message':None},
-               'rusty key':{'uses':3, 'tile':term.color(3)('⚷'), 'usable_power':unlock_door, 
-                            'power_kwargs':{'opens':'rusty'}, 'broken_text':'the key breaks off in the lock',
-                            'use_message':None},
-             'eye trinket':{'uses':9999, 'tile':term.blue('⚭'), 'usable_power':random_blink, 
-                            'power_kwargs':{'radius':50}, 'broken_text':wand_broken_text},
-              'hop amulet':{'uses':9999, 'tile':term.red('O̧'), 'usable_power':teleport_in_direction, 
-                            'power_kwargs':{'distance':10}, 'broken_text':wand_broken_text}}
+    item_catalog = {
+        'wand':{
+            'uses':10,
+            'tile':term.blue('/'),
+            'usable_power':temporary_block,
+            'power_kwargs':{'duration':5},
+            'use_message':block_wand_text,
+            'broken_text':' is out of charges'
+        },
+        'nut':{
+            'uses':9999,
+            'tile':term.red('⏣'),
+            'usable_power':throw_item, 
+            'power_kwargs':{'thrown_item_id':item_id}
+        },
+        'scanner':{
+            'uses':9999,
+            'tile':term.green('𝄮'), 
+            'usable_power':toggle_scanner_state,
+            'use_message':None,
+            'power_kwargs':{'batt_use':1}
+        },
+        'fused charge':{
+            'uses':9999,
+            'tile':term.green('⏣'),
+            'usable_power':fused_throw_action, 
+            'power_kwargs':{'thrown_item_id':item_id, 'radius':6}
+        },
+        'high explosives':{
+            'uses':9999,
+            'tile':term.red('\\'),
+            'usable_power':fused_throw_action, 
+            'power_kwargs':{
+                'thrown_item_id':item_id,
+                'throw_distance':1, 
+                'radius':15,
+                'damage':150,
+                'fuse_length':9,
+                'particle_count':30,
+                'rand_drift':0
+            }
+        },
+        'shield wand':{
+            'uses':10,
+            'tile':term.blue('/'),
+            'power_kwargs':{'radius':6},
+            'usable_power':spawn_bubble,
+            'broken_text':wand_broken_text
+        },
+        'red potion':{
+            'uses':1,
+            'tile':term.red('◉'), 
+            'power_kwargs':{'item_id':item_id,
+            'total_restored':50},
+            'usable_power':health_potion,
+            'broken_text':wand_broken_text
+        },
+        'shiny stone':{
+            'uses':9999,
+            'tile':term.blue('o'), 
+            'power_kwargs':{'radius':5, 'track_actor':'player'}, 
+            'usable_power':orbit,
+            'broken_text':wand_broken_text
+        },
+        'shift amulet':{
+            'uses':999,
+            'tile':term.blue('O̧'),
+            'power_kwargs':shift_amulet_kwargs,
+            'usable_power':pass_between,
+            'broken_text':'Something went wrong.'
+        },
+        'red sword':{
+            'uses':9999,
+            'tile':term.red('ļ'),
+            'power_kwargs':{'length':9, 'speed':.1},
+            'usable_power':sword_item_ability,
+            'broken_text':'Something went wrong.',
+            'use_message':None
+        },
+        'green sword':{
+            'uses':9999,
+            'tile':term.green('ļ'),
+            'power_kwargs':{
+                'length':9,
+                'speed':.05,
+                'damage':100,
+                'sword_color':2
+            },
+            'usable_power':sword_item_ability,
+            'broken_text':'Something went wrong.',
+            'use_message':None
+        },
+        #'vine wand':{
+            #'uses':9999,
+            #'tile':term.green('/'),
+            #'usable_power':vine_grow,
+            #'power_kwargs':{'on_actor':'player', 'start_facing':True}, 
+            #'broken_text':wand_broken_text
+        #},
+        'dash trinket':{
+            'uses':9999,
+            'tile':term.blue('⥌'),
+            'usable_power':dash_ability, 
+            'power_kwargs':{'dash_length':20},
+            'broken_text':wand_broken_text},
+        'red key':{
+            'uses':9999,
+            'tile':term.red('⚷'),
+            'usable_power':unlock_door, 
+            'power_kwargs':{'opens':'red'},
+            'broken_text':wand_broken_text,
+            'use_message':''
+        },
+        'green key':{
+            'uses':9999,
+            'tile':term.green('⚷'),
+            'usable_power':unlock_door, 
+            'power_kwargs':{'opens':'green'},
+            'broken_text':wand_broken_text,
+            'use_message':None
+        },
+        'rusty key':{
+            'uses':3,
+            'tile':term.color(3)('⚷'),
+            'usable_power':unlock_door, 
+            'power_kwargs':{'opens':'rusty'},
+            'broken_text':'the key breaks off in the lock',
+            'use_message':None
+        },
+        'eye trinket':{
+            'uses':9999,
+            'tile':term.blue('⚭'),
+            'usable_power':random_blink, 
+            'power_kwargs':{'radius':50},
+            'broken_text':wand_broken_text
+        },
+        'hop amulet':{
+            'uses':9999,
+            'tile':term.red('O̧'),
+            'usable_power':teleport_in_direction, 
+            'power_kwargs':{'distance':10},
+            'broken_text':wand_broken_text
+        }
+    }
     #item generation:
     if instance_of in item_catalog:
-        item_dict[item_id] = Item(name=instance_of, item_id=item_id, spawn_coord=coord,
-                                  **item_catalog[instance_of])
+        item_dict[item_id] = Item(
+            name=instance_of,
+            item_id=item_id,
+            spawn_coord=coord,
+            **item_catalog[instance_of]
+        )
         if not on_actor_id:
             if len(map_dict[coord].items) < 10:
                 map_dict[coord].items[item_id] = True
@@ -2594,7 +2708,11 @@ def adjacent_passable_tiles(base_coord=(0, 0)):
             valid_directions.append(coord)
     return valid_directions
 
-async def display_items_at_coord(coord=actor_dict['player'].coords(), x_pos=2, y_pos=12):
+async def display_items_at_coord(
+    coord=actor_dict['player'].coords(),
+    x_pos=2,
+    y_pos=12
+):
     last_coord = None
     item_list = ' '
     with term.location(x_pos, y_pos):
@@ -2622,9 +2740,17 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
             with term.location(x_pos, (y_pos + 1) + number):
                 print('{} {}'.format(item_dict[item_id].tile, item_dict[item_id].name))
 
-async def filter_print(output_text='You open the door.', x_offset=0, y_offset=-8, 
-                       pause_fade_in=.01, pause_fade_out=.01, pause_stay_on=1, 
-                       delay=0, blocking=False, hold_for_lock=True):
+async def filter_print(
+    output_text='You open the door.',
+    x_offset=0,
+    y_offset=-8, 
+    pause_fade_in=.01,
+    pause_fade_out=.01,
+    pause_stay_on=1, 
+    delay=0,
+    blocking=False,
+    hold_for_lock=True
+):
     if hold_for_lock:
         while True:
             if state_dict['printing'] == True:
@@ -2656,9 +2782,15 @@ async def filter_print(output_text='You open the door.', x_offset=0, y_offset=-8
     state_dict['printing'] = False #releasing hold on printing to the screen
     await asyncio.sleep(1)
 
-async def filter_fill(top_left_coord=(30, 10), x_size=10, y_size=10, 
-                      pause_between_prints=.005, pause_stay_on=3, 
-                      fill_char=term.red('X'), random_order=True):
+async def filter_fill(
+    top_left_coord=(30, 10),
+    x_size=10,
+    y_size=10, 
+    pause_between_prints=.005,
+    pause_stay_on=3, 
+    fill_char=term.red('X'),
+    random_order=True
+):
     coord_list = [(x, y) for x in range(x_size) for y in range(y_size)]
     fill_char = choice('123456789')
     if random_order:
@@ -2697,17 +2829,38 @@ def apply_to_map_coord(coord=(0, 0), tile=' ', passable=True, blocking=False):
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
     """fills a straight path first then fills the shorter leg, starting from the first coordinate"""
+    #TODO replace apply_to_map_coord with paint_preset (???)
     if segments == 2:
         if abs(x2-x1) > abs(y2-y1):
             for x_coord in range(x1, x2+1):
-                apply_to_map_coord((x_coord, y1), tile=choice(palette), passable=True, blocking=False)
+                apply_to_map_coord(
+                    (x_coord, y1), 
+                    tile=choice(palette),
+                    passable=True,
+                    blocking=False
+                )
             for y_coord in range(y1, y2+1):
-                apply_to_map_coord((x2, y_coord), tile=choice(palette), passable=True, blocking=False)
+                apply_to_map_coord(
+                    (x2, y_coord),
+                    tile=choice(palette),
+                    passable=True,
+                    blocking=False
+                )
         else:
             for y_coord in range(y1, y2+1):
-                apply_to_map_coord((x1, y_coord), tile=choice(palette), passable=True, blocking=False)
+                apply_to_map_coord(
+                    (x1, y_coord),
+                    tile=choice(palette),
+                    passable=True,
+                    blocking=False
+                )
             for x_coord in range(x1, x2+1):
-                apply_to_map_coord((x_coord, y2), tile=choice(palette), passable=True, blocking=False)
+                apply_to_map_coord(
+                    (x_coord, y2),
+                    tile=choice(palette),
+                    passable=True,
+                    blocking=False
+                )
 
 async def sow_texture(
     root_coord,
@@ -2751,7 +2904,9 @@ async def sow_texture(
         if description:
             current_description = map_dict[toss_coord].description
             if append_description and (description not in current_description):
-                appended_description = '{} {}'.format(current_description, description)
+                appended_description = '{} {}'.format(
+                    current_description, description
+                )
                 map_dict[toss_coord].description = appended_description
             else:
                 map_dict[toss_coord].description = description
@@ -2763,7 +2918,10 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
-def secret_door(door_coord=(0, 0), tile_description="The wall looks a little different here."):
+def secret_door(
+    door_coord=(0, 0), 
+    tile_description="The wall looks a little different here."
+):
     draw_door(door_coord=door_coord, locked=False, description='secret')
     map_dict[door_coord].description = tile_description
 
@@ -2773,18 +2931,24 @@ def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     secret_door(door_coord=wall_coord)
     announcement_at_coord("You found a secret room!", coord=room_center, )
     if square:
-        draw_centered_box(middle_coord=room_center, x_size=size, y_size=size, preset="floor")
+        draw_centered_box(
+            middle_coord=room_center, x_size=size, y_size=size, preset="floor"
+        )
     else:
         draw_circle(center_coord=room_center, radius=size)
 
-def draw_door(door_coord=(0, 0), closed=True, locked=False, description='wooden', is_door=True):
+def draw_door(
+    door_coord=(0, 0), closed=True, locked=False, description='wooden', is_door=True
+):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
     """
-    door_colors = {'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
-                   'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-                   'iron':7, 'secret':7}
+    door_colors = {
+        'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
+        'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
+        'iron':7, 'secret':7
+    }
     if description == 'secret':
         states = [('𝄛', False, True), ('▯', True, False)]
     else:
@@ -2801,18 +2965,34 @@ def draw_door(door_coord=(0, 0), closed=True, locked=False, description='wooden'
     map_dict[door_coord].key_type = description
     map_dict[door_coord].mutable = False
 
-async def fake_stairs(coord_a=(8, 0), coord_b=(-10, 0), 
-                      hallway_offset=(-1000, -1000), hallway_length=15):
+async def fake_stairs(
+    coord_a=(8, 0),
+    coord_b=(-10, 0), 
+    hallway_offset=(-1000, -1000),
+    hallway_length=15
+):
     #draw hallway
-    draw_box(top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░")
+    draw_box(
+        top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░"
+    )
     coord_a_hallway = add_coords(coord_a, hallway_offset)
     coord_b_hallway = add_coords(coord_a_hallway, (hallway_length, 0))
     #create magic doors:
-    await create_magic_door_pair(door_a_coords=coord_a, door_b_coords=coord_a_hallway, silent=True)
-    await create_magic_door_pair(door_a_coords=coord_b, door_b_coords=coord_b_hallway, silent=True)
+    await create_magic_door_pair(
+        door_a_coords=coord_a, door_b_coords=coord_a_hallway, silent=True
+    )
+    await create_magic_door_pair(
+        door_a_coords=coord_b, door_b_coords=coord_b_hallway, silent=True
+    )
 
-async def under_passage(start=(-20, 27), end=(-20, 13), offset=(-1000, -1000), 
-                        width=1, direction='ns', length=10):
+async def under_passage(
+    start=(-20, 27),
+    end=(-20, 13),
+    offset=(-1000, -1000), 
+    width=1,
+    direction='ns',
+    length=10
+):
     """
     Assumes parallel starting and ending directions.
     """
@@ -2820,14 +3000,22 @@ async def under_passage(start=(-20, 27), end=(-20, 13), offset=(-1000, -1000),
     end_offsets = {'ns':(0, length), 'ew':(length, 0)}
     under_end = add_coords(under_start, end_offsets[direction])
     n_wide_passage(coord_a=under_start, coord_b=under_end, width=width)
-    await create_magic_door_pair(door_a_coords=start, door_b_coords=under_start, silent=True)
-    await create_magic_door_pair(door_a_coords=end, door_b_coords=under_end, silent=True)
+    await create_magic_door_pair(
+        door_a_coords=start, door_b_coords=under_start, silent=True
+    )
+    await create_magic_door_pair(
+        door_a_coords=end, door_b_coords=under_end, silent=True
+    )
 
 #TODO: create a mirror
 
-async def magic_door(start_coord=(5, 5), end_coords=(-22, 18), 
-                     horizon_orientation='vertical', silent=False,
-                     destination_plane='normal'):
+async def magic_door(
+    start_coord=(5, 5),
+    end_coords=(-22, 18), 
+    horizon_orientation='vertical',
+    silent=False,
+    destination_plane='normal'
+):
     """
     notes for portals/magic doors:
     either gapless teleporting doors or gapped by darkness doors.
@@ -2847,9 +3035,16 @@ async def magic_door(start_coord=(5, 5), end_coords=(-22, 18),
     """
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     animation = Animation(base_tile='▮', preset='door')
-    map_dict[start_coord] = Map_tile(tile=" ", blocking=False, passable=True,
-                                     magic=True, magic_destination=end_coords,
-                                     is_animated=True, animation=animation)
+    map_dict[start_coord] = Map_tile(
+        tile=" ",
+        blocking=False,
+        passable=True,
+        magic=True,
+        magic_destination=end_coords,
+        is_animated=True,
+        animation=animation
+    )
+    #reviewed to here!
     map_dict[start_coord].description = "The air shimmers slightly between you and the space beyond."
     map_dict[start_coord].tile = "M"
     while(True):
