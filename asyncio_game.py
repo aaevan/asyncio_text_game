@@ -2529,7 +2529,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     possible_items = (
         'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red sword', 'vine wand',
-        'eye trinket', 'high explosives', 'red key', 'green key', 
+        'eye trinket', 'dynamite', 'red key', 'green key', 
         'rusty key'
     )
     block_wand_text = 'A shimmering block appears.'
@@ -2564,7 +2564,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'usable_power':fused_throw_action, 
             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}
         },
-        'high explosives':{
+        'dynamite':{
             'uses':9999,
             'tile':term.red('\\'),
             'usable_power':fused_throw_action, 
@@ -3047,7 +3047,6 @@ async def magic_door(
         is_animated=True,
         animation=animation
     )
-    #reviewed to here!
     description = "The air shimmers slightly between you and the space beyond."
     map_dict[start_coord].description = description
     map_dict[start_coord].tile = "M"
@@ -3106,7 +3105,7 @@ async def spawn_container(
     preset='random',
     description='A wooden box'
 ):
-    box_choices = ['', 'nut', 'high explosives', 'red potion', 'fused charge']
+    box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
     container_id = spawn_static_actor(
@@ -3544,96 +3543,133 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
                           int(term.height / 2 - 2),)
     if 'wand' in icon_name:
         icon_name = 'wand'
-    icons = {'wand':('┌───┐',
-                     '│  *│', 
-                     '│ / │',
-                     '│/  │',
-                     '└───┘',),
-        'red sword':('┌───┐',
-                     '│  {}│'.format(term.red('╱')),
-                     '│ {} │'.format(term.red('╱')),
-                     '│{}  │'.format(term.bold(term.red('╳'))),
-                     '└───┘',),
-      'green sword':('┌───┐',
-                     '│  {}│'.format(term.green('╱')),
-                     '│ {} │'.format(term.green('╱')),
-                     '│{}  │'.format(term.bold(term.green('╳'))),
-                     '└───┘',),
-              'nut':('┌───┐',
-                     '│/ \│', 
-                     '│\_/│',
-                     '│\_/│',
-                     '└───┘',),
-     'dash trinket':('┌───┐',
-                     '│ ║╲│', 
-                     '│ ║ │',
-                     '│╲║ │',
-                     '└───┘',),
-       'red potion':('┌───┐',
-                     '│┌O┐│', 
-                     '│|{}|│'.format(term.red('█')),
-                     '│└─┘│',
-                     '└───┘',),
-     'fused charge':('┌───┐',
-                     '│/*\│', 
-                     '│\_/│',
-                     '│\_/│',
-                     '└───┘',),
-          'scanner':('┌───┐',
-                     '│┌─┦│', 
-                     '│|{}|│'.format(term.green('█')),
-                     '│└o┘│',
-                     '└───┘',),
-  'high explosives':('┌───┐',
-                     '│ ╭ │', 
-                     '│ {} │'.format(term.red('█')),
-                     '│ {} │'.format(term.red('█')),
-                     '└───┘',),
-     'shift amulet':('┌───┐',
-                     '│╭─╮│', 
-                     '││ ││',
-                     '│╰{}╯│'.format(term.blue('ʘ')),
-                     '└───┘',),
-       'hop amulet':('┌───┐',
-                     '│╭─╮│', 
-                     '││ ││',
-                     '│╰{}╯│'.format(term.red('ʘ')),
-                     '└───┘',),
-      'eye trinket':('┌───┐',
-                     '│   │', 
-                     '│<ʘ>│',
-                     '│   │',
-                     '└───┘',),
-          'red key':('┌───┐',
-                     '│ {} │'.format(term.red('╒')),
-                     '│ {} │'.format(term.red('│')),
-                     '│ {} │'.format(term.red('O')),
-                     '└───┘',),
-        'green key':('┌───┐',
-                     '│ {} │'.format(term.green('╒')),
-                     '│ {} │'.format(term.green('│')),
-                     '│ {} │'.format(term.green('O')),
-                     '└───┘',),
-        'rusty key':('┌───┐',
-                     '│ {} │'.format(term.color(3)('╒')),
-                     '│ {} │'.format(term.color(3)('│')),
-                     '│ {} │'.format(term.color(3)('O')),
-                     '└───┘',),
-      'shiny stone':('┌───┐',   #effect while equipped: orbit
-                     '│ _ │', 
-                     '│(_)│',
-                     '│   │',
-                     '└───┘',),
-            'empty':('┌───┐',
-                     '│   │', 
-                     '│   │',
-                     '│   │',
-                     '└───┘',),}
+    icons = {
+        'wand':(
+        '┌───┐',
+        '│  *│', 
+        '│ / │',
+        '│/  │',
+        '└───┘',
+        ),
+        'red sword':(
+        '┌───┐',
+        '│  {}│'.format(term.red('╱')),
+        '│ {} │'.format(term.red('╱')),
+        '│{}  │'.format(term.bold(term.red('╳'))),
+        '└───┘',
+        ),
+        'green sword':(
+            '┌───┐',
+            '│  {}│'.format(term.green('╱')),
+            '│ {} │'.format(term.green('╱')),
+            '│{}  │'.format(term.bold(term.green('╳'))),
+            '└───┘',
+        ),
+        'nut':(
+            '┌───┐',
+            '│/ \│', 
+            '│\_/│',
+            '│\_/│',
+            '└───┘',
+        ),
+        'dash trinket':(
+            '┌───┐',
+            '│ ║╲│', 
+            '│ ║ │',
+            '│╲║ │',
+            '└───┘',
+        ),
+       'red potion':(
+           '┌───┐',
+           '│┌O┐│', 
+           '│|{}|│'.format(term.red('█')),
+           '│└─┘│',
+           '└───┘',
+        ),
+        'fused charge':(
+            '┌───┐',
+            '│/*\│', 
+            '│\_/│',
+            '│\_/│',
+            '└───┘',
+        ),
+        'scanner':(
+            '┌───┐',
+            '│┌─┦│', 
+            '│|{}|│'.format(term.green('█')),
+            '│└o┘│',
+            '└───┘',
+        ),
+        'dynamite':(
+            '┌───┐',
+            '│ ╭ │', 
+            '│ {} │'.format(term.red('█')),
+            '│ {} │'.format(term.red('█')),
+            '└───┘',
+        ),
+        'shift amulet':(
+            '┌───┐',
+            '│╭─╮│', 
+            '││ ││',
+            '│╰{}╯│'.format(term.blue('ʘ')),
+            '└───┘',
+        ),
+        'hop amulet':(
+            '┌───┐',
+            '│╭─╮│', 
+            '││ ││',
+            '│╰{}╯│'.format(term.red('ʘ')),
+            '└───┘',
+        ),
+        'eye trinket':(
+            '┌───┐',
+            '│   │', 
+            '│<ʘ>│',
+            '│   │',
+            '└───┘',
+        ),
+        'red key':(
+            '┌───┐',
+            '│ {} │'.format(term.red('╒')),
+            '│ {} │'.format(term.red('│')),
+            '│ {} │'.format(term.red('O')),
+            '└───┘',
+        ),
+        'green key':(
+            '┌───┐',
+            '│ {} │'.format(term.green('╒')),
+            '│ {} │'.format(term.green('│')),
+            '│ {} │'.format(term.green('O')),
+            '└───┘',
+        ),
+        'rusty key':(
+            '┌───┐',
+            '│ {} │'.format(term.color(3)('╒')),
+            '│ {} │'.format(term.color(3)('│')),
+            '│ {} │'.format(term.color(3)('O')),
+            '└───┘',),
+        'shiny stone':(
+            '┌───┐',   #effect while equipped: orbit
+            '│ _ │', 
+            '│(_)│',
+            '│   │',
+            '└───┘',
+        ),
+        'empty':(
+            '┌───┐',
+            '│   │', 
+            '│   │',
+            '│   │',
+            '└───┘',
+        ),
+    }
     for (num, line) in enumerate(icons[icon_name]):
         with term.location(x_coord, y_coord + num):
             print(line)
 
-async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
+async def choose_item(
+    item_id_choices=None, item_id=None, x_pos=0, y_pos=25
+):
     """
     Takes a list of item_id values
     Prints to some region of the screen:
@@ -3673,20 +3709,28 @@ async def choose_item(item_id_choices=None, item_id=None, x_pos=0, y_pos=25):
     clear_screen_region(x_size=2, y_size=len(item_id_choices), 
                               screen_coord=(x_pos, y_pos))
 
-async def console_box(width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05):
+async def console_box(
+    width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05
+):
     state_dict['messages'] = [''] * height
-    asyncio.ensure_future(ui_box_draw(box_height=height, box_width=width, 
-                                      x_margin=x_margin - 1, y_margin=y_margin - 1))
+    asyncio.ensure_future(
+        ui_box_draw(
+            box_height=height, 
+            box_width=width, 
+            x_margin=x_margin - 1,
+            y_margin=y_margin - 1
+        )
+    )
     while True:
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
-            #line_text = state_dict['messages'][-height + index] #bottom is newest
             line_text = state_dict['messages'][-index - 1] #top is newest
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
 
-async def append_to_log(message="This is a test", wipe=False, wipe_time=5,
-                        wipe_char_time=.1):
+async def append_to_log(
+    message="This is a test", wipe=False, wipe_time=5, wipe_char_time=.1
+):
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
     state_dict['same_count'] = 0 #help text won't interrupt
@@ -3696,17 +3740,29 @@ async def append_to_log(message="This is a test", wipe=False, wipe_time=5,
         await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
-        await asyncio.ensure_future(filter_into_log(message=line, line_index=line_index))
+        await asyncio.ensure_future(
+            filter_into_log(
+                message=line, line_index=line_index
+            )
+        )
     if wipe:
         for index_offset, line in enumerate(reversed(message_lines)):
             await asyncio.sleep(wipe_time)
-            asyncio.ensure_future(filter_into_log(starting_text=line,
-                                                  message=wipe_text,
-                                                  line_index=line_index,
-                                                  time_between_chars=.02))
+            asyncio.ensure_future(
+                filter_into_log(
+                    starting_text=line,
+                    message=wipe_text,
+                    line_index=line_index,
+                    time_between_chars=.02
+                )
+            )
 
-async def filter_into_log(message="This is a test", line_index=0, 
-                          time_between_chars=.02, starting_text=''):
+async def filter_into_log(
+    message="This is a test",
+    line_index=0,
+    time_between_chars=.02,
+    starting_text=''
+):
     if starting_text == '':
         written_string = [' '] * len(message)
     else:
@@ -3718,7 +3774,9 @@ async def filter_into_log(message="This is a test", line_index=0,
         written_string[index] = message[index]
         state_dict['messages'][line_index] = ''.join(written_string)
 
-async def key_slot_checker(slot='q', frequency=.1, centered=True, print_location=(0, 0)):
+async def key_slot_checker(
+    slot='q', frequency=.1, centered=True, print_location=(0, 0)
+):
     """
     make it possible to equip each number to an item
     """
@@ -3790,14 +3848,19 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
             return
-        id_choice = await choose_item(item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos)
+        id_choice = await choose_item(
+            item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos
+        )
         await get_item(coords=coords, item_id=id_choice)
 
-async def get_item(coords=(0, 0), item_id=None, target_actor='player', source='ground'):
+async def get_item(
+    coords=(0, 0), item_id=None, target_actor='player', source='ground'
+):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
-    pickup_text = "You take the {} from the {}.".format(item_dict[item_id].name, source)
+    template_text = "You take the {} from the {}."
+    pickup_text = template_text.format(item_dict[item_id].name, source)
     del map_dict[coords].items[item_id]
     actor_dict['player'].holding_items[item_id] = True
     await append_to_log(message=pickup_text)
@@ -3805,7 +3868,9 @@ async def get_item(coords=(0, 0), item_id=None, target_actor='player', source='g
 
 #Announcement/message handling--------------------------------------------------
 async def parse_announcement(tile_coord_key, delay=1):
-    """ parses an announcement, with a new line printed after each pipe """
+    """
+    parses an announcement, with a new line printed after each pipe 
+    """
     announcement_sequence = map_dict[tile_coord_key].announcement.split("|")
     for line in announcement_sequence:
         if line != '':
@@ -3813,7 +3878,9 @@ async def parse_announcement(tile_coord_key, delay=1):
         await asyncio.sleep(delay)
 
 async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
-    if map_dict[tile_coord_key].announcing and not map_dict[tile_coord_key].seen:
+    is_announcing = map_dict[tile_coord_key].announcing
+    yet_seen = map_dict[tile_coord_key].seen
+    if is_announcing and not yet_seen:
         if map_dict[tile_coord_key].distance_trigger:
             distance = point_to_point_distance(tile_coord_key, player_coords)
             if distance <= map_dict[tile_coord_key].distance_trigger:
@@ -3911,9 +3978,13 @@ def find_angle(p0=(0, -5), p1=(0, 0), p2=(5, 0), use_degrees=True):
         else:
             return result
 
-def point_at_distance_and_angle(angle_from_twelve=30, central_point=(0, 0), 
-                                      reference_point=(0, 5), radius=10,
-                                      rounded=True):
+def point_at_distance_and_angle(
+    angle_from_twelve=30,
+    central_point=(0, 0), 
+    reference_point=(0, 5),
+    radius=10,
+    rounded=True,
+):
     """
     returns a point that lies at distance radius from point
     central_point. a is reference_point, b is central_point, c is returned point
@@ -3939,10 +4010,14 @@ async def angle_checker(angle_from_twelve=0, fov=120):
     """
     angle_from_twelve = int(angle_from_twelve)
     half_fov = fov // 2
-    directions = ('n', 'e', 's', 'w',
-                  'ne', 'se', 'sw', 'nw')
-    angle_pairs = ((360, 0), (90, 90), (180, 180), (270, 270),
-                   (135, 135), (35, 35), (315, 315), (225, 225))
+    directions = (
+        'n', 'e', 's', 'w',
+        'ne', 'se', 'sw', 'nw'
+    )
+    angle_pairs = (
+        (360, 0), (90, 90), (180, 180), (270, 270),
+        (135, 135), (35, 35), (315, 315), (225, 225)
+    )
     dir_to_angle_pair = dict(zip(directions, angle_pairs))
     facing = state_dict['facing'] 
     arc_pair = dir_to_angle_pair[facing] #in the format (angle, angle)
@@ -3954,8 +4029,10 @@ async def angle_checker(angle_from_twelve=0, fov=120):
         return False
 
 def dir_to_angle(facing_dir, offset=0, mirror_ns=False):
-    dirs_to_angle = {'n':180, 'e':90, 's':360, 'w':270,
-                'ne':135, 'se':35, 'sw':315, 'nw':225}
+    dirs_to_angle = {
+        'n':180, 'e':90, 's':360, 'w':270,
+        'ne':135, 'se':35, 'sw':315, 'nw':225
+    }
     if mirror_ns:
         dirs_to_angle['n'] = 360
         dirs_to_angle['s'] = 180
@@ -3977,10 +4054,16 @@ async def angle_swing(radius=15):
         state_dict['current_angle'] = current_angle
         await asyncio.sleep(.01)
 
-async def crosshairs(radius=16, crosshair_chars=('.', '*', '.'), fov=30, 
-                     refresh_delay=.05):
-    middle_x, middle_y = (int(term.width / 2 - 2), 
-                          int(term.height / 2 - 2),)
+async def crosshairs(
+    radius=16,
+    crosshair_chars=('.', '*', '.'),
+    fov=30, 
+    refresh_delay=.05
+):
+    middle_x, middle_y = (
+        int(term.width / 2 - 2), 
+        int(term.height / 2 - 2),
+    )
     central_point = (middle_x, middle_y)
     last_angle = None
     old_points = None #used for clearing out print location
@@ -3989,10 +4072,14 @@ async def crosshairs(radius=16, crosshair_chars=('.', '*', '.'), fov=30,
         #clear last known location of crosshairs:
         if last_angle != current_angle:
             angles = (current_angle + fov, current_angle, current_angle - fov)
-            points = [point_at_distance_and_angle(radius=radius,
-                                                        central_point=central_point,
-                                                        angle_from_twelve=angle)
-                                                        for angle in angles]
+            points = [
+                point_at_distance_and_angle(
+                    radius=radius,
+                    central_point=central_point,
+                    angle_from_twelve=angle
+                )
+                for angle in angles
+            ]
             if old_points is not None:
                 for point in old_points:
                     with term.location(*point):
@@ -4011,43 +4098,53 @@ async def display_help():
     displays controls at an unused part of the screen.
     """
     x_offset, y_offset = offset_of_center(x_offset=-10, y_offset=-5)
-    help_text = ( " wasd: move               ",
-                  "shift: use with wasd to run",
-                  "space: open/close doors   ",
-                  " ijkl: look               ",
-                  "    g: grab item menu,    ",
-                  "       0-9 to choose      ",
-                  "  Q/E: equip item to slot,",
-                  "       0-9 to choose      ",
-                  "  q/e: use equipped item, ",
-                  "    t: throw chosen item  ",
-                  "    u: use selected item  ",
-                  "    x: examine tile       ",)
+    help_text = (
+        " wasd: move               ",
+        "shift: use with wasd to run",
+        "space: open/close doors   ",
+        " ijkl: look               ",
+        "    g: grab item menu,    ",
+        "       0-9 to choose      ",
+        "  Q/E: equip item to slot,",
+        "       0-9 to choose      ",
+        "  q/e: use equipped item, ",
+        "    t: throw chosen item  ",
+        "    u: use selected item  ",
+        "    x: examine tile       ",
+    )
     for line_number, line in enumerate(help_text):
         x_print_coord, y_print_coord = 0, 0
-        asyncio.ensure_future(filter_print(output_text=line, pause_stay_on=7,
-                              pause_fade_in=.015, pause_fade_out=.015,
-                              x_offset=-40, y_offset=-30 + line_number,
-                              hold_for_lock=False))
+        asyncio.ensure_future(
+            filter_print(
+                output_text=line, pause_stay_on=7,
+                pause_fade_in=.015, pause_fade_out=.015,
+                x_offset=-40, y_offset=-30 + line_number,
+                hold_for_lock=False
+            )
+        )
 
-async def tile_debug_info(x_print=18, y_print=0):
+async def tile_debug_info(x_print=50, y_print=0):
     dummy_text = []
     while True:
         directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
         check_dir = state_dict['facing']
-        check_coord = add_coords(actor_dict['player'].coords(), directions[check_dir])
-        for y_offset, line in enumerate(dummy_text):
-            with term.location(*add_coords((x_print, y_print), (0, y_offset))):
-                print(line)
-        output_text = [f'tile_debug_info:',
-                       f'facing: {check_dir}',
-                       f' coord: {check_coord}',
-                       f'actors: {map_dict[check_coord].actors.keys()}',
-                       f'  tile: {map_dict[check_coord].tile}',]
-        dummy_text = [' ' * len(line) for line in output_text]
-        for y_offset, line in enumerate(output_text):
-            with term.location(*add_coords((x_print, y_print), (0, y_offset))):
-                print(line)
+        check_coord = add_coords(
+            actor_dict['player'].coords(),
+            directions[check_dir]
+        )
+        output_text = [
+            f'tile_debug_info:',
+            f'facing: {check_dir}',
+            f' coord: {check_coord}',
+            f'actors: {map_dict[check_coord].actors.keys()}',
+            f'  tile: {map_dict[check_coord].tile}',
+        ]
+        blank_space = [' ' * len(line) for line in output_text]
+        for text_written in (blank_space, output_text):
+            for y_offset, line in enumerate(text_written):
+                output_location = add_coords((x_print, y_print), (0, y_offset))
+                with term.location(*output_location):
+                    print(line)
         await asyncio.sleep(.2)
 
 async def check_line_of_sight(coord_a, coord_b):
@@ -4086,18 +4183,22 @@ async def check_line_of_sight(coord_a, coord_b):
     else:
         return False
 
+#reviewed to here!
+
 async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
     difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
     destination = map_dict[point].magic_destination
     if difference_from_last is not (0, 0):
-        coord_through_door = (destination[0] + difference_from_last[0], 
-                              destination[1] + difference_from_last[1])
+        coord_through_door = (
+            destination[0] + difference_from_last[0], 
+            destination[1] + difference_from_last[1]
+        )
         door_points = get_line(destination, coord_through_door)
         if len(door_points) >= 2:
             line_of_sight_result = await check_line_of_sight(door_points[1], coord_through_door)
         else:
             line_of_sight_result = True
-        if line_of_sight_result != False and line_of_sight_result != None:
+        if line_of_sight_result not in (False, None):
             return coord_through_door
         else:
             return line_of_sight_result
@@ -4600,7 +4701,7 @@ async def ui_setup():
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
     #stamina_title = "{} ".format(term.color(3)("⚡"))
-    #loop.create_task(tile_debug_info())
+    loop.create_task(tile_debug_info())
     loop.create_task(status_bar(y_offset=16, actor_name='player', attribute='health', title=health_title, bar_color=1))
     #loop.create_task(status_bar(y_offset=17, actor_name='player', attribute='stamina', title=stamina_title, bar_color=3))
     #loop.create_task(stamina_regen())
