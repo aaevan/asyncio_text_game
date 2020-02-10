@@ -2547,7 +2547,6 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(coord=(line_of_sight_result))
             return
 
-
 async def temporary_block(duration=5, animation_preset='energy block'):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
@@ -2570,20 +2569,24 @@ async def temporary_block(duration=5, animation_preset='energy block'):
     )
 
 
-async def temp_view_circle(duration=5, radius=6, center_coord=(0, 0)):
+async def temp_view_circle(
+    duration=10, radius=15, center_coord=(0, 0), on_actor=None
+):
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
     """
+    if on_actor is not None:
+        center_coord = player_coords = actor_dict[on_actor].coords()
     temp_circle = get_circle(center=center_coord, radius=radius)
     shuffle(temp_circle)
     for coord in temp_circle:
-        await asyncio.sleep(.01)
+        #await asyncio.sleep(.01)
         map_dict[coord].override_view = True
     await asyncio.sleep(duration)
     shuffle(temp_circle)
     for coord in temp_circle:
-        asyncio.sleep(.01)
+        #await asyncio.sleep(.01)
         map_dict[coord].override_view = False
 
 #Item interaction---------------------------------------------------------------
@@ -2601,7 +2604,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red sword', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
-        'rusty key'
+        'rusty key', 'looking glass'
     )
     block_wand_text = 'A shimmering block appears.'
     if instance_of == 'random':
@@ -2741,6 +2744,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'tile':term.red('O̧'),
             'usable_power':teleport_in_direction, 
             'power_kwargs':{'distance':10},
+            'broken_text':wand_broken_text
+        },
+        'looking glass':{
+            'uses':9999,
+            'tile':term.red('?'),
+            'usable_power':temp_view_circle, 
+            'power_kwargs':{'on_actor':'player', 'radius':15, 'duration':10},
             'broken_text':wand_broken_text
         }
     }
@@ -3494,12 +3504,7 @@ async def handle_input(key):
             state_dict['facing'] = 'w'
             return
         if key in 'Y':
-            player_coords = actor_dict['player'].coords()
-            asyncio.ensure_future(
-                temp_view_circle(
-                    center_coord=player_coords
-                )
-            )
+            asyncio.ensure_future(temp_view_circle(on_actor='player'))
         if key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
         if key in 'f': #use sword in facing direction
@@ -3692,6 +3697,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
             '│╭─╮│', 
             '││ ││',
             '│╰{}╯│'.format(term.red('ʘ')),
+            '└───┘',
+        ),
+        'looking glass':( #TODO: switch with better icon
+            '┌───┐',
+            '│ ╭╮│', 
+            '│ ╰╯│',
+            '│/  │', 
             '└───┘',
         ),
         'eye trinket':(
@@ -4301,13 +4313,11 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     #distance from offsets to center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
     await asyncio.sleep(random()/5 * distance) #stagger starting_time
-    middle_x, middle_y = (int(term.width / 2 - 2), 
-                          int(term.height / 2 - 2),)
+    middle_x, middle_y = (int(term.width / 2 - 2), int(term.height / 2 - 2))
     previous_tile = None
-    #print_location = (middle_x + x_offset, middle_y + y_offset)
     print_location = add_coords((middle_x, middle_y), (x_offset, y_offset))
-    last_print_choice = ' '
     angle_from_twelve = find_angle(p0=(0, 5), p2=(x_offset, y_offset))
+    last_print_choice = ' '
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
@@ -4330,10 +4340,11 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             arc_begin=l_angle,
             arc_end=r_angle
         )
-        if map_dict[x_display_coord, y_display_coord].override_view:
-            display = True
         if (x_offset, y_offset) == (0, 0):
             print_choice=term.color(6)('@')
+        elif map_dict[x_display_coord, y_display_coord].override_view:
+            print_choice = await check_contents_of_tile((x_display_coord, y_display_coord))
+            map_dict[tile_coord_key].seen = True
         elif display:
             #add a line in here for different levels/dimensions:
             random_distance = abs(gauss(distance, 1))
@@ -4343,7 +4354,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
                     tile_coord_key
                 )
                 if type(line_of_sight_result) is tuple:
-                    print_choice = await check_contents_of_tile(line_of_sight_result) #
+                    print_choice = await check_contents_of_tile(line_of_sight_result)
                 elif line_of_sight_result == True:
                     await trigger_announcement(
                         tile_coord_key,
@@ -4377,7 +4388,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
                 if print_choice == "░":
                     print_choice = term.color(color_tuple[0])(color_tuple[1])
                 elif print_choice == '𝄛':
-                    print_choice = term.color(color_tuple[0])('𝄛')
+                    print_choice = term.color(7)('𝄛')
+                    #print_choice = term.color(color_tuple[0])('𝄛')
                 else:
                     print_choice = term.color(tile_color)(print_choice)
                 print(print_choice)
@@ -4555,10 +4567,18 @@ async def directional_damage_alert(
             with term.location(*point):
                 print(tile)
 
+def timer_text(minutes, seconds):
+    output_text = "⌛ {0: }:{}".format(
+        str(time_minutes).zfill(2),
+        str(time_seconds).zfill(2)
+    )
+    return output_text
+
+
 async def timer(
     x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1
 ):
-    timer_text = "⌛ {}:{}".format(str(time_minutes).zfill(2), str(time_seconds).zfill(2))
+    timer_text = timer_text(time_minutes, time_seconds)
     while True:
         await asyncio.sleep(resolution)
         with term.location(x_pos, y_pos):
@@ -4574,7 +4594,7 @@ async def timer(
             with term.location(x_pos, y_pos):
                 print(" " * 7)
             break
-        timer_text = "⌛ " + str(time_minutes).zfill(2) + ":" + str(time_seconds).zfill(2)
+        timer_text = timer_text(time_minutes, time_seconds)
     return
 
 async def view_tile_init(
@@ -4709,6 +4729,7 @@ async def async_map_init():
         ((47, -31), 'red sword'), 
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
+        ((-15, -2), 'looking glass'), 
         ((-2, -2), 'green key'),
     )
     for coord, item_name in items:
@@ -4739,8 +4760,11 @@ async def trap_init():
     nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
     base_coord = (9, -41)
     rand_coords = {
-        (randint(-5, 5) + base_coord[0], 
-        randint(-5, 5) + base_coord[1]) for _ in range(20)
+        (
+            randint(-5, 5) + base_coord[0], 
+            randint(-5, 5) + base_coord[1]
+        ) 
+        for _ in range(20)
     }
     state_dict['switch_1'] = {}
     for coord in rand_coords:
@@ -4775,17 +4799,19 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
     shift from default area to alternate area and vice versa.
     """
-    player_x, player_y = actor_dict['player'].coords()
+    player_coords = actor_dict['player'].coords()
     if state_dict['plane'] == 'normal':
-        #offset_coords = (player_x + x_offset, player_y + y_offset)
-        offset_coords = add_coords((player_x, player_y), (x_offset, y_offset))
+        #add the offset to the current player coordinates:
+        offset_coords = add_coords(player_coords, (x_offset, y_offset))
         destination, plane = offset_coords, plane_name
     elif state_dict['plane'] == plane_name:
-        destination, plane = (player_x - x_offset, player_y - y_offset), 'normal'
+        #subtract the offset from the current player coordinates:
+        destination = add_coords(player_coords, (-x_offset, -y_offset))
+        plane = 'normal'
     else:
         return False
     if map_dict[destination].passable:
-        map_dict[player_x, player_y].passable = True
+        map_dict[player_coords].passable = True
         actor_dict['player'].update(coord=destination)
         state_dict['plane'] = plane
         with term.location(80, 0):
@@ -4817,38 +4843,11 @@ def get_relative_ui_coord(x_offset, y_offset):
 
 async def printing_testing(distance=0, x_offset=-45, y_offset=1):
     x_coord, y_coord = get_relative_ui_coord(x_offset, y_offset)
-    bw_gradient = (
-        (" "),                #0
-        term.color(7)("░"),   #1
-        term.color(8)("░"),   #3
-        term.color(7)("▒"),   #5
-        term.color(8)("▒"),   #7
-        term.color(7)("▓"),   #9
-        term.color(7)("█"),   #10
-        term.color(8)("▓"),   #11
-        term.color(8)("▓"),   #11
-        term.color(8)("▓"),   #11
-        term.color(8)("▓"),   #11
-        term.color(8)("█"),   #12
-        term.color(8)("█"),   #13
-        term.color(8)("█"),   #14
-        term.color(8)("█"),   #15
-    )
-    bright_to_dark = bw_gradient[::-1]
-    for number, tile in enumerate(bw_gradient):
-        with term.location(number + x_coord, y_coord):
-            print(term.bold(str(number)))
-    for number, tile in enumerate(reversed(bw_gradient)):
-        with term.location(number + x_coord, 1 + y_coord):
-            print(tile)
     for number in range(10):
         with term.location(number + x_coord, 2 + y_coord):
             print(term.color(number)(str(number)))
         with term.location(number + x_coord, 3 + y_coord):
             print(term.on_color(number)(str(number)))
-    if distance <= len(bright_to_dark) -1: return bright_to_dark[int(distance)]
-    else:
-        return " "
 
 async def status_bar(
     actor_name='player',
