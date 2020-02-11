@@ -5218,9 +5218,12 @@ async def choose_core_move(core_name_key='', tentacles=True):
     core_location = actor_dict[core_name_key].coords()
     if core_behavior_val < .05 and tentacles:
         new_core_location = actor_dict[core_name_key].coords()
-        #TODO: replace with follower_vine
-        #asyncio.ensure_future(vine_grow(start_x=core_location[0], start_y=core_location[1])),
-        wait = 20
+        asyncio.ensure_future(
+            follower_vine(
+                root_node_key=core_name_key,
+                color_choice=2
+            )
+        )
     elif core_behavior_val > .4:
         new_core_location = await wander(name_key=core_name_key)
     else:
@@ -5437,11 +5440,15 @@ async def follower_vine(
         )
         write_dir = mte_dict[vine_name].vine_facing_dir
         if root_node_key is None:
-            current_coord = add_coords(inverse_direction_offsets[write_dir], 
-                    actor_dict[mte_dict[vine_name].member_names[0]].coords())
+            current_coord = add_coords(
+                inverse_direction_offsets[write_dir], 
+                actor_dict[mte_dict[vine_name].member_names[0]].coords()
+            )
         else:
-            current_coord = add_coords(inverse_direction_offsets[write_dir], 
-                    actor_dict[root_node_key].coords())
+            current_coord = add_coords(
+                inverse_direction_offsets[write_dir], 
+                actor_dict[root_node_key].coords()
+            )
         write_list = [] #clear out write_list
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
@@ -6201,8 +6208,8 @@ def main():
     loop.create_task(ui_setup()) #UI_SETUP 
     loop.create_task(printing_testing())
     loop.create_task(async_map_init())
-    #loop.create_task(shrouded_horror(start_x=29, start_y=-25))
-    #loop.create_task(shrouded_horror(start_coord=(29, 25)))
+    #TODO: fix follower vine to disappear after a set time:
+    #loop.create_task(shrouded_horror(start_coord=(29, -25)))
     loop.create_task(death_check())
     loop.create_task(delay_follow())
     loop.create_task(quitter_daemon())
