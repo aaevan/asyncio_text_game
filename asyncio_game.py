@@ -1867,6 +1867,7 @@ def push(direction='n', pusher='player'):
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
+    #TODO: push all or none, not just first actor
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
     if mte_parent is not None:
@@ -1980,7 +1981,18 @@ async def bay_door(
                     await append_to_log(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.1)
+                #if there's an actor in the square we're about to update, push
+                #if it's not pushable, jam here, enter check for not jammed loop
+                #if it's pushable and the pushed-to space is either a wall or another bay door,
+                #deal a whole bunch of damage to the jammed actor
                 actor_dict[segment[0]].update(segment[1])
+                #if not occupied(segment[1]):
+                    #actor_dict[segment[0]].update(segment[1])
+                #else:
+                    #while occupied(segment[1]):
+                        #with term.location(80, 3):
+                            #print("(1992){} is occupied!".format(segment[1]))
+                        #await asyncio.sleep(.1)
 
 async def bay_door_pair(
     hinge_a_coord,
@@ -2570,8 +2582,12 @@ async def temporary_block(duration=5, animation_preset='energy block'):
 
 
 async def temp_view_circle(
-    duration=10, radius=15, center_coord=(0, 0), on_actor=None
+    duration=10, radius=15, center_coord=(0, 0), on_actor=None, instant=True
 ):
+    #TODO: give option to mark all unseen before temp_view_circle as unseen
+    #      after circle fades.
+    #TODO: option to override offset of player location, view_tiles no longer 
+    #      center on player until effect ends.
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
@@ -2581,12 +2597,14 @@ async def temp_view_circle(
     temp_circle = get_circle(center=center_coord, radius=radius)
     shuffle(temp_circle)
     for coord in temp_circle:
-        #await asyncio.sleep(.01)
+        if not instant:
+            await asyncio.sleep(.01)
         map_dict[coord].override_view = True
     await asyncio.sleep(duration)
     shuffle(temp_circle)
     for coord in temp_circle:
-        #await asyncio.sleep(.01)
+        if not instant:
+            await asyncio.sleep(.01)
         map_dict[coord].override_view = False
 
 #Item interaction---------------------------------------------------------------
@@ -4223,6 +4241,7 @@ async def tile_debug_info(x_print=50, y_print=0):
             f'facing: {check_dir}',
             f' coord: {check_coord}',
             f'actors: {map_dict[check_coord].actors.keys()}',
+            f'numact: {len(map_dict[check_coord].actors.keys())}',
             f'  tile: {map_dict[check_coord].tile}',
         ]
         blank_space = [' ' * len(line) for line in output_text]
