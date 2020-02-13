@@ -2596,6 +2596,7 @@ async def temp_view_circle(
         center_coord = player_coords = actor_dict[on_actor].coords()
     temp_circle = get_circle(center=center_coord, radius=radius)
     shuffle(temp_circle)
+    state_dict['lock view'] = True
     for coord in temp_circle:
         if not instant:
             await asyncio.sleep(.01)
@@ -2606,6 +2607,7 @@ async def temp_view_circle(
         if not instant:
             await asyncio.sleep(.01)
         map_dict[coord].override_view = False
+    state_dict['lock view'] = False
 
 #Item interaction---------------------------------------------------------------
 
@@ -2768,7 +2770,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'uses':9999,
             'tile':term.red('?'),
             'usable_power':temp_view_circle, 
-            'power_kwargs':{'on_actor':'player', 'radius':15, 'duration':10},
+            'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':10},
             'broken_text':wand_broken_text
         }
     }
@@ -2822,7 +2824,11 @@ async def display_items_at_coord(
         item_list = [item for item in map_dict[player_coords].items]
         for number, item_id in enumerate(item_list):
             with term.location(x_pos, (y_pos + 1) + number):
-                print('{} {}'.format(item_dict[item_id].tile, item_dict[item_id].name))
+                print('{} {}'.format(
+                    item_dict[item_id].tile, 
+                    item_dict[item_id].name
+                )
+            )
         last_coord = player_coords
 
 async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
@@ -4340,10 +4346,13 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
     if x_offset <= 0:
         angle_from_twelve = 360 - angle_from_twelve
     display = False
+    player_coords = actor_dict['player'].coords()
     while True:
         state_dict["view_tile_count"] += 1
-        await asyncio.sleep(distance * .0075 + .1) #update speed
-        player_coords = actor_dict['player'].coords()
+        #await asyncio.sleep(distance * .0075 + .1) #update speed
+        await asyncio.sleep(.15) #update speed
+        if not state_dict['lock view']:
+            player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = (
             add_coords(player_coords, (x_offset, y_offset))
         )
@@ -4360,8 +4369,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
             arc_end=r_angle
         )
         if (x_offset, y_offset) == (0, 0):
-            print_choice=term.color(6)('@')
-        elif map_dict[x_display_coord, y_display_coord].override_view:
+            display=True
+        if map_dict[x_display_coord, y_display_coord].override_view:
             print_choice = await check_contents_of_tile((x_display_coord, y_display_coord))
             map_dict[tile_coord_key].seen = True
         elif display:
@@ -4399,21 +4408,26 @@ async def view_tile(x_offset=1, y_offset=1, threshold=12, fov=140):
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
-        with term.location(*print_location):
-            # only print something if it has changed:
-            if last_print_choice != print_choice:
-                tile_color = map_dict[tile_coord_key].color_num
+        #with term.location(*print_location):
+        # only print something if it has changed:
+        if last_print_choice != print_choice:
+            tile_color = map_dict[tile_coord_key].color_num
+            #color_tuple = brightness_vals[int(distance)]
+            if not state_dict['lock view']:
                 color_tuple = brightness_vals[int(distance)]
-                if print_choice == "░":
-                    print_choice = term.color(color_tuple[0])(color_tuple[1])
-                elif print_choice == '𝄛':
-                    print_choice = term.color(7)('𝄛')
-                    #print_choice = term.color(color_tuple[0])('𝄛')
-                else:
-                    print_choice = term.color(tile_color)(print_choice)
-                print(print_choice)
-                last_print_choice = print_choice
-            # only print something if it has changed:
+            else:
+                color_tuple = brightness_vals[4]
+            if print_choice == "░":
+                print_choice = term.color(color_tuple[0])(color_tuple[1])
+            elif print_choice == '𝄛':
+                print_choice = term.color(7)('𝄛')
+                #print_choice = term.color(color_tuple[0])('𝄛')
+            else:
+                print_choice = term.color(tile_color)(print_choice)
+        with term.location(*print_location):
+            print(print_choice)
+        last_print_choice = print_choice
+        # only print something if it has changed:
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
@@ -6215,6 +6229,7 @@ def state_setup():
     state_dict['view_tile_count'] = 0
     state_dict['scanner_state'] = False
     state_dict['battery'] = 100
+    state_dict['lock view'] = False
 
 def main():
     state_setup()
