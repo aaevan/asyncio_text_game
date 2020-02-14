@@ -659,8 +659,7 @@ class Multi_tile_entity:
         check_position = {}
         for member_name in self.member_names:
             if not actor_dict[member_name].moveable:
-                with term.location(80, 4):
-                    return False
+                return False
             current_coord = actor_dict[member_name].coords()
             check_coord = add_coords(current_coord, move_by)
             if 'player' in map_dict[check_coord].actors:
@@ -830,7 +829,8 @@ class Multi_tile_entity:
             for segment in region:
                 segment_data = self.member_data[segment]
                 if debug:
-                    new_tile = term.on_color(number + 3 % 8)(term.color(number)(str(number)))
+                    color_string = term.color(number)(str(number))
+                    new_tile = term.on_color(number + 3 % 8)(color_string)
                 else:
                     new_tile = segment_data['tile']
                 current_location = actor_dict[segment_data['name']].coords()
@@ -942,7 +942,7 @@ actor_dict['player'] = Actor(
     name='player', tile='@', tile_color='cyan', health=100,
 )
 #actor_dict['player'].just_teleported = False
-actor_dict['player'].update((4, -11))
+actor_dict['player'].update((30, 0))
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -3300,6 +3300,7 @@ def map_init():
         'm': Room((9, -69), 5,),
         'n': Room((0, -20), 1,),
         'o': Room((-10, -20), (3, 3)),
+        'p': Room((30, 0), (3, 3)),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -3312,6 +3313,7 @@ def map_init():
         ('d', 'j', 2, 'tiles', None),
         ('k', 'm', 2, 'grass', 'jagged'),
         ('n', 'o', 1, None, None),
+        ('a', 'p', 2, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
@@ -4266,7 +4268,14 @@ async def check_line_of_sight(coord_a, coord_b):
     walls = 0
     points = get_line(coord_a, coord_b)
     blocking_actor_index = None
+    x_diff = abs(coord_a[0] - coord_b[0])
+    y_diff = abs(coord_a[1] - coord_b[1])
+    block_tally = []
     for index, point in enumerate(points):
+        if map_dict[point].blocking:
+            block_tally.append(1)
+        else:
+            block_tally.append(0)
         #TODO: make magic doors correctly be blocked behind MTEs
         if map_dict[point].magic == True:
             return await handle_magic_door(point=point, last_point=points[-1])
@@ -4278,8 +4287,6 @@ async def check_line_of_sight(coord_a, coord_b):
                         break
         else:
             walls += 1
-        if walls > 1: #exit early if there's a wall in the way
-            return False
     if blocking_actor_index is not None:
         if blocking_actor_index < len(points) - 1:
             return False
@@ -4288,8 +4295,23 @@ async def check_line_of_sight(coord_a, coord_b):
     #if there's only open space among the checked points, display it.
     elif walls == 0:
         return True
+    blocks = 0
+    for blocked in reversed(block_tally):
+        if blocked:
+            blocks += 1
+        else:
+            break
     #If the last point is blocking and it's a wall, display it:
-    elif map_dict[points[-1]].blocking == True and walls == 1:
+    if map_dict[points[-1]].blocking == True and walls == 1:
+        return True
+    if blocks >= 1:
+        if x_diff == 1:
+            if await check_line_of_sight(coord_a, (coord_a[0], coord_b[1])):
+                return True
+        elif y_diff == 1:
+            if await check_line_of_sight(coord_a, (coord_b[0], coord_a[1])):
+                return True
+    elif blocks < 5 and (x_diff == 2 or y_diff == 2):
         return True
     else:
         return False
@@ -6220,7 +6242,7 @@ async def quitter_daemon():
 def state_setup():
     state_dict['just teleported'] = False
     state_dict["player_health"] = 100
-    state_dict['facing'] = 'n'
+    state_dict['facing'] = 'w'
     state_dict['menu_choices'] = []
     state_dict['plane'] = 'normal'
     state_dict['printing'] = False
