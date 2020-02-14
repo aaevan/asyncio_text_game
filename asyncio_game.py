@@ -4342,7 +4342,6 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #      [ ]actors have a chance to not display based on the light level of the tile they are sitting on.
 #      [ ]actors which stay in darkness until lit up or a condition is met and then they change behavior
 #             seek or flee
-#      [X]implement flee behavior
 #      [ ]an enemy that switches between:
                 #[X]flee behavior, 
                 #[X]seeking behavior
