@@ -5,13 +5,13 @@ Because different terminals use different color schemes, first run color_setup.p
 
 Start game by running "python async_game.py" inside the cloned directory.
 
-WASD to move, IJKL to look. x to examine.
+WASD to move, IJKL to look.
 
 Press ? for help.
 
 See handle_input function for full list of testing commands.
 
-See map_init for layout of rooms and misc. world features.
+See map_init for layout of rooms and world generation.
 
 ![](circle_of_darkness.gif)
 
