@@ -4312,7 +4312,8 @@ async def check_line_of_sight(coord_a, coord_b):
             if await check_line_of_sight(coord_a, (coord_b[0], coord_a[1])):
                 return True
     elif blocks < 5 and (x_diff == 2 or y_diff == 2):
-        return True
+        if await check_line_of_sight(coord_a, points[-2]):
+            return True
     else:
         return False
 
