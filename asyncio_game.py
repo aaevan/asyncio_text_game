@@ -942,7 +942,9 @@ actor_dict['player'] = Actor(
     name='player', tile='@', tile_color='cyan', health=100,
 )
 #actor_dict['player'].just_teleported = False
-actor_dict['player'].update((30, 0))
+#actor_dict['player'].update((30, 0))
+#actor_dict['player'].update((-2, -20))
+actor_dict['player'].update((23, 0))
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -4311,9 +4313,9 @@ async def check_line_of_sight(coord_a, coord_b):
         elif y_diff == 1:
             if await check_line_of_sight(coord_a, (coord_b[0], coord_a[1])):
                 return True
-    elif blocks < 5 and (x_diff == 2 or y_diff == 2):
-        if await check_line_of_sight(coord_a, points[-2]):
-            return True
+    #elif blocks < 5 and (x_diff == 2 or y_diff == 2):
+        #if await check_line_of_sight(coord_a, points[-2]):
+            #return True
     else:
         return False
 
