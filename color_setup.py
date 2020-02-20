@@ -14,7 +14,7 @@ def clear():
     _ = call('clear' if os.name =='posix' else 'cls')
 
 def switcher_display(y_offset=3, x_offset=3):
-    shades = (' ', '░', '▒', '▓', '█')
+    shades = (' ', '░', '▒', '▒', '▓', '█', '█')
     numbers = (0, 8, 7)
     on_fill = (0, 8, 7)
     ordering = []
@@ -94,23 +94,6 @@ def pick_matching_color():
     return color_map
 
 def main():
-    clear()
-    bw_gradient = ((" "),                #0
-                   term.color(7)("░"),   #1
-                   term.color(8)("░"),   #3
-                   term.color(7)("▒"),   #5
-                   term.color(8)("▒"),   #7
-                   term.color(7)("▓"),   #9
-                   term.color(7)("█"),   #10
-                   term.color(8)("▓"),   #11
-                   term.color(8)("▓"),   #11
-                   term.color(8)("▓"),   #11
-                   term.color(8)("▓"),   #11
-                   term.color(8)("█"),   #12
-                   term.color(8)("█"),   #13
-                   term.color(8)("█"),   #14
-                   term.color(8)("█"),   #15
-                   )
     clear()
     ordering = switcher_display()
     print("brightness_preset:")
