@@ -4357,7 +4357,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
 
-async def view_tile(x_offset=1, y_offset=1, threshold=20, fov=140):
+async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
@@ -4655,7 +4655,7 @@ async def timer(
     return
 
 async def view_tile_init(
-    loop, term_x_radius=20, term_y_radius=20, max_view_radius=20, debug=False
+    loop, term_x_radius=15, term_y_radius=15, max_view_radius=17, debug=False
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
