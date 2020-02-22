@@ -4357,6 +4357,36 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 #an enemy that cannot be killed
 #an enemy that doesn't do any damage but cannot be pushed, passed through or seen through
 
+def get_term_middle():
+    middle_x, middle_y = (int(term.width / 2 - 2), int(term.height / 2 - 2))
+    return (middle_x, middle_y)
+
+async def slow_memory_tile(x_offset, y_offset, update_rate=1):
+    middle_x, middle_y = get_term_middle()
+    print_location = add_coords((middle_x, middle_y), (x_offset, y_offset))
+    player_coords = actor_dict['player'].coords()
+    await asyncio.sleep(random())
+    while(True):
+        await asyncio.sleep(update_rate)
+        player_coords = actor_dict['player'].coords()
+        if not state_dict['lock view']:
+            player_coords = actor_dict['player'].coords()
+        x_display_coord, y_display_coord = (
+            add_coords(player_coords, (x_offset, y_offset))
+        )
+        look_location = x_display_coord, y_display_coord
+        if map_dict[x_display_coord, y_display_coord].seen:
+            if state_dict['plane'] == 'nightmare':
+                color_choice = 0
+            else:
+                color_choice = 8
+            remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+            print_choice = term.color(color_choice)(remembered_tile)
+        else:
+            print_choice = ' '
+        with term.location(*print_location):
+            print(print_choice)
+
 async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
@@ -4655,7 +4685,7 @@ async def timer(
     return
 
 async def view_tile_init(
-    loop, term_x_radius=15, term_y_radius=15, max_view_radius=17, debug=False
+    loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
@@ -4665,6 +4695,8 @@ async def view_tile_init(
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
+           else:
+               loop.create_task(slow_memory_tile(x_offset=x, y_offset=y))
     if debug:
         with term.location(50, 0):
             print("view_tile_count: {}".format(view_tile_count))
