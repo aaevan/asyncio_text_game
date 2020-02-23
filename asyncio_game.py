@@ -4237,7 +4237,9 @@ async def display_help():
             )
         )
 
-async def tile_debug_info(x_print=50, y_print=0):
+#async def tile_debug_info(x_print=50, y_print=0, offset_from_center=False):
+async def tile_debug_info(offset_coord=(50, 0), offset_from_center=False):
+    middle_coord = get_term_middle()
     dummy_text = []
     while True:
         directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -4257,7 +4259,7 @@ async def tile_debug_info(x_print=50, y_print=0):
         blank_space = [' ' * len(line) for line in output_text]
         for text_written in (blank_space, output_text):
             for y_offset, line in enumerate(text_written):
-                output_location = add_coords((x_print, y_print), (0, y_offset))
+                output_location = add_coords(offset_coord, (0, y_offset))
                 with term.location(*output_location):
                     print(line)
         await asyncio.sleep(.2)
@@ -4360,32 +4362,6 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
 def get_term_middle():
     middle_x, middle_y = (int(term.width / 2 - 2), int(term.height / 2 - 2))
     return (middle_x, middle_y)
-
-async def slow_memory_tile(x_offset, y_offset, update_rate=1):
-    middle_x, middle_y = get_term_middle()
-    print_location = add_coords((middle_x, middle_y), (x_offset, y_offset))
-    player_coords = actor_dict['player'].coords()
-    await asyncio.sleep(random())
-    while(True):
-        await asyncio.sleep(update_rate)
-        player_coords = actor_dict['player'].coords()
-        if not state_dict['lock view']:
-            player_coords = actor_dict['player'].coords()
-        x_display_coord, y_display_coord = (
-            add_coords(player_coords, (x_offset, y_offset))
-        )
-        look_location = x_display_coord, y_display_coord
-        if map_dict[x_display_coord, y_display_coord].seen:
-            if state_dict['plane'] == 'nightmare':
-                color_choice = 0
-            else:
-                color_choice = 8
-            remembered_tile = map_dict[x_display_coord, y_display_coord].tile
-            print_choice = term.color(color_choice)(remembered_tile)
-        else:
-            print_choice = ' '
-        with term.location(*print_location):
-            print(print_choice)
 
 async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     """ handles displaying data from map_dict """
@@ -4695,8 +4671,6 @@ async def view_tile_init(
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(x_offset=x, y_offset=y))
-           else:
-               loop.create_task(slow_memory_tile(x_offset=x, y_offset=y))
     if debug:
         with term.location(50, 0):
             print("view_tile_count: {}".format(view_tile_count))
@@ -6273,44 +6247,7 @@ async def quitter_daemon():
             loop.stop()
             loop.close()
 
-def state_setup():
-    state_dict['just teleported'] = False
-    state_dict["player_health"] = 100
-    state_dict['facing'] = 'w'
-    state_dict['menu_choices'] = []
-    state_dict['plane'] = 'normal'
-    state_dict['printing'] = False
-    state_dict['known location'] = True
-    state_dict['teleporting'] = False
-    state_dict['view_tile_count'] = 0
-    state_dict['scanner_state'] = False
-    state_dict['battery'] = 100
-    state_dict['lock view'] = False
-
-def main():
-    state_setup()
-    map_init()
-    old_settings = termios.tcgetattr(sys.stdin) 
-    loop = asyncio.new_event_loop()
-    loop.create_task(get_key())
-    loop.create_task(view_tile_init(loop))
-    loop.create_task(minimap_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP 
-    loop.create_task(printing_testing())
-    loop.create_task(async_map_init())
-    #TODO: fix follower vine to disappear after a set time:
-    #loop.create_task(shrouded_horror(start_coord=(29, -25)))
-    loop.create_task(death_check())
-    loop.create_task(delay_follow())
-    loop.create_task(quitter_daemon())
-    loop.create_task(under_passage())
-    loop.create_task(
-        under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
-    )
-    loop.create_task(
-        under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
-    )
-    loop.create_task(display_current_tile()) #debug for map generation
+async def door_init(loop):
     loop.create_task(
         bay_door(
             hinge_coord=(-3, 1),
@@ -6358,6 +6295,46 @@ def main():
         )
     )
     loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
+
+def state_setup():
+    state_dict['just teleported'] = False
+    state_dict["player_health"] = 100
+    state_dict['facing'] = 'w'
+    state_dict['menu_choices'] = []
+    state_dict['plane'] = 'normal'
+    state_dict['printing'] = False
+    state_dict['known location'] = True
+    state_dict['teleporting'] = False
+    state_dict['view_tile_count'] = 0
+    state_dict['scanner_state'] = False
+    state_dict['battery'] = 100
+    state_dict['lock view'] = False
+
+def main():
+    state_setup()
+    map_init()
+    old_settings = termios.tcgetattr(sys.stdin) 
+    loop = asyncio.new_event_loop()
+    loop.create_task(get_key())
+    loop.create_task(view_tile_init(loop))
+    loop.create_task(minimap_init(loop))
+    loop.create_task(ui_setup()) #UI_SETUP 
+    loop.create_task(printing_testing())
+    loop.create_task(async_map_init())
+    #TODO: fix follower vine to disappear after a set time:
+    #loop.create_task(shrouded_horror(start_coord=(29, -25)))
+    loop.create_task(death_check())
+    loop.create_task(delay_follow())
+    loop.create_task(quitter_daemon())
+    loop.create_task(under_passage())
+    loop.create_task(
+        under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
+    )
+    loop.create_task(
+        under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
+    )
+    loop.create_task(display_current_tile()) #debug for map generation
+    loop.create_task(door_init(loop))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
