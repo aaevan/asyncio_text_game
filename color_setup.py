@@ -13,6 +13,20 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
+def color_pairing():
+    colors = ("dark grey", "light grey", "white")
+    stylings = ("foreground", "background")
+    for color in colors:
+        for styling in stylings:
+            clear()
+            if styling == "foreground":
+                pass
+            with term.location(0, 0):
+                print("Pick the closest {} color to a {}:".format(styling, color))
+            with term.location(
+            with term.location(0, 2):
+                input_string = input("switch a and b? ")
+
 def switcher_display(y_offset=3, x_offset=3):
     shades = (' ', '░', '▒', '▒', '▓', '█', '█')
     numbers = (0, 8, 7)

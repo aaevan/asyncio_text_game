@@ -4379,8 +4379,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     player_coords = actor_dict['player'].coords()
     while True:
         state_dict["view_tile_count"] += 1
-        #await asyncio.sleep(distance * .0075 + .1) #update speed
-        await asyncio.sleep(.15) #update speed
+        await asyncio.sleep(distance * .0075 + .1) #update speed
+        #await asyncio.sleep(.15) #update speed
         if not state_dict['lock view']:
             player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = (
