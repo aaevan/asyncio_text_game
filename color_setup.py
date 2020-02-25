@@ -14,18 +14,38 @@ def clear():
     _ = call('clear' if os.name =='posix' else 'cls')
 
 def color_pairing():
+    """
+    display a list of colors, pick the ones that are closest to the given color
+    for both foreground and background
+
+    return the results
+    """
     colors = ("dark grey", "light grey", "white")
     stylings = ("foreground", "background")
-    for color in colors:
-        for styling in stylings:
-            clear()
+    choice_offset = 0
+    settings = []
+    for styling in stylings:
+        for color in colors:
+            for i in range(10):
+                if styling == "foreground":
+                    with term.location(0, i + 2):
+                        print(i, term.color(i)('test'))
+                if styling == "background":
+                    with term.location(0, i + 2):
+                        print(i, term.on_color(i)('test'))
+            input_string = None
+            while input_string is None or input_string not in '0123456789':
+                with term.location(0, 0):
+                    print("Pick the closest {} color to a {}.".format(styling, color))
+                with term.location(0, 2):
+                    input_string = input("enter a number 0 to 9 and press enter:")
             if styling == "foreground":
-                pass
-            with term.location(0, 0):
-                print("Pick the closest {} color to a {}:".format(styling, color))
-            with term.location(
-            with term.location(0, 2):
-                input_string = input("switch a and b? ")
+                settings.append((int(input_string), 0))
+            else:
+                settings.append((0, int(input_string)))
+            with term.location(10, 5 + choice_offset):
+                print("input_string!: {}".format(input_string))
+            choice_offset += 1
 
 def switcher_display(y_offset=3, x_offset=3):
     shades = (' ', '░', '▒', '▒', '▓', '█', '█')
@@ -109,12 +129,13 @@ def pick_matching_color():
 
 def main():
     clear()
-    ordering = switcher_display()
-    print("brightness_preset:")
-    print(ordering)
-    print(''.join([str(i) for _, i in ordering]))
-    with open('brightness_preset.txt', 'w+') as color_palette:
-        color_palette.write(repr(ordering))
+    color_pairing()
+    #ordering = switcher_display()
+    #print("brightness_preset:")
+    #print(ordering)
+    #print(''.join([str(i) for _, i in ordering]))
+    #with open('brightness_preset.txt', 'w+') as color_palette:
+        #color_palette.write(repr(ordering))
         #for pair in ordering:
             #color_palette.write("{}, {}\n".format(*pair))
     """
