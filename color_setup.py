@@ -44,7 +44,10 @@ def color_pairing():
             else:
                 settings.append((0, int(input_string)))
             with term.location(10, 5 + choice_offset):
-                print("input_string!: {}".format(input_string))
+                if styling == "foreground":
+                    print(term.color(int(input_string))("foreground {}".format(color)))
+                else:
+                    print(term.on_color(int(input_string))("background {}".format(color)))
             choice_offset += 1
 
 def switcher_display(y_offset=3, x_offset=3):
