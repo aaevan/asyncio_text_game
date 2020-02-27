@@ -39,16 +39,19 @@ def color_pairing():
                     print("Pick the closest {} color to a {}.".format(styling, color))
                 with term.location(0, 2):
                     input_string = input("enter a number 0 to 9 and press enter:")
-            if styling == "foreground":
-                settings.append((int(input_string), 0))
-            else:
-                settings.append((0, int(input_string)))
             with term.location(10, 5 + choice_offset):
                 if styling == "foreground":
-                    print(term.color(int(input_string))("foreground {}".format(color)))
+                    color_string = "foreground {}".format(color)
+                    print(term.color(int(input_string))(color_string))
+                    settings.append((color_string, int(input_string), 0))
                 else:
-                    print(term.on_color(int(input_string))("background {}".format(color)))
+                    color_string = "background {}".format(color)
+                    print(term.on_color(int(input_string))(color_string))
+                    settings.append((color_string, 0, int(input_string)))
             choice_offset += 1
+    with term.location(10, 5 + choice_offset):
+        print("settings: {}".format(settings))
+    return settings
 
 def switcher_display(y_offset=3, x_offset=3):
     shades = (' ', '░', '▒', '▒', '▓', '█', '█')
