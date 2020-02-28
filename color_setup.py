@@ -20,7 +20,10 @@ def color_pairing():
 
     return the results
     """
-    colors = ("dark grey", "light grey", "white")
+    colors = (
+        "dark grey", "light grey", "white",
+        "red", "green", "yellow", "blue"
+    )
     stylings = ("foreground", "background")
     choice_offset = 0
     settings = []
@@ -49,11 +52,13 @@ def color_pairing():
                     print(term.on_color(int(input_string))(color_string))
                     settings.append((color_string, 0, int(input_string)))
             choice_offset += 1
-    with term.location(10, 5 + choice_offset):
+    choose_yn(message="Do these colors look right? (yes/no?)", display_coord=(10, 5 + choice_offset))
+    choice_offset += 2
+    with term.location(0, 5 + choice_offset):
         print("settings: {}".format(settings))
     return settings
 
-def switcher_display(y_offset=3, x_offset=3):
+def switcher_display(y_offset=3, x_offset=3, light_grey_num=0, dark_grey_num=8):
     shades = (' ', '░', '▒', '▒', '▓', '█', '█')
     numbers = (0, 8, 7)
     on_fill = (0, 8, 7)
@@ -104,35 +109,23 @@ def input_number(message="Choose a number: "):
         else:
             return user_input
 
-def choose_yn(message="Yes or No? "):
+def choose_yn(message="Yes or No? ", display_coord=(30, 30)):
+    reject_template = "Must be a yes or no answer. {}"
+    reject = False
     while True:
-        user_input = input(message).lower()
+        with term.location(*display_coord):
+            if reject:
+                user_input = input(reject_template.format(message)).lower()
+            else:
+                user_input = input(message).lower()
         if user_input not in ('y', 'n', 'yes', 'no'):
-            print("Must be a yes or no answer.")
+            reject = True
             continue
         else:
             if user_input in ('n', 'no'):
                 return False
             else:
                 return True
-
-def pick_matching_color():
-    clear()
-    color_map = {}
-    for number in range(10):
-        with term.location(number, 0):
-            print(term.color(number)(str(number)))
-        with term.location(number, 1):
-            print(term.on_color(number)(str(number)))
-    for color in ('red', 'white', 'black', 'gray', 'green', 'orange', 'blue', 'light blue'):
-        with term.location(0, 2):
-            color_choice = None
-            print("Which color is closest to {}?          ".format(color))
-            color_choice = input_number()
-            color_map[color] = int(color_choice)
-    print("Color map is: {}".format(color_map))
-    return color_map
-
 def main():
     clear()
     color_pairing()
