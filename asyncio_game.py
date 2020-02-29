@@ -9,7 +9,7 @@ import termios
 import textwrap
 from ast import literal_eval
 from numpy import linspace
-from blessings import Terminal
+from blessed import Terminal
 from copy import copy
 from collections import defaultdict
 from datetime import datetime
@@ -928,6 +928,17 @@ def read_brightness_preset_file(filename='brightness_preset.txt'):
         for line in file:
             output = literal_eval(line) #assumes a one-line file
     return output
+
+def brightness_test(print_coord=(110, 28)):
+    output = []
+    for i in range(16 * 17):
+        output.append(term.color(i)('{0:0{1}X}█'.format(i, 2)))
+        if i % 16 == 0 and i != 0:
+            offset_coord = add_coords(print_coord, (0, i // 16))
+            with term.location(*offset_coord):
+                print(''.join(output))
+            output = []
+
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
@@ -3492,6 +3503,8 @@ async def handle_input(key):
                 map_dict[add_coords(point, player_coords)].tile = '$'
         if key in '$':
             print_debug_grid() 
+        if key in '#':
+            brightness_test()
         if key in '(':
             #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
@@ -4966,7 +4979,6 @@ async def ui_setup():
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     loop.create_task(console_box())
     health_title = "{} ".format(term.color(1)("♥"))
-    #stamina_title = "{} ".format(term.color(3)("⚡"))
     loop.create_task(tile_debug_info())
     loop.create_task(
         status_bar(

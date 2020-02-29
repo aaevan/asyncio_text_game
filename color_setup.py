@@ -13,6 +13,20 @@ def clear():
     # check and make call for specific operating system
     _ = call('clear' if os.name =='posix' else 'cls')
 
+def print_test_swatch():
+    clear()
+    print('\n')
+    for tens in range(30):
+        output = []
+        for ones in range(10):
+            output.append(term.color(tens * 10 + ones)('{0: <3}:██'.format(tens * 10 + ones)))
+        output.append('  ')
+        for ones in range(10):
+            output.append(term.on_color(tens * 10 + ones)('{0: <3}:##'.format(tens * 10 + ones)))
+        with term.location(0, tens + 5):
+            #print(''.join(output))
+            print(''.join(output))
+
 def color_pairing():
     """
     display a list of colors, pick the ones that are closest to the given color
@@ -29,7 +43,7 @@ def color_pairing():
     settings = []
     for styling in stylings:
         for color in colors:
-            for i in range(10):
+            for i in range(40):
                 if styling == "foreground":
                     with term.location(0, i + 2):
                         print(i, term.color(i)('test'))
@@ -128,7 +142,8 @@ def choose_yn(message="Yes or No? ", display_coord=(30, 30)):
                 return True
 def main():
     clear()
-    color_pairing()
+    print_test_swatch()
+    #color_pairing()
     #ordering = switcher_display()
     #print("brightness_preset:")
     #print(ordering)
