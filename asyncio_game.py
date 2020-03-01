@@ -944,6 +944,8 @@ def brightness_test(print_coord=(110, 28)):
 #Global state setup-------------------------------------------------------------
 term = Terminal()
 brightness_vals = read_brightness_preset_file()
+with term.location(80, 0):
+    print(brightness_vals, len(brightness_vals))
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -4452,19 +4454,21 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
-        #with term.location(*print_location):
         # only print something if it has changed:
         if last_print_choice != print_choice:
             tile_color = map_dict[tile_coord_key].color_num
-            #color_tuple = brightness_vals[int(distance)]
+            #tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 28) + randint(-1, 1)
+            tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 27)
+            if random() > .8:
+                tile_brightness += randint(-1, 1)
             if not state_dict['lock view']:
-                color_tuple = brightness_vals[int(distance)]
+                #color_tuple = brightness_vals[int(distance)]
+                color_tuple = brightness_vals[int(tile_brightness)]
             else:
                 color_tuple = brightness_vals[4]
             if print_choice == "░":
                 print_choice = term.color(color_tuple[0])(color_tuple[1])
             elif print_choice == '𝄛':
-                #print_choice = term.color(7)('𝄛')
                 print_choice = term.color(color_tuple[0])('𝄛')
             else:
                 print_choice = term.color(tile_color)(print_choice)
