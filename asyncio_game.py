@@ -924,9 +924,10 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
 def read_brightness_preset_file(filename='brightness_preset.txt'):
-    with open('brightness_preset.txt', 'r') as file:
-        for line in file:
-            output = literal_eval(line) #assumes a one-line file
+    output = [(i, '█') for i in range(0xe8, 0xff)][::-1]
+    #with open('brightness_preset.txt', 'r') as file:
+        #for line in file:
+            #output = literal_eval(line) #assumes a one-line file
     return output
 
 def brightness_test(print_coord=(110, 28)):
@@ -4463,8 +4464,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
             if print_choice == "░":
                 print_choice = term.color(color_tuple[0])(color_tuple[1])
             elif print_choice == '𝄛':
-                print_choice = term.color(7)('𝄛')
-                #print_choice = term.color(color_tuple[0])('𝄛')
+                #print_choice = term.color(7)('𝄛')
+                print_choice = term.color(color_tuple[0])('𝄛')
             else:
                 print_choice = term.color(tile_color)(print_choice)
         with term.location(*print_location):
