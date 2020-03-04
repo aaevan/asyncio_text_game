@@ -271,7 +271,7 @@ class Animation:
             'noise':{
                 'animation':('      ▒▓▒ ▒▓▒'), 
                 'behavior':'loop tile', 
-                'color_choices':'4'
+                'color_choices':(0xe9, 0xe9, 0xe9, 0xe9, 0xe9, 0xe9, 0x34),
             },
             'chasm':{
                 'animation':(' ' * 10 + '.'), 
@@ -389,7 +389,7 @@ class Animation:
         if self.background:
             background_choice = int(choice(self.background))
         else:
-            background_choice = 0
+            background_choice = 0xe8 #background color.
         #combined output
         return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
@@ -930,7 +930,9 @@ def read_brightness_preset_file(filename='brightness_preset.txt'):
             #output = literal_eval(line) #assumes a one-line file
     return output
 
-def brightness_test(print_coord=(110, 28)):
+def brightness_test(print_coord=(110, 32)):
+    term_width, term_height = term.width, term.height
+    print_coord = (term.width - 3 * 17) + 2, (term.height - 18)
     output = []
     for i in range(16 * 17):
         output.append(term.color(i)('{0:0{1}X}█'.format(i, 2)))
@@ -4457,12 +4459,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
         # only print something if it has changed:
         if last_print_choice != print_choice:
             tile_color = map_dict[tile_coord_key].color_num
-            #tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 28) + randint(-1, 1)
-            tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 27)
-            if random() > .8:
-                tile_brightness += randint(-1, 1)
+            tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 27 + random() * .75)
             if not state_dict['lock view']:
-                #color_tuple = brightness_vals[int(distance)]
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
                 color_tuple = brightness_vals[4]
@@ -6239,10 +6237,7 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
             for coord in listen_coords
         )
         state_index = int(bin_string, 2)
-        if state_dict['plane'] == 'nightmare':
-            print_char = choice('        ▒▓▒')
-        else:
-            print_char = blocks[state_index]
+        print_char = blocks[state_index]
         with term.location(*display_coord):
             blink_state = next(blink_switch)
             if (player_position_offset == (0, 0) or actor_presence) and blink_state:
