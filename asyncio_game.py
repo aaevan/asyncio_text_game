@@ -271,7 +271,7 @@ class Animation:
             'noise':{
                 'animation':('      ▒▓▒ ▒▓▒'), 
                 'behavior':'loop tile', 
-                'color_choices':(0xe9, 0xe9, 0xe9, 0xe9, 0xe9, 0xe9, 0x34),
+                'color_choices':(0xe9, 0xea),
             },
             'chasm':{
                 'animation':(' ' * 10 + '.'), 
@@ -4397,7 +4397,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     player_coords = actor_dict['player'].coords()
     while True:
         state_dict["view_tile_count"] += 1
-        await asyncio.sleep(distance * .0075 + .1) #update speed
+        await asyncio.sleep(distance * .0075 + .05 + random() * .1) #update speed
         #await asyncio.sleep(.15) #update speed
         if not state_dict['lock view']:
             player_coords = actor_dict['player'].coords()
@@ -4459,7 +4459,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
         # only print something if it has changed:
         if last_print_choice != print_choice:
             tile_color = map_dict[tile_coord_key].color_num
-            tile_brightness = int(-(30 / (.5 * ((distance/2) + 3))) + 27 + random() * .75)
+            tile_brightness = get_brightness(distance)
             if not state_dict['lock view']:
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
@@ -4474,6 +4474,30 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
             print(print_choice)
         last_print_choice = print_choice
         # only print something if it has changed:
+
+def get_brightness(distance, lower_limit=0xe8, upper_limit=0x100):
+    """
+    brighness falls off according to the below equation
+
+    the random element makes it so the returned value sometimes rounds up or
+    down to a nearby value.
+
+    The greyscale values lie between 0xe8 (near-black) and 0x100 (white)
+
+
+    """
+    brightness_val = int(round(
+        -(30 / (.5 * ((distance/2) + 3))) + 27 + random() * .75, 1
+    ))
+    with term.location(150, 25):
+        print("BRIGHTNESS:", brightness_val)
+    return brightness_val
+    if brightness_val < lower_limit:
+        return 0
+    elif brightness_val > upper_limit:
+        return len(brightness_vals)
+    else:
+        return brightness_val
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
