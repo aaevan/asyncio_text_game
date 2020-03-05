@@ -13,7 +13,7 @@ See handle_input function for full list of testing commands.
 
 See map_init for layout of rooms and world generation.
 
-![](circle_of_darkness.gif)
+![](preview.gif)
 
 Python 3 only.
 
