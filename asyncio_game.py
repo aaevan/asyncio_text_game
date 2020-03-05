@@ -6369,7 +6369,7 @@ def main():
     loop.create_task(
         under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
     )
-    loop.create_task(display_current_tile()) #debug for map generation
+    #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
