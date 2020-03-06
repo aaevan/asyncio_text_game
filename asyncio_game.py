@@ -89,8 +89,9 @@ class Actor:
     def __init__(
         self,
         name='',
-        x_coord=0,
-        y_coord=0,
+        coord=(0, 0),
+        #x_coord=0,
+        #y_coord=0,
         speed=.2, 
         tile="?", 
         base_attack=1,
@@ -118,15 +119,16 @@ class Actor:
             'grey':7
         }
         self.name = name
-        self.x_coord = x_coord
-        self.y_coord = y_coord
+        self.coord = coord
+        #self.x_coord = x_coord
+        #self.y_coord = y_coord
         self.speed = speed
         self.tile = tile
         if tile_color in tile_color_lookup:
             self.tile_color = tile_color_lookup[tile_color]
         else:
             self.tile_color = tile_color
-        self.coord = (x_coord, y_coord)
+        #self.coord = (x_coord, y_coord)
         self.base_attack = base_attack
         self.health = health
         self.hurtful = hurtful
@@ -139,22 +141,26 @@ class Actor:
         self.leaves_body = leaves_body
         self.holding_items = holding_items
         self.breakable = breakable
-        self.last_location = (x_coord, y_coord)
+        #self.last_location = (x_coord, y_coord)
+        self.last_location = coord
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
         self.description = description
 
     def update(self, coord=(0, 0)):
-        self.last_location = (self.x_coord, self.y_coord)
+        #self.last_location = (self.x_coord, self.y_coord)
+        self.last_location = self.coord
         #make previous space passable:
         map_dict[self.last_location].passable = True 
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
-        self.x_coord, self.y_coord = coord
+        self.coord = coord
+        #self.x_coord, self.y_coord = coord
         map_dict[self.coords()].actors[self.name] = True
 
     def coords(self):
-        return (self.x_coord, self.y_coord)
+        #return (self.x_coord, self.y_coord)
+        return self.coord
 
     def get_view(self):
         """
@@ -957,9 +963,6 @@ item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(
     name='player', tile='@', tile_color='cyan', health=100,
 )
-#actor_dict['player'].just_teleported = False
-#actor_dict['player'].update((30, 0))
-#actor_dict['player'].update((-2, -20))
 actor_dict['player'].update((23, 0))
 
 #Drawing functions--------------------------------------------------------------
@@ -2944,12 +2947,15 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
-def apply_to_map_coord(coord=(0, 0), tile=' ', passable=True, blocking=False):
+def apply_to_map_coord(coord=(0, 0), tile=' ', passable=True, blocking=False, rand_choice=True):
+    """
+    Apply the following properties to the given coord in map_dict.
+    """
     map_dict[coord].tile = tile
     map_dict[coord].passable = passable
     map_dict[coord].blocking = blocking
 
-def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
+def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
     """
     fills a straight path first then fills the shorter leg, 
     starting from the first coordinate
@@ -2960,31 +2966,23 @@ def connect_with_passage(x1, y1, x2, y2, segments=2, palette='░'):
             for x_coord in range(x1, x2+1):
                 apply_to_map_coord(
                     (x_coord, y1), 
-                    tile=choice(palette),
-                    passable=True,
-                    blocking=False
+                    tile=tile,
                 )
             for y_coord in range(y1, y2+1):
                 apply_to_map_coord(
                     (x2, y_coord),
-                    tile=choice(palette),
-                    passable=True,
-                    blocking=False
+                    tile=tile,
                 )
         else:
             for y_coord in range(y1, y2+1):
                 apply_to_map_coord(
                     (x1, y_coord),
-                    tile=choice(palette),
-                    passable=True,
-                    blocking=False
+                    tile=tile,
                 )
             for x_coord in range(x1, x2+1):
                 apply_to_map_coord(
                     (x_coord, y2),
-                    tile=choice(palette),
-                    passable=True,
-                    blocking=False
+                    tile=tile,
                 )
 
 async def sow_texture(
@@ -4489,13 +4487,11 @@ def get_brightness(distance, lower_limit=0xe8, upper_limit=0x100):
     brightness_val = int(round(
         -(30 / (.5 * ((distance/2) + 3))) + 27 + random() * .75, 1
     ))
-    with term.location(150, 25):
-        print("BRIGHTNESS:", brightness_val)
     return brightness_val
     if brightness_val < lower_limit:
         return 0
     elif brightness_val > upper_limit:
-        return len(brightness_vals)
+        return len(brightness_vals) - 1
     else:
         return brightness_val
 
