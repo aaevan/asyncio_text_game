@@ -2947,43 +2947,22 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
-def apply_to_map_coord(coord=(0, 0), tile=' ', passable=True, blocking=False, rand_choice=True):
-    """
-    Apply the following properties to the given coord in map_dict.
-    """
-    map_dict[coord].tile = tile
-    map_dict[coord].passable = passable
-    map_dict[coord].blocking = blocking
-
 def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
     """
     fills a straight path first then fills the shorter leg, 
     starting from the first coordinate
     """
-    #TODO replace apply_to_map_coord with paint_preset (???)
     if segments == 2:
         if abs(x2-x1) > abs(y2-y1):
             for x_coord in range(x1, x2+1):
-                apply_to_map_coord(
-                    (x_coord, y1), 
-                    tile=tile,
-                )
+                paint_preset((x_coord, y1), preset=tile,)
             for y_coord in range(y1, y2+1):
-                apply_to_map_coord(
-                    (x2, y_coord),
-                    tile=tile,
-                )
+                paint_preset((x2, y_coord), preset=tile,)
         else:
             for y_coord in range(y1, y2+1):
-                apply_to_map_coord(
-                    (x1, y_coord),
-                    tile=tile,
-                )
+                paint_preset((x1, y_coord), preset=tile,)
             for x_coord in range(x1, x2+1):
-                apply_to_map_coord(
-                    (x_coord, y2),
-                    tile=tile,
-                )
+                paint_preset((x_coord, y2), preset=tile,)
 
 async def sow_texture(
     root_coord,
