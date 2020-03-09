@@ -2947,23 +2947,6 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
-def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
-    """
-    fills a straight path first then fills the shorter leg, 
-    starting from the first coordinate
-    """
-    if segments == 2:
-        if abs(x2-x1) > abs(y2-y1):
-            for x_coord in range(x1, x2+1):
-                paint_preset((x_coord, y1), preset=tile,)
-            for y_coord in range(y1, y2+1):
-                paint_preset((x2, y_coord), preset=tile,)
-        else:
-            for y_coord in range(y1, y2+1):
-                paint_preset((x1, y_coord), preset=tile,)
-            for x_coord in range(x1, x2+1):
-                paint_preset((x_coord, y2), preset=tile,)
-
 async def sow_texture(
     root_coord,
     palette=",.'\"`",
