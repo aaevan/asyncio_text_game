@@ -2118,7 +2118,7 @@ async def circle_of_darkness(
     loop = asyncio.get_event_loop()
     loop.create_task(
         basic_actor(
-            *start_coord,
+            coord=start_coord,
             speed=.5,
             movement_function=seek_actor, 
             tile=' ',
@@ -2947,6 +2947,23 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
 
+def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
+    """
+    fills a straight path first then fills the shorter leg, 
+    starting from the first coordinate
+    """
+    if segments == 2:
+        if abs(x2-x1) > abs(y2-y1):
+            for x_coord in range(x1, x2+1):
+                paint_preset((x_coord, y1), preset=tile,)
+            for y_coord in range(y1, y2+1):
+                paint_preset((x2, y_coord), preset=tile,)
+        else:
+            for y_coord in range(y1, y2+1):
+                paint_preset((x1, y_coord), preset=tile,)
+            for x_coord in range(x1, x2+1):
+                paint_preset((x_coord, y2), preset=tile,)
+
 async def sow_texture(
     root_coord,
     palette=",.'\"`",
@@ -3249,8 +3266,7 @@ def spawn_static_actor(
         tile=tile,
         is_animated=is_animated,
         animation=animation,
-        x_coord=spawn_coord[0],
-        y_coord=spawn_coord[1], 
+        coord=spawn_coord,
         breakable=breakable,
         moveable=moveable,
         multi_tile_parent=multi_tile_parent,
@@ -5246,8 +5262,7 @@ async def shrouded_horror(
         actor_dict[name] = Actor(
             name=name,
             moveable=True,
-            x_coord=start_coord[0],
-            y_coord=start_coord[1],
+            coord=start_coord,
             tile=' '
         )
     wait = 0
@@ -5308,9 +5323,8 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
         )
     return new_shroud_location
 
-async def basic_actor(
-    start_x=0,
-    start_y=0,
+async def nasic_actor(
+    coord=(0, 0),
     speed=1,
     tile="*", 
     movement_function=wander,
@@ -5333,8 +5347,7 @@ async def basic_actor(
     """
     actor_dict[(name_key)] = Actor(
         name=name_key,
-        x_coord=start_x,
-        y_coord=start_y, 
+        coord=coord,
         speed=speed,
         tile=tile,
         hurtful=hurtful, 
@@ -5700,8 +5713,7 @@ async def timed_actor(
     actor_dict[name] = Actor(
         name=name,
         moveable=moveable,
-        x_coord=coords[0],
-        y_coord=coords[1], 
+        coord=coords,
         tile=str(death_clock),
         is_animated=True,
         animation=Animation(preset=animation_preset)
@@ -5866,8 +5878,7 @@ async def travel_along_line(
         is_animated = False
     actor_dict[particle_id] = Actor(
         name=particle_id,
-        x_coord=start_coord[0],
-        y_coord=start_coord[1], 
+        coord=start_coord,
         tile=tile,
         moveable=False,
         is_animated=is_animated,
@@ -6037,8 +6048,7 @@ async def orbit(
     particle_id = generate_id(base_name=name)
     actor_dict[particle_id] = Actor(
         name=particle_id,
-        x_coord=on_center[0],
-        y_coord=on_center[1], 
+        coord=on_center,
         moveable=False,
         is_animated=True,
         animation=Animation(base_tile='◉', preset='shimmer')
@@ -6123,7 +6133,7 @@ async def spawn_preset_actor(
         description = 'A gibbering mass of green slime that pulses and writhes before your eyes.'
         loop.create_task(
             basic_actor(
-                *coords,
+                coord=coords,
                 speed=.3,
                 movement_function=waver, 
                 tile='ö',
@@ -6140,7 +6150,7 @@ async def spawn_preset_actor(
         item_drops = ['dash trinket']
         loop.create_task(
             basic_actor(
-                *coords,
+                coord=coords,
                 speed=.15,
                 movement_function=angel_seek, 
                 tile='A',
@@ -6155,7 +6165,7 @@ async def spawn_preset_actor(
         item_drops = ['nut']
         loop.create_task(
             basic_actor(
-                *coords,
+                coord=coords,
                 speed=.75,
                 movement_function=seek_actor, 
                 tile='?',
