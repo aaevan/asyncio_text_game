@@ -2607,8 +2607,6 @@ async def temp_view_circle(
 ):
     #TODO: give option to mark all unseen before temp_view_circle as unseen
     #      after circle fades.
-    #TODO: option to override offset of player location, view_tiles no longer 
-    #      center on player until effect ends.
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
@@ -4442,6 +4440,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
                 color_tuple = brightness_vals[4]
             if print_choice == "░":
                 print_choice = term.color(color_tuple[0])(color_tuple[1])
+            elif print_choice == "▞":
+                print_choice = term.color(color_tuple[0])('▞')
             elif print_choice == '𝄛':
                 print_choice = term.color(color_tuple[0])('𝄛')
             else:
@@ -5323,7 +5323,7 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
         )
     return new_shroud_location
 
-async def nasic_actor(
+async def basic_actor(
     coord=(0, 0),
     speed=1,
     tile="*", 
