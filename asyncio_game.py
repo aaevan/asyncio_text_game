@@ -4424,7 +4424,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
             if state_dict['plane'] == 'nightmare':
                 color_choice = 0
             else:
-                color_choice = 8
+                color_choice = 0xeb
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             print_choice = term.color(color_choice)(remembered_tile)
         else:
@@ -4440,10 +4440,8 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
                 color_tuple = brightness_vals[4]
             if print_choice == "░":
                 print_choice = term.color(color_tuple[0])(color_tuple[1])
-            elif print_choice == "▞":
-                print_choice = term.color(color_tuple[0])('▞')
-            elif print_choice == '𝄛':
-                print_choice = term.color(color_tuple[0])('𝄛')
+            elif print_choice in ('▞', '𝄛'):
+                print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
         with term.location(*print_location):
