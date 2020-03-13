@@ -90,8 +90,6 @@ class Actor:
         self,
         name='',
         coord=(0, 0),
-        #x_coord=0,
-        #y_coord=0,
         speed=.2, 
         tile="?", 
         base_attack=1,
@@ -108,27 +106,11 @@ class Actor:
         tile_color=8,
         description="A featureless gray blob"
     ):
-        tile_color_lookup = {
-            'black':0, 
-            'red':1,
-            'green':2,
-            'orange':3, 
-            'blue':4,
-            'purple':5,
-            'cyan':6,
-            'grey':7
-        }
         self.name = name
         self.coord = coord
-        #self.x_coord = x_coord
-        #self.y_coord = y_coord
         self.speed = speed
         self.tile = tile
-        if tile_color in tile_color_lookup:
-            self.tile_color = tile_color_lookup[tile_color]
-        else:
-            self.tile_color = tile_color
-        #self.coord = (x_coord, y_coord)
+        self.tile_color = tile_color
         self.base_attack = base_attack
         self.health = health
         self.hurtful = hurtful
@@ -141,25 +123,21 @@ class Actor:
         self.leaves_body = leaves_body
         self.holding_items = holding_items
         self.breakable = breakable
-        #self.last_location = (x_coord, y_coord)
         self.last_location = coord
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
         self.description = description
 
     def update(self, coord=(0, 0)):
-        #self.last_location = (self.x_coord, self.y_coord)
         self.last_location = self.coord
         #make previous space passable:
         map_dict[self.last_location].passable = True 
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
-        #self.x_coord, self.y_coord = coord
         map_dict[self.coords()].actors[self.name] = True
 
     def coords(self):
-        #return (self.x_coord, self.y_coord)
         return self.coord
 
     def get_view(self):
