@@ -939,7 +939,7 @@ actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(
-    name='player', tile='@', tile_color='cyan', health=100,
+    name='player', tile='@', tile_color=6, health=100,
 )
 actor_dict['player'].update((23, 0))
 
@@ -3747,7 +3747,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         ),
     }
     for (num, line) in enumerate(icons[icon_name]):
-        with term.location(x_coord, y_coord + num):
+        with term.location(*add_coords((x_coord, y_coord), (0, num))):
             print(line)
 
 async def choose_item(
