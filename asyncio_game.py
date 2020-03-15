@@ -2165,7 +2165,7 @@ async def multi_spike_trap(
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(
-            name=node_name, moveable=False, tile='◘', tile_color='grey'
+            name=node_name, moveable=False, tile='◘', tile_color=0
         )
         actor_dict[node_name].update(coord=node_coord)
     while True:
@@ -3775,8 +3775,7 @@ async def choose_item(
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(number))
-    menu_choices = [str(i) for i in range(10)] #limit to 10 items on a square
-    #while True:
+    menu_choices = [str(hex(1))[-1] for i in range(16)]
     while state_dict['in_menu']:
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
@@ -3788,7 +3787,7 @@ async def choose_item(
         if menu_choice in menu_choices:
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-            return item_id_choices[int(menu_choice)]
+            return item_id_choices[int(menu_choice, 16)]
     clear_screen_region(
         x_size=2, y_size=len(item_id_choices), screen_coord=(x_pos, y_pos)
     )
@@ -4139,7 +4138,7 @@ async def angle_swing(radius=15):
         await asyncio.sleep(.01)
 
 async def crosshairs(
-    radius=16,
+    radius=18,
     crosshair_chars=('.', '*', '.'),
     fov=30, 
     refresh_delay=.05
@@ -4350,7 +4349,6 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
     while True:
         state_dict["view_tile_count"] += 1
         await asyncio.sleep(distance * .0075 + .05 + random() * .1) #update speed
-        #await asyncio.sleep(.15) #update speed
         if not state_dict['lock view']:
             player_coords = actor_dict['player'].coords()
         x_display_coord, y_display_coord = (
@@ -6304,7 +6302,6 @@ def main():
     #TODO: fix follower vine to disappear after a set time:
     #loop.create_task(shrouded_horror(start_coord=(29, -25)))
     loop.create_task(death_check())
-    loop.create_task(delay_follow())
     loop.create_task(quitter_daemon())
     loop.create_task(under_passage())
     loop.create_task(
