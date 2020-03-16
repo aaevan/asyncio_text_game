@@ -1528,19 +1528,20 @@ def trim_outside_circle(
     return input_dict
 
 def write_room_to_map(
-    room={}, top_left_coord=(0, 0), space_char=' ', hash_char='░'
+    room={}, top_left_coord=(0, 0), space_char=' ', hash_char='#'
 ):
     """
     Writes a dictionary representation of a region of space into the map_dict.
     """
     for coord, value in room.items():
+        #print(coord, '" "'.format(value))
         write_coord = add_coords(coord, top_left_coord)
         if value == space_char:
             continue
         if value == hash_char:
             map_dict[write_coord].passable = True
             map_dict[write_coord].blocking = False
-            map_dict[write_coord].tile = hash_char
+            map_dict[write_coord].tile = '░'
 
 def draw_circle(
     center_coord=(0, 0),
@@ -4414,9 +4415,7 @@ async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
                 color_tuple = brightness_vals[4]
-            if print_choice == "░":
-                print_choice = term.color(color_tuple[0])(color_tuple[1])
-            elif print_choice in ('▞', '𝄛'):
+            if print_choice in ('░', '▞', '𝄛'):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
