@@ -3817,7 +3817,7 @@ async def append_to_log(
 ):
     message_lines = textwrap.wrap(message, 40)
     #first, add just the empty strings to the log:
-    state_dict['same_count'] = 0 #help text won't interrupt
+    state_dict['same_count'] = 0 #clear counter help text won't interrupt
     if wipe:
         wipe_text = ' ' * len(message)
     for index_offset, line in enumerate(reversed(message_lines)):
