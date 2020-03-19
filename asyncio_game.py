@@ -930,8 +930,6 @@ def brightness_test(print_coord=(110, 32)):
 #Global state setup-------------------------------------------------------------
 term = Terminal()
 brightness_vals = read_brightness_preset_file()
-with term.location(80, 0):
-    print(brightness_vals, len(brightness_vals))
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -3335,7 +3333,7 @@ def is_number(number="0"):
         return False
 
 #Top level input----------------------------------------------------------------
-async def get_key(help_wait_count=100): 
+async def get_key(map_dict, help_wait_count=100): 
     """handles raw keyboard data, passes to handle_input if its interesting.
     Also, displays help tooltip if no input for a time."""
     debug_text = "key is: {}, same_count is: {}           "
@@ -3355,7 +3353,7 @@ async def get_key(help_wait_count=100):
                 if key is not None:
                     player_health = actor_dict["player"].health
                     if player_health > 0:
-                        await handle_input(key)
+                        await handle_input(map_dict, key)
             if old_key == key:
                 state_dict['same_count'] += 1
             else:
@@ -3372,7 +3370,35 @@ async def get_key(help_wait_count=100):
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
-async def handle_input(key):
+async def handle_movement(map_dict, key):
+    pass
+
+async def handle_exit(key):
+    middle_x, middle_y = (int(term.width / 2 - 2), 
+                          int(term.height / 2 - 2),)
+    quit_question_text = 'Really quit? (y/n)'
+    term_location = (
+        middle_x - int(len(quit_question_text)/2), middle_y - 16
+    )
+    with term.location(*term_location):
+        print(quit_question_text)
+    if key in 'yY':
+        state_dict['killall'] = True #trigger shutdown condition
+    elif key in 'nN': #exit menus
+        with term.location(*term_location):
+            print(' ' * len(quit_question_text))
+        state_dict['exiting'] = False
+
+def key_to_compass(key):
+    key_to_compass_char = {
+        'w':'n', 'a':'w', 's':'s', 'd':'e', 
+        'W':'n', 'A':'w', 'S':'s', 'D':'e', 
+        'i':'n', 'j':'w', 'k':'s', 'l':'e',
+        'I':'n', 'J':'w', 'K':'s', 'L':'e'
+    }
+    return key_to_compass_char[key]
+
+async def handle_input(map_dict, key):
     """
     interpret keycodes and do various actions.
     controls:
@@ -3386,12 +3412,6 @@ async def handle_input(key):
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
-    key_to_compass = {
-        'w':'n', 'a':'w', 's':'s', 'd':'e', 
-        'W':'n', 'A':'w', 'S':'s', 'D':'e', 
-        'i':'n', 'j':'w', 'k':'s', 'l':'e',
-        'I':'n', 'J':'w', 'K':'s', 'L':'e'
-    }
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
@@ -3403,20 +3423,7 @@ async def handle_input(key):
             state_dict['menu_choice'] = False
             state_dict['in_menu'] = False
     elif state_dict['exiting'] == True:
-        middle_x, middle_y = (int(term.width / 2 - 2), 
-                              int(term.height / 2 - 2),)
-        quit_question_text = 'Really quit? (y/n)'
-        term_location = (
-            middle_x - int(len(quit_question_text)/2), middle_y - 16
-        )
-        with term.location(*term_location):
-            print(quit_question_text)
-        if key in 'yY':
-            state_dict['killall'] = True #trigger shutdown condition
-        elif key in 'nN': #exit menus
-            with term.location(*term_location):
-                print(' ' * len(quit_question_text))
-            state_dict['exiting'] = False
+        await handle_exit(key)
     else:
         player_coords = actor_dict['player'].coords()
         if key in directions:
@@ -3424,7 +3431,7 @@ async def handle_input(key):
             if key in 'wasd': #try to push adjacent things given movement keys
                 if state_dict['player_busy'] == True:
                     return
-                push(pusher='player', direction=key_to_compass[key])
+                push(pusher='player', direction=key_to_compass(key))
                 walk_destination = add_coords(player_coords, directions[key])
                 if occupied(walk_destination):
                     x_shift, y_shift = directions[key]
@@ -3433,7 +3440,7 @@ async def handle_input(key):
             asyncio.ensure_future(
                 dash_ability(
                     dash_length=randint(2, 3),
-                    direction=key_to_compass[key], 
+                    direction=key_to_compass(key),
                     time_between_steps=.04
                 )
             )
@@ -3549,7 +3556,7 @@ async def handle_input(key):
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
         if key in "ijklIJKL": #change viewing direction
-            state_dict['facing'] = key_to_compass[key]
+            state_dict['facing'] = key_to_compass(key)
 
 async def examine_facing():
     direction = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -4206,7 +4213,6 @@ async def display_help():
             )
         )
 
-#async def tile_debug_info(x_print=50, y_print=0, offset_from_center=False):
 async def tile_debug_info(offset_coord=(50, 0), offset_from_center=False):
     middle_coord = get_term_middle()
     dummy_text = []
@@ -4332,7 +4338,7 @@ def get_term_middle():
     middle_x, middle_y = (int(term.width / 2 - 2), int(term.height / 2 - 2))
     return (middle_x, middle_y)
 
-async def view_tile(x_offset=1, y_offset=1, threshold=15, fov=140):
+async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
     """ handles displaying data from map_dict """
     #distance from offsets to center of field of view
     distance = sqrt(abs(x_offset)**2 + abs(y_offset)**2) 
@@ -4647,7 +4653,7 @@ async def timer(
     return
 
 async def view_tile_init(
-    loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
+    map_dict, loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
@@ -4656,7 +4662,7 @@ async def view_tile_init(
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
-               loop.create_task(view_tile(x_offset=x, y_offset=y))
+               loop.create_task(view_tile(map_dict, x_offset=x, y_offset=y))
     if debug:
         with term.location(50, 0):
             print("view_tile_count: {}".format(view_tile_count))
@@ -4946,25 +4952,25 @@ async def ui_setup():
     lays out UI elements to the screen at the start of the program.
     """
     loop = asyncio.get_event_loop()
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
-    loop.create_task(console_box())
-    health_title = "{} ".format(term.color(1)("♥"))
-    loop.create_task(tile_debug_info())
-    loop.create_task(
-        status_bar(
-            y_offset=18,
-            actor_name='player',
-            attribute='health',
-            title=health_title,
-            bar_color=1
-        )
-    )
-    loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
+    loop.create_task(console_box())
+    #loop.create_task(display_items_at_coord())
+    #loop.create_task(display_items_on_actor())
+    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    #loop.create_task(tile_debug_info())
+    #health_title = "{} ".format(term.color(1)("♥"))
+    #loop.create_task(
+        #status_bar(
+            #y_offset=18,
+            #actor_name='player',
+            #attribute='health',
+            #title=health_title,
+            #bar_color=1
+        #)
+    #)
+    #loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -6287,33 +6293,34 @@ def state_setup():
     state_dict['lock view'] = False
 
 def main():
+    #map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
     state_setup()
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
-    loop.create_task(get_key())
-    loop.create_task(view_tile_init(loop))
-    loop.create_task(minimap_init(loop))
+    loop.create_task(get_key(map_dict))
+    loop.create_task(view_tile_init(map_dict, loop))
+    loop.create_task(quitter_daemon())
+    #loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup()) #UI_SETUP 
-    loop.create_task(printing_testing())
-    loop.create_task(async_map_init())
+    #loop.create_task(printing_testing())
+    #loop.create_task(async_map_init())
     #TODO: fix follower vine to disappear after a set time:
     #loop.create_task(shrouded_horror(start_coord=(29, -25)))
-    loop.create_task(death_check())
-    loop.create_task(quitter_daemon())
-    loop.create_task(under_passage())
-    loop.create_task(
-        under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
-    )
-    loop.create_task(
-        under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
-    )
+    #loop.create_task(death_check())
+    #loop.create_task(under_passage())
+    #loop.create_task(
+        #under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
+    #)
+    #loop.create_task(
+        #under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
+    #)
     #loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(door_init(loop))
-    for i in range(1):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
+    #loop.create_task(door_init(loop))
+    #for i in range(1):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
