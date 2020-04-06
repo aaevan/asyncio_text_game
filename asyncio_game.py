@@ -1,4 +1,3 @@
-
 import asyncio
 import re
 import os
@@ -4808,6 +4807,12 @@ async def async_map_init():
     )
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
     loop.create_task(trap_init())
+    loop.create_task(
+        under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
+    )
+    loop.create_task(
+        under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
+    )
 
 async def trap_init():
     loop = asyncio.get_event_loop()
@@ -4945,7 +4950,7 @@ async def player_coord_readout(
             noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
             printed_coords = ''.join([choice(noise) for _ in range(7)])
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("❌ {}      ".format(printed_coords))
+            print("x:{} y:{}      ".format(*printed_coords))
 
 async def ui_setup():
     """
@@ -4955,22 +4960,22 @@ async def ui_setup():
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
     loop.create_task(console_box())
-    #loop.create_task(display_items_at_coord())
-    #loop.create_task(display_items_on_actor())
-    #loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    #loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
+    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
+    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     #loop.create_task(tile_debug_info())
-    #health_title = "{} ".format(term.color(1)("♥"))
-    #loop.create_task(
-        #status_bar(
-            #y_offset=18,
-            #actor_name='player',
-            #attribute='health',
-            #title=health_title,
-            #bar_color=1
-        #)
-    #)
-    #loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
+    health_title = "{} ".format(term.color(1)("♥"))
+    loop.create_task(
+        status_bar(
+            y_offset=18,
+            actor_name='player',
+            attribute='health',
+            title=health_title,
+            bar_color=1
+        )
+    )
+    loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
@@ -6293,7 +6298,6 @@ def state_setup():
     state_dict['lock view'] = False
 
 def main():
-    #map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
     state_setup()
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) 
@@ -6301,26 +6305,20 @@ def main():
     loop.create_task(get_key(map_dict))
     loop.create_task(view_tile_init(map_dict, loop))
     loop.create_task(quitter_daemon())
-    #loop.create_task(minimap_init(loop))
+    loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup()) #UI_SETUP 
     #loop.create_task(printing_testing())
-    #loop.create_task(async_map_init())
+    loop.create_task(async_map_init())
     #TODO: fix follower vine to disappear after a set time:
     #loop.create_task(shrouded_horror(start_coord=(29, -25)))
-    #loop.create_task(death_check())
-    #loop.create_task(under_passage())
-    #loop.create_task(
-        #under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
-    #)
-    #loop.create_task(
-        #under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
-    #)
+    loop.create_task(death_check())
+    loop.create_task(under_passage())
     #loop.create_task(display_current_tile()) #debug for map generation
-    #loop.create_task(door_init(loop))
-    #for i in range(1):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    #loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
+    loop.create_task(door_init(loop))
+    for i in range(1):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
