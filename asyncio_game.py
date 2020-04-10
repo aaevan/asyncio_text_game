@@ -6,7 +6,6 @@ import select
 import tty 
 import termios
 import textwrap
-from ast import literal_eval
 from numpy import linspace
 from blessed import Terminal
 from copy import copy
@@ -908,9 +907,6 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
 
 def read_brightness_preset_file(filename='brightness_preset.txt'):
     output = [(i, '█') for i in range(0xe8, 0xff)][::-1]
-    #with open('brightness_preset.txt', 'r') as file:
-        #for line in file:
-            #output = literal_eval(line) #assumes a one-line file
     return output
 
 def brightness_test(print_coord=(110, 32)):
