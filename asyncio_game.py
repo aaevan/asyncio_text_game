@@ -126,10 +126,11 @@ class Actor:
         self.blocking = blocking
         self.description = description
 
-    def update(self, coord=(0, 0)):
+    def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
         #make previous space passable:
-        map_dict[self.last_location].passable = True 
+        if make_passable:
+            map_dict[self.last_location].passable = True 
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
@@ -3466,9 +3467,7 @@ async def handle_input(map_dict, key):
         if key in '#':
             brightness_test()
         if key in '(':
-            #spawn_coord = add_coords(player_coords, (2, 2))
             spawn_coord = player_coords
-            #asyncio.ensure_future(spawn_mte(spawn_coord=spawn_coord))
             vine_name = "testing"
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
         if key in '9': #creates a passage in a random direction from the player
@@ -4782,6 +4781,7 @@ async def async_map_init():
         ((-15, -2), 'looking glass'), 
         ((-2, -2), 'green key'),
     )
+    spawn_item_at_coords(coord=(0, 0), instance_of='scanner', on_actor_id='player')
     for coord, item_name in items:
         spawn_item_at_coords(
             coord=coord, instance_of=item_name, on_actor_id=False
@@ -5353,8 +5353,6 @@ async def basic_actor(
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(coord=next_coords)
 
-#reviewed to here!
-
 def distance_to_actor(actor_a=None, actor_b='player'):
     if actor_a is None:
         return 0
@@ -5430,7 +5428,7 @@ async def follower_vine(
     base_name='mte_vine',
     root_node_key=None,
     facing_dir='e',
-    update_period=.1,
+    update_period=.2,
     color_choice=None
 ):
     """
@@ -5476,7 +5474,6 @@ async def follower_vine(
         )
     mte_dict[vine_name].vine_instructions = "M" * num_segments
     mte_dict[vine_name].vine_facing_dir = facing_dir
-    dir_increment = {'L':-1, 'M':0, 'R':1}
     direction_offsets = {
         'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
     }
@@ -5505,6 +5502,7 @@ async def follower_vine(
         next_offset = direction_offsets[write_dir]
         write_coord = add_coords(next_offset, current_coord)
         instructions = mte_dict[vine_name].vine_instructions
+        dir_increment = {'L':-1, 'M':0, 'R':1}
         for turn_instruction in instructions:
             prev_dir = write_dir
             write_dir = num_to_facing_dir(
@@ -5516,7 +5514,7 @@ async def follower_vine(
             write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
         member_names = mte_dict[vine_name].member_names
         for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
-            actor_dict[segment_name].update(coord=write_coord)
+            actor_dict[segment_name].update(coord=write_coord, make_passable=False)
             actor_dict[segment_name].tile = segment_tile
             actor_dict[segment_name].tile_color = color_choice
 
