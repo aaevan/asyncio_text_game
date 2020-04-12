@@ -4773,15 +4773,15 @@ async def async_map_init():
     items = (
         ((-3, 0), 'wand'), 
         ((-3, -3), 'red key'), 
-        ((7, 7), 'scanner'), 
         ((8, 4), 'red potion'), 
         ((47, -31), 'red sword'), 
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, -2), 'looking glass'), 
         ((-2, -2), 'green key'),
+        ((20, 0), 'scanner'),
     )
-    spawn_item_at_coords(coord=(0, 0), instance_of='scanner', on_actor_id='player')
+    #spawn_item_at_coords(coord=(0, 0), instance_of='scanner', on_actor_id='player') #TODO: fix spawn on actor
     for coord, item_name in items:
         spawn_item_at_coords(
             coord=coord, instance_of=item_name, on_actor_id=False
