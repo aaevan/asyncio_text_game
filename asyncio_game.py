@@ -830,10 +830,18 @@ class Multi_tile_entity:
         del mte_dict[self.name]
         return
 
-async def spawn_mte(base_name='mte', spawn_coord=(0, 0), preset='3x3_block'):
+async def spawn_mte(
+    base_name='mte', 
+    spawn_coord=(0, 0), 
+    preset='3x3_block',
+    blocking=True
+):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = Multi_tile_entity(
-        name=mte_id, anchor_coord=spawn_coord, preset=preset
+        name=mte_id,
+        anchor_coord=spawn_coord,
+        preset=preset,
+        blocking=blocking
     )
     return mte_id
 
@@ -3496,7 +3504,7 @@ async def handle_input(map_dict, key):
         if key in 'M':
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(
-                spawn_coord=spawn_coords, preset='test_block'
+                spawn_coord=spawn_coords, preset='2x2_block'
             )
         if key in 'y':
             destination = (-32, 20)
@@ -4758,6 +4766,14 @@ async def async_map_init():
         describe_tile=False,
         distance_trigger=0
     )
+    #spawn multi-tile entities-----------------------------
+    mte_spawns = (((17, 1), '2x2_block'), ((11, 0), '2x2_block'))
+    for (coord, preset) in mte_spawns:
+        asyncio.ensure_future(
+            spawn_mte(
+                spawn_coord=coord, preset=preset
+            )
+        )
     #features drawing--------------------------------------
     containers = [
         (3, -2),
@@ -4781,7 +4797,6 @@ async def async_map_init():
         ((-2, -2), 'green key'),
         ((20, 0), 'scanner'),
     )
-    #spawn_item_at_coords(coord=(0, 0), instance_of='scanner', on_actor_id='player') #TODO: fix spawn on actor
     for coord, item_name in items:
         spawn_item_at_coords(
             coord=coord, instance_of=item_name, on_actor_id=False
@@ -4857,11 +4872,9 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
     player_coords = actor_dict['player'].coords()
     if state_dict['plane'] == 'normal':
-        #add the offset to the current player coordinates:
         offset_coords = add_coords(player_coords, (x_offset, y_offset))
         destination, plane = offset_coords, plane_name
     elif state_dict['plane'] == plane_name:
-        #subtract the offset from the current player coordinates:
         destination = add_coords(player_coords, (-x_offset, -y_offset))
         plane = 'normal'
     else:
@@ -6230,32 +6243,6 @@ async def quitter_daemon():
 
 async def door_init(loop):
     loop.create_task(
-        bay_door(
-            hinge_coord=(-3, 1),
-            orientation='e',
-            patch_to_key='test',
-            preset='secret'
-        )
-    )
-    loop.create_task(
-        bay_door(
-            hinge_coord=(8, 1),
-            orientation='w',
-            patch_to_key='test',
-            preset='secret'
-        )
-    )
-    loop.create_task(
-        bay_door_pair(
-            (-7, 3),
-            (-2, 3),
-            patch_to_key='bay_door_pair_1',
-            preset='thin',
-            pressure_plate_coord=(-5, 0),
-            message_preset='ksh'
-        )
-    )
-    loop.create_task(
         bay_door_pair(
             (2, -15),
             (6, -15),
@@ -6275,7 +6262,6 @@ async def door_init(loop):
             message_preset='ksh'
         )
     )
-    loop.create_task(pressure_plate(spawn_coord=(-3, 3), patch_to_key='test'))
 
 def state_setup():
     state_dict['just teleported'] = False
