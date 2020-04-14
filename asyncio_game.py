@@ -4252,7 +4252,15 @@ async def check_line_of_sight(coord_a, coord_b):
     x_diff = abs(coord_a[0] - coord_b[0])
     y_diff = abs(coord_a[1] - coord_b[1])
     block_tally = []
+    found_mte = False
     for index, point in enumerate(points):
+        if map_dict[point].actors:
+            for key in map_dict[point].actors:
+                if 'mte' in key:
+                    if not found_mte:
+                        found_mte = True
+                    else:
+                        return False
         if map_dict[point].blocking:
             block_tally.append(1)
         else:
@@ -4292,9 +4300,6 @@ async def check_line_of_sight(coord_a, coord_b):
         elif y_diff == 1:
             if await check_line_of_sight(coord_a, (coord_b[0], coord_a[1])):
                 return True
-    #elif blocks < 5 and (x_diff == 2 or y_diff == 2):
-        #if await check_line_of_sight(coord_a, points[-2]):
-            #return True
     else:
         return False
 
