@@ -4415,6 +4415,11 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             else:
                 color_choice = 0xeb
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+            if map_dict[x_display_coord, y_display_coord].actors:
+                for key in map_dict[x_display_coord, y_display_coord].actors.keys():
+                    if 'mte' in key:
+                        remembered_tile = term.color(color_choice)(actor_dict[key].tile)
+                        break
             print_choice = term.color(color_choice)(remembered_tile)
         else:
             #catches tiles that are not within current FOV
