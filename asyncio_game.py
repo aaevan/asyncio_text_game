@@ -3474,6 +3474,10 @@ async def handle_input(map_dict, key):
             print_debug_grid() 
         if key in '#':
             brightness_test()
+            for i in range(255):
+                with term.location(i, 0):
+                    print(term.on_color_rgb(0, i, 0)(" "))
+
         if key in '(':
             spawn_coord = player_coords
             vine_name = "testing"
@@ -4418,9 +4422,10 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
                     if 'mte' in key:
-                        remembered_tile = term.color(color_choice)(actor_dict[key].tile)
+                        raw_tile = term.strip_seqs(actor_dict[str(key)].tile)
+                        remembered_tile = term.color(color_choice)(raw_tile)
                         break
-            print_choice = term.color(color_choice)(remembered_tile)
+            print_choice = term.color(color_choice)(str(remembered_tile))
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
