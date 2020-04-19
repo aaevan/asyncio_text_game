@@ -914,10 +914,6 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         actor_dict[segment].blocking = False
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
-def read_brightness_preset_file(filename='brightness_preset.txt'):
-    output = [(i, '█') for i in range(0xe8, 0xff)][::-1]
-    return output
-
 def brightness_test(print_coord=(110, 32)):
     term_width, term_height = term.width, term.height
     print_coord = (term.width - 3 * 17) + 2, (term.height - 18)
@@ -930,10 +926,9 @@ def brightness_test(print_coord=(110, 32)):
                 print(''.join(output))
             output = []
 
-
 #Global state setup-------------------------------------------------------------
 term = Terminal()
-brightness_vals = read_brightness_preset_file()
+brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
