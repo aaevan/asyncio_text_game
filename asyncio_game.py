@@ -4420,6 +4420,12 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                         raw_tile = term.strip_seqs(actor_dict[str(key)].tile)
                         remembered_tile = term.color(color_choice)(raw_tile)
                         break
+            if map_dict[x_display_coord, y_display_coord].items:
+                for item_id in map_dict[x_display_coord, y_display_coord].items:
+                    with term.location(65, randint(0, 10)):
+                        raw_tile = term.strip(item_dict[item_id].tile)
+                        remembered_tile = term.color(color_choice)(raw_tile)
+                        break
             print_choice = term.color(color_choice)(str(remembered_tile))
         else:
             #catches tiles that are not within current FOV
