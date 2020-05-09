@@ -3028,7 +3028,7 @@ def draw_door(
     door_colors = {
         'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-        'iron':7, 'secret':7
+        'iron':7, 'secret':0xeb
     }
     if description == 'secret':
         states = [('𝄛', False, True), ('▯', True, False)]
@@ -3592,7 +3592,7 @@ async def toggle_door(door_coord):
     open_doors.append('▯')
     closed_doors = [term.color(i)('▮') for i in range(10)]
     closed_doors.append('▮')
-    secret_tile = term.color(7)('𝄛')
+    secret_tile = term.color(0xeb)('𝄛')
     closed_doors.append(secret_tile)
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key_type
