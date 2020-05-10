@@ -2287,7 +2287,7 @@ async def pressure_plate(
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=.5, 
-    tile_color=7,
+    tile_color=0xeb,
     test_rate=.1,
     display_timer=False,
     positives=None,
