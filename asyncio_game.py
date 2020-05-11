@@ -3538,12 +3538,6 @@ async def handle_input(map_dict, key):
             write_room_to_map(room=test_room, top_left_coord=player_coords)
         if key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(rand_blink())
-        if key in '1': #draw a passage on the map back to (0, 0).
-            n_wide_passage(
-                coord_a=(actor_dict['player'].coords()),
-                coord_b=(0, 0),
-                preset='floor', width=5
-            )
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if (
             map_dict[(shifted_x, shifted_y)].passable and 
@@ -3784,22 +3778,25 @@ async def choose_item(
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(number))
-    menu_choices = [str(hex(1))[-1] for i in range(16)]
+    menu_choices = [str(hex(i))[-1] for i in range(16)]
     while state_dict['in_menu']:
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str:
-            #TODO: fix limited slots in inventory choices
             if menu_choice not in menu_choices:
-                return None
+                #return None
+                return_val = None
                 menu_choice = int(menu_choice)
+                break
         if menu_choice in menu_choices:
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-            return item_id_choices[int(menu_choice, 16)]
+            #return item_id_choices[int(menu_choice, 16)]
+            return_val = item_id_choices[int(menu_choice, 16)]
     clear_screen_region(
         x_size=2, y_size=len(item_id_choices), screen_coord=(x_pos, y_pos)
     )
+    return return_val
 
 async def console_box(
     width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05
@@ -3924,7 +3921,7 @@ async def use_item_in_slot(slot='q'):
             #as given for each item.
             await append_to_log(message='Nothing happens.')
 
-async def item_choices(coords=None, x_pos=0, y_pos=25):
+async def item_choices(coords=None, x_pos=0, y_pos=13):
     """
     -item choices should appear next to the relevant part of the screen.
     -a series of numbers and colons to indicate the relevant choices
@@ -3938,11 +3935,14 @@ async def item_choices(coords=None, x_pos=0, y_pos=25):
         if len(item_list) <= 1:
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
+            with term.location(50, 3):
+                print("broke out at 3940 with single item")
             return
         id_choice = await choose_item(
             item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos
         )
-        await get_item(coords=coords, item_id=id_choice)
+        if id_choice:
+            await get_item(coords=coords, item_id=id_choice)
 
 async def get_item(
     coords=(0, 0), item_id=None, target_actor='player', source='ground'
@@ -4810,8 +4810,11 @@ async def async_map_init():
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, -2), 'looking glass'), 
-        ((-2, -2), 'green key'),
         ((20, 0), 'scanner'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'dynamite'),
+        ((20, 1), 'green key'),
+        ((20, -1), 'looking glass'), 
     )
     for coord, item_name in items:
         spawn_item_at_coords(
