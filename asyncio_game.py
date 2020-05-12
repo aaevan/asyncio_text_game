@@ -3777,21 +3777,18 @@ async def choose_item(
     clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
-            print("{}:".format(number))
+            print("{}:".format(str(hex(number))[-1]))
     menu_choices = [str(hex(i))[-1] for i in range(16)]
+    return_val = None
     while state_dict['in_menu']:
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
-        if type(menu_choice) == str:
-            if menu_choice not in menu_choices:
-                #return None
-                return_val = None
-                menu_choice = int(menu_choice)
-                break
+        if type(menu_choice) == str and menu_choice not in menu_choices:
+            menu_choice = int(menu_choice)
+            break
         if menu_choice in menu_choices:
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
-            #return item_id_choices[int(menu_choice, 16)]
             return_val = item_id_choices[int(menu_choice, 16)]
     clear_screen_region(
         x_size=2, y_size=len(item_id_choices), screen_coord=(x_pos, y_pos)
@@ -3935,8 +3932,6 @@ async def item_choices(coords=None, x_pos=0, y_pos=13):
         if len(item_list) <= 1:
             state_dict['in_menu'] = False
             await get_item(coords=coords, item_id=item_list[0])
-            with term.location(50, 3):
-                print("broke out at 3940 with single item")
             return
         id_choice = await choose_item(
             item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos
@@ -3950,6 +3945,11 @@ async def get_item(
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
+    with term.location(55, 0):
+        print(len(actor_dict['player'].holding_items))
+    if len(actor_dict['player'].holding_items) >= 16:
+        await append_to_log("You can't carry any more!")
+        return False
     template_text = "You take the {} from the {}."
     pickup_text = template_text.format(item_dict[item_id].name, source)
     del map_dict[coords].items[item_id]
@@ -4811,6 +4811,19 @@ async def async_map_init():
         ((-11, -20), 'hop amulet'), 
         ((-15, -2), 'looking glass'), 
         ((20, 0), 'scanner'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
+        ((20, 0), 'nut'),
         ((20, 0), 'nut'),
         ((20, 0), 'dynamite'),
         ((20, 1), 'green key'),
