@@ -3939,14 +3939,10 @@ async def item_choices(coords=None, x_pos=0, y_pos=13):
         if id_choice:
             await get_item(coords=coords, item_id=id_choice)
 
-async def get_item(
-    coords=(0, 0), item_id=None, target_actor='player', source='ground'
-):
+async def get_item(coords=(0, 0), item_id=None, source='ground'):
     """
     Transfers an item from a map tile to the holding_items dict of an actor.
     """
-    with term.location(55, 0):
-        print(len(actor_dict['player'].holding_items))
     if len(actor_dict['player'].holding_items) >= 16:
         await append_to_log("You can't carry any more!")
         return False
