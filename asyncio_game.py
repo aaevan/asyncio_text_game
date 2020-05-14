@@ -5096,7 +5096,9 @@ async def attack(
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
-async def seek_actor(name_key=None, seek_key='player', repel=False):
+async def seek_actor(
+    name_key=None, seek_key='player', repel=False, seek_corner=True,
+):
     """ Standardize format to pass movement function.  """
     if not repel:
         polarity = 1
