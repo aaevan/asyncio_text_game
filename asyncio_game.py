@@ -5096,9 +5096,7 @@ async def attack(
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
-async def seek_actor(
-    name_key=None, seek_key='player', repel=False, seek_corner=True,
-):
+async def seek_actor( name_key=None, seek_key='player', repel=False, ):
     """ Standardize format to pass movement function.  """
     if not repel:
         polarity = 1
@@ -5113,19 +5111,50 @@ async def seek_actor(
     player_x_diff, player_y_diff = (x_current - player_x), (y_current - player_y)
     if is_hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
         await attack(attacker_key=name_key, defender_key="player")
+        return (x_current, y_current)
     if diff_x > 0:
-        next_x = x_current + (polarity * -1)
+        next_x_offset = x_current + (polarity * -1)
     elif diff_x < 0:
-        next_x = x_current + (polarity * 1)
+        next_x_offset = x_current + (polarity * 1)
     if diff_y > 0: 
-        next_y = y_current + (polarity * -1)
+        next_y_offset = y_current + (polarity * -1)
     elif diff_y < 0:
-        next_y = y_current + (polarity * 1)
-    coord_tuple = next_x, next_y
-    if map_dict[coord_tuple].passable and len(map_dict[coord_tuple].actors) == 0:
+        next_y_offset = y_current + (polarity * 1)
+    next_offset = (next_x_offset, next_y_offset)
+    travel_dir = offset_to_dir(next_offset)
+    next_coord = add_coords((x_current, y_current), next_offset)
+    if map_dict[next_coord].passable and len(map_dict[next_coord].actors) == 0:
         return (next_x, next_y)
     else:
+        #TODO: manage passable corner/adjacent spaces for simple pathing
+        #      so actors don't get stuck on "diagonal" stairstep walls.
         return (x_current, y_current)
+
+def offset_to_dir(offset):
+    dir_of_travel = {
+        (0, -1): 'n',
+        (1, 0): 'e',
+        (0, 1): 's',
+        (-1, 0): 'w',
+        (1, 1): 'ne',
+        (1, 1): 'se',
+        (-1, 1): 'sw',
+        (-1, -1): 'nw',
+    }
+    return dir_of_travel[offset]
+
+def dir_to_offset(dir_string):
+    dirs_to_offsets = {
+        'n' : ( 0, -1),
+        'e' : ( 1,  0),
+        's':  ( 0,  1),
+        'w':  (-1,  0),
+        'ne': ( 1,  1),
+        'se': ( 1,  1),
+        'sw': (-1,  1),
+        'nw': (-1, -1),
+    }
+    return dirs_to_offsets[dir_string]
 
 async def wait(name_key=None, **kwargs):
     """
