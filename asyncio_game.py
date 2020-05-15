@@ -5096,42 +5096,37 @@ async def attack(
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
 
-async def seek_actor( name_key=None, seek_key='player', repel=False, ):
-    """ Standardize format to pass movement function.  """
-    if not repel:
-        polarity = 1
-    else:
-        polarity = -1
-    x_current, y_current = actor_dict[name_key].coords()
-    target_x, target_y = actor_dict[seek_key].coords()
-    next_x, next_y = x_current, y_current
-    diff_x, diff_y = (x_current - target_x), (y_current - target_y)
+async def seek_actor(name_key=None, seek_key='player', repel=False):
+    current_coord = actor_dict[name_key].coords()
+    target_coord = actor_dict[seek_key].coords()
     is_hurtful = actor_dict[name_key].hurtful
-    player_x, player_y = actor_dict["player"].coords()
-    player_x_diff, player_y_diff = (x_current - player_x), (y_current - player_y)
-    next_x_offset, next_y_offset = 0, 0
-    if is_hurtful and abs(player_x_diff) <= 1 and abs(player_y_diff) <= 1:
-        await attack(attacker_key=name_key, defender_key="player")
-        #return (x_current, y_current)
-    if diff_x > 0:
-        next_x_offset = (polarity * -1)
-    elif diff_x < 0:
-        next_x_offset = (polarity * 1)
-    if diff_y > 0: 
-        next_y_offset = (polarity * -1)
-    elif diff_y < 0:
-        next_y_offset = (polarity * 1)
-    next_offset = (next_x_offset, next_y_offset)
-    #travel_dir = offset_to_dir(next_offset)
-    next_coord = add_coords((x_current, y_current), next_offset)
-    with term.location(105, 3 + randint(0, 3)):
-        print("OFFSET:", next_offset, "NEXT_COORD:", next_coord, round(random(), 3))
-    if map_dict[next_coord].passable and len(map_dict[next_coord].actors) == 0:
-        return (next_x, next_y)
+    current_distance = point_to_point_distance(current_coord, target_coord)
+    if is_hurtful and current_distance <= 1:
+        await attack(attacker_key=name_key, defender_key=seek_key)
+    eight_offsets = [
+        dir_to_offset(offset) for offset in ('n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw')
+    ]
+    eight_adjacencies = [
+        add_coords(current_coord, offset) for offset in eight_offsets
+    ]
+    open_spaces = list(filter(
+        lambda coord: map_dict[coord].passable == True,
+        eight_adjacencies
+    ))
+    distances = [
+        point_to_point_distance(coord, target_coord) for coord in open_spaces
+    ]
+    if repel:
+        with term.location(105, 4):
+            print("REPEL!")
+        output_index = distances.index(max(distances))
     else:
-        #TODO: manage passable corner/adjacent spaces for simple pathing
-        #      so actors don't get stuck on "diagonal" stairstep walls.
-        return (x_current, y_current)
+        with term.location(105, 4):
+            print("ATTRACT!")
+        output_index = distances.index(min(distances))
+    with term.location(105, 3):
+        print("return_val: ", open_spaces[output_index])
+    return open_spaces[output_index]
 
 def offset_to_dir(offset):
     dir_of_travel = {
@@ -5435,25 +5430,6 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     b_coord = actor_dict[actor_b].coords()
     return point_to_point_distance(a_coord, b_coord)
 
-async def actor_turret(track_to_actor=None, fire_rate=.05, reach=15, damage=5):
-    if track_to_actor == None:
-        return
-    while True:
-        await asyncio.sleep(fire_rate)
-        actor_health = actor_dict[track_to_actor].health
-        if actor_health <= 0:
-            break
-        distance_to_player = distance_to_actor(track_to_actor, 'player')
-        if distance_to_player <= reach:
-            firing_angle = angle_actor_to_actor(track_to_actor, 'player') - 90
-            asyncio.ensure_future(fire_projectile(
-                actor_key=track_to_actor, 
-                firing_angle=firing_angle,
-                degree_spread=(-5, 5),
-                animation_preset='bullet',
-                damage=damage,
-            ))
-        
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
     actor_coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
@@ -6229,11 +6205,6 @@ async def spawn_preset_actor(
                 holding_items=item_drops
             )
         )
-        loop.create_task(
-            actor_turret(
-                track_to_actor=name, fire_rate=.5, reach=10, damage=5
-            )
-        )
     else:
         pass
 
@@ -6360,7 +6331,6 @@ def main():
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    loop.create_task(spawn_preset_actor(coords=(8, -32), preset='test'))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
