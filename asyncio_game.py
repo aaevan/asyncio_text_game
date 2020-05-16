@@ -5104,7 +5104,9 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
     if is_hurtful and current_distance <= 1:
         await attack(attacker_key=name_key, defender_key=seek_key)
     eight_offsets = [
-        dir_to_offset(offset) for offset in ('n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw')
+        dir_to_offset(offset) for offset in (
+            'n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'
+        )
     ]
     eight_adjacencies = [
         add_coords(current_coord, offset) for offset in eight_offsets
@@ -5117,15 +5119,9 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
         point_to_point_distance(coord, target_coord) for coord in open_spaces
     ]
     if repel:
-        with term.location(105, 4):
-            print("REPEL!")
         output_index = distances.index(max(distances))
     else:
-        with term.location(105, 4):
-            print("ATTRACT!")
         output_index = distances.index(min(distances))
-    with term.location(105, 3):
-        print("return_val: ", open_spaces[output_index])
     return open_spaces[output_index]
 
 def offset_to_dir(offset):
