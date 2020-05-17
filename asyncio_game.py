@@ -3415,8 +3415,8 @@ async def handle_input(map_dict, key):
     fov = 120
     dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     if state_dict['in_menu'] == True:
-        if is_number(key):
-            if int(key) in state_dict['menu_choices']:
+        if key in '0123456789abcdef':
+            if int("0x" + key, 16) in state_dict['menu_choices']:
                 state_dict['menu_choice'] = key
         else:
             state_dict['menu_choice'] = False
