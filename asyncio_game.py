@@ -5111,6 +5111,8 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
     distances = [
         point_to_point_distance(coord, target_coord) for coord in open_spaces
     ]
+    if distances == []:
+        return current_coord
     if repel:
         output_index = distances.index(max(distances))
     else:
@@ -5189,7 +5191,6 @@ async def angel_seek(name_key=None, seek_key='player'):
         )
     return movement_choice
 
-#TODO: an invisible attribute for actors
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     """
     The actor leaves a trail of tiles that are forgotten from the player's 
@@ -5199,11 +5200,6 @@ def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     for _ in range(forget_count):
         rand_point = point_within_circle(radius=radius, center=actor_location)
         map_dict[rand_point].seen = False
-
-async def damage_door():
-    """ allows actors to break down doors"""
-    #TODO
-    pass
 
 #misc utility functions---------------------------------------------------------
 def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
@@ -6115,7 +6111,6 @@ async def death_check():
                     pause_stay_on=99, output_text=death_message
                 )
             )
-            #state_dict['halt_input'] = True
             await asyncio.sleep(3)
             state_dict['killall'] = True
 
@@ -6308,7 +6303,7 @@ def main():
     loop.create_task(view_tile_init(map_dict, loop))
     loop.create_task(quitter_daemon())
     loop.create_task(minimap_init(loop))
-    loop.create_task(ui_setup()) #UI_SETUP 
+    loop.create_task(ui_setup())
     #loop.create_task(printing_testing())
     loop.create_task(async_map_init())
     #TODO: fix follower vine to disappear after a set time:
@@ -6317,7 +6312,7 @@ def main():
     loop.create_task(under_passage())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
-    for i in range(1):
+    for i in range(10):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     asyncio.set_event_loop(loop)
