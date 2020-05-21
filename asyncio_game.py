@@ -3262,6 +3262,10 @@ def map_init():
         'n': Room((0, -20), 1,),
         'o': Room((-10, -20), (3, 3)),
         'p': Room((30, 0), (3, 3)),
+        'q': Room((21, 0), (3, 3)),
+        'r': Room((21, 18), (7, 7)),
+        's': Room((7, 18), (17, 5)),
+        't': Room((35, 18), (17, 5)),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -3275,6 +3279,9 @@ def map_init():
         ('k', 'm', 2, 'grass', 'jagged'),
         ('n', 'o', 1, None, None),
         ('a', 'p', 2, None, None),
+        ('q', 'r', 1, None, None),
+        ('r', 's', 1, None, None),
+        ('r', 't', 1, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
