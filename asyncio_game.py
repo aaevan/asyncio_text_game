@@ -17,11 +17,7 @@ from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 from time import sleep
 
-#TODO change all instances of map_dict, actor_dict, state_dict to be passed
-#     by reference instead of as globals
-
 #Class definitions--------------------------------------------------------------
-
 class Map_tile:
     """ 
     Holds the appearance, contents and state of each tile. 
@@ -29,25 +25,25 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        tile='𝄛',                           #displayed as if not an animation
+        tile='𝄛',                           #static representation of tile
         blocking=True,                      #line of sight is occluded
         description='A rough stone wall.',  #description when examined
-        announcing=False,                   #used by announce_at_
-        seen=False,
-        announcement='', 
-        distance_trigger=None, 
-        is_animated=False,
-        animation='', 
-        actors=None, 
-        items=None, 
+        announcing=False,                   #used by announcement_at_coord
+        seen=False,                         #True: displays in grey outside FOV
+        announcement='',                    #a one-time message tied to a tile
+        distance_trigger=None,              #distance at which annoucement runs
+        is_animated=False,                  #decides whether a tile is animated
+        animation='',                       #which animation preset that runs
+        actors=None,                        #a dict of the actors present 
+        items=None,                         #a dict of the items present
         magic=False,                        #used by magic_door
         magic_destination=False,            #the destination of any magic door
-        mutable=True, 
+        mutable=True,                       #whether the tile can be changed
         override_view=False,                #show up when hidden or not in FOV
         color_num=8,                        #color to display character
-        is_door=False,                      
-        locked=False,
-        key_type=''
+        is_door=False,                      #if true, can be toggled
+        locked=False,                       #lock state of door
+        key_type=''                         #key required for entry
     ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
