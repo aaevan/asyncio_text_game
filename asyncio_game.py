@@ -182,11 +182,13 @@ class Room:
                 y_size=self.dimensions[1], 
                 preset=self.floor_preset
             )
-    def connect_to_room(self, 
+    def connect_to_room(
+            self, 
             room_coord=(100, 100), 
             passage_width=2, 
             fade_to_preset=None, 
-            style=None):
+            style=None
+        ):
         #connects on center with another coord
         if room_coord is not None:
             if style is None:
