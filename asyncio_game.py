@@ -161,9 +161,6 @@ class Room:
         self.dimensions = dimensions
         self.floor_preset = floor_preset
         self.inner_radius = inner_radius
-        # a way of representing which floor the room lives on?
-        # each floor has a unique offset that is large enough for floors to not
-        # bump into one another.
 
     def draw_room(self):
         """
