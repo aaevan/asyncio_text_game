@@ -314,8 +314,8 @@ class Animation:
         }
         if preset:
             preset_kwargs = presets[preset]
-            #calls init again using kwargs, but with preset set to None to 
-            #avoid infinite recursion.
+            #calls init again using kwargs, but with preset set to None
+            #to avoid infinite recursion.
             self.__init__(**preset_kwargs, preset=None)
         else:
             self.frame_number = 0
@@ -1578,23 +1578,6 @@ async def toggle_scanner_state(batt_use=1):
         state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0
     ):
         await asyncio.sleep(1)
-        state_dict['battery'] -= batt_use
-
-async def use_battery():
-    """
-    When used, if the battery is not topped off, refill the player's battery.
-
-    The battery then disappears.
-
-    TODO: create a battery item that can be used by the player.
-    """
-    if state_dict['battery'] == 100:
-        await append_to_log(message='The battery is already full!')
-    elif state_dict['battery'] < 100:
-        if state_dict['battery'] + batt_val < 100:
-            state_dict['battery'] = (state_dict['battery'] + batt_val)
-        else:
-            state_dict['battery'] = 100
 
 async def throw_item(
     thrown_item_id=False,
@@ -6293,7 +6276,6 @@ def state_setup():
     state_dict['teleporting'] = False
     state_dict['view_tile_count'] = 0
     state_dict['scanner_state'] = False
-    state_dict['battery'] = 100
     state_dict['lock view'] = False
 
 def main():
