@@ -1593,6 +1593,9 @@ async def throw_item(
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     if direction is None:
         direction_tuple = directions[state_dict['facing']]
+        full_dir_name = short_direction_name_to_full(state_dict['facing'])
+    else:
+        full_dir_name = short_direction_name_to_full(direction)
     if not thrown_item_id:
         thrown_item_id = await choose_item()
     if thrown_item_id == None:
@@ -1623,13 +1626,18 @@ async def throw_item(
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = 'throwing {} {}.'.format(item_dict[thrown_item_id].name)
+    throw_text = 'You throw the {} to the {}.'.format(
+        item_dict[thrown_item_id].name,
+        full_dir_name
+    )
+    with term.location(105, 0):
+        print(throw_text)
     await append_to_log(message=throw_text)
     await travel_along_line(
         name='thrown_item_id',
         start_coord=starting_point, 
         end_coords=destination,
-        speed=.05,
+        speed=.1,
         tile=item_tile, 
         animation=None,
         debris=None
@@ -3375,6 +3383,10 @@ def key_to_compass(key):
     }
     return key_to_compass_char[key]
 
+def short_direction_name_to_full(short_direction_name):
+    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
+    return dir_to_name[short_direction_name]
+
 async def handle_input(map_dict, key):
     """
     interpret keycodes and do various actions.
@@ -3391,7 +3403,6 @@ async def handle_input(map_dict, key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
-    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     if state_dict['in_menu'] == True:
         if key in '0123456789abcdef':
             if int("0x" + key, 16) in state_dict['menu_choices']:
