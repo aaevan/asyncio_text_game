@@ -1578,6 +1578,23 @@ async def toggle_scanner_state(batt_use=1):
         state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0
     ):
         await asyncio.sleep(1)
+        state_dict['battery'] -= batt_use
+
+async def use_battery():
+    """
+    When used, if the battery is not topped off, refill the player's battery.
+
+    The battery then disappears.
+
+    TODO: create a battery item that can be used by the player.
+    """
+    if state_dict['battery'] == 100:
+        await append_to_log(message='The battery is already full!')
+    elif state_dict['battery'] < 100:
+        if state_dict['battery'] + batt_val < 100:
+            state_dict['battery'] = (state_dict['battery'] + batt_val)
+        else:
+            state_dict['battery'] = 100
 
 async def throw_item(
     thrown_item_id=False,
@@ -1593,9 +1610,6 @@ async def throw_item(
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     if direction is None:
         direction_tuple = directions[state_dict['facing']]
-        full_dir_name = short_direction_name_to_full(state_dict['facing'])
-    else:
-        full_dir_name = short_direction_name_to_full(direction)
     if not thrown_item_id:
         thrown_item_id = await choose_item()
     if thrown_item_id == None:
@@ -1626,18 +1640,13 @@ async def throw_item(
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = 'You throw the {} to the {}.'.format(
-        item_dict[thrown_item_id].name,
-        full_dir_name
-    )
-    with term.location(105, 0):
-        print(throw_text)
+    throw_text = 'throwing {} {}.'.format(item_dict[thrown_item_id].name)
     await append_to_log(message=throw_text)
     await travel_along_line(
         name='thrown_item_id',
         start_coord=starting_point, 
         end_coords=destination,
-        speed=.1,
+        speed=.05,
         tile=item_tile, 
         animation=None,
         debris=None
@@ -3383,10 +3392,6 @@ def key_to_compass(key):
     }
     return key_to_compass_char[key]
 
-def short_direction_name_to_full(short_direction_name):
-    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
-    return dir_to_name[short_direction_name]
-
 async def handle_input(map_dict, key):
     """
     interpret keycodes and do various actions.
@@ -3403,6 +3408,7 @@ async def handle_input(map_dict, key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
     compass_directions = ('n', 'e', 's', 'w')
     fov = 120
+    dir_to_name = {'n':'North', 'e':'East', 's':'South', 'w':'West'}
     if state_dict['in_menu'] == True:
         if key in '0123456789abcdef':
             if int("0x" + key, 16) in state_dict['menu_choices']:
@@ -4173,7 +4179,7 @@ async def display_help():
     """
     displays controls at an unused part of the screen.
     """
-    x_offset, y_offset = offset_of_center(x_offset=-10, y_offset=-5)
+    x_offset, y_offset = offset_of_center(x_offset=-15, y_offset=-5)
     help_text = (
         " wasd: move               ",
         "shift: use with wasd to run",
@@ -4194,7 +4200,7 @@ async def display_help():
             filter_print(
                 output_text=line, pause_stay_on=7,
                 pause_fade_in=.015, pause_fade_out=.015,
-                x_offset=-40, y_offset=-30 + line_number,
+                x_offset=-55, y_offset=-33 + line_number,
                 hold_for_lock=False
             )
         )
@@ -6287,6 +6293,7 @@ def state_setup():
     state_dict['teleporting'] = False
     state_dict['view_tile_count'] = 0
     state_dict['scanner_state'] = False
+    state_dict['battery'] = 100
     state_dict['lock view'] = False
 
 def main():
