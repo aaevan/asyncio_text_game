@@ -83,6 +83,7 @@ class Actor:
     def __init__(
         self,
         name='',
+        base_name='base name',
         coord=(0, 0),
         speed=.2, 
         tile="?", 
@@ -101,6 +102,7 @@ class Actor:
         description="A featureless gray blob"
     ):
         self.name = name
+        self.base_name = base_name
         self.coord = coord
         self.speed = speed
         self.tile = tile
@@ -5365,6 +5367,7 @@ async def basic_actor(
     tile="*", 
     movement_function=wander,
     name_key="test",
+    base_name="test",
     hurtful=False,
     base_attack=5,
     is_animated=False,
@@ -5383,6 +5386,7 @@ async def basic_actor(
     """
     actor_dict[(name_key)] = Actor(
         name=name_key,
+        base_name=base_name,
         coord=coord,
         speed=speed,
         tile=tile,
@@ -5403,7 +5407,8 @@ async def basic_actor(
         next_coords = await movement_function(
             name_key=name_key, **movement_function_kwargs
         )
-        current_coords = actor_dict[name_key].coords() #checked again here because actors can be pushed around
+        #checked again here because actors can be pushed around
+        current_coords = actor_dict[name_key].coords()
         if current_coords != next_coords:
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
@@ -5422,6 +5427,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
+        name_temp = actor_dict[name_key].base_name
     if actor_dict[name_key].multi_tile_parent is not None:
         parent_name = actor_dict[name_key].multi_tile_parent
         actor_index = mte_dict[parent_name].member_names.index(name_key)
@@ -5444,7 +5450,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         )
     if leaves_body:
         map_dict[actor_coords].tile = body_tile
-        map_dict[actor_coords].description = "A body."
+        map_dict[actor_coords].description = "A dead {}.".format(name_temp)
     spawn_item_spray(base_coord=actor_coords, items=holding_items)
     return
 
@@ -6152,6 +6158,7 @@ async def spawn_preset_actor(
                 movement_function=waver, 
                 tile='ö',
                 name_key=name,
+                base_name=preset,
                 hurtful=True,
                 base_attack=5,
                 is_animated=True,
