@@ -3263,6 +3263,8 @@ def map_init():
         'r': Room((21, 18), (7, 7)),
         's': Room((7, 18), (17, 5)),
         't': Room((35, 18), (17, 5)),
+        'u': Room((-1, 18), (1, 1)),
+        'v': Room((-17, 18), (-16, 18)),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -3279,6 +3281,7 @@ def map_init():
         ('q', 'r', 1, None, None),
         ('r', 's', 1, None, None),
         ('r', 't', 1, None, None),
+        ('u', 'v', 1, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
@@ -3295,6 +3298,8 @@ def map_init():
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
+    secret_door(door_coord=(-13, 18))
+    secret_door(door_coord=(21, 2))
     basement_door = (-28, 45)
     draw_door(door_coord=(0, 10))
 
