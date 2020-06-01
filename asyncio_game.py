@@ -234,9 +234,14 @@ class Animation:
                 'color_choices':('6' * 10 + '4')
             },
             'grass':{
-                'animation':('▒' * 20 + '▓'), 
+                'animation':('▒'), 
                 'behavior':'random',
-                'color_choices':('2'),
+                'color_choices':(0x4c, 0x4c, 0x4c, 0x70),
+            },
+            'goo':{
+                'animation':('▒'), 
+                'behavior':'random',
+                'color_choices':(0x35, 0x36, 0x37, 0x38, 0x39),
             },
             'blob':{
                 'animation':('ööööÖ'),
