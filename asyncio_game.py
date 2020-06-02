@@ -1017,6 +1017,16 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             magic=False,
             is_animated=False
         ),
+        'goo':Map_tile(
+            tile='.',
+            blocking=False,
+            passable=True,
+            color_num=0x39,
+            description='A shimmering and roiling purple goo.',
+            magic=False,
+            is_animated=True,
+            animation=Animation(preset='goo')
+        ),
         'grass':Map_tile(
             tile='▒',
             blocking=False,
@@ -3257,7 +3267,7 @@ def map_init():
         'g': Room((28, -34), 6, 'chasm'),
         'h': Room((-40, -20), (9, 9)),
         'i': Room((-40, -5)),
-        'j': Room((-20, -45), (12, 6), 'tiles'),
+        'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
         'm': Room((9, -69), 5,),
@@ -3279,7 +3289,7 @@ def map_init():
         ('b', 'd', 2, None, None),
         ('a', 'e', 5, None, None),
         ('e', 'f', 2, None, None),
-        ('d', 'j', 2, 'tiles', None),
+        ('d', 'j', 2, 'goo', None),
         ('k', 'm', 2, 'grass', 'jagged'),
         ('n', 'o', 1, None, None),
         ('a', 'p', 2, None, None),
