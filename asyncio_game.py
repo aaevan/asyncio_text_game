@@ -243,6 +243,11 @@ class Animation:
                 'behavior':'random',
                 'color_choices':(0x35, 0x36, 0x37, 0x38, 0x39),
             },
+            'nightmare':{
+                'animation':('      ▒▓▒ ▒▓▒'), 
+                'behavior':'random',
+                'color_choices':(0x34, 0x58),
+            },
             'blob':{
                 'animation':('ööööÖ'),
                 'behavior':'loop tile',
@@ -1017,6 +1022,16 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             magic=False,
             is_animated=False
         ),
+        'nightmare':Map_tile(
+            tile=' ',
+            blocking=False,
+            passable=True,
+            color_num=0x34,
+            description='It hurts your eyes to focus on.',
+            magic=False,
+            is_animated=True,
+            animation=Animation(preset='nightmare')
+        ),
         'goo':Map_tile(
             tile='.',
             blocking=False,
@@ -1557,10 +1572,10 @@ def draw_circle(
     radius=5,
     animation=None,
     preset='floor',
-    filled=True,
     border_thickness=0,
     border_preset='chasm',
-    annulus_radius=None
+    annulus_radius=None,
+    chance_skip=0,
 ):
     """
     draws a filled circle onto map_dict.
@@ -1574,6 +1589,8 @@ def draw_circle(
     for point in points:
         if not map_dict[point].mutable:
             continue
+        if random() < chance_skip:
+            continue
         distance_to_center = point_to_point_distance(center_coord, point)
         if distance_to_center <= radius:
             paint_preset(tile_coords=point, preset=preset)
@@ -1581,6 +1598,8 @@ def draw_circle(
         radius = radius + border_thickness
         boundary_circle = get_circle( radius=radius, center=center_coord)
         for point in set(boundary_circle) - set(points):
+            if random() < chance_skip:
+                continue
             paint_preset(tile_coords=point, preset=border_preset)
 
 #Actions------------------------------------------------------------------------
@@ -3834,12 +3853,25 @@ async def console_box(
 async def append_to_log(
     message="This is a test", wipe=False, wipe_time=5, wipe_char_time=.1
 ):
+    if '|' in message:
+        messages = message.split('|')
+        for split_message in messages:  
+            if split_message == '':
+                await asyncio.sleep(1)
+            else:
+                await append_to_log(
+                    message=split_message,
+                    wipe=wipe,
+                    wipe_time=wipe_time,
+                    wipe_char_time=wipe_char_time,
+                )
+        return
     message_lines = textwrap.wrap(message, 40)
-    state_dict['same_count'] = 0 #clear counter help text won't interrupt
+    padded_lines = ["{:<40}".format(line) for line in message_lines]
     if wipe:
         wipe_text = ' ' * len(message)
-    for index_offset, line in enumerate(reversed(message_lines)):
-        await asyncio.sleep(0)
+    for index_offset, line in enumerate(reversed(padded_lines)):
+        #await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
         await asyncio.ensure_future(
@@ -3848,7 +3880,7 @@ async def append_to_log(
             )
         )
     if wipe:
-        for index_offset, line in enumerate(reversed(message_lines)):
+        for index_offset, line in enumerate(reversed(padded_lines)):
             await asyncio.sleep(wipe_time)
             asyncio.ensure_future(
                 filter_into_log(
@@ -4923,6 +4955,30 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     if state_dict['plane'] == 'normal':
         offset_coords = add_coords(player_coords, (x_offset, y_offset))
         destination, plane = offset_coords, plane_name
+        draw_circle(
+            center_coord=offset_coords,
+            radius=12,
+            annulus_radius=12,
+            border_thickness=18,
+            border_preset='chasm',
+            chance_skip=0,
+        )
+        draw_circle(
+            center_coord=offset_coords,
+            radius=12,
+            annulus_radius=12,
+            border_thickness=1,
+            border_preset='nightmare',
+            chance_skip=.5,
+        )
+        draw_circle(
+            center_coord=offset_coords,
+            radius=10,
+            animation=None,
+            preset='nightmare',
+            annulus_radius=None
+        )
+        asyncio.ensure_future(append_to_log(message="You're not alone in this place.||Something moves at the edge of your vision."))
     elif state_dict['plane'] == plane_name:
         destination = add_coords(player_coords, (-x_offset, -y_offset))
         plane = 'normal'
