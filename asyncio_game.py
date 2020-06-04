@@ -4776,9 +4776,6 @@ async def async_map_init():
     """
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
-    #draw_circle(
-        #center_coord=(1000, 1000), radius=50, preset='noise'
-    #)
     announcement_at_coord(
         "There's a body here. |||Looks like you get their stuff.",
         coord=(8, 6), 
