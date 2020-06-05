@@ -2276,7 +2276,7 @@ async def export_map(width=140, height=45):
                 line_output = '{}\n'.format(row_output)
                 map_file.write(line_output)
     with term.location(80, 0):
-        print('finished writing map segment to {}.'.format(filename))
+        await append_to_log(message='Wrote nearby map to {}.'.format(filename))
     #return the tile to its original state:
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
@@ -3357,7 +3357,7 @@ def announcement_at_coord(
     if describe_tile:
         map_dict[coord].description = ''.join(announcement.split('|'))
 
-def isData(): 
+def is_data(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
 def is_number(number="0"):
@@ -3381,7 +3381,7 @@ async def get_key(map_dict, help_wait_count=100):
         old_key = None
         while True:
             await asyncio.sleep(0.03)
-            if isData():
+            if is_data():
                 key = sys.stdin.read(1)
                 if key == '\x7f':  # x1b is ESC
                     state_dict['exiting'] = True
@@ -3442,7 +3442,6 @@ async def handle_input(map_dict, key):
     x to examine
     spacebar to open doors
     esc to open inventory
-    a variable in state_dict to capture input while in menus?
     """
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
@@ -3463,7 +3462,7 @@ async def handle_input(map_dict, key):
         player_coords = actor_dict['player'].coords()
         if key in directions:
             push_return_val = None
-            if key in 'wasd': #try to push adjacent things given movement keys
+            if key in 'wasd':
                 if state_dict['player_busy'] == True:
                     return
                 push(pusher='player', direction=key_to_compass(key))
@@ -3471,108 +3470,100 @@ async def handle_input(map_dict, key):
                 if not_occupied(walk_destination):
                     x_shift, y_shift = directions[key]
             state_dict['just teleported'] = False #used by magic_doors
-        if key in 'WASD': 
-            asyncio.ensure_future(
-                dash_ability(
-                    dash_length=randint(2, 3),
-                    direction=key_to_compass(key),
-                    time_between_steps=.04
-                )
-            )
-        if key in '?':
-            await display_help() 
-        if key in '3': #shift dimensions
-            asyncio.ensure_future(
-                pass_between(
-                    x_offset=1000,
-                    y_offset=1000,
-                    plane_name='nightmare'
-                )
-            )
-        if key in '4':
-            draw_net()
-        #if key in '8': #export map
-            #asyncio.ensure_future(export_map())
-        if key in 'Xx': #examine
+        elif key in 'WASD': 
+            asyncio.ensure_future(dash_ability(
+                dash_length=randint(2, 3),
+                direction=key_to_compass(key),
+                time_between_steps=.04
+            ))
+        elif key in "ijklIJKL": #change viewing direction
+            state_dict['facing'] = key_to_compass(key)
+        elif key in '?':
+                await display_help() 
+        elif key in 'Xx': #examine
             await examine_facing()
-        if key in ' ': #toggle doors
+        elif key in ' ': #toggle doors
             await toggle_doors()
-        if key in 'Z': #test out points_around_point and write result to map_dict
+        elif key in 'g': #pick up an item from the ground
+            asyncio.ensure_future(item_choices(coords=(x, y)))
+        elif key in 'Q': #equip an item to slot q
+            asyncio.ensure_future(equip_item(slot='q'))
+        elif key in 'E': #equip an item to slot e
+            asyncio.ensure_future(equip_item(slot='e'))
+        elif key in 't': #throw a chosen item
+            asyncio.ensure_future(throw_item())
+        elif key in 'q': #use item in slot q
+            asyncio.ensure_future(use_item_in_slot(slot='q'))
+        elif key in 'e': #use item in slot e
+            asyncio.ensure_future(use_item_in_slot(slot='e'))
+        elif key in 'h': #debug health restore
+            asyncio.ensure_future(health_potion())
+        elif key in 'u':
+            asyncio.ensure_future(use_chosen_item())
+        #ITEM TEST COMMANDS----------------------------------------------------
+        elif key in 'f': #use sword in facing direction
+            await sword_item_ability(length=2)
+        elif key in 'Y':
+            asyncio.ensure_future(temp_view_circle(on_actor='player'))
+        #DEBUG COMMANDS--------------------------------------------------------
+        elif key in '3': #shift dimensions
+            asyncio.ensure_future(pass_between(
+                x_offset=1000,
+                y_offset=1000,
+                plane_name='nightmare'
+            ))
+        elif key in '8': #export map
+            asyncio.ensure_future(export_map())
+        elif key in '$':
+            print_debug_grid() 
+        elif key in '#':
+            brightness_test()
+        elif key in 'F': #fill screen with random colors
+            for row in range(0, 48):
+                for i in range(255):
+                    with term.location(i, row):
+                        print(term.on_color_rgb(
+                            randint(0, 255), randint(0, 255), randint(0, 255)
+                        )(" "))
+        elif key in 'Z': #test out points_around_point and write result to map_dict
             points = points_around_point()
             for point in points:
                 map_dict[add_coords(point, player_coords)].tile = '$'
-        if key in '$':
-            print_debug_grid() 
-        if key in '#':
-            brightness_test()
-            for i in range(255):
-                with term.location(i, 0):
-                    print(term.on_color_rgb(0, i, 0)(" "))
-
-        if key in '(':
+        elif key in '(':
             spawn_coord = player_coords
             vine_name = "testing"
             asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
-        if key in '9': #creates a passage in a random direction from the player
+        #MAP COMMANDS----------------------------------------------------------
+        elif key in 'R': #generate a random cave room around the player
+            player_coords = add_coords(
+                actor_dict['player'].coords(), (-50, -50)
+            )
+            test_room = cave_room()
+            write_room_to_map(room=test_room, top_left_coord=player_coords)
+        elif key in '7':
+            draw_circle(
+                center_coord=actor_dict['player'].coords(), preset='floor'
+            )
+        elif key in '9': #creates a passage in a random direction from the player
             facing_angle = dir_to_angle(state_dict['facing'])
             chain_of_arcs(
                 starting_angle=facing_angle,
                 start_coord=player_coords,
                 num_arcs=5
             )
-        if key in 'g': #pick up an item from the ground
-            asyncio.ensure_future(item_choices(coords=(x, y)))
-        if key in 'Q': #equip an item to slot q
-            asyncio.ensure_future(equip_item(slot='q'))
-        if key in 'E': #equip an item to slot e
-            asyncio.ensure_future(equip_item(slot='e'))
-        if key in 't': #throw a chosen item
-            asyncio.ensure_future(throw_item())
-        if key in 'q': #use item in slot q
-            asyncio.ensure_future(use_item_in_slot(slot='q'))
-        if key in 'e': #use item in slot e
-            asyncio.ensure_future(use_item_in_slot(slot='e'))
-        if key in 'h': #debug health restore
-            asyncio.ensure_future(health_potion())
-        if key in 'u':
-            asyncio.ensure_future(use_chosen_item())
-        if key in 'M':
+        elif key in 'M': #spawn an mte near the player
             spawn_coords = add_coords(player_coords, (2, 2))
             mte_id = await spawn_mte(
                 spawn_coord=spawn_coords, preset='2x2_block'
             )
-        if key in 'y':
+        elif key in 'y': #teleport to debug location
             destination = (-32, 20)
             actor_dict['player'].update(coord=destination)
             state_dict['facing'] = 'w'
             return
-        if key in 'Y':
-            asyncio.ensure_future(temp_view_circle(on_actor='player'))
-        if key in '%': #place a temporary pushable block
+        elif key in '%': #place a temporary pushable block
             asyncio.ensure_future(temporary_block())
-        if key in 'f': #use sword in facing direction
-            await sword_item_ability(length=2)
-        if key in '7':
-            draw_circle(
-                center_coord=actor_dict['player'].coords(), preset='floor'
-            )
-        if key in '8':
-            center_coord = actor_dict['player'].coords()
-            endpoint = add_coords(center_coord, (50, 0))
-            n_wide_passage(
-                width = 5,
-                coord_a=center_coord,
-                coord_b=endpoint, 
-                fade_to_preset='grass',
-                fade_bracket=(.2, .8)
-            )
-        if key in 'R': #generate a random cave room around the player
-            player_coords = add_coords(
-                actor_dict['player'].coords(), (-50, -50)
-            )
-            test_room = cave_room()
-            write_room_to_map(room=test_room, top_left_coord=player_coords)
-        if key in 'b': #spawn a force field around the player.
+        elif key in 'b': #spawn a force field around the player.
             asyncio.ensure_future(rand_blink())
         shifted_x, shifted_y = x + x_shift, y + y_shift
         if (
@@ -3586,8 +3577,6 @@ async def handle_input(map_dict, key):
             )
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
-        if key in "ijklIJKL": #change viewing direction
-            state_dict['facing'] = key_to_compass(key)
 
 async def examine_facing():
     direction = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
