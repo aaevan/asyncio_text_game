@@ -2190,6 +2190,7 @@ async def multi_spike_trap(
             name=node_name, moveable=False, tile='◘', tile_color=0
         )
         actor_dict[node_name].update(coord=node_coord)
+        map_dict[node_coord].tile = '◘'
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
@@ -5863,12 +5864,16 @@ async def beam_spire(spawn_coord=(0, 0)):
     actor_dict[turret_id].update(coord=spawn_coord)
     while True:
         for angle in [i * 5 for i in range(72)]:
-            for i in range(10):
-                asyncio.ensure_future(
-                    fire_projectile(
-                        actor_key=turret_id, firing_angle=angle
+            player_distance = distance_to_actor(actor_a=turret_id, actor_b='player')
+            with term.location(85, 0):
+                print("player is {} tiles from turret_id".format(player_distance))
+            if player_distance < 40:
+                for i in range(10):
+                    asyncio.ensure_future(
+                        fire_projectile(
+                            actor_key=turret_id, firing_angle=angle
+                        )
                     )
-                )
             await asyncio.sleep(.05)
 
 async def fire_projectile(
@@ -5876,7 +5881,7 @@ async def fire_projectile(
     firing_angle=45,
     radius=10, 
     radius_spread=(10, 14),
-    degree_spread=(-20, 20),
+    degree_spread=(-30, 30),
     damage=5,
     animation_preset='explosion'
 ):
@@ -5948,6 +5953,7 @@ async def travel_along_line(
     no_clip=True,
     source_actor=None
 ):
+    #TODO: fix so that stationary player still takes damage
     points = get_line(start_coord, end_coords)
     if no_clip:
         for index, point in enumerate(points):
