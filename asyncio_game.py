@@ -1766,7 +1766,7 @@ async def damage_all_actors_at_coord(
                 append_to_log(message=damage_message)
             )
             asyncio.ensure_future(
-                directional_damage_alert(source_actor=source_actor)
+                directional_alert(source_actor=source_actor)
             )
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
@@ -4598,7 +4598,7 @@ async def random_angle(centered_on_angle=0, total_cone_angle=60):
     rand_shift = round(randint(0, total_cone_angle) - (total_cone_angle / 2))
     return (centered_on_angle + rand_shift) % 360
 
-async def directional_damage_alert(
+async def directional_alert(
     particle_count=40,
     source_angle=None, 
     source_actor=None,
@@ -4606,6 +4606,8 @@ async def directional_damage_alert(
     radius=17,
     radius_spread=3,
     warning_color=1,
+    palette='?',
+    persist_delay=1,
     angle_spread=60,
     preset='damage'
 ):
@@ -4615,21 +4617,36 @@ async def directional_damage_alert(
     """
     presets = {
         'damage':{
+            'particle_count':40,
             'radius':15, 
             'radius_spread':3, 
             'angle_spread': 60,
-            'warning_color':1
+            'warning_color':1,
+            'palette':"● ∙⦁·",
+            'persist_delay':0,
         },
         'sound':{
+            'particle_count':10,
             'radius':12,
             'radius_spread':1,
-            'angle_spread': 80,
+            'angle_spread': 30,
             'warning_color':2,
-        }
+            'palette':"◌",
+            'persist_delay':1,
+        },
+        'footfall':{
+            'particle_count':1,
+            'radius':18,
+            'radius_spread':1,
+            'angle_spread': 30,
+            'warning_color':0x08,
+            'palette':"◌",
+            'persist_delay':1,
+        },
     }
     if preset is not None and preset in presets:
         preset_kwargs = presets[preset]
-        await directional_damage_alert(
+        await directional_alert(
             **preset_kwargs,
             source_actor=source_actor,
             preset=None
@@ -4666,12 +4683,14 @@ async def directional_damage_alert(
             angle_from_twelve=angle,
         )
         ui_points.append(point)
-    for tile in [term.color(warning_color)("█"), ' ']:
+    for tile_palette in [palette, ' ']:
         shuffle(ui_points)
         for point in ui_points:
+            tile_choice = term.color(warning_color)(choice(tile_palette))
             await asyncio.sleep(random()/70)
             with term.location(*point):
-                print(tile)
+                print(tile_choice)
+        await asyncio.sleep(persist_delay)
 
 def timer_text(minutes, seconds):
     output_text = "⌛ {0: }:{}".format(
@@ -5156,7 +5175,7 @@ async def attack(
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
         actor_dict[defender_key].health = 0
-    asyncio.ensure_future(directional_damage_alert(source_actor=attacker_key))
+    asyncio.ensure_future(directional_alert(source_actor=attacker_key))
 
 async def seek_actor(name_key=None, seek_key='player', repel=False):
     current_coord = actor_dict[name_key].coords()
@@ -5475,6 +5494,15 @@ async def basic_actor(
         #checked again here because actors can be pushed around
         current_coords = actor_dict[name_key].coords()
         if current_coords != next_coords:
+            #BOOKMARK
+            dist_to_player = distance_to_actor(name_key, 'player')
+            noise_level = (1 / dist_to_player ** 2) * 10
+            with term.location(125, randint(0, 10)):
+                print("noiselvl:", noise_level)
+            if random() <= noise_level: #TODO: and angle_in_arc():
+                asyncio.ensure_future(
+                    directional_alert(source_actor=name_key, preset='footfall')
+                )
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
