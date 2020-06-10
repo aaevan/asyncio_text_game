@@ -3521,6 +3521,9 @@ async def action_keypress(key):
         spawn_coord = player_coords
         vine_name = "testing"
         asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
+    elif key in '%':
+        asyncio.ensure_future(fade_print(output_text='*drip*', print_coord=(105, 10)))
+        asyncio.ensure_future(directional_and_distanced_fade_print())
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -4692,6 +4695,55 @@ async def directional_alert(
                 print(tile_choice)
         await asyncio.sleep(persist_delay)
 
+async def fade_print(
+    output_text="This is a test", 
+    print_coord=(55, 0),
+    fade_step=1, 
+    fade_range=(0xe8, 0xff),
+    fade_delay=.5, #how long to wait before starting to fade text
+    step_delay=.05, #how long between each step through the range
+    reverse_range=True,
+):
+    color_steps = [color_number for color_number in range(*fade_range)]
+    if reverse_range:
+        color_steps.reverse()
+    for index, color_num in enumerate(color_steps):
+        with term.location(*print_coord):
+            print(term.color(color_num)(output_text))
+        if index == 0:
+            await asyncio.sleep(fade_delay)
+        else:
+            await asyncio.sleep(step_delay)
+
+async def directional_and_distanced_fade_print(
+    #TODO: position text like that of directional_alert based on relative location
+    output_text="(0, 0), dist:{}",
+    fade_duration=1,
+    origin=(0, 0),
+    print_coord=(100, 5),
+    fade_range=(0xe8, 0xff),
+):
+    distance = point_to_point_distance(origin, actor_dict['player'].coords())
+    cutoff = round((distance - 15) / 2)
+    lower, upper = fade_range[0], fade_range[1] - cutoff
+    if upper - lower <= 0:
+        return
+    fade_delay = round(fade_duration / (upper - lower), 3)
+    with term.location(100, 3):
+        print(lower, upper, type(lower), type(upper))
+    if cutoff >= 1:
+        with term.location(70, 4):
+            print(output_text.format(distance), "cutoff: {}, lower: {} upper: {}, fade_delay: {}".format(cutoff, lower, upper, fade_delay))
+        await fade_print(
+            output_text=output_text,
+            print_coord=print_coord,
+            fade_range=(lower, upper),
+            fade_delay=fade_delay,
+            step_delay=fade_delay,
+        )
+
+    
+
 def timer_text(minutes, seconds):
     output_text = "⌛ {0: }:{}".format(
         str(time_minutes).zfill(2),
@@ -5494,11 +5546,8 @@ async def basic_actor(
         #checked again here because actors can be pushed around
         current_coords = actor_dict[name_key].coords()
         if current_coords != next_coords:
-            #BOOKMARK
             dist_to_player = distance_to_actor(name_key, 'player')
             noise_level = (1 / dist_to_player ** 2) * 10
-            with term.location(125, randint(0, 10)):
-                print("noiselvl:", noise_level)
             if random() <= noise_level: #TODO: and angle_in_arc():
                 asyncio.ensure_future(
                     directional_alert(source_actor=name_key, preset='footfall')
@@ -5893,8 +5942,6 @@ async def beam_spire(spawn_coord=(0, 0)):
     while True:
         for angle in [i * 5 for i in range(72)]:
             player_distance = distance_to_actor(actor_a=turret_id, actor_b='player')
-            with term.location(85, 0):
-                print("player is {} tiles from turret_id".format(player_distance))
             if player_distance < 40:
                 for i in range(10):
                     asyncio.ensure_future(
