@@ -3523,7 +3523,7 @@ async def action_keypress(key):
         asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
     elif key in '%':
         asyncio.ensure_future(fade_print(output_text='*drip*', print_coord=(105, 10)))
-        asyncio.ensure_future(directional_and_distanced_fade_print())
+        asyncio.ensure_future(distanced_fade_print())
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -4658,7 +4658,7 @@ async def directional_alert(
     if source_actor:
         if source_actor not in actor_dict:
             return
-        source_angle = angle_actor_to_actor(
+        source_angle = angle_point_to_point(
             actor_a='player',
             actor_b=source_actor
         )
@@ -4715,9 +4715,8 @@ async def fade_print(
         else:
             await asyncio.sleep(step_delay)
 
-async def directional_and_distanced_fade_print(
-    #TODO: position text like that of directional_alert based on relative location
-    output_text="(0, 0), dist:{}",
+async def distanced_fade_print(
+    output_text="DRIP",
     fade_duration=1,
     origin=(0, 0),
     print_coord=(100, 5),
@@ -4729,11 +4728,9 @@ async def directional_and_distanced_fade_print(
     if upper - lower <= 0:
         return
     fade_delay = round(fade_duration / (upper - lower), 3)
-    with term.location(100, 3):
-        print(lower, upper, type(lower), type(upper))
     if cutoff >= 1:
-        with term.location(70, 4):
-            print(output_text.format(distance), "cutoff: {}, lower: {} upper: {}, fade_delay: {}".format(cutoff, lower, upper, fade_delay))
+        #with term.location(70, 4):
+            #print(output_text, "distance: {}, cutoff: {}, lower: {} upper: {}, fade_delay: {}".format(distance, cutoff, lower, upper, fade_delay))
         await fade_print(
             output_text=output_text,
             print_coord=print_coord,
@@ -4742,7 +4739,30 @@ async def directional_and_distanced_fade_print(
             step_delay=fade_delay,
         )
 
-    
+async def repeated_sound_message(
+    interval=1, sound_origin_coord=(0, 0), source_actor=None, point_radius=20,
+):
+    """
+    Assumes the player is the center and creates a fading message at the
+    appropriate source angle to simulate a sound being heard from that
+    direction.
+    """
+    while True:
+        await asyncio.sleep(1)
+        if source_actor:
+            sound_origin_coord = actor_dict[source_actor].coords()
+        source_angle = angle_point_to_point(coord_b=sound_origin_coord, actor_a='player')
+        with term.location(55, 3):
+            print(4754, "origin: {}, source_angle: {}".format(sound_origin_coord, source_angle))
+        central_point = (int(term.width / 2 - 2), int(term.height / 2 - 2))
+        print_coord = point_at_distance_and_angle(
+            radius=point_radius,
+            central_point=central_point,
+            angle_from_twelve=source_angle,
+        )
+        with term.location(55, 2):
+            print("print_coord: {}".format(print_coord))
+        await distanced_fade_print(origin=sound_origin_coord, print_coord=print_coord)
 
 def timer_text(minutes, seconds):
     output_text = "⌛ {0: }:{}".format(
@@ -5984,7 +6004,9 @@ def point_given_angle_and_radius(angle=0, radius=10):
     y = round(sin(radians(angle)) * radius)
     return x, y
 
-def angle_actor_to_actor(actor_a='player', actor_b=None):
+def angle_point_to_point(
+    coord_a=(0, 0), coord_b=(3, 3), actor_a=None, actor_b=None
+):
     """
     returns degrees as measured clockwise from 12 o'clock
     with actor_a at the center of the clock and actor_b along 
@@ -5997,6 +6019,23 @@ def angle_actor_to_actor(actor_a='player', actor_b=None):
     A (0, 0)
 
     ... would return an angle of 45 degrees.
+    """
+    if actor_a:
+        coord_a = actor_dict[actor_a].coords()
+    if actor_b:
+        coord_b = actor_dict[actor_b].coords()
+    x_run, y_run = (
+        coord_a[0] - coord_b[0],
+        coord_a[1] - coord_b[1]
+    )
+    hypotenuse = sqrt(x_run ** 2 + y_run ** 2)
+    if hypotenuse == 0:
+        return 0
+    a_angle = degrees(acos(y_run/hypotenuse))
+    if x_run > 0:
+        a_angle = 360 - a_angle
+    return a_angle
+
     """
     if actor_b is None:
         return 0
@@ -6014,6 +6053,7 @@ def angle_actor_to_actor(actor_a='player', actor_b=None):
     if x_run > 0:
         a_angle = 360 - a_angle
     return a_angle
+    """
 
 async def travel_along_line(
     name='particle',
@@ -6466,9 +6506,10 @@ def main():
     loop.create_task(under_passage())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
-    for i in range(10):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(10):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    loop.create_task(repeated_sound_message())
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
