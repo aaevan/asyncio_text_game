@@ -4723,46 +4723,64 @@ async def distanced_fade_print(
     fade_range=(0xe8, 0xff),
 ):
     distance = point_to_point_distance(origin, actor_dict['player'].coords())
-    cutoff = round((distance - 15) / 2)
+    cutoff = 0
+    if distance > 18:
+        cutoff = distance - 18
     lower, upper = fade_range[0], fade_range[1] - cutoff
-    if upper - lower <= 0:
+    if lower >= upper:
         return
     fade_delay = round(fade_duration / (upper - lower), 3)
-    if cutoff >= 1:
-        #with term.location(70, 4):
-            #print(output_text, "distance: {}, cutoff: {}, lower: {} upper: {}, fade_delay: {}".format(distance, cutoff, lower, upper, fade_delay))
-        await fade_print(
-            output_text=output_text,
-            print_coord=print_coord,
-            fade_range=(lower, upper),
-            fade_delay=fade_delay,
-            step_delay=fade_delay,
-        )
+    await fade_print(
+        output_text=output_text,
+        print_coord=print_coord,
+        fade_range=(lower, upper),
+        fade_delay=fade_delay,
+        step_delay=fade_delay,
+    )
 
 async def repeated_sound_message(
-    interval=1, sound_origin_coord=(0, 0), source_actor=None, point_radius=20,
+    output_text="drip", 
+    interval=1,
+    sound_origin_coord=(0, 0),
+    source_actor=None,
+    point_radius=18,
+    rand_delay=True,
 ):
     """
     Assumes the player is the center and creates a fading message at the
     appropriate source angle to simulate a sound being heard from that
     direction.
     """
+    if rand_delay:
+        await asyncio.sleep(random())
     while True:
-        await asyncio.sleep(1)
+        if rand_delay:
+            await asyncio.sleep(1 + random())
+        else:
+            await asyncio.sleep(1)
         if source_actor:
             sound_origin_coord = actor_dict[source_actor].coords()
         source_angle = angle_point_to_point(coord_b=sound_origin_coord, actor_a='player')
         with term.location(55, 3):
             print(4754, "origin: {}, source_angle: {}".format(sound_origin_coord, source_angle))
-        central_point = (int(term.width / 2 - 2), int(term.height / 2 - 2))
+        x_middle, y_middle = (int(term.width / 2 - 2), int(term.height / 2 - 2))
+        central_point = (x_middle, y_middle)
         print_coord = point_at_distance_and_angle(
             radius=point_radius,
             central_point=central_point,
-            angle_from_twelve=source_angle,
+            angle_from_twelve=(-source_angle % 360) + 180,
         )
+        if print_coord[0] < x_middle:
+            print_coord = ((print_coord[0] - len(output_text)), print_coord[1])
+        elif print_coord[0] == x_middle:
+            print_coord = ((print_coord[0] - (len(output_text) // 2)), print_coord[1])
         with term.location(55, 2):
-            print("print_coord: {}".format(print_coord))
-        await distanced_fade_print(origin=sound_origin_coord, print_coord=print_coord)
+            print("print_coord: {} ({}deg)".format(print_coord, source_angle))
+        await distanced_fade_print(
+            output_text=output_text, 
+            origin=sound_origin_coord,
+            print_coord=print_coord,
+        )
 
 def timer_text(minutes, seconds):
     output_text = "⌛ {0: }:{}".format(
@@ -6509,7 +6527,9 @@ def main():
     #for i in range(10):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
         #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    loop.create_task(repeated_sound_message())
+    loop.create_task(repeated_sound_message(output_text="drip", sound_origin_coord=(0, 0)))
+    loop.create_task(repeated_sound_message(output_text="drip", sound_origin_coord=(21, 19)))
+    loop.create_task(repeated_sound_message(output_text="drip", sound_origin_coord=(2, -24)))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
