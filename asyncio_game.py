@@ -220,7 +220,7 @@ class Animation:
         behavior=None,
         color_choices=None,
         preset="none",
-        background=None
+        background=None,
     ):
         presets = {
             'fire':{
@@ -1998,6 +1998,15 @@ async def bay_door(
             if door_state is not 'open':
                 door_state = 'open'
                 if door_message is not None:
+                    asyncio.ensure_future(
+                        sound_message(
+                            output_text=door_message[0], 
+                            sound_origin_coord=hinge_coord,
+                            source_actor=None,
+                            point_radius=18,
+                            fade_duration=1,
+                        )
+                    )
                     await append_to_log(message=door_message[0])
             for segment in reversed(segment_names):
                 await asyncio.sleep(.1)
@@ -2006,6 +2015,15 @@ async def bay_door(
             if door_state is not 'close':
                 door_state = 'close'
                 if door_message is not None:
+                    asyncio.ensure_future(
+                        sound_message(
+                            output_text=door_message[0], 
+                            sound_origin_coord=hinge_coord,
+                            source_actor=None,
+                            point_radius=18,
+                            fade_duration=1,
+                        )
+                    )
                     await append_to_log(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.1)
@@ -3548,7 +3566,7 @@ async def action_keypress(key):
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'w'
         return
-    elif key in '%': #place a temporary pushable block
+    elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
     shifted_x, shifted_y = x + x_shift, y + y_shift
     if (
@@ -4795,15 +4813,12 @@ async def sound_message(
         fade_duration=fade_duration,
     )
 
-
-
 def timer_text(minutes, seconds):
     output_text = "⌛ {0: }:{}".format(
         str(time_minutes).zfill(2),
         str(time_seconds).zfill(2)
     )
     return output_text
-
 
 async def timer(
     x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1
@@ -4828,7 +4843,7 @@ async def timer(
     return
 
 async def view_tile_init(
-    map_dict, loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
+    loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
@@ -5980,7 +5995,6 @@ async def spawn_turret(
         else:
             actor_dict[turret_id].tile = closed_tile
 
-
 async def beam_spire(spawn_coord=(0, 0)):
     """
     spawns a rotating flame source
@@ -6002,6 +6016,17 @@ async def beam_spire(spawn_coord=(0, 0)):
                             actor_key=turret_id, firing_angle=angle
                         )
                     )
+                    if random() <= .005:
+                        rand_coord = add_coords(spawn_coord, (randint(-5, 5), randint(-5, 5)))
+                        asyncio.ensure_future(
+                            sound_message(
+                                output_text=choice(("*FOOOM*", "*WHOOSH*", "*FSSST*", "*KRK*")),
+                                sound_origin_coord=spawn_coord,
+                                source_actor=None,
+                                point_radius=18,
+                                fade_duration=1,
+                            )
+                        )
             await asyncio.sleep(.05)
 
 async def fire_projectile(
@@ -6068,25 +6093,6 @@ def angle_point_to_point(
     if x_run > 0:
         a_angle = 360 - a_angle
     return a_angle
-
-    """
-    if actor_b is None:
-        return 0
-    else:
-        actor_a_coords = actor_dict[actor_a].coords()
-        actor_b_coords = actor_dict[actor_b].coords()
-        x_run, y_run = (
-            actor_a_coords[0] - actor_b_coords[0],
-            actor_a_coords[1] - actor_b_coords[1]
-        )
-        hypotenuse = sqrt(x_run ** 2 + y_run ** 2)
-        if hypotenuse == 0:
-            return 0
-        a_angle = degrees(acos(y_run/hypotenuse))
-    if x_run > 0:
-        a_angle = 360 - a_angle
-    return a_angle
-    """
 
 async def travel_along_line(
     name='particle',
@@ -6452,12 +6458,10 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
                 print(' ')
             continue
         player_coord = actor_dict['player'].coords()
-        bin_string = ''.join(
-            [
-                one_for_passable(add_coords(player_coord, coord)) 
-                for coord in listen_coords
-            ]
-        )
+        bin_string = ''.join([
+            one_for_passable(add_coords(player_coord, coord)) 
+            for coord in listen_coords
+        ])
         actor_presence = any(
             map_dict[add_coords(player_coord, coord)].actors
             for coord in listen_coords
@@ -6527,7 +6531,7 @@ def main():
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
     loop.create_task(get_key(map_dict))
-    loop.create_task(view_tile_init(map_dict, loop))
+    loop.create_task(view_tile_init(loop))
     loop.create_task(quitter_daemon())
     loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup())
