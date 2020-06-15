@@ -2213,6 +2213,16 @@ async def multi_spike_trap(
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             for node in node_data:
+                if random() < .1:
+                    asyncio.ensure_future(
+                        sound_message(
+                            output_text=choice(('*tic*', '*ssshk*', '*ckrkrr*', '*shnng*')),
+                            sound_origin_coord=actor_dict[node[0]].coords(),
+                            source_actor=None,
+                            point_radius=18,
+                            fade_duration=1,
+                        )
+                    )
                 asyncio.ensure_future(
                     start_delay_wrapper(
                         start_delay=random(), 
@@ -6017,7 +6027,7 @@ async def beam_spire(spawn_coord=(0, 0)):
                         )
                     )
                     if random() <= .005:
-                        rand_coord = add_coords(spawn_coord, (randint(-5, 5), randint(-5, 5)))
+                        rand_coord = add_coords(spawn_coord, (randint(-10, 10), randint(-10, 10)))
                         asyncio.ensure_future(
                             sound_message(
                                 output_text=choice(("*FOOOM*", "*WHOOSH*", "*FSSST*", "*KRK*")),
