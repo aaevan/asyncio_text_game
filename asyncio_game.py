@@ -1754,17 +1754,17 @@ async def fused_throw_action(
         particle_count=particle_count
     )
 
-
 async def damage_all_actors_at_coord(
-    coord=(0, 0), damage=10, source_actor=None
+    coord=(0, 0), damage=10, source_actor=None, quiet=True
 ):
-    damage_message = "{} damage from {}!".format(damage, source_actor)
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
-            asyncio.ensure_future(
-                append_to_log(message=damage_message)
-            )
+            if not quiet:
+                damage_message = "{} damage from {}!".format(damage, source_actor)
+                asyncio.ensure_future(
+                    append_to_log(message=damage_message)
+                )
             asyncio.ensure_future(
                 directional_alert(source_actor=source_actor)
             )
@@ -2313,7 +2313,7 @@ async def display_current_tile(x_offset=105, y_offset=5):
     #TODO: a larger problem: store colors not on the tiles themselves but
     #      numbers to be retrieved when the tile or actor or item is accessed?
     while True:
-        await asyncio.sleep(1)
+        await asyncio.sleep(.01)
         current_coords = actor_dict['player'].coords()
         current_tile = map_dict[current_coords].tile
         with term.location(x_offset, y_offset):
@@ -2334,6 +2334,14 @@ async def display_current_tile(x_offset=105, y_offset=5):
             print('repr() of tile:')
         with term.location(x_offset, y_offset + 5):
             print('{}        '.format(repr(current_tile)))
+        actors = [key for key in map_dict[current_coords].actors.keys()]
+        with term.location(x_offset, y_offset + 6):
+            print('actors here: {}'.format(actors))
+        actors_len = len(map_dict[current_coords].actors.keys())
+        with term.location(x_offset, y_offset + 7):
+            print('actors_len: {}'.format(actors_len))
+        if len(actors) > 1:
+            await asyncio.sleep(1)
 
 async def pressure_plate(
     appearance='▓░',
@@ -2346,8 +2354,6 @@ async def pressure_plate(
     positives=None,
     sound_choice='default'
 ):
-    #TODO: rewrite pressure plate to be a thing that reacts to change rather
-    #than constantly check for change.
     """
     creates a pressure plate on the map at specified spawn_coord.
 
@@ -6117,12 +6123,13 @@ async def travel_along_line(
     no_clip=True,
     source_actor=None
 ):
-    #TODO: fix so that stationary player still takes damage
     points = get_line(start_coord, end_coords)
     if no_clip:
         for index, point in enumerate(points):
-            if not map_dict[point].passable:
-                points = points[:index]
+            not_passable = not map_dict[point].passable
+            no_actors = len(map_dict[point].actors) == 0
+            if not_passable and no_actors:
+                points = points[:index] #trim points past first wall found
                 break
         if len(points) < 1:
             return
@@ -6551,7 +6558,7 @@ def main():
     #loop.create_task(shrouded_horror(start_coord=(29, -25)))
     loop.create_task(death_check())
     loop.create_task(under_passage())
-    #loop.create_task(display_current_tile()) #debug for map generation
+    loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
     #for i in range(10):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
