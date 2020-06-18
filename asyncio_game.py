@@ -2177,7 +2177,7 @@ async def circle_of_darkness(
 async def multi_spike_trap(
     base_name='multitrap',
     base_coord=(10, 10), 
-    nodes=[(i, -5, 's') for i in range(-5, 4)],
+    nodes=[(i, -5, 's') for i in range(-5, 6)],
     damage=75,
     length=7,
     rate=.25,
@@ -2186,6 +2186,8 @@ async def multi_spike_trap(
     patch_to_key='switch_1',
     mid_trap_delay_time=.1
 ):
+    with term.location(55, 0):
+        print(2190, len(nodes))
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -2201,7 +2203,7 @@ async def multi_spike_trap(
     )
     node_data = []
     for number, node in enumerate(nodes):
-        node_coord = node[0] + base_coord[0], node[1] + base_coord[1]
+        node_coord = add_coords(node, base_coord)
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(
@@ -3578,9 +3580,9 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (-32, 20)
+        destination = (9, -32)
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'w'
+        state_dict['facing'] = 'n'
         return
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
@@ -5051,6 +5053,7 @@ async def trap_init():
     node_offsets = ((-6, 's'), (6, 'n'))
     nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
     base_coord = (9, -41)
+    draw_centered_box(middle_coord=base_coord, x_size=11, y_size=11, preset='goo')
     rand_coords = {
         (
             randint(-5, 5) + base_coord[0], 
@@ -5977,39 +5980,6 @@ async def timed_actor(
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
-
-async def spawn_turret(
-    spawn_coord=(54, 16),
-    firing_angle=180,
-    trigger_key='switch_3',
-    facing='e',
-    spread=20,
-    damage=10,
-    radius=12,
-    rate=.02
-):
-    firing_angle = (firing_angle - 90) % 360
-    turret_id = generate_id(base_name='turret')
-    closed_tile = term.on_color(7)(term.color(0)('◫'))
-    open_tile = term.on_color(7)(term.color(0)('◼'))
-    actor_dict[turret_id] = Actor(
-        name=turret_id, moveable=False, tile=closed_tile
-    )
-    actor_dict[turret_id].update(coord=spawn_coord)
-    map_dict[spawn_coord].actors[turret_id] = True
-    while True:
-        await asyncio.sleep(rate)
-        if await any_true(trigger_key=trigger_key):
-            asyncio.ensure_future(
-                fire_projectile(
-                    actor_key=turret_id, 
-                    firing_angle=firing_angle,
-                    radius_spread=(5, 8)
-                )
-            )
-            actor_dict[turret_id].tile = open_tile
-        else:
-            actor_dict[turret_id].tile = closed_tile
 
 async def beam_spire(spawn_coord=(0, 0)):
     """
