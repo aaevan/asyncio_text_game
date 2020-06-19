@@ -3330,7 +3330,7 @@ def map_init():
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
         'h': Room((-40, -20), (9, 9)),
-        'i': Room((-40, -5)),
+        'i': Room((-40, -3)),
         'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
