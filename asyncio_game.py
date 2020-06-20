@@ -2472,6 +2472,37 @@ async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
     asyncio.ensure_future(delay_func(**kwargs))
 
+async def swing(swing_direction='n', base_coord=(0, 0), base_actor=None, set_facing=True):
+    if base_actor:
+        base_coord = actor_dict[base_actor].coords()
+    if set_facing:
+        swing_direction = state_dict['facing']
+    num_to_dir = {
+        1:'n',
+        2:'ne',
+        3:'e',
+        4:'se',
+        5:'s',
+        6:'sw',
+        7:'w',
+        8:'nw',
+    }
+    swing_chars = {
+        'n': (('\\', '|', '/'), ('nw', 'n', 'ne')),
+        'e': (('/', '-', '\\'), ('ne', 'e', 'se')),
+        's': (('\\', '|', '/'), ('se', 's', 'sw')),
+        'w': (('/', '-', '\\'), ('sw', 'w', 'nw')),
+    }
+    chars, dirs = swing_chars[swing_direction]
+    for swing_char, print_direction in zip(chars, dirs):
+        await asyncio.sleep(.5)
+        offset = dir_to_offset(print_direction)
+        print_coord = add_coords(base_coord, offset)
+        with term.location(75, 0):
+            print(2499, swing_char, print_direction, print_coord, '    ')
+        map_dict[print_coord].tile = swing_char
+    #\|/
+
 async def sword(
     direction='n',
     actor='player',
@@ -3534,6 +3565,8 @@ async def action_keypress(key):
     #ITEM TEST COMMANDS----------------------------------------------------
     elif key in 'f': #use sword in facing direction
         await sword_item_ability(length=3)
+    elif key in 'F': #use sword in facing direction
+        await swing(base_actor='player')
     elif key in 'Y': #looking glass power
         asyncio.ensure_future(temp_view_circle(on_actor='player'))
     elif key in '3': #shift amulet power
@@ -5365,7 +5398,7 @@ def dir_to_offset(dir_string):
         'e' : ( 1,  0),
         's':  ( 0,  1),
         'w':  (-1,  0),
-        'ne': ( 1,  1),
+        'ne': ( 1, -1),
         'se': ( 1,  1),
         'sw': (-1,  1),
         'nw': (-1, -1),
