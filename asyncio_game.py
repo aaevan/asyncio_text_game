@@ -2472,7 +2472,15 @@ async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
     asyncio.ensure_future(delay_func(**kwargs))
 
-async def swing(swing_direction='n', base_coord=(0, 0), base_actor=None, set_facing=True):
+async def swing(
+    swing_direction='n', 
+    base_coord=(0, 0), 
+    base_actor=None, 
+    set_facing=True, 
+    base_name='swing',
+    rand_direction=True,
+    swing_color=0x13,
+):
     if base_actor:
         base_coord = actor_dict[base_actor].coords()
     if set_facing:
@@ -2488,20 +2496,38 @@ async def swing(swing_direction='n', base_coord=(0, 0), base_actor=None, set_fac
         8:'nw',
     }
     swing_chars = {
-        'n': (('\\', '|', '/'), ('nw', 'n', 'ne')),
-        'e': (('/', '-', '\\'), ('ne', 'e', 'se')),
-        's': (('\\', '|', '/'), ('se', 's', 'sw')),
-        'w': (('/', '-', '\\'), ('sw', 'w', 'nw')),
+        'n': (['\\', '|', '/'], ['nw', 'n', 'ne']),
+        'e': (['/', '-', '\\'], ['ne', 'e', 'se']),
+        's': (['\\', '|', '/'], ['se', 's', 'sw']),
+        'w': (['/', '-', '\\'], ['sw', 'w', 'nw']),
     }
     chars, dirs = swing_chars[swing_direction]
+    #choose at random which direciton to swing from:
+    if rand_direction: 
+        if random() > .5:
+            chars.reverse()
+            dirs.reverse()
+    #add swing actor to starting tile
+    swing_id = generate_id(base_name=base_name)
+    actor_dict[swing_id] = Actor(
+        name=swing_id,
+        moveable=False,
+        tile=chars[0],
+        tile_color=swing_color
+    )
     for swing_char, print_direction in zip(chars, dirs):
-        await asyncio.sleep(.5)
         offset = dir_to_offset(print_direction)
         print_coord = add_coords(base_coord, offset)
+        actor_dict[swing_id].tile = swing_char
         with term.location(75, 0):
             print(2499, swing_char, print_direction, print_coord, '    ')
-        map_dict[print_coord].tile = swing_char
+        #map_dict[print_coord].tile = swing_char
+        actor_dict[swing_id].update(print_coord)
+        await asyncio.sleep(.15)
     #\|/
+    #remove sword from map_dict:
+    del map_dict[print_coord].actors[swing_id]
+    del actor_dict[swing_id]
 
 async def sword(
     direction='n',
