@@ -2478,8 +2478,9 @@ async def swing(
     base_actor=None, 
     set_facing=True, 
     base_name='swing',
-    rand_direction=True,
-    swing_color=0x13,
+    rand_direction=False,
+    swing_color=0xf9,
+    damage=20,
 ):
     if base_actor:
         base_coord = actor_dict[base_actor].coords()
@@ -2497,9 +2498,9 @@ async def swing(
     }
     swing_chars = {
         'n': (['\\', '|', '/'], ['nw', 'n', 'ne']),
-        'e': (['/', '-', '\\'], ['ne', 'e', 'se']),
+        'e': (['/', '─', '\\'], ['ne', 'e', 'se']),
         's': (['\\', '|', '/'], ['se', 's', 'sw']),
-        'w': (['/', '-', '\\'], ['sw', 'w', 'nw']),
+        'w': (['/', '─', '\\'], ['sw', 'w', 'nw']),
     }
     chars, dirs = swing_chars[swing_direction]
     #choose at random which direciton to swing from:
@@ -2518,11 +2519,14 @@ async def swing(
     for swing_char, print_direction in zip(chars, dirs):
         offset = dir_to_offset(print_direction)
         print_coord = add_coords(base_coord, offset)
-        actor_dict[swing_id].tile = swing_char
+        actor_dict[swing_id].tile = term.on_color(0xea)(swing_char)
         with term.location(75, 0):
             print(2499, swing_char, print_direction, print_coord, '    ')
         #map_dict[print_coord].tile = swing_char
         actor_dict[swing_id].update(print_coord)
+        await damage_all_actors_at_coord(
+            coord=print_coord, damage=damage, source_actor='player'
+        )
         await asyncio.sleep(.15)
     #\|/
     #remove sword from map_dict:
