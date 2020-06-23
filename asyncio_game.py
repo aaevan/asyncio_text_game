@@ -25,7 +25,8 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        tile='𝄛',                           #static representation of tile
+        #tile=',.\'`:',                      #static representation of tile
+        tile='𝄛',                          #old tile representation
         blocking=True,                      #line of sight is occluded
         description='A rough stone wall.',  #description when examined
         announcing=False,                   #used by announcement_at_coord
@@ -53,7 +54,11 @@ class Map_tile:
         actors is a dictionary of actor names with value == True if 
         occupied by that actor, otherwise the key is deleted.
         """
-        self.tile = tile
+        if len(tile) > 1:
+            self.tile = choice(tile)
+        else:
+            self.tile = tile
+        #self.tile = tile
         self.passable = passable
         self.blocking = blocking
         self.description = description
@@ -77,6 +82,7 @@ class Map_tile:
         self.is_door = is_door
         self.locked = locked
         self.key_type = key_type #holds what keys fit this tile if it's a door
+
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
