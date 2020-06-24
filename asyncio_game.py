@@ -25,8 +25,9 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        #tile=',.\'`:',                      #static representation of tile
-        tile='𝄛',                          #old tile representation
+        #tile=',.\'`:',                     #static representation of tile
+        tile='𝄛',                           #old tile representation
+        brightness_mod=0,                   #amount to shift tile brightness
         blocking=True,                      #line of sight is occluded
         description='A rough stone wall.',  #description when examined
         announcing=False,                   #used by announcement_at_coord
@@ -58,6 +59,7 @@ class Map_tile:
             self.tile = choice(tile)
         else:
             self.tile = tile
+        self.brightness_mod = brightness_mod
         #self.tile = tile
         self.passable = passable
         self.blocking = blocking
@@ -2352,7 +2354,8 @@ async def display_current_tile(x_offset=105, y_offset=5):
             await asyncio.sleep(1)
 
 async def pressure_plate(
-    appearance='▓░',
+    #appearance='▓░',
+    tile='░',
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=.5, 
@@ -2360,7 +2363,8 @@ async def pressure_plate(
     test_rate=.1,
     display_timer=False,
     positives=None,
-    sound_choice='default'
+    sound_choice='default',
+    brightness_mod=(1.5, -5),
 ):
     """
     creates a pressure plate on the map at specified spawn_coord.
@@ -2370,8 +2374,10 @@ async def pressure_plate(
     Otherwise, it will be a list of generic objects that tend to trigger
     pressure plates.
     """
-    appearance = [term.color(tile_color)(char) for char in appearance]
-    map_dict[spawn_coord].tile = appearance[0]
+    #appearance = [term.color(tile_color)(char) for char in appearance]
+    #map_dict[spawn_coord].tile = appearance[0]
+    map_dict[spawn_coord].tile = tile
+    map_dict[spawn_coord].brightness_mod = brightness_mod[0]
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
@@ -2388,7 +2394,8 @@ async def pressure_plate(
             if not triggered:
                 await append_to_log(message=sound_effects[sound_choice])
             triggered = True
-            map_dict[spawn_coord].tile = appearance[1]
+            #map_dict[spawn_coord].tile = appearance[1]
+            map_dict[spawn_coord].brightness_mod = brightness_mod[1]
             state_dict[patch_to_key][plate_id] = True
             if display_timer:
                 x_pos, y_pos = (
@@ -2406,7 +2413,8 @@ async def pressure_plate(
         else:
             triggered = False
             state_dict[patch_to_key][plate_id] = False
-            map_dict[spawn_coord].tile = appearance[0]
+            #map_dict[spawn_coord].tile = appearance[0]
+            map_dict[spawn_coord].brightness_mod = brightness_mod[0]
 
 async def puzzle_pair(
     block_coord=(-10, -10),
@@ -4574,7 +4582,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         # only print something if it has changed:
         if last_print_choice != print_choice:
             tile_color = map_dict[tile_coord_key].color_num
-            tile_brightness = get_brightness(distance)
+            brightness_mod = map_dict[tile_coord_key].brightness_mod
+            tile_brightness = get_brightness(distance, brightness_mod)
             if not state_dict['lock view']:
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
@@ -4588,7 +4597,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         last_print_choice = print_choice
         # only print something if it has changed:
 
-def get_brightness(distance, lower_limit=0xe8, upper_limit=0x100):
+def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100):
     """
     brighness falls off according to the below equation
 
@@ -4599,16 +4608,25 @@ def get_brightness(distance, lower_limit=0xe8, upper_limit=0x100):
 
 
     """
+    #upper: 256, lower: 232
     brightness_val = int(round(
-        -(30 / (.5 * ((distance/2) + 3))) + 27 + random() * .75, 1
+        -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75, 1
     ))
-    return brightness_val
-    if brightness_val < lower_limit:
+    #brightness_val += brightness_mod
+    with term.location(145, randint(0, 43)):
+        print(brightness_val, '    ')
+    if random() < .01:
+        with term.location(110, 5):
+            print("upper: {}, lower: {}".format(upper_limit, lower_limit))
+        with term.location(110, 6):
+            print("brightness_vals len: {}".format(len(brightness_vals)))
+    if brightness_val <= 0:
         return 0
-    elif brightness_val > upper_limit:
+    elif brightness_val >= len(brightness_vals) - 1:
         return len(brightness_vals) - 1
-    else:
-        return brightness_val
+    return brightness_val
+    #else:
+        #return brightness_val
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
@@ -5120,9 +5138,9 @@ async def async_map_init():
 async def trap_init():
     loop = asyncio.get_event_loop()
     node_offsets = ((-6, 's'), (6, 'n'))
-    nodes = [(i, *offset) for i in range(-5, 5) for offset in node_offsets]
+    nodes = [(i, *offset) for i in range(-5, 6) for offset in node_offsets]
     base_coord = (9, -41)
-    draw_centered_box(middle_coord=base_coord, x_size=11, y_size=11, preset='goo')
+    draw_centered_box(middle_coord=base_coord, x_size=11, y_size=11, preset='floor')
     rand_coords = {
         (
             randint(-5, 5) + base_coord[0], 
@@ -6597,7 +6615,7 @@ def main():
     #loop.create_task(shrouded_horror(start_coord=(29, -25)))
     loop.create_task(death_check())
     loop.create_task(under_passage())
-    loop.create_task(display_current_tile()) #debug for map generation
+    #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
     #for i in range(10):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
