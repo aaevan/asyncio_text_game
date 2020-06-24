@@ -4608,25 +4608,14 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
 
 
     """
-    #upper: 256, lower: 232
     brightness_val = int(round(
         -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75, 1
     ))
-    #brightness_val += brightness_mod
-    with term.location(145, randint(0, 43)):
-        print(brightness_val, '    ')
-    if random() < .01:
-        with term.location(110, 5):
-            print("upper: {}, lower: {}".format(upper_limit, lower_limit))
-        with term.location(110, 6):
-            print("brightness_vals len: {}".format(len(brightness_vals)))
     if brightness_val <= 0:
         return 0
     elif brightness_val >= len(brightness_vals) - 1:
         return len(brightness_vals) - 1
     return brightness_val
-    #else:
-        #return brightness_val
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
