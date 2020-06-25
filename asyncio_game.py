@@ -2194,8 +2194,6 @@ async def multi_spike_trap(
     patch_to_key='switch_1',
     mid_trap_delay_time=.1
 ):
-    with term.location(55, 0):
-        print(2190, len(nodes))
     """
     pressure plate is centered, nodes are arrayed in offsets around
     the pressure plate. all nodes trigger at once when pressure plate is
@@ -2534,15 +2532,11 @@ async def swing(
         offset = dir_to_offset(print_direction)
         print_coord = add_coords(base_coord, offset)
         actor_dict[swing_id].tile = term.on_color(0xea)(swing_char)
-        with term.location(75, 0):
-            print(2499, swing_char, print_direction, print_coord, '    ')
-        #map_dict[print_coord].tile = swing_char
         actor_dict[swing_id].update(print_coord)
         await damage_all_actors_at_coord(
             coord=print_coord, damage=damage, source_actor='player'
         )
         await asyncio.sleep(.15)
-    #\|/
     #remove sword from map_dict:
     del map_dict[print_coord].actors[swing_id]
     del actor_dict[swing_id]
