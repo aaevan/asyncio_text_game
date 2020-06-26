@@ -107,7 +107,9 @@ class Actor:
         multi_tile_parent=None, 
         blocking=False,
         tile_color=8,
-        description="A featureless gray blob"
+        description="A featureless gray blob",
+        y_hide_coord=None,
+        solid=True
     ):
         self.name = name
         self.base_name = base_name
@@ -131,6 +133,8 @@ class Actor:
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
         self.description = description
+        self.y_hide_coord = y_hide_coord
+        self.solid=solid
 
     def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
@@ -231,49 +235,80 @@ class Animation:
         background=None,
     ):
         presets = {
-            'fire':{
-                'animation':'^∧', 
-                'behavior':'random', 
-                'color_choices':'3331'
-            },
-            'water':{
-                'animation':'███████▒▓▒', 
-                'behavior':'walk both',
-                'color_choices':('6' * 10 + '4')
-            },
-            'grass':{
-                'animation':('▒'), 
-                'behavior':'random',
-                'color_choices':(0x4c, 0x4c, 0x4c, 0x70),
-            },
-            'goo':{
-                'animation':('▒'), 
-                'behavior':'random',
-                'color_choices':(0x35, 0x36, 0x37, 0x38, 0x39),
-            },
-            'nightmare':{
-                'animation':('      ▒▓▒ ▒▓▒'), 
-                'behavior':'random',
-                'color_choices':(0x34, 0x58),
+            'bars':{
+                'animation':(' ▁▂▃▄▅▆▇█'), 
+                'behavior':'walk both', 
+                'color_choices':'2'
             },
             'blob':{
                 'animation':('ööööÖ'),
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
+            'bullet':{
+                'animation':('◦◦◦○'),
+                'behavior':'random',
+                'color_choices':'446'
+            },
+            'blank':{
+                'animation':' ', 
+                'behavior':'random', 
+                'color_choices':'0'
+            },
+            'chasm':{
+                'animation':(' ' * 10 + '.'), 
+                'behavior':'random', 'color_choices':'8'
+            },
+            'door':{
+                'animation':('▯'), 
+                'behavior':'random', 
+                'color_choices':'78888'
+            },
+            'energy block':{
+                'animation':'▤▥▦▧▨▩', 
+                'behavior':'random', 
+                'color_choices':'456'
+            },
+            'explosion':{
+                'animation':('█▓▒'), 
+                'behavior':'random', 
+                'color_choices':'111333',
+                'background':'0111333'
+            },
+            'fire':{
+                'animation':'^∧', 
+                'behavior':'random', 
+                'color_choices':'3331'
+            },
+            'goo':{
+                'animation':('▒'), 
+                'behavior':'random',
+                'color_choices':(0x35, 0x36, 0x37, 0x38, 0x39),
+            },
+            'grass':{
+                'animation':('▒'), 
+                'behavior':'random',
+                'color_choices':(0x4c, 0x4c, 0x4c, 0x70),
+            },
+            'loop test':{
+                'animation':('0123456789abcdefghi'), 
+                'behavior':'walk both', 
+                'color_choices':'33333344444'
+            },
             'mouth':{
                 'animation':('✳✳✳✳✳✸✸'),
                 'behavior':'loop tile',
                 'color_choices':('456')
             },
+            'nightmare':{
+                'animation':('      ▒▓▒ ▒▓▒'), 
+                'behavior':'random',
+                'color_choices':(0x34, 0x58),
+            },
             'noise':{
                 'animation':('      ▒▓▒ ▒▓▒'), 
                 'behavior':'loop tile', 
                 'color_choices':(0xe9, 0xea),
-            },
-            'chasm':{
-                'animation':(' ' * 10 + '.'), 
-                'behavior':'random', 'color_choices':'8'
             },
             'sparse noise':{
                 'animation':(' ' * 100 + '█▓▒'), 
@@ -285,46 +320,20 @@ class Animation:
                 'behavior':'random', 
                 'color_choices':'1234567'
             },
-            'energy block':{
-                'animation':'▤▥▦▧▨▩', 
-                'behavior':'random', 
-                'color_choices':'456'
-            },
-            'blank':{
-                'animation':' ', 
-                'behavior':'random', 
-                'color_choices':'0'
-            },
-            'explosion':{
-                'animation':('█▓▒'), 
-                'behavior':'random', 
-                'color_choices':'111333',
-                'background':'0111333'
-            },
-            'loop test':{
-                'animation':('0123456789abcdefghi'), 
-                'behavior':'walk both', 
-                'color_choices':'33333344444'
-            },
-            'bars':{
-                'animation':(' ▁▂▃▄▅▆▇█'), 
-                'behavior':'walk both', 
-                'color_choices':'2'
-            },
             'spikes':{
                 'animation':('∧∧∧∧‸‸‸     '), 
                 'behavior':'loop both', 
                 'color_choices':'7'
             },
-            'bullet':{
-                'animation':('◦◦◦○'),
-                'behavior':'random',
-                'color_choices':'446'
-            },
-            'door':{
+            'terminal':{
                 'animation':('▯'), 
                 'behavior':'random', 
                 'color_choices':'78888'
+            },
+            'water':{
+                'animation':'███████▒▓▒', 
+                'behavior':'walk both',
+                'color_choices':('6' * 10 + '4')
             },
             'writhe':{
                 'animation':('╭╮╯╰╭╮╯╰'),
@@ -1885,7 +1894,12 @@ def not_occupied(checked_coords=(0, 0)):
     """
         returns True if the square is passable and there are no actors in it.
     """
-    has_no_actors = not map_dict[checked_coords].actors
+    #has_no_actors = not map_dict[checked_coords].actors
+    has_no_actors = True
+    for actor_name in map_dict[checked_coords].actors:
+        if actor_dict[actor_name].solid:
+            has_no_actors = False
+            break
     is_passable = map_dict[checked_coords].passable
     if has_no_actors and is_passable:
         return True
@@ -2509,10 +2523,10 @@ async def swing(
         8:'nw',
     }
     swing_chars = {
-        'n': (['\\', '|', '/'], ['nw', 'n', 'ne']),
-        'e': (['/', '─', '\\'], ['ne', 'e', 'se']),
-        's': (['\\', '|', '/'], ['se', 's', 'sw']),
-        'w': (['/', '─', '\\'], ['sw', 'w', 'nw']),
+        'n': (['╲', '|', '╱'], ['nw', 'n', 'ne']),
+        'e': (['╱', '─', '╲'], ['ne', 'e', 'se']),
+        's': (['╲', '|', '╱'], ['se', 's', 'sw']),
+        'w': (['╱', '─', '╲'], ['sw', 'w', 'nw']),
     }
     chars, dirs = swing_chars[swing_direction]
     #choose at random which direciton to swing from:
@@ -3357,7 +3371,9 @@ def spawn_static_actor(
     multi_tile_parent=None,
     blocking=False,
     literal_name=False,
-    description='STATIC ACTOR'
+    y_hide_coord=None,
+    solid=True,
+    description='STATIC ACTOR',
 ):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
@@ -3383,7 +3399,9 @@ def spawn_static_actor(
         moveable=moveable,
         multi_tile_parent=multi_tile_parent,
         blocking=blocking,
-        description=description
+        description=description,
+        y_hide_coord=y_hide_coord,
+        solid=solid,
     )
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
@@ -3448,8 +3466,25 @@ def map_init():
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
-    basement_door = (-28, 45)
-    draw_door(door_coord=(0, 10))
+    for i in range(10):
+        rand_coord = (randint(-10, 10), randint(-10, 10))
+        spawn_column(spawn_coord=rand_coord)
+
+def spawn_column(
+    spawn_coord=(0, 0), 
+    tile='┃', 
+    height=15, 
+    name='column', 
+    cast_shadow=True, 
+    shadow_length=15, 
+    shadow_mod=1.5,
+):
+    spawn_static_actor(base_name='y_hide_test', spawn_coord=spawn_coord, tile=tile, y_hide_coord=None, solid=True)
+    for y_value in range(15):
+        column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
+        spawn_static_actor(base_name='y_hide_test', spawn_coord=column_segment_spawn_coord, tile='┃', y_hide_coord=spawn_coord, solid=False)
+        if cast_shadow and y_value <= shadow_length:
+            map_dict[column_segment_spawn_coord].brightness_mod = 1.5
 
 def announcement_at_coord(
     announcement, 
@@ -4613,8 +4648,24 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
-        actor_name = next(iter(map_dict[coord].actors))
-        return actor_dict[actor_name].get_view()
+        #for each actor on the space, display the one with the lowest z-index
+        actor_choice = None
+        for actor_name in map_dict[coord].actors:
+            y_hide_coord = actor_dict[actor_name].y_hide_coord
+            if y_hide_coord is not None:
+                player_coords = actor_dict['player'].coords()
+                if player_coords[1] >= y_hide_coord[1]:
+                    actor_choice = actor_name
+                    #return actor_dict[actor_name].get_view()
+                else:
+                    continue
+            else:
+                actor_choice = actor_name
+        if actor_choice is not None:
+            return actor_dict[actor_choice].get_view()
+        #else:
+            #actor_name = next(iter(map_dict[coord].actors))
+            #return actor_dict[actor_name].get_view()
     if map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return item_dict[item_name].tile
@@ -5049,11 +5100,11 @@ async def async_map_init():
         )
     #features drawing--------------------------------------
     containers = [
-        (3, -2),
-        (3, -3),
-        (-44, 21), 
-        (-36, 18),
-        (-36, 22),
+        #(3, -2),
+        #(3, -3),
+        #(-44, 21), 
+        #(-36, 18),
+        #(-36, 22),
         (4, -24)
     ]
     for coord in containers:
@@ -5451,7 +5502,7 @@ async def wait(name_key=None, **kwargs):
 
 async def waver(name_key=None, seek_key='player', **kwargs):
     """
-    Modifies the behavior of a basic_actor
+    Modifies the behavior of a terminal
 
     Seeks player if out of sight, flees if within fov of player
     """
