@@ -2265,10 +2265,11 @@ async def spike_trap(
     coord=(10, 10), 
     direction='n',
     damage=20,
-    length=5,
+    reach=5,
     rate=.25, 
     speed=.1,
-    patch_to_key='switch_1'
+    patch_to_key='switch_1',
+    trap_type='sword',
 ):
     """
     Generate a stationary, actor that periodically puts out spikes in each
@@ -2282,17 +2283,27 @@ async def spike_trap(
     while True:
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
-            asyncio.ensure_future(
-                sword(
-                    direction=direction,
-                    actor=trap_origin_id,
-                    length=length, 
-                    damage=damage,
-                    sword_color=7,
-                    speed=speed,
-                    player_sword_track=False
+            if trap_type == sword:
+                asyncio.ensure_future(
+                    sword(
+                        direction=direction,
+                        actor=trap_origin_id,
+                        length=reach, 
+                        damage=damage,
+                        sword_color=7,
+                        speed=speed,
+                        player_sword_track=False
+                    )
                 )
-            )
+            elif trap_type == 'flame':
+                asyncio.ensure_future(
+                    flame_jet(
+                        origin=(-27, 17),
+                        duration=2, 
+                        facing='e',
+                        reach=reach
+                    )
+                )
 
 async def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
@@ -3473,16 +3484,16 @@ def map_init():
 def spawn_column(
     spawn_coord=(0, 0), 
     tile='┃', 
-    height=15, 
+    height=4, 
     name='column', 
     cast_shadow=True, 
-    shadow_length=15, 
+    shadow_length=4, 
     shadow_mod=1.5,
 ):
     spawn_static_actor(base_name='y_hide_test', spawn_coord=spawn_coord, tile=tile, y_hide_coord=None, solid=True)
-    for y_value in range(15):
+    for y_value in range(height):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
-        spawn_static_actor(base_name='y_hide_test', spawn_coord=column_segment_spawn_coord, tile='┃', y_hide_coord=spawn_coord, solid=False)
+        spawn_static_actor(base_name='y_hide_test', spawn_coord=column_segment_spawn_coord, tile=tile, y_hide_coord=spawn_coord, solid=False)
         if cast_shadow and y_value <= shadow_length:
             map_dict[column_segment_spawn_coord].brightness_mod = 1.5
 
@@ -3690,6 +3701,8 @@ async def action_keypress(key):
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'n'
         return
+    elif key in '^':
+        asyncio.ensure_future(flame_jet())
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
     shifted_x, shifted_y = x + x_shift, y + y_shift
@@ -6106,9 +6119,9 @@ async def beam_spire(spawn_coord=(0, 0)):
     """
     spawns a rotating flame source
     """
-    turret_id = generate_id(base_name='turret')
     closed_tile = term.on_color(7)(term.color(0)('◫'))
     open_tile = term.on_color(7)(term.color(0)('◼'))
+    turret_id = generate_id(base_name='turret')
     actor_dict[turret_id] = Actor(
         name=turret_id, moveable=False, tile=closed_tile
     )
@@ -6134,7 +6147,38 @@ async def beam_spire(spawn_coord=(0, 0)):
                                 fade_duration=1,
                             )
                         )
-            await asyncio.sleep(.05)
+            await asyncio.sleep(.1)
+
+async def flame_jet(
+    origin=(-9, 3),
+    facing='e',
+    duration=1,
+    reach=10,
+    rate=.1,
+    spread=10,
+):
+    particle_count = round(duration / rate)
+    source_id = generate_id(base_name='jet_source')
+    map_dict[origin].actors[source_id] = True
+    actor_dict[source_id] = Actor(
+        name=source_id, moveable=False, tile=' '
+    )
+    dir_to_angle = {
+        'n':0,
+        'e':90,
+        's':180,
+        'w':270,
+    }
+    base_angle = dir_to_angle[facing]
+    for i in range(particle_count):
+        rand_angle = randint(-spread, spread) + base_angle
+        await asyncio.ensure_future(
+            fire_projectile(
+                actor_key=source_id, firing_angle=rand_angle
+            )
+        )
+        await asyncio.sleep(rate)
+    await kill_actor(name_key=source_id, leaves_body=False, blood=False)
 
 async def fire_projectile(
     actor_key='player',
