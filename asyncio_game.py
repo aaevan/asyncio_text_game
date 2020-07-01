@@ -3477,9 +3477,9 @@ def map_init():
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
-    for i in range(10):
-        rand_coord = (randint(-10, 10), randint(-10, 10))
-        spawn_column(spawn_coord=rand_coord)
+    #for i in range(10):
+        #rand_coord = (randint(-10, 10), randint(-10, 10))
+        #spawn_column(spawn_coord=rand_coord)
 
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -4020,7 +4020,7 @@ async def append_to_log(
         #await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
-        await asyncio.ensure_future(
+        asyncio.ensure_future(
             filter_into_log(
                 message=line, line_index=line_index
             )
@@ -5786,6 +5786,8 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     return point_to_point_distance(a_coord, b_coord)
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
+    with term.location(105, 5):
+        print("name_key is: {}".format(name_key))
     actor_coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
@@ -5801,7 +5803,11 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         #delete MTE segment then try to split remaining segments:
         del mte_dict[parent_name].member_data[segment_key]
         mte_dict[parent_name].split_along_subregions()
+    with term.location(105, 6):
+        print("deleting {}: {}".format(name_key, actor_dict[name_key]))
     del actor_dict[name_key]
+    with term.location(105, 7):
+        print("deleting {name_key} at {}".format(name_key, actor_coords))
     del map_dict[actor_coords].actors[name_key]
     if blood:
         await sow_texture(
@@ -6172,7 +6178,7 @@ async def flame_jet(
     base_angle = dir_to_angle[facing]
     for i in range(particle_count):
         rand_angle = randint(-spread, spread) + base_angle
-        await asyncio.ensure_future(
+        asyncio.ensure_future(
             fire_projectile(
                 actor_key=source_id, firing_angle=rand_angle
             )
@@ -6685,7 +6691,7 @@ def main():
     loop.create_task(get_key(map_dict))
     loop.create_task(view_tile_init(loop))
     loop.create_task(quitter_daemon())
-    loop.create_task(minimap_init(loop))
+    #loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup())
     #loop.create_task(printing_testing())
     loop.create_task(async_map_init())
