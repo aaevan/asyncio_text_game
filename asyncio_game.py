@@ -1430,7 +1430,7 @@ def prob_fade_point_to_point(
         return True
 
 def arc_of_points(
-    start_coord=(0, 0),
+    start_coords=(0, 0),
     starting_angle=0,
     segment_length=4,
     fixed_angle_increment=5,
@@ -1438,8 +1438,8 @@ def arc_of_points(
     random_shift=True,
     shift_choices=(-10, 10)
 ):
-    last_point, last_angle = start_coord, starting_angle
-    output_points = [start_coord]
+    last_point, last_angle = start_coords, starting_angle
+    output_points = [start_coords]
     for _ in range(segment_length):
         coord_shift = point_given_angle_and_radius(
             angle=last_angle, 
@@ -1455,7 +1455,7 @@ def arc_of_points(
     return output_points, last_angle
 
 def chain_of_arcs(
-    start_coord=(0, 0),
+    start_coords=(0, 0),
     num_arcs=20,
     starting_angle=90, 
     width=(2, 20),
@@ -1470,7 +1470,7 @@ def chain_of_arcs(
 
     draw_mode controls the width of the passage
     """
-    arc_start = start_coord
+    arc_start = start_coords
     if draw_mode == 'even': #same passage length throughout
         segment_widths = [width[0]] * num_arcs
     elif draw_mode == 'random': #passage width is random
@@ -1482,7 +1482,7 @@ def chain_of_arcs(
         points, starting_angle = arc_of_points(
             starting_angle=starting_angle, 
             fixed_angle_increment=rand_segment_angle,
-            start_coord=arc_start,
+            start_coords=arc_start,
             random_shift=False
         )
         for point in points:
@@ -1697,7 +1697,7 @@ async def throw_item(
     await append_to_log(message=throw_text)
     await travel_along_line(
         name='thrown_item_id',
-        start_coord=starting_point, 
+        start_coords=starting_point, 
         end_coords=destination,
         speed=.05,
         tile=item_tile, 
@@ -1850,8 +1850,8 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
     else:
         damage = '+' + str(damage)[1:]
     for x_pos, digit in enumerate(damage):
-        start_coord = actor_coords[0] + (x_pos - 1), actor_coords[1] - 1
-        end_coords = start_coord[0], start_coord[1] - squares_above
+        start_coords = actor_coords[0] + (x_pos - 1), actor_coords[1] - 1
+        end_coords = start_coords[0], start_coords[1] - squares_above
         if damage[0] == '-':
             tile = term.red(digit_to_superscript[digit])
         else:
@@ -1860,7 +1860,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
             travel_along_line(
                 tile=tile,
                 speed=.12,
-                start_coord=start_coord, 
+                start_coords=start_coords, 
                 end_coords=end_coords,
                 debris=False,
                 animation=False
@@ -2152,13 +2152,13 @@ async def follower_actor(
         actor_dict[follower_id].update(coord=(follow_x, follow_y))
 
 async def circle_of_darkness(
-    start_coord=(0, 0), name='darkness', circle_size=4
+    start_coords=(0, 0), name='darkness', circle_size=4
 ):
     actor_id = generate_id(base_name=name)
     loop = asyncio.get_event_loop()
     loop.create_task(
         basic_actor(
-            coord=start_coord,
+            coord=start_coords,
             speed=.5,
             movement_function=seek_actor, 
             tile=' ',
@@ -3254,7 +3254,7 @@ async def under_passage(
 #TODO: create a mirror
 
 async def magic_door(
-    start_coord=(5, 5),
+    start_coords=(5, 5),
     end_coords=(-22, 18), 
     horizon_orientation='vertical',
     silent=False,
@@ -3279,7 +3279,7 @@ async def magic_door(
     """
     direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     animation = Animation(base_tile='▮', preset='door')
-    map_dict[start_coord] = Map_tile(
+    map_dict[start_coords] = Map_tile(
         tile=" ",
         blocking=False,
         passable=True,
@@ -3289,19 +3289,19 @@ async def magic_door(
         animation=animation
     )
     description = "The air shimmers slightly between you and the space beyond."
-    map_dict[start_coord].description = description
-    map_dict[start_coord].tile = "M"
+    map_dict[start_coords].description = description
+    map_dict[start_coords].tile = "M"
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         #just_teleported = actor_dict['player'].just_teleported
         just_teleported = state_dict['just teleported']
         #TODO: add an option for non-player actors to go through.
-        if player_coords == start_coord and not just_teleported:
+        if player_coords == start_coords and not just_teleported:
             last_location = state_dict['last_location']
             difference_from_door_coords = (
-                start_coord[0] - last_location[0], 
-                start_coord[1] - last_location[1]
+                start_coords[0] - last_location[0], 
+                start_coords[1] - last_location[1]
             )
             destination = add_coords(end_coords, difference_from_door_coords)
             if map_dict[destination].passable:
@@ -3322,7 +3322,7 @@ async def create_magic_door_pair(
     loop = asyncio.get_event_loop()
     loop.create_task(
         magic_door(
-            start_coord=(door_a_coords),
+            start_coords=(door_a_coords),
             end_coords=(door_b_coords),
             silent=silent, 
             destination_plane=destination_plane
@@ -3330,7 +3330,7 @@ async def create_magic_door_pair(
     )
     loop.create_task(
         magic_door(
-            start_coord=(door_b_coords),
+            start_coords=(door_b_coords),
             end_coords=(door_a_coords),
             silent=silent,
             destination_plane=source_plane
@@ -3682,7 +3682,7 @@ async def action_keypress(key):
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
     elif key in '9': #creates a passage in a random direction from the player
         facing_angle = dir_to_angle(state_dict['facing'])
-        chain_of_arcs(starting_angle=facing_angle, start_coord=player_coords, num_arcs=5)
+        chain_of_arcs(starting_angle=facing_angle, start_coords=player_coords, num_arcs=5)
     elif key in 'b': #
         asyncio.ensure_future(rand_blink())
     elif key in 'M': #spawn an mte near the player
@@ -5588,7 +5588,7 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
 
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(
-    start_coord=(-5, -5),
+    start_coords=(-5, -5),
     speed=1,
     tentacle_length_range=(3, 8),
     tentacle_rate=.1,
@@ -5606,8 +5606,8 @@ async def tentacled_mass(
         is_animated=True,
         animation=Animation(preset='mouth'),
     )
-    actor_dict[tentacled_mass_id].update(coord=start_coord)
-    current_coord = start_coord
+    actor_dict[tentacled_mass_id].update(coord=start_coords)
+    current_coord = start_coords
     while True:
         await asyncio.sleep(tentacle_rate)
         current_coord = await choose_core_move(
@@ -5618,7 +5618,7 @@ async def tentacled_mass(
         actor_dict[tentacled_mass_id].update(coord=current_coord)
     
 async def shrouded_horror(
-    start_coord=(0, 0),
+    start_coords=(0, 0),
     speed=.1,
     shroud_pieces=50,
     core_name_key="shrouded_horror"
@@ -5643,12 +5643,12 @@ async def shrouded_horror(
     when it is first run, core is started as a coroutine (as an actor) as is each shroud_location
     """
     #initialize all shroud tiles to starting coordinates:
-    core_location = start_coord
+    core_location = start_coords
     actor_dict[core_name_key] = Actor(
         name=core_name_key, moveable=False, tile=' '
     )
     actor_dict[core_name_key].update(coord=core_location)
-    shroud_locations = [start_coord] * shroud_pieces
+    shroud_locations = [start_coords] * shroud_pieces
     #initialize segment actors:
     shroud_piece_names = []
     for number, shroud_coord in enumerate(shroud_locations):
@@ -5657,7 +5657,7 @@ async def shrouded_horror(
         actor_dict[name] = Actor(
             name=name,
             moveable=True,
-            coord=start_coord,
+            coord=start_coords,
             tile=' '
         )
     wait = 0
@@ -5803,12 +5803,8 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
         #delete MTE segment then try to split remaining segments:
         del mte_dict[parent_name].member_data[segment_key]
         mte_dict[parent_name].split_along_subregions()
-    with term.location(105, 6):
-        print("deleting {}: {}".format(name_key, actor_dict[name_key]))
-    del actor_dict[name_key]
-    with term.location(105, 7):
-        print("deleting {name_key} at {}".format(name_key, actor_coords))
     del map_dict[actor_coords].actors[name_key]
+    del actor_dict[name_key]
     if blood:
         await sow_texture(
             root_coord=actor_coords,
@@ -6164,11 +6160,6 @@ async def flame_jet(
     spread=10,
 ):
     particle_count = round(duration / rate)
-    source_id = generate_id(base_name='jet_source')
-    map_dict[origin].actors[source_id] = True
-    actor_dict[source_id] = Actor(
-        name=source_id, moveable=False, tile=' '
-    )
     dir_to_angle = {
         'n':0,
         'e':90,
@@ -6180,14 +6171,14 @@ async def flame_jet(
         rand_angle = randint(-spread, spread) + base_angle
         asyncio.ensure_future(
             fire_projectile(
-                actor_key=source_id, firing_angle=rand_angle
+                start_coords=origin, firing_angle=rand_angle
             )
         )
         await asyncio.sleep(rate)
-    await kill_actor(name_key=source_id, leaves_body=False, blood=False)
 
 async def fire_projectile(
-    actor_key='player',
+    start_coords=(0, 0),
+    actor_key=None,
     firing_angle=45,
     radius=10, 
     radius_spread=(10, 14),
@@ -6197,16 +6188,15 @@ async def fire_projectile(
 ):
     rand_radius = randint(*radius_spread) + radius
     rand_angle = randint(*degree_spread) + firing_angle
-    actor_coords = actor_dict[actor_key].coords()
+    if actor_key is not None:
+        start_coords = actor_dict[actor_key].coords()
     x_shift, y_shift = point_given_angle_and_radius(
         angle=rand_angle, radius=rand_radius
     )
-    end_coords = add_coords(actor_coords, (x_shift, y_shift))
-    actor_coords = actor_dict[actor_key].coords()
-    start_coords = actor_coords
+    end_coords = add_coords(start_coords, (x_shift, y_shift))
     await travel_along_line(
         name='particle', 
-        start_coord=start_coords, 
+        start_coords=start_coords, 
         end_coords=end_coords, 
         damage=damage, 
         animation=Animation(preset=animation_preset), 
@@ -6253,7 +6243,7 @@ def angle_point_to_point(
 
 async def travel_along_line(
     name='particle',
-    start_coord=(0, 0),
+    start_coords=(0, 0),
     end_coords=(10, 10),
     speed=.05,
     tile="X",
@@ -6264,7 +6254,7 @@ async def travel_along_line(
     no_clip=True,
     source_actor=None
 ):
-    points = get_line(start_coord, end_coords)
+    points = get_line(start_coords, end_coords)
     if no_clip:
         for index, point in enumerate(points):
             not_passable = not map_dict[point].passable
@@ -6281,13 +6271,13 @@ async def travel_along_line(
         is_animated = False
     actor_dict[particle_id] = Actor(
         name=particle_id,
-        coord=start_coord,
+        coord=start_coords,
         tile=tile,
         moveable=False,
         is_animated=is_animated,
         animation=animation
     )
-    map_dict[start_coord].actors[particle_id] = True
+    map_dict[start_coords].actors[particle_id] = True
     last_location = points[0]
     if ignore_head:
         points = points[1:]
@@ -6357,12 +6347,12 @@ async def radial_fountain(
             radius=rand_radius
         )
         if collapse:
-            start_coord, end_coords = point, origin_coord
+            start_coords, end_coords = point, origin_coord
         else:
-            start_coord, end_coords = origin_coord, point
+            start_coords, end_coords = origin_coord, point
         asyncio.ensure_future(
             travel_along_line(
-                start_coord=start_coord, 
+                start_coords=start_coords, 
                 end_coords=end_coords,
                 debris=debris,
                 animation=animation
@@ -6529,7 +6519,7 @@ async def spawn_preset_actor(
     loop = asyncio.get_event_loop()
     actor_id = generate_id(base_name=preset)
     name = "{}_{}".format(preset, actor_id)
-    start_coord = coords
+    start_coords = coords
     if preset == 'blob':
         item_drops = ['red potion']
         description = 'A gibbering mass of green slime that pulses and writhes before your eyes.'
@@ -6691,19 +6681,19 @@ def main():
     loop.create_task(get_key(map_dict))
     loop.create_task(view_tile_init(loop))
     loop.create_task(quitter_daemon())
-    #loop.create_task(minimap_init(loop))
+    loop.create_task(minimap_init(loop))
     loop.create_task(ui_setup())
     #loop.create_task(printing_testing())
     loop.create_task(async_map_init())
     #TODO: fix follower vine to disappear after a set time:
-    #loop.create_task(shrouded_horror(start_coord=(29, -25)))
+    #loop.create_task(shrouded_horror(start_coords=(29, -25)))
     loop.create_task(death_check())
     loop.create_task(under_passage())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
-    #for i in range(10):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(1):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)))
