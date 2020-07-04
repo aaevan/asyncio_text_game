@@ -6697,12 +6697,6 @@ def main():
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)))
-    loop.create_task(repeated_sound_message(
-        output_text="REEEEEEEE", 
-        sound_origin_coord=(-19, 19),
-        interval=5,
-        fade_duration=5,
-    ))
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
