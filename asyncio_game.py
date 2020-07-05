@@ -514,9 +514,12 @@ class Multi_tile_entity:
         preset='fireball', 
         blocking=False,
         fill_color=3,
-        offset=(-1, -1)
+        offset=(-1, -1),
+        description="THIS IS A {} MTE",
     ):
         self.name = name
+        if '{}' in description:
+            description = description.format(preset)
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {
             '2x2':(
@@ -611,7 +614,8 @@ class Multi_tile_entity:
                     offset=(x, y),
                     segment_name=segment_name,
                     blocking=blocking,
-                    fill_color=fill_color
+                    fill_color=fill_color,
+                    description=description,
                 )
 
     def add_segment(
@@ -2227,7 +2231,11 @@ async def multi_spike_trap(
         node_name = '{}_{}'.format(base_name, str(number))
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(
-            name=node_name, moveable=False, tile='◘', tile_color=0
+            name=node_name, 
+            moveable=False, 
+            tile='◘', 
+            tile_color=0,
+            description="You notice a hole in this section of wall."
         )
         actor_dict[node_name].update(coord=node_coord)
         map_dict[node_coord].tile = '◘'
@@ -2376,15 +2384,30 @@ async def display_current_tile(x_offset=105, y_offset=5):
         if len(actors) > 1:
             await asyncio.sleep(1)
 
+#TODO: proximity_trigger: trigger when actors are within say, 5 tiles
+#TODO: line_trigger: test all the tiles in a straight line 
+    #(triggers any time the line is crossed)
+    #have the option of a semi-visible laser
+#TODO: an item to emit a cloud, lasers only show up in clouds
+#TODO: clouds limit distance of view?
+#TODO: an actor that only shows up 1% of the time its tile is polled
+
+async def proximity_trigger(
+    coord_a=(0, 0),
+    coord_b=(0, 5),
+    patch_to_key="proximity_1",
+    test_rate=.1,
+    visible=False,
+):
+    pass
+
 async def pressure_plate(
-    #appearance='▓░',
     tile='░',
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=.5, 
     tile_color=0xeb,
     test_rate=.1,
-    display_timer=False,
     positives=None,
     sound_choice='default',
     brightness_mod=(1.5, -5),
@@ -2397,10 +2420,7 @@ async def pressure_plate(
     Otherwise, it will be a list of generic objects that tend to trigger
     pressure plates.
     """
-    #appearance = [term.color(tile_color)(char) for char in appearance]
-    #map_dict[spawn_coord].tile = appearance[0]
     map_dict[spawn_coord].tile = tile
-    map_dict[spawn_coord].brightness_mod = brightness_mod[0]
     plate_id = generate_id(base_name='pressure_plate')
     state_dict[patch_to_key][plate_id] = False
     exclusions = ('sword', 'particle')
@@ -2417,26 +2437,13 @@ async def pressure_plate(
             if not triggered:
                 await append_to_log(message=sound_effects[sound_choice])
             triggered = True
-            #map_dict[spawn_coord].tile = appearance[1]
             map_dict[spawn_coord].brightness_mod = brightness_mod[1]
             state_dict[patch_to_key][plate_id] = True
-            if display_timer:
-                x_pos, y_pos = (
-                    int(term.width / 2 - 2), int(term.height / 2 - 2),
-                )
-                await timer(
-                    x_pos=x_pos - 8,
-                    y_pos=(y_pos + 15),
-                    time_minutes=0,
-                    time_seconds=5,
-                    resolution=1
-                )
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
             triggered = False
             state_dict[patch_to_key][plate_id] = False
-            #map_dict[spawn_coord].tile = appearance[0]
             map_dict[spawn_coord].brightness_mod = brightness_mod[0]
 
 async def puzzle_pair(
@@ -3344,7 +3351,7 @@ async def spawn_container(
     breakable=True,
     moveable=True,
     preset='random',
-    description='A wooden box'
+    description='A wooden box.'
 ):
     box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
     if preset == 'random':
