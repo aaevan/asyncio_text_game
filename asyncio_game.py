@@ -3435,7 +3435,7 @@ def map_init():
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
         'h': Room((-40, -20), (9, 9)),
-        'i': Room((-40, -3)),
+        'i': Room((-40, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
@@ -4450,6 +4450,31 @@ async def check_line_of_sight(coord_a, coord_b):
     y_diff = abs(coord_a[1] - coord_b[1])
     block_tally = []
     found_mte = False
+    """
+    if the tile is a wall and the nearest non-wall adjacent tile to the player
+    has a clear line of sight to the player, display the tile.
+    neighbors = {
+        'n':(0, -1),
+        'e':(1, 0),
+        's':(0, 1),
+        'w':(-1, 0),
+    }
+    """
+    if map_dict[coord_b].blocking:
+        neighbors = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+        neighbor_coords = [
+            add_coords(coord_b, neighbor) for neighbor in neighbors.values()
+        ]
+        non_walls = [coord for coord in neighbor_coords if not map_dict[coord].blocking]
+        if len(non_walls) == 0:
+            return False
+        elif len(non_walls) == 1:
+            return await check_line_of_sight(coord_a, non_walls[0])
+        else:
+            dists = {coord:point_to_point_distance(coord_a, coord) for coord in neighbor_coords}
+            min_value = min(dists.values())
+            result = [(key, value) for key, value in dists.items() if value == min_value]
+            return await check_line_of_sight(coord_a, result[0][0])
     for index, point in enumerate(points):
         if map_dict[point].actors:
             for key in map_dict[point].actors:
@@ -5137,7 +5162,7 @@ async def async_map_init():
         ((47, -31), 'red sword'), 
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
-        ((-15, -2), 'looking glass'), 
+        ((-15, 0), 'looking glass'), 
         ((20, 0), 'scanner'),
         ((20, 0), 'nut'),
         ((20, 0), 'nut'),
