@@ -4442,23 +4442,10 @@ async def check_line_of_sight(coord_a, coord_b):
     """
     intended to be used for occlusion.
     show the tile that the first collision happened at but not the following tile
-    """
-    walls = 0
-    points = get_line(coord_a, coord_b)
-    blocking_actor_index = None
-    x_diff = abs(coord_a[0] - coord_b[0])
-    y_diff = abs(coord_a[1] - coord_b[1])
-    block_tally = []
-    found_mte = False
-    """
-    if the tile is a wall and the nearest non-wall adjacent tile to the player
-    has a clear line of sight to the player, display the tile.
-    neighbors = {
-        'n':(0, -1),
-        'e':(1, 0),
-        's':(0, 1),
-        'w':(-1, 0),
-    }
+
+    first checks if the checked tile is a wall, if so, we ask if there's a 
+    neighbor to that tile that has a clear line of sight to coord_a. if so,
+    display the tile
     """
     if map_dict[coord_b].blocking:
         neighbors = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
@@ -4475,18 +4462,21 @@ async def check_line_of_sight(coord_a, coord_b):
             min_value = min(dists.values())
             result = [(key, value) for key, value in dists.items() if value == min_value]
             return await check_line_of_sight(coord_a, result[0][0])
+    points = get_line(coord_a, coord_b)
+    walls = 0
+    blocking_actor_index = None
+    #if found_mte is ever set to true:
+    #we know that we've already passed through one tile of an MTE.
+    inside_mte = False 
     for index, point in enumerate(points):
         if map_dict[point].actors:
             for key in map_dict[point].actors:
                 if 'mte' in key:
-                    if not found_mte:
-                        found_mte = True
-                    else:
+                    #TODO: allow for transparent MTEs
+                    if inside_mte:
                         return False
-        if map_dict[point].blocking:
-            block_tally.append(1)
-        else:
-            block_tally.append(0)
+                    else:
+                        inside_mte = True
         #TODO: make magic doors correctly be blocked behind MTEs
         if map_dict[point].magic == True:
             return await handle_magic_door(point=point, last_point=points[-1])
@@ -4506,22 +4496,6 @@ async def check_line_of_sight(coord_a, coord_b):
     #if there's only open space among the checked points, display it.
     elif walls == 0:
         return True
-    blocks = 0
-    for blocked in reversed(block_tally):
-        if blocked:
-            blocks += 1
-        else:
-            break
-    #If the last point is blocking and it's a wall, display it:
-    if map_dict[points[-1]].blocking == True and walls == 1:
-        return True
-    if blocks >= 1:
-        if x_diff == 1:
-            if await check_line_of_sight(coord_a, (coord_a[0], coord_b[1])):
-                return True
-        elif y_diff == 1:
-            if await check_line_of_sight(coord_a, (coord_b[0], coord_a[1])):
-                return True
     else:
         return False
 
