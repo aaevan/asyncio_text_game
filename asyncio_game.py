@@ -3434,8 +3434,8 @@ def map_init():
         'e': Room((-20, 20), 6),
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
-        'h': Room((-40, -20), (9, 9)),
-        'i': Room((-40, 0)),
+        'h': Room((-30, -20), (9, 9)),
+        'i': Room((-30, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
         'l': Room((0, 0), 100, 'grass', inner_radius=70),
@@ -4465,8 +4465,6 @@ async def check_line_of_sight(coord_a, coord_b):
     points = get_line(coord_a, coord_b)
     walls = 0
     blocking_actor_index = None
-    #if found_mte is ever set to true:
-    #we know that we've already passed through one tile of an MTE.
     inside_mte = False 
     for index, point in enumerate(points):
         if map_dict[point].actors:
