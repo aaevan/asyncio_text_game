@@ -3889,11 +3889,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
             '│╰{}╯│'.format(term.red('ʘ')),
             '└───┘',
         ),
-        'looking glass':( #TODO: switch with better icon
+        'looking glass':( 
             '┌───┐',
             '│ ╭╮│', 
             '│ ╰╯│',
-            '│/  │', 
+            '│╱  │', 
             '└───┘',
         ),
         'eye trinket':(
