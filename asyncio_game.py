@@ -535,6 +535,10 @@ class Multi_tile_entity:
                 ('╔', '╗'),
                 ('╚', '╝'),
             ),
+            '2x2_block_thick':(
+                ('▛', '▜'),
+                ('▙', '▟'),
+            ),
             '3x3_block':(
                 ('╔', '╦', '╗'),
                 ('╠', '╬', '╣'),
@@ -3624,6 +3628,7 @@ async def action_keypress(key):
                 x_shift, y_shift = directions[key]
         state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
+        #TODO: hold shift and away from an object to pull?
         asyncio.ensure_future(dash_ability(
             dash_length=randint(2, 3),
             direction=key_to_compass(key),
@@ -3704,9 +3709,9 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (9, -32)
+        destination = (-16, 0)
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'n'
+        state_dict['facing'] = 'w'
         return
     elif key in '^':
         asyncio.ensure_future(flame_jet())
@@ -5108,7 +5113,14 @@ async def async_map_init():
         distance_trigger=0
     )
     #spawn multi-tile entities-----------------------------
-    mte_spawns = (((17, 1), '2x2_block'), ((11, 0), '2x2_block'))
+    mte_spawns = (
+        ((17, 1), '2x2_block'),
+        ((11, 0), '2x2_block'),
+        ((-32, 3), '2x2_block'),
+        ((-26, 1), '2x2_block_thick'),
+        #((11, 0), '2x2_block')
+        #((11, 0), '2x2_block')
+    )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
             spawn_mte(
