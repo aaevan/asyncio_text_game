@@ -506,7 +506,6 @@ class Multi_tile_entity:
     If we don't want to clip through things, The actual location of the 
     MTE is only updated after checking whether the ground is clear.
     """
- 
     def __init__(
         self,
         name='mte',
@@ -518,8 +517,33 @@ class Multi_tile_entity:
         description="THIS IS A {} MTE",
     ):
         self.name = name
+        self.fill_color = fill_color
         if '{}' in description:
             description = description.format(preset)
+        self.member_data = {}
+        self.member_names = []
+        tiles = self.mte_presets(preset)
+        for y in range(len(tiles)):
+            for x in range(len(tiles[0])):
+                offset_coord = add_coords((x, y), offset)
+                write_coord = add_coords(offset_coord, anchor_coord)
+                #skip over empty cells to preserve shape of preset:
+                if tiles[y][x] is ' ':
+                    continue
+                else:
+                    segment_tile = tiles[y][x]
+                segment_name = f'{self.name}_{(x, y)}'
+                self.add_segment(
+                    segment_tile=segment_tile,
+                    write_coord=write_coord,
+                    offset=(x, y),
+                    segment_name=segment_name,
+                    blocking=blocking,
+                    fill_color=fill_color,
+                    description=description,
+                )
+ 
+    def mte_presets(self, preset):
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {
             '2x2':(
@@ -599,28 +623,8 @@ class Multi_tile_entity:
                 (' ', '╹', ' '),
             ),
         }
-        self.member_data = {}
-        self.member_names = []
-        tiles = presets[preset]
-        for y in range(len(tiles)):
-            for x in range(len(tiles[0])):
-                offset_coord = add_coords((x, y), offset)
-                write_coord = add_coords(offset_coord, anchor_coord)
-                #skip over empty cells to preserve shape of preset:
-                if tiles[y][x] is ' ':
-                    continue
-                else:
-                    segment_tile = tiles[y][x]
-                segment_name = f'{self.name}_{(x, y)}'
-                self.add_segment(
-                    segment_tile=segment_tile,
-                    write_coord=write_coord,
-                    offset=(x, y),
-                    segment_name=segment_name,
-                    blocking=blocking,
-                    fill_color=fill_color,
-                    description=description,
-                )
+        return presets[preset]
+
 
     def add_segment(
         self,
@@ -866,14 +870,16 @@ async def spawn_mte(
     base_name='mte', 
     spawn_coord=(0, 0), 
     preset='3x3_block',
-    blocking=True
+    blocking=True,
+    fill_color=3,
 ):
     mte_id = generate_id(base_name=base_name)
     mte_dict[mte_id] = Multi_tile_entity(
         name=mte_id,
         anchor_coord=spawn_coord,
         preset=preset,
-        blocking=blocking
+        blocking=blocking,
+        fill_color=fill_color,
     )
     return mte_id
 
@@ -2722,7 +2728,10 @@ async def random_blink(actor='player', radius=20):
             actor_dict[actor].update(coord=(line_of_sight_result))
             return
 
-async def temporary_block(duration=5, animation_preset='energy block'):
+async def temporary_block(
+    duration=5, animation_preset='energy block', singleton=True,
+):
+    #TODO: if singleton, destroy any previous blocks after the placement of a second
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
@@ -2745,7 +2754,12 @@ async def temporary_block(duration=5, animation_preset='energy block'):
 
 
 async def temp_view_circle(
-    duration=10, radius=15, center_coord=(0, 0), on_actor=None, instant=True
+    duration=10, 
+    radius=15, 
+    center_coord=(0, 0), 
+    on_actor=None, 
+    instant=True,
+    wipe_after=True,
 ):
     #TODO: give option to mark all unseen before temp_view_circle as unseen
     #      after circle fades.
@@ -2768,6 +2782,8 @@ async def temp_view_circle(
         if not instant:
             await asyncio.sleep(.01)
         map_dict[coord].override_view = False
+        if wipe_after:
+            map_dict[coord].seen = False
     state_dict['lock view'] = False
 
 #Item interaction---------------------------------------------------------------
@@ -2929,9 +2945,9 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         },
         'looking glass':{
             'uses':9999,
-            'tile':term.red('?'),
+            'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
-            'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':10},
+            'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3},
             'broken_text':wand_broken_text
         }
     }
@@ -3486,6 +3502,7 @@ def map_init():
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
+    secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     #for i in range(10):
@@ -3501,10 +3518,21 @@ def spawn_column(
     shadow_length=4, 
     shadow_mod=1.5,
 ):
-    spawn_static_actor(base_name='y_hide_test', spawn_coord=spawn_coord, tile=tile, y_hide_coord=None, solid=True)
+    spawn_static_actor(
+        base_name='y_hide_test', 
+        spawn_coord=spawn_coord, 
+        tile=tile, 
+        y_hide_coord=None, 
+        solid=True,
+    )
     for y_value in range(height):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
-        spawn_static_actor(base_name='y_hide_test', spawn_coord=column_segment_spawn_coord, tile=tile, y_hide_coord=spawn_coord, solid=False)
+        spawn_static_actor(
+            base_name='y_hide_test', 
+            spawn_coord=column_segment_spawn_coord, 
+            tile=tile, y_hide_coord=spawn_coord, 
+            solid=False,
+        )
         if cast_shadow and y_value <= shadow_length:
             map_dict[column_segment_spawn_coord].brightness_mod = 1.5
 
@@ -3687,7 +3715,6 @@ async def action_keypress(key):
         vine_name = "testing"
         asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
     elif key in '%':
-        asyncio.ensure_future(fade_print(output_text='*drip*', print_coord=(105, 10)))
         asyncio.ensure_future(distanced_fade_print())
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
@@ -3699,8 +3726,10 @@ async def action_keypress(key):
         asyncio.ensure_future(rand_blink())
     elif key in 'M': #spawn an mte near the player
         spawn_coords = add_coords(player_coords, (2, 2))
-        mte_id = await spawn_mte(
-            spawn_coord=spawn_coords, preset='2x2_block'
+        mte_id = asyncio.ensure_future(
+            spawn_mte(
+                spawn_coord=spawn_coords, preset='2x2_block'
+            )
         )
     elif key in 'R': #generate a random cave room around the player
         player_coords = add_coords(
@@ -3896,9 +3925,9 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         ),
         'looking glass':( 
             '┌───┐',
-            '│ ╭╮│', 
-            '│ ╰╯│',
-            '│╱  │', 
+            '│ ⴰ〫 〬│', #෴
+            '│   ⃝│', #⃝  இ  Ϙ
+            '│ ⧸ │',
             '└───┘',
         ),
         'eye trinket':(
@@ -4457,7 +4486,7 @@ async def check_line_of_sight(coord_a, coord_b):
         neighbor_coords = [
             add_coords(coord_b, neighbor) for neighbor in neighbors.values()
         ]
-        non_walls = [coord for coord in neighbor_coords if not map_dict[coord].blocking]
+        non_walls = [coord for coord in neighbor_coords if not map_dict[coord].blocking and map_dict[coord].seen]
         if len(non_walls) == 0:
             return False
         elif len(non_walls) == 1:
@@ -5117,9 +5146,13 @@ async def async_map_init():
         ((17, 1), '2x2_block'),
         ((11, 0), '2x2_block'),
         ((-32, 3), '2x2_block'),
-        ((-26, 1), '2x2_block_thick'),
-        #((11, 0), '2x2_block')
-        #((11, 0), '2x2_block')
+        ((-28, 1), '2x2_block_thick'),
+        ((9, 3), '2x2_block'),
+        ((7, 0), '2x2_block'),
+        ((27, 0), '2x2_block'),
+        ((29, 1), '2x2_block'),
+        ((5, 0), '2x2_block'),
+        ((7, 3), '2x2_block'),
     )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
@@ -5129,11 +5162,11 @@ async def async_map_init():
         )
     #features drawing--------------------------------------
     containers = [
-        #(3, -2),
-        #(3, -3),
-        #(-44, 21), 
-        #(-36, 18),
-        #(-36, 22),
+        (3, -2),
+        (3, -3),
+        (-44, 21), 
+        (-36, 18),
+        (-36, 22),
         (4, -24)
     ]
     for coord in containers:
@@ -5147,21 +5180,9 @@ async def async_map_init():
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
-        ((20, 0), 'scanner'),
+        ((30, -8), 'scanner'),
         ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
-        ((20, 0), 'nut'),
+        ((31, -1), 'red potion'),
         ((20, 0), 'dynamite'),
         ((20, 1), 'green key'),
         ((20, -1), 'looking glass'), 
@@ -5802,8 +5823,6 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     return point_to_point_distance(a_coord, b_coord)
 
 async def kill_actor(name_key=None, leaves_body=True, blood=True):
-    with term.location(105, 5):
-        print("name_key is: {}".format(name_key))
     actor_coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
