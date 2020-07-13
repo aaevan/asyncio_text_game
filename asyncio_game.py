@@ -3925,8 +3925,8 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         ),
         'looking glass':( 
             '┌───┐',
-            '│ ⴰ〫 〬│', #෴
-            '│   ⃝│', #⃝  இ  Ϙ
+            '│ ⴰ〫 〬│',
+            '│   ⃝│',
             '│ ⧸ │',
             '└───┘',
         ),
@@ -4486,7 +4486,12 @@ async def check_line_of_sight(coord_a, coord_b):
         neighbor_coords = [
             add_coords(coord_b, neighbor) for neighbor in neighbors.values()
         ]
-        non_walls = [coord for coord in neighbor_coords if not map_dict[coord].blocking and map_dict[coord].seen]
+        non_walls = []
+        for coord in neighbor_coords:
+            not_blocking = not map_dict[coord].blocking
+            explored = map_dict[coord].seen
+            if not_blocking and explored:
+                non_walls.append(coord)
         if len(non_walls) == 0:
             return False
         elif len(non_walls) == 1:
@@ -4622,6 +4627,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 )
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result)
+                    with term.location(105, randint(0, 40)):
+                        print(line_of_sight_result, print_choice)
                 elif line_of_sight_result == True:
                     await trigger_announcement(
                         tile_coord_key,
@@ -4714,13 +4721,10 @@ async def check_contents_of_tile(coord):
                 actor_choice = actor_name
         if actor_choice is not None:
             return actor_dict[actor_choice].get_view()
-        #else:
-            #actor_name = next(iter(map_dict[coord].actors))
-            #return actor_dict[actor_name].get_view()
     if map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return item_dict[item_name].tile
-    if map_dict[coord].is_animated:
+    elif map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
         if map_dict[coord].color_num not in (7, 8):
