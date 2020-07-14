@@ -4481,6 +4481,10 @@ async def check_line_of_sight(coord_a, coord_b):
     neighbor to that tile that has a clear line of sight to coord_a. if so,
     display the tile
     """
+    points = get_line(coord_a, coord_b)
+    has_magic = any([map_dict[point].magic for point in points])
+    #since walls and thin corridors are special cases,
+    #if the last coord is blocking, just change coord_b to check the new non-wall tile
     if map_dict[coord_b].blocking:
         neighbors = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
         neighbor_coords = [
@@ -4492,20 +4496,20 @@ async def check_line_of_sight(coord_a, coord_b):
             explored = map_dict[coord].seen
             if not_blocking and explored:
                 non_walls.append(coord)
-        if len(non_walls) == 0:
-            return False
+        if len(non_walls) == 0 and not has_magic: #we're in the middle of a wall
+            return False #this is causing problems for magic doors.
         elif len(non_walls) == 1:
-            return await check_line_of_sight(coord_a, non_walls[0])
+            coord_b = non_walls[0]
         else:
             dists = {coord:point_to_point_distance(coord_a, coord) for coord in neighbor_coords}
             min_value = min(dists.values())
             result = [(key, value) for key, value in dists.items() if value == min_value]
-            return await check_line_of_sight(coord_a, result[0][0])
-    points = get_line(coord_a, coord_b)
+            coord_b = result[0][0]
+    points = get_line(coord_a, coord_b) #recompute after changed endpoint
     walls = 0
     blocking_actor_index = None
     inside_mte = False 
-    for index, point in enumerate(points):
+    for index, point in enumerate(points[:-1]):
         if map_dict[point].actors:
             for key in map_dict[point].actors:
                 if 'mte' in key:
@@ -4537,7 +4541,7 @@ async def check_line_of_sight(coord_a, coord_b):
         return False
 
 async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
-    difference_from_last = last_point[0] - point[0], last_point[1] - point[1]
+    difference_from_last = diff_coords(last_point, point)
     destination = map_dict[point].magic_destination
     if difference_from_last is not (0, 0):
         coord_through_door = (
@@ -5607,6 +5611,11 @@ def fuzzy_forget(name_key=None, radius=3, forget_count=5):
 def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
     output = (coord_a[0] + coord_b[0],
               coord_a[1] + coord_b[1])
+    return output
+
+def diff_coords(coord_a=(0, 0), coord_b=(10, 10)):
+    output = (coord_a[0] - coord_b[0],
+              coord_a[1] - coord_b[1])
     return output
 
 def generate_id(base_name="name"):
