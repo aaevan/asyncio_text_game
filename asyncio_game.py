@@ -332,8 +332,9 @@ class Animation:
             },
             'water':{
                 'animation':'███████▒▓▒', 
-                'behavior':'walk both',
-                'color_choices':('6' * 10 + '4')
+                'behavior':'random',
+                'color_choices':([0x11 for i in range(50)] + list(range(0x11, 0x15)))
+                #'color_choices':('6' * 10 + '4')
             },
             'writhe':{
                 'animation':('╭╮╯╰╭╮╯╰'),
@@ -3469,6 +3470,9 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'pool_a': Room((0, 6), 3, 'water'),
+        'pool_b': Room((5, 8), 4, 'water'),
+        'pool_c': Room((2, 8), 2, 'water'),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
