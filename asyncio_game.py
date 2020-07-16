@@ -611,9 +611,8 @@ class Multi_tile_entity:
                 ('1', ' ', '1', ' ', '1'),
                 (' ', ' ', '1', '1', ' '),
             ),
-           'ns_bookcase':(
+           'ns_couch':(
                 ('▛'),
-                ('▌'),
                 ('▌'),
                 ('▙'),
             ),
@@ -674,7 +673,6 @@ class Multi_tile_entity:
         Checks whether all of the member actors can fit into a new configuration
         """
         #TODO: allow for an mte to move into a space currently occupied by the player.
-        #TODO: allow or disallow multi-pushes that would contact another block
         coord_to_dir = {(0, -1):'n', (1, 0):'e', (0, 1):'s', (-1, 0):'w'}
         check_position = {}
         for member_name in self.member_names:
@@ -887,7 +885,6 @@ async def spawn_mte(
 def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     """
     pushes a multi_tile entity.
-    TODO: allow pushes of arbitrarily chained MTEs:
     This requires that we check each leading face for additional entities:
     aaa->     @: player
     a@a->     a: first mte
@@ -1078,7 +1075,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='▒',
             blocking=False,
             passable=True,
-            description='Soft knee-high grass. It nods slightly in the breeze.',
+            description='Soft knee-high grass. It nods gently in the breeze.',
             magic=False,
             is_animated=True, 
             animation=Animation(preset='grass')
@@ -1087,7 +1084,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='█',
             blocking=False,
             passable=True,
-            description='Water.',
+            description='A pool of water.',
             magic=False,
             is_animated=True, 
             animation=Animation(preset='water')
@@ -1642,27 +1639,8 @@ async def toggle_scanner_state(batt_use=1):
     else:
         state_dict['scanner_state'] = True
         await append_to_log(message='You turn on the scanner.')
-    while (
-        state_dict['scanner_state'] == True and state_dict['scanner_state'] > 0
-    ):
+    while (state_dict['scanner_state'] == True):
         await asyncio.sleep(1)
-        state_dict['battery'] -= batt_use
-
-async def use_battery():
-    """
-    When used, if the battery is not topped off, refill the player's battery.
-
-    The battery then disappears.
-
-    TODO: create a battery item that can be used by the player.
-    """
-    if state_dict['battery'] == 100:
-        await append_to_log(message='The battery is already full!')
-    elif state_dict['battery'] < 100:
-        if state_dict['battery'] + batt_val < 100:
-            state_dict['battery'] = (state_dict['battery'] + batt_val)
-        else:
-            state_dict['battery'] = 100
 
 async def throw_item(
     thrown_item_id=False,
@@ -1900,10 +1878,6 @@ async def unlock_door(actor_key='player', opens='red'):
     else:
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     await append_to_log(message=output_text)
-
-#TODO: an entity that moves around with momentum,
-#      others that follow the last n moves
-#      billiard balls?
 
 def not_occupied(checked_coords=(0, 0)):
     """
@@ -3808,12 +3782,19 @@ def close_door(door_coord, door_tile='▮'):
     map_dict[door_coord].blocking = True
 
 async def toggle_door(door_coord):
+    """
+    a door is an actor that cannot be pushed and maybe is breakable
+    a "steel" door cannot be broken
+    a cage door can be seen through but not passed through
+    when space is pressed, the door's tile is changed and it is set to passable
+    """
     door_state = map_dict[door_coord].tile 
     open_doors = [term.color(i)('▯') for i in range(10)]
     open_doors.append('▯')
     open_doors.append('▯')
     closed_doors = [term.color(i)('▮') for i in range(10)]
     closed_doors.append('▮')
+    #change secret tiles to be a brightness offset instead of a fixed color
     secret_tile = term.color(0xeb)('𝄛')
     closed_doors.append(secret_tile)
     if map_dict[door_coord].locked:
@@ -6721,7 +6702,6 @@ def state_setup():
     state_dict['teleporting'] = False
     state_dict['view_tile_count'] = 0
     state_dict['scanner_state'] = False
-    state_dict['battery'] = 100
     state_dict['lock view'] = False
 
 def main():
