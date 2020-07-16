@@ -3455,7 +3455,7 @@ def map_init():
         'e': Room((-20, 20), 6),
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
-        'h': Room((-30, -20), (9, 9)),
+        'h': Room((-30, -20), (7, 7)),
         'i': Room((-30, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
@@ -3490,6 +3490,7 @@ def map_init():
         ('r', 's', 1, None, None),
         ('r', 't', 1, None, None),
         ('u', 'v', 1, None, None),
+        ('h', 'i', 2, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
@@ -4635,8 +4636,6 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 )
                 if type(line_of_sight_result) is tuple:
                     print_choice = await check_contents_of_tile(line_of_sight_result)
-                    with term.location(105, randint(0, 40)):
-                        print(line_of_sight_result, print_choice)
                 elif line_of_sight_result == True:
                     await trigger_announcement(
                         tile_coord_key,
@@ -5192,7 +5191,7 @@ async def async_map_init():
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
-        ((30, -8), 'scanner'),
+        ((31, -6), 'scanner'),
         ((20, 0), 'nut'),
         ((31, -1), 'red potion'),
         ((20, 0), 'dynamite'),
