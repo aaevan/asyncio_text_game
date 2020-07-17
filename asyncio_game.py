@@ -25,7 +25,6 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        #tile=',.\'`:',                     #static representation of tile
         tile='𝄛',                           #old tile representation
         brightness_mod=0,                   #amount to shift tile brightness
         blocking=True,                      #line of sight is occluded
@@ -1014,7 +1013,17 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             description='A smooth patch of stone floor.',
             magic=False,
             is_animated=False,
-            animation=None
+            animation=None,
+        ),
+        'rough floor':Map_tile(
+            tile='░',
+            blocking=False,
+            passable=True,
+            description='A roughly hewn stone floor.',
+            magic=False,
+            is_animated=False,
+            animation=None,
+            brightness_mod=(-1, 1)
         ),
         'wall':Map_tile(
             tile='𝄛',
@@ -1102,6 +1111,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
+    if presets[preset].brightness_mod:
+        map_dict[tile_coords].brightness_mod += randint(*presets[preset].brightness_mod)
     if presets[preset].is_animated:
         map_dict[tile_coords].is_animated = presets[preset].is_animated
         map_dict[tile_coords].animation = Animation(preset=preset)
@@ -1686,7 +1697,7 @@ async def throw_item(
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = 'throwing {} {}.'.format(item_dict[thrown_item_id].name)
+    throw_text = 'throwing {}.'.format(item_dict[thrown_item_id].name)
     await append_to_log(message=throw_text)
     await travel_along_line(
         name='thrown_item_id',
@@ -1730,8 +1741,11 @@ async def explosion_effect(
         animation=Animation(preset='explosion')
     )
     if destroys_terrain:
+        #TODO: fix so this doesn't "destroy" voids and things that don't make sense
+        area_of_effect = get_circle(center=center, radius=radius)
         draw_circle(center_coord=center, radius=radius)
     if damage:
+        #TODO: change damage based on distance from center?
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
 async def fused_throw_action(
@@ -1906,7 +1920,6 @@ def push(direction='n', pusher='player'):
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
-    #TODO: push all or none, not just first actor
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
     if mte_parent is not None:
@@ -2817,7 +2830,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'power_kwargs':{
                 'thrown_item_id':item_id,
                 'throw_distance':1, 
-                'radius':15,
+                'radius':5,
                 'damage':150,
                 'fuse_length':9,
                 'particle_count':30,
@@ -3422,7 +3435,7 @@ def spawn_static_actor(
 def map_init():
     clear()
     rooms = {
-        'a': Room((0, 0), 10),
+        'a': Room((0, 0), 10, 'rough floor'),
         'b': Room((5, -20), 5),
         'c': Room((28, -28), 7),
         'd': Room((9, -39), 8),
@@ -4005,7 +4018,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=80, y_margin=1, refresh_rate=.05
 ):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(
@@ -4646,10 +4660,9 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                         break
             if map_dict[x_display_coord, y_display_coord].items:
                 for item_id in map_dict[x_display_coord, y_display_coord].items:
-                    with term.location(65, randint(0, 10)):
-                        raw_tile = term.strip(item_dict[item_id].tile)
-                        remembered_tile = term.color(color_choice)(raw_tile)
-                        break
+                    raw_tile = term.strip(item_dict[item_id].tile)
+                    remembered_tile = term.color(color_choice)(raw_tile)
+                    break
             print_choice = term.color(color_choice)(str(remembered_tile))
         else:
             #catches tiles that are not within current FOV
