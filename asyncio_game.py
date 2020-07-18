@@ -4018,8 +4018,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=40, height=10, x_margin=2, y_margin=1, refresh_rate=.05
-    width=40, height=10, x_margin=80, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
 ):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(
@@ -4058,7 +4057,6 @@ async def append_to_log(
     if wipe:
         wipe_text = ' ' * len(message)
     for index_offset, line in enumerate(reversed(padded_lines)):
-        #await asyncio.sleep(0)
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
         asyncio.ensure_future(
