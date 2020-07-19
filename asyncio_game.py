@@ -1112,12 +1112,15 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
     if presets[preset].brightness_mod:
-        map_dict[tile_coords].brightness_mod += randint(*presets[preset].brightness_mod)
+        map_dict[tile_coords].brightness_mod += rand_float(*presets[preset].brightness_mod)
     if presets[preset].is_animated:
         map_dict[tile_coords].is_animated = presets[preset].is_animated
         map_dict[tile_coords].animation = Animation(preset=preset)
     else:
         map_dict[tile_coords].is_animated = False
+
+def rand_float(min_val, max_val, round_places=2):
+    return round((random() * (max_val - min_val)) + min_val, round_places)
 
 def draw_box(
     top_left=(0, 0),
@@ -2580,7 +2583,9 @@ async def sword(
     retract_speed=.1,
     damage=100,
     sword_color=1,
-    player_sword_track=True
+    player_sword_track=True,
+    mode='retract',
+    delay_out=0,
 ):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
@@ -2623,7 +2628,14 @@ async def sword(
             coord=segment_coord, damage=damage, source_actor='player'
         )
         await asyncio.sleep(speed)
-    retract_order = zip(reversed(segment_coords), reversed(sword_segment_names))
+    await asyncio.sleep(delay_out)
+    if mode == 'retract':
+        retract_order = zip(reversed(segment_coords), reversed(sword_segment_names))
+    elif mode == 'spear':
+        retract_order = zip(segment_coords, sword_segment_names)
+    else:
+        retract_speed = 0
+        retract_order = zip(segment_coords, sword_segment_names)
     for segment_coord, segment_name in retract_order:
         if segment_name in map_dict[segment_coord].actors: 
             del map_dict[segment_coord].actors[segment_name]
@@ -2632,13 +2644,28 @@ async def sword(
     if player_sword_track:
         state_dict['player_busy'] = False
 
-async def sword_item_ability(length=3, speed=.05, damage=20, sword_color=1):
+async def sword_item_ability(
+    length=3,
+    speed=.05,
+    retract_speed=.05,
+    damage=20,
+    sword_color=1,
+    mode='retract',
+    player_sword_track=True,
+    delay_out=0,
+):
     facing_dir = state_dict['facing']
     asyncio.ensure_future(
         sword(
-            facing_dir, length=length, 
-            speed=speed, retract_speed=speed,
-            damage=damage, sword_color=sword_color
+            direction=facing_dir, 
+            length=length, 
+            speed=speed, 
+            retract_speed=retract_speed,
+            damage=damage, 
+            sword_color=sword_color,
+            mode=mode,
+            player_sword_track=player_sword_track,
+            delay_out=delay_out
         )
     )
 
@@ -2803,6 +2830,21 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'power_kwargs':{'duration':5},
             'use_message':block_wand_text,
             'broken_text':' is out of charges'
+        },
+        'blaster':{
+            'uses':9999,
+            'tile':term.red('τ'),
+            'usable_power':sword_item_ability,
+            'power_kwargs':{
+                'speed':0, 
+                'retract_speed':0,
+                'mode':'spear', 
+                'damage':100,
+                'length':20,
+                'mode':'spear',
+                'player_sword_track':False,
+                'delay_out':.5,
+            }
         },
         'nut':{
             'uses':9999,
@@ -3845,6 +3887,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     if 'wand' in icon_name:
         icon_name = 'wand'
     icons = {
+        'blaster':(
+            '┌───┐',
+            '│   │'.format(term.red('╱')),
+            '│v+=│',
+            '│// │'.format(term.bold(term.red('╳'))),
+            '└───┘',
+        ),
         'wand':(
             '┌───┐',
             '│  *│', 
@@ -5180,6 +5229,7 @@ async def async_map_init():
         ((-3, -3), 'red key'), 
         ((8, 4), 'red potion'), 
         ((47, -31), 'red sword'), 
+        ((23, 0), 'blaster'), 
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
