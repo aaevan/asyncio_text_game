@@ -2586,15 +2586,22 @@ async def sword(
     player_sword_track=True,
     mode='retract',
     delay_out=0,
+    thick=False,
 ):
     """extends and retracts a line of characters
     TODO: end the range once it hits a wall
     """
+    if thick:
+        ns_tile = '┃'
+        ew_tile = '━'
+    else:
+        ns_tile = '│'
+        ew_tile = '─'
     dir_coords = {
-        'n':(0, -1, '│'),
-        'e':(1, 0, '─'),
-        's':(0, 1, '│'),
-        'w':(-1, 0, '─')
+        'n':(0, -1, ns_tile),
+        'e':(1, 0, ew_tile),
+        's':(0, 1, ns_tile),
+        'w':(-1, 0, ew_tile)
     }
     opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if player_sword_track:
@@ -2653,6 +2660,7 @@ async def sword_item_ability(
     mode='retract',
     player_sword_track=True,
     delay_out=0,
+    thick=False,
 ):
     facing_dir = state_dict['facing']
     asyncio.ensure_future(
@@ -2665,7 +2673,8 @@ async def sword_item_ability(
             sword_color=sword_color,
             mode=mode,
             player_sword_track=player_sword_track,
-            delay_out=delay_out
+            delay_out=delay_out,
+            thick=thick,
         )
     )
 
@@ -2835,8 +2844,9 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'uses':9999,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
+            'use_message':None,
             'power_kwargs':{
-                'speed':0, 
+                'speed':0,
                 'retract_speed':0,
                 'mode':'spear', 
                 'damage':100,
@@ -2844,6 +2854,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
                 'mode':'spear',
                 'player_sword_track':False,
                 'delay_out':.5,
+                'thick':True,
             }
         },
         'nut':{
