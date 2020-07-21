@@ -437,7 +437,8 @@ class Item:
         broken=False,
         use_message='You use the item.',
         broken_text=" is broken.",
-        mutable=True
+        mutable=True,
+        breakable=True,
     ):
         self.name = name
         self.item_id = item_id
@@ -451,6 +452,7 @@ class Item:
         self.broken_text = broken_text
         self.power_kwargs = power_kwargs
         self.mutable = mutable
+        self.breakable = breakable
 
     async def use(self):
         if self.uses is not None and not self.broken:
@@ -459,11 +461,15 @@ class Item:
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
             if self.uses is not None:
                 self.uses -= 1
-            if self.uses <= 0:
+            if self.uses <= 0 and self.breakable:
                 self.broken = True
-        else:
+        elif self.broken:
             await append_to_log(
                 message="The {}{}".format(self.name, self.broken_text)
+            )
+        else:
+            await append_to_log(
+                message="The {}{}".format(self.name, " is unbreakable!")
             )
 
 class Multi_tile_entity:
@@ -2841,10 +2847,11 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'broken_text':' is out of charges'
         },
         'blaster':{
-            'uses':9999,
+            'uses':10,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
             'use_message':None,
+            'broken_text':' is out of charges',
             'power_kwargs':{
                 'speed':0,
                 'retract_speed':0,
@@ -2864,10 +2871,11 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'scanner':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.green('𝄮'), 
             'usable_power':toggle_scanner_state,
             'use_message':None,
+            'breakable':False,
             'power_kwargs':{'batt_use':1}
         },
         'fused charge':{
@@ -3058,8 +3066,12 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
         clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
+            if item_dict[item_id].uses >= 0:
+                uses_text = '({})'.format(item_dict[item_id].uses)
+            else:
+                uses_text = ''
             with term.location(x_pos, (y_pos + 1) + number):
-                print('{} {}'.format(item_dict[item_id].tile, item_dict[item_id].name))
+                print('{} {} {}'.format(item_dict[item_id].tile, item_dict[item_id].name, uses_text))
 
 async def filter_print(
     output_text='You open the door.',
@@ -4090,7 +4102,26 @@ async def console_box(
         )
     )
     while True:
+        #initially just group single line messages
+        grouped_messages = [['', hash(''), 0]]
+        last_message = ''
+        message_index = len(state_dict['messages']) - 1
+        while len(grouped_messages) < height:
+            message = state_dict['messages'][message_index]
+            if message != last_message:
+                #message text, hash of message, message repeat count
+                grouped_messages.append([message, hash(message), 0])
+            else:
+                grouped_messages[-1][2] += 1
+            last_message = message
+            message_index -= 1
+            if message_index <= 0:
+                break
+        #TODO: incorporate grouped messages somehow with append_to_log (hashes?)
+        #with term.location(0, 40):
+            #print("grouped_messages: {}".format(grouped_messages))
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
+            #change this line to reflect pulling (grouped) messages:
             line_text = state_dict['messages'][-index - 1] #top is newest
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
@@ -4119,6 +4150,8 @@ async def append_to_log(
     for index_offset, line in enumerate(reversed(padded_lines)):
         line_index = len(state_dict['messages'])
         state_dict['messages'].append('')
+        #TODO: add a hash of the message before it's fully printed,
+        #use that hash to see whether it's a repeat message
         asyncio.ensure_future(
             filter_into_log(
                 message=line, line_index=line_index
