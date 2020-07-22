@@ -677,7 +677,6 @@ class Multi_tile_entity:
         """
         Checks whether all of the member actors can fit into a new configuration
         """
-        #TODO: allow for an mte to move into a space currently occupied by the player.
         coord_to_dir = {(0, -1):'n', (1, 0):'e', (0, 1):'s', (-1, 0):'w'}
         check_position = {}
         for member_name in self.member_names:
@@ -1902,18 +1901,16 @@ async def unlock_door(actor_key='player', opens='red'):
         output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
     await append_to_log(message=output_text)
 
-def not_occupied(checked_coords=(0, 0)):
+def is_passable(checked_coords=(0, 0)):
     """
         returns True if the square is passable and there are no actors in it.
     """
-    #has_no_actors = not map_dict[checked_coords].actors
     has_no_actors = True
     for actor_name in map_dict[checked_coords].actors:
         if actor_dict[actor_name].solid:
             has_no_actors = False
             break
-    is_passable = map_dict[checked_coords].passable
-    if has_no_actors and is_passable:
+    if has_no_actors and map_dict[checked_coords].passable:
         return True
     else:
         return False
@@ -1939,7 +1936,7 @@ def push(direction='n', pusher='player'):
     else:
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coords, chosen_dir)
-        if not_occupied(pushed_destination):
+        if is_passable(pushed_destination):
             actor_dict[pushed_name].update(coord=pushed_destination)
 
 async def bay_door(
@@ -2020,6 +2017,7 @@ async def bay_door(
     while True:
         player_coords = actor_dict['player'].coords()
         dist_from_player = point_to_point_distance(hinge_coord, player_coords)
+        #go into standby mode if too distant:
         if dist_from_player > 30:
             await asyncio.sleep(1)
             continue
@@ -2064,7 +2062,13 @@ async def bay_door(
                 #if it's not pushable, jam here, enter check for not jammed loop
                 #if it's pushable and the pushed-to space is either a wall or another bay door,
                 #deal a whole bunch of damage to the jammed actor
-                actor_dict[segment[0]].update(segment[1])
+                check_space = add_coords(dir_coord_increment, segment[1])
+                passable = is_passable(checked_coords=check_space)
+                #TODO: fix bay door so gap doesn't apear and player is pushed.
+                if not passable:
+                    break
+                else:
+                    actor_dict[segment[0]].update(segment[1])
 
 async def bay_door_pair(
     hinge_a_coord,
@@ -3709,7 +3713,7 @@ async def action_keypress(key):
                 return
             push(pusher='player', direction=key_to_compass(key))
             walk_destination = add_coords(player_coords, directions[key])
-            if not_occupied(walk_destination):
+            if is_passable(walk_destination):
                 x_shift, y_shift = directions[key]
         state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
@@ -5528,7 +5532,7 @@ async def wander(name_key=None, **kwargs):
     x_current, y_current = actor_dict[name_key].coords()
     x_move, y_move = randint(-1, 1), randint(-1, 1)
     next_position = add_coords((x_current, y_current), (x_move, y_move))
-    if not_occupied(next_position):
+    if is_passable(next_position):
         return next_position
     else:
         return x_current, y_current
@@ -5600,7 +5604,7 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
         add_coords(current_coord, offset) for offset in eight_offsets
     ]
     open_spaces = list(filter(
-        lambda coord: not_occupied(coord) == True,
+        lambda coord: is_passable(coord) == True,
         eight_adjacencies
     ))
     distances = [
@@ -5908,7 +5912,7 @@ async def basic_actor(
         if current_coords != next_coords:
             dist_to_player = distance_to_actor(name_key, 'player')
             noise_level = (1 / dist_to_player ** 2) * 10
-            if random() <= noise_level: #TODO: and angle_in_arc():
+            if random() <= noise_level:
                 asyncio.ensure_future(
                     directional_alert(source_actor=name_key, preset='footfall')
                 )
@@ -6529,7 +6533,7 @@ async def move_through_coords(
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
         new_position = add_coords(actor_coords, step)
-        if not_occupied(new_position) and not drag_through_solid:
+        if is_passable(new_position) and not drag_through_solid:
             if not map_dict[actor_coords].passable:
                 map_dict[actor_coords].passable = True
             actor_dict[actor_key].update(coord=new_position)
