@@ -1975,12 +1975,16 @@ async def bay_door(
         'secret':{'ns':'𝄛', 'ew':'𝄛'},
         'thick':{'ns':'‖', 'ew':'═'},
         'thin':{'ns':'│', 'ew':'─'},
+        'test_a':{'ns':'a', 'ew':'a'},
+        'test_b':{'ns':'b', 'ew':'b'},
     }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_description_presets = {
             'secret':'A rough stone wall',
             'thick':'A thick steel door',
-            'thin':'A door of stainless steel.'
+            'thin':'A door of stainless steel.',
+            'test_a':'THIS IS A TEST (a)',
+            'test_b':'THIS IS A TEST (b)',
     }
     door_segment_tile = door_style[preset][style_dir]
     if debug:
@@ -2062,10 +2066,16 @@ async def bay_door(
                 #if it's not pushable, jam here, enter check for not jammed loop
                 #if it's pushable and the pushed-to space is either a wall or another bay door,
                 #deal a whole bunch of damage to the jammed actor
-                check_space = add_coords(dir_coord_increment, segment[1])
+                check_space = segment[1]
+                check_push_space = add_coords(dir_coord_increment, segment[1])
                 passable = is_passable(checked_coords=check_space)
                 #TODO: fix bay door so gap doesn't apear and player is pushed.
+                """
+                right now, the door just stops
+                """
                 if not passable:
+                    with term.location(105, 40):
+                        print(2074, map_dict[check_space].actors.items())
                     break
                 else:
                     actor_dict[segment[0]].update(segment[1])
@@ -2109,6 +2119,8 @@ async def bay_door_pair(
             b_segments = span - a_segments
     else:
         return
+    with term.location(105, randint(0, 10)):
+        print(patch_to_key, span, a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
@@ -2132,7 +2144,8 @@ async def bay_door_pair(
             patch_to_key=patch_to_key,
             orientation=hinge_a_dir,
             segments=a_segments,
-            preset=preset,
+            #preset=preset,
+            preset='test_a',
             message_preset=message_preset
         )
     ) 
@@ -2142,7 +2155,8 @@ async def bay_door_pair(
             patch_to_key=patch_to_key,
             orientation=hinge_b_dir,
             segments=b_segments,
-            preset=preset,
+            #preset=preset,
+            preset='test_b',
             message_preset=None #one door is silent to prevent message repeats
         )
     )
@@ -6779,6 +6793,7 @@ async def quitter_daemon():
             loop.close()
 
 async def door_init(loop):
+    """
     loop.create_task(
         bay_door_pair(
             (2, -15),
@@ -6796,6 +6811,27 @@ async def door_init(loop):
             patch_to_key='bay_door_pair_3',
             preset='thick',
             pressure_plate_coord=(-20, 18),
+            message_preset='ksh'
+        )
+    )
+    loop.create_task(
+        bay_door_pair(
+            (-6, -5),
+            (6, -5),
+            patch_to_key='bay_door_pair_4',
+            preset='thick',
+            pressure_plate_coord=(0, -1),
+            message_preset='ksh'
+        )
+    )
+    """
+    loop.create_task(
+        bay_door_pair(
+            (-6, -7),
+            (7, -7),
+            patch_to_key='bay_door_pair_4',
+            preset='thick',
+            pressure_plate_coord=(0, -1),
             message_preset='ksh'
         )
     )
@@ -6831,9 +6867,9 @@ def main():
     loop.create_task(under_passage())
     #loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
-    for i in range(1):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(1):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)))
     loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)))
