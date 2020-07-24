@@ -4103,8 +4103,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
-    width=40, height=10, x_margin=1, y_margin=30, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
 ):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(
