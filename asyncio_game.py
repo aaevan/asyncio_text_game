@@ -2069,13 +2069,8 @@ async def bay_door(
                 check_space = segment[1]
                 check_push_space = add_coords(dir_coord_increment, segment[1])
                 passable = is_passable(checked_coords=check_space)
-                #TODO: fix bay door so gap doesn't apear and player is pushed.
-                """
-                right now, the door just stops
-                """
+                #TODO: fix bay door so player is pushed.
                 if not passable:
-                    with term.location(105, 40):
-                        print(2074, map_dict[check_space].actors.items())
                     break
                 else:
                     actor_dict[segment[0]].update(segment[1])
@@ -4108,7 +4103,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=30, refresh_rate=.05
 ):
     state_dict['messages'] = [''] * height
     asyncio.ensure_future(
