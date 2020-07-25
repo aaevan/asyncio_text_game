@@ -1975,8 +1975,8 @@ async def bay_door(
         'secret':{'ns':'𝄛', 'ew':'𝄛'},
         'thick':{'ns':'‖', 'ew':'═'},
         'thin':{'ns':'│', 'ew':'─'},
-        'test_a':{'ns':'a', 'ew':'a'},
-        'test_b':{'ns':'b', 'ew':'b'},
+        'test_a':{'ns':'n', 'ew':'e'},
+        'test_b':{'ns':'s', 'ew':'w'},
     }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_description_presets = {
@@ -2104,18 +2104,16 @@ async def bay_door_pair(
     elif hinge_a_coord[0] == hinge_b_coord[0]:
         if hinge_a_coord[1] > hinge_b_coord[1]:
             hinge_a_dir, hinge_b_dir = 'n', 's'
-            span = hinge_b_coord[1] - hinge_a_coord[1] - 1
+            span = hinge_a_coord[1] - hinge_b_coord[1] - 1
             a_segments = span // 2
             b_segments = span - a_segments
         else:
             hinge_a_dir, hinge_b_dir = 's', 'n'
-            span = hinge_a_coord[1] - hinge_b_coord[1] - 1
+            span = hinge_b_coord[1] - hinge_a_coord[1] - 1
             a_segments = span // 2
             b_segments = span - a_segments
     else:
         return
-    with term.location(105, randint(0, 10)):
-        print(patch_to_key, span, a_segments, b_segments)
     state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
@@ -3808,9 +3806,9 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (-16, 0)
+        destination = (0, 0)
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'w'
+        state_dict['facing'] = 'n'
         return
     elif key in '^':
         asyncio.ensure_future(flame_jet())
@@ -6822,14 +6820,24 @@ async def door_init(loop):
     """
     loop.create_task(
         bay_door_pair(
-            (-6, -7),
-            (7, -7),
+            (-9, -2),
+            (-9, 2),
             patch_to_key='bay_door_pair_4',
             preset='thick',
             pressure_plate_coord=(0, -1),
             message_preset='ksh'
         )
     )
+    #loop.create_task(
+        #bay_door_pair(
+            #(-6, -7),
+            #(7, -7),
+            #patch_to_key='bay_door_pair_4',
+            #preset='thick',
+            #pressure_plate_coord=(0, -1),
+            #message_preset='ksh'
+        #)
+    #)
 
 def state_setup():
     state_dict['just teleported'] = False
