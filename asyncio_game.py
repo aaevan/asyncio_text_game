@@ -3665,10 +3665,17 @@ async def get_key(map_dict, help_wait_count=100):
                 state_dict['same_count'] >= help_wait_count and 
                 state_dict['same_count'] % help_wait_count == 0
             ):
+                #the hash is calculated on the padded message:
+                help_text_hash = "{:<40}".format(help_text)
                 if not any (
-                    help_text in line for line in state_dict['messages'][-10:]
+                    #line[1] is the hash of the message
+                    help_text_hash in line for line in state_dict['messages'][-10:]
                 ):
+                    with term.location(0, 40):
+                        print("hash of {}: {}".format(help_text, hash(help_text)))
                     await append_to_log(message=help_text)
+                    with term.location(0, 45):
+                        print([(hash((help_text)) in line, line) for line in state_dict['messages'][-10:]])
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
@@ -4103,7 +4110,7 @@ async def choose_item(
 async def console_box(
     width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
 ):
-    state_dict['messages'] = [''] * height
+    state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
         ui_box_draw(
             box_height=height, 
@@ -4115,16 +4122,20 @@ async def console_box(
     while True:
         #initially just group single line messages
         grouped_messages = [['', hash(''), 0]]
-        last_message = ''
+        last_message_hash = ''
         message_index = len(state_dict['messages']) - 1
         while len(grouped_messages) < height:
-            message = state_dict['messages'][message_index]
-            if message != last_message:
+            message, message_hash = state_dict['messages'][message_index]
+            #how can we read in hashes of messages? 
+            #The has is generated before the message starts to filter into 
+            #state_dict and sits alongside the partially filtered message
+            #the hash of an empty string is 0
+            if message_hash != last_message_hash and last_message_hash != 0: 
                 #message text, hash of message, message repeat count
                 grouped_messages.append([message, hash(message), 0])
             else:
                 grouped_messages[-1][2] += 1
-            last_message = message
+            last_message_hash = message
             message_index -= 1
             if message_index <= 0:
                 break
@@ -4133,7 +4144,7 @@ async def console_box(
             #print("grouped_messages: {}".format(grouped_messages))
         for index, line_y in enumerate(range(y_margin, y_margin + height)):
             #change this line to reflect pulling (grouped) messages:
-            line_text = state_dict['messages'][-index - 1] #top is newest
+            line_text = state_dict['messages'][-index - 1][0] #top is newest
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
@@ -4154,13 +4165,15 @@ async def append_to_log(
                     wipe_char_time=wipe_char_time,
                 )
         return
+    #start with the easy case of single-line messages, then expand to multiple line messages.
     message_lines = textwrap.wrap(message, 40)
     padded_lines = ["{:<40}".format(line) for line in message_lines]
     if wipe:
         wipe_text = ' ' * len(message)
     for index_offset, line in enumerate(reversed(padded_lines)):
         line_index = len(state_dict['messages'])
-        state_dict['messages'].append('')
+        #do we add a hash AND a line number AND a message length?
+        state_dict['messages'].append(('', hash(message)))
         #TODO: add a hash of the message before it's fully printed,
         #use that hash to see whether it's a repeat message
         asyncio.ensure_future(
@@ -4195,7 +4208,9 @@ async def filter_into_log(
     for index in indexes:
         await asyncio.sleep(time_between_chars)
         written_string[index] = message[index]
-        state_dict['messages'][line_index] = ''.join(written_string)
+        state_dict['messages'][line_index] = (
+            ''.join(written_string), hash(message)
+        )
 
 async def key_slot_checker(
     slot='q', frequency=.1, centered=True, print_location=(0, 0)
