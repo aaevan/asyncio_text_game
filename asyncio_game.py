@@ -3665,17 +3665,11 @@ async def get_key(map_dict, help_wait_count=100):
                 state_dict['same_count'] >= help_wait_count and 
                 state_dict['same_count'] % help_wait_count == 0
             ):
-                #the hash is calculated on the padded message:
-                help_text_hash = "{:<40}".format(help_text)
-                if not any (
-                    #line[1] is the hash of the message
-                    help_text_hash in line for line in state_dict['messages'][-10:]
+                if not any(
+                    #line[0] is the text of the message, line[1] is the hash
+                    help_text in line[0] for line in state_dict['messages'][-10:]
                 ):
-                    with term.location(0, 40):
-                        print("hash of {}: {}".format(help_text, hash(help_text)))
                     await append_to_log(message=help_text)
-                    with term.location(0, 45):
-                        print([(hash((help_text)) in line, line) for line in state_dict['messages'][-10:]])
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
