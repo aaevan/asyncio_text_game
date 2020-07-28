@@ -1915,14 +1915,17 @@ def is_passable(checked_coords=(0, 0)):
     else:
         return False
 
-def push(direction='n', pusher='player'):
+def push(direction='n', pusher='player', base_coord=None):
     """
     basic pushing behavior for single-tile actors.
     objects do not clip into other objects or other actors.
     """
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
-    pusher_coords = actor_dict[pusher].coords()
+    if base_coord is None:
+        pusher_coords = actor_dict[pusher].coords()
+    else:
+        pusher_coords = base_coord
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
         return
@@ -2045,7 +2048,7 @@ async def bay_door(
                     await append_to_log(message=door_message[0])
             for segment in reversed(segment_names):
                 await asyncio.sleep(.1)
-                actor_dict[segment[0]].update(('', '')) #move to nowhere
+                actor_dict[segment[0]].update((9999, 9999)) #move to nowhere
         else:
             if door_state is not 'close':
                 door_state = 'close'
@@ -2068,8 +2071,14 @@ async def bay_door(
                 #deal a whole bunch of damage to the jammed actor
                 check_space = segment[1]
                 check_push_space = add_coords(dir_coord_increment, segment[1])
-                passable = is_passable(checked_coords=check_space)
                 #TODO: fix bay door so player is pushed.
+                #with term.location(105, randint(0, 20)):
+                    #print("segment: {}".format(segment))
+                segment_name = segment[0]
+                with term.location(0, 40):
+                    print("pushing to the {} from coord {}".format(orientation, segment[1]))
+                push(direction=orientation, base_coord=segment[1])
+                passable = is_passable(checked_coords=check_space)
                 if not passable:
                     break
                 else:
@@ -2373,7 +2382,7 @@ async def display_current_tile(x_offset=105, y_offset=5):
     #      numbers to be retrieved when the tile or actor or item is accessed?
     while True:
         await asyncio.sleep(.01)
-        current_coords = actor_dict['player'].coords()
+        current_coords = add_coords((-1, 0), actor_dict['player'].coords())
         current_tile = map_dict[current_coords].tile
         with term.location(x_offset, y_offset):
             print('view_tile_count: {}'.format(state_dict['view_tile_count']))
@@ -2395,7 +2404,7 @@ async def display_current_tile(x_offset=105, y_offset=5):
             print('{}        '.format(repr(current_tile)))
         actors = [key for key in map_dict[current_coords].actors.keys()]
         with term.location(x_offset, y_offset + 6):
-            print('actors here: {}'.format(actors))
+            print('actors here: {}        #'.format(actors))
         actors_len = len(map_dict[current_coords].actors.keys())
         with term.location(x_offset, y_offset + 7):
             print('actors_len: {}'.format(actors_len))
@@ -6877,7 +6886,7 @@ def main():
     #loop.create_task(shrouded_horror(start_coords=(29, -25)))
     loop.create_task(death_check())
     loop.create_task(under_passage())
-    #loop.create_task(display_current_tile()) #debug for map generation
+    loop.create_task(display_current_tile()) #debug for map generation
     loop.create_task(door_init(loop))
     #for i in range(1):
         #rand_coord = (randint(-5, -5), randint(-5, 5))
