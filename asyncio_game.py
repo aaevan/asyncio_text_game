@@ -5318,20 +5318,6 @@ async def async_map_init():
             coord=coord, instance_of=item_name, on_actor_id=False
         )
     #actor creation----------------------------------------
-    loop.create_task(
-        create_magic_door_pair(
-            door_a_coords=(-8, -8),
-            door_b_coords=(1005, 1005),
-            destination_plane='nightmare'
-        )
-    )
-    loop.create_task(
-        create_magic_door_pair(
-            door_a_coords=(-9, -8),
-            door_b_coords=(1004, 1005),
-            destination_plane='nightmare'
-        )
-    )
     loop.create_task(spawn_container(spawn_coord=(3, -4)))
     loop.create_task(trap_init())
     loop.create_task(
