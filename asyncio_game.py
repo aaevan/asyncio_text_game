@@ -5324,9 +5324,6 @@ async def async_map_init():
         under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
     )
     loop.create_task(
-        under_passage(start=(-1023, -981), end=(-1016, -979), width=2)
-    )
-    loop.create_task(
         beam_spire(spawn_coord=(26, -25))
     )
     
