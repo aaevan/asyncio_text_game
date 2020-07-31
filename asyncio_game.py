@@ -2071,12 +2071,7 @@ async def bay_door(
                 #deal a whole bunch of damage to the jammed actor
                 check_space = segment[1]
                 check_push_space = add_coords(dir_coord_increment, segment[1])
-                #TODO: fix bay door so player is pushed.
-                #with term.location(105, randint(0, 20)):
-                    #print("segment: {}".format(segment))
                 segment_name = segment[0]
-                with term.location(0, 40):
-                    print("pushing to the {} from coord {}".format(orientation, segment[1]))
                 push(direction=orientation, base_coord=segment[1])
                 passable = is_passable(checked_coords=check_space)
                 if not passable:
@@ -6821,8 +6816,8 @@ async def door_init(loop):
     """
     loop.create_task(
         bay_door_pair(
-            (-9, -2),
-            (-9, 2),
+            (-6, -4),
+            (-6, 5),
             patch_to_key='bay_door_pair_4',
             preset='thick',
             pressure_plate_coord=(0, -1),
