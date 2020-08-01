@@ -1928,19 +1928,22 @@ def push(direction='n', pusher='player', base_coord=None):
         pusher_coords = base_coord
     destination_coords = add_coords(pusher_coords, chosen_dir)
     if not map_dict[destination_coords].actors:
-        return
+        return False
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
     if mte_parent is not None:
         multi_push(push_dir=direction, mte_parent=mte_parent)
-        return
+        return True
     elif not actor_dict[pushed_name].moveable:
-        return
+        return False
     else:
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coords, chosen_dir)
         if is_passable(pushed_destination):
             actor_dict[pushed_name].update(coord=pushed_destination)
+            return True
+        else:
+            return False
 
 async def bay_door(
     hinge_coord=(3, 3),
@@ -2072,7 +2075,7 @@ async def bay_door(
                 check_space = segment[1]
                 check_push_space = add_coords(dir_coord_increment, segment[1])
                 segment_name = segment[0]
-                push(direction=orientation, base_coord=segment[1])
+                push_return = push(direction=orientation, base_coord=segment[1])
                 passable = is_passable(checked_coords=check_space)
                 if not passable:
                     break
