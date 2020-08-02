@@ -1979,7 +1979,7 @@ async def bay_door(
         style_dir = 'ew'
     door_style = {
         'secret':{'ns':'𝄛', 'ew':'𝄛'},
-        'thick':{'ns':'‖', 'ew':'═'},
+        'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
         'test_a':{'ns':'n', 'ew':'e'},
         'test_b':{'ns':'s', 'ew':'w'},
@@ -2144,8 +2144,7 @@ async def bay_door_pair(
             patch_to_key=patch_to_key,
             orientation=hinge_a_dir,
             segments=a_segments,
-            #preset=preset,
-            preset='test_a',
+            preset=preset,
             message_preset=message_preset
         )
     ) 
@@ -2155,8 +2154,7 @@ async def bay_door_pair(
             patch_to_key=patch_to_key,
             orientation=hinge_b_dir,
             segments=b_segments,
-            #preset=preset,
-            preset='test_b',
+            preset=preset,
             message_preset=None #one door is silent to prevent message repeats
         )
     )
