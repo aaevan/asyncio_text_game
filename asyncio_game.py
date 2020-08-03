@@ -6783,7 +6783,16 @@ async def quitter_daemon():
             loop.close()
 
 async def door_init(loop):
-    """
+    loop.create_task(
+        bay_door_pair(
+            (-10, -2),
+            (-10, 2),
+            patch_to_key='bay_door_pair_1',
+            preset='thick',
+            pressure_plate_coord=((-7, 0), (-13, 0)),
+            message_preset='ksh'
+        )
+    )
     loop.create_task(
         bay_door_pair(
             (2, -15),
@@ -6806,35 +6815,14 @@ async def door_init(loop):
     )
     loop.create_task(
         bay_door_pair(
-            (-6, -5),
-            (6, -5),
+            (4, -25),
+            (8, -25),
             patch_to_key='bay_door_pair_4',
             preset='thick',
-            pressure_plate_coord=(0, -1),
+            pressure_plate_coord=((6, -23), (6, -27)),
             message_preset='ksh'
         )
     )
-    """
-    loop.create_task(
-        bay_door_pair(
-            (-6, -4),
-            (-6, 5),
-            patch_to_key='bay_door_pair_4',
-            preset='thick',
-            pressure_plate_coord=(0, -1),
-            message_preset='ksh'
-        )
-    )
-    #loop.create_task(
-        #bay_door_pair(
-            #(-6, -7),
-            #(7, -7),
-            #patch_to_key='bay_door_pair_4',
-            #preset='thick',
-            #pressure_plate_coord=(0, -1),
-            #message_preset='ksh'
-        #)
-    #)
 
 def state_setup():
     state_dict['just teleported'] = False
