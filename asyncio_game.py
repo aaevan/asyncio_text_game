@@ -5314,15 +5314,20 @@ async def async_map_init():
             coord=coord, instance_of=item_name, on_actor_id=False
         )
     #actor creation----------------------------------------
-    loop.create_task(spawn_container(spawn_coord=(3, -4)))
-    loop.create_task(trap_init())
-    loop.create_task(
-        under_passage(start=(-13, 20), end=(-26, 20), direction='ew')
-    )
-    loop.create_task(
-        beam_spire(spawn_coord=(26, -25))
-    )
-    
+    tasks = [
+        spawn_container(spawn_coord=(3, -4)),
+        trap_init(),
+        under_passage(start=(-13, 20), end=(-26, 20), direction='ew'),
+        beam_spire(spawn_coord=(26, -25)),
+        repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
+        repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
+        repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
+    ]
+    for i in range(1):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for task in tasks:
+        await loop.create_task(task)
 
 async def trap_init():
     loop = asyncio.get_event_loop()
@@ -6783,7 +6788,7 @@ async def quitter_daemon():
             loop.close()
 
 async def door_init(loop):
-    loop.create_task(
+    door_pairs = (
         bay_door_pair(
             (-10, -2),
             (-10, 2),
@@ -6791,9 +6796,7 @@ async def door_init(loop):
             preset='thick',
             pressure_plate_coord=((-7, 0), (-13, 0)),
             message_preset='ksh'
-        )
-    )
-    loop.create_task(
+        ),
         bay_door_pair(
             (2, -15),
             (6, -15),
@@ -6801,9 +6804,7 @@ async def door_init(loop):
             preset='thick',
             pressure_plate_coord=((4, -13), (4, -17)),
             message_preset='ksh'
-        )
-    )
-    loop.create_task(
+        ),
         bay_door_pair(
             (-26, 21),
             (-14, 21),
@@ -6811,9 +6812,7 @@ async def door_init(loop):
             preset='thick',
             pressure_plate_coord=(-20, 18),
             message_preset='ksh'
-        )
-    )
-    loop.create_task(
+        ),
         bay_door_pair(
             (4, -25),
             (8, -25),
@@ -6823,6 +6822,9 @@ async def door_init(loop):
             message_preset='ksh'
         )
     )
+    #loop through the above coroutines:
+    for door_pair in door_pairs:
+        loop.create_task(door_pair)
 
 def state_setup():
     state_dict['just teleported'] = False
@@ -6842,25 +6844,23 @@ def main():
     map_init()
     old_settings = termios.tcgetattr(sys.stdin) 
     loop = asyncio.new_event_loop()
-    loop.create_task(get_key(map_dict))
-    loop.create_task(view_tile_init(loop))
-    loop.create_task(quitter_daemon())
-    loop.create_task(minimap_init(loop))
-    loop.create_task(ui_setup())
-    #loop.create_task(printing_testing())
-    loop.create_task(async_map_init())
-    #TODO: fix follower vine to disappear after a set time:
-    #loop.create_task(shrouded_horror(start_coords=(29, -25)))
-    loop.create_task(death_check())
-    loop.create_task(under_passage())
-    loop.create_task(display_current_tile()) #debug for map generation
-    loop.create_task(door_init(loop))
-    #for i in range(1):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #loop.create_task(spawn_preset_actor(coords=rand_coord, preset='blob'))
-    loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)))
-    loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)))
-    loop.create_task(repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)))
+    tasks = (
+        get_key(map_dict),
+        view_tile_init(loop),
+        quitter_daemon(),
+        minimap_init(loop),
+        ui_setup(),
+        printing_testing(),
+        async_map_init(),
+        #TODO: fix follower vine to disappear after a set time:
+        #shrouded_horror(start_coords=(29, -25)),
+        death_check(),
+        under_passage(),
+        display_current_tile(), #debug for map generation
+        door_init(loop),
+    )
+    for task in tasks:
+        loop.create_task(task)
     asyncio.set_event_loop(loop)
     result = loop.run_forever()
 
