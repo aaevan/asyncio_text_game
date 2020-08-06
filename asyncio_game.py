@@ -1965,12 +1965,11 @@ async def bay_door(
     A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have
     door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
-    TODO: have bay doors (when closing) push any actor towards the direction 
+    [X]TODO: have bay doors (when closing) push any actor towards the direction 
           that they're closing.
-    TODO: account for crushing damage if the actor can be destroyed,
-    TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
+    [ ]TODO: account for crushing damage if the actor can be destroyed,
+    [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
-    TODO: use ╞ type characters for interface with wall hinge tile?
     """
     state_dict[patch_to_key] = {}
     if orientation in ('n', 's'):
@@ -2374,8 +2373,6 @@ async def export_map(width=140, height=45):
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
 async def display_current_tile(x_offset=105, y_offset=5):
-    #TODO: a larger problem: store colors not on the tiles themselves but
-    #      numbers to be retrieved when the tile or actor or item is accessed?
     while True:
         await asyncio.sleep(.01)
         current_coords = add_coords((-1, 0), actor_dict['player'].coords())
@@ -2429,11 +2426,10 @@ async def pressure_plate(
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=.5, 
-    tile_color=0xeb,
     test_rate=.1,
     positives=None,
     sound_choice='default',
-    brightness_mod=(1.5, -5),
+    brightness_mod=(3, -5),
 ):
     """
     creates a pressure plate on the map at specified spawn_coord.
@@ -2491,8 +2487,8 @@ async def puzzle_pair(
     )
     asyncio.ensure_future(
         pressure_plate(
+            tile='▣',
             spawn_coord=plate_coord, 
-            tile_color=color_num,
             positives=(puzzle_name, 'null'), #positives needs to be a tuple
             patch_to_key=puzzle_name
         )
@@ -4792,7 +4788,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
                 color_tuple = brightness_vals[4]
-            if print_choice in ('░', '▞', '𝄛'):
+            if print_choice in ('░', '▞', '𝄛', '■', '▣'):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
@@ -6858,6 +6854,13 @@ def main():
         under_passage(),
         display_current_tile(), #debug for map generation
         door_init(loop),
+        puzzle_pair(
+            block_coord=(0, 0),
+            plate_coord=(0, -4),
+            puzzle_name='puzzle_0',
+            color_num=3,
+            block_char='☐'
+        )
     )
     for task in tasks:
         loop.create_task(task)
