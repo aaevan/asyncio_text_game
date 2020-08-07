@@ -2469,12 +2469,14 @@ async def puzzle_pair(
     block_coord=(-10, -10),
     plate_coord=(-10, -7),
     puzzle_name='puzzle_0', 
+    block_description='A heavy block.|||A thin outline of a star is inscribed into the top face.',
+    plate_description='The floor here is carved with a star.|||It sits slightly above the nearby tiles.',
     color_num=3,
     block_char='☐'
 ):
     """
-    creates a paired pressure plate and uniquely keyed block that will trigger
-    the plate when pushed atop
+    creates a paired pressure plate and uniquely keyed block.
+    pressure plate triggers only with the paired block
     """
     state_dict[puzzle_name] = {}
     block_tile = term.color(color_num)(block_char)
@@ -2482,9 +2484,11 @@ async def puzzle_pair(
         spawn_weight(
             base_name=puzzle_name, 
             spawn_coord=block_coord, 
-            tile=block_tile
+            tile=block_tile,
+            description=block_description,
         )
     )
+    map_dict[plate_coord].description = plate_description
     asyncio.ensure_future(
         pressure_plate(
             tile='▣',
@@ -3452,7 +3456,12 @@ async def spawn_container(
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
 
-async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
+async def spawn_weight(
+    base_name='weight',
+    spawn_coord=(-2, -2),
+    tile='█',
+    description="This is a weighted block"
+):
     """
     spawns a pushable box to trigger pressure plates or other puzzle elements.
     """
@@ -3461,7 +3470,8 @@ async def spawn_weight(base_name='weight', spawn_coord=(-2, -2), tile='█'):
         spawn_coord=spawn_coord,
         tile=tile,
         breakable=False, 
-        moveable=True
+        moveable=True,
+        description=description,
     )
 
 def spawn_static_actor(
@@ -3737,7 +3747,7 @@ async def action_keypress(key):
     elif key in '?':
             await display_help() 
     elif key in 'Xx': #examine
-        await examine_facing()
+        asyncio.ensure_future(examine_facing())
     elif key in ' ': #toggle doors
         await toggle_doors()
     elif key in 'g': #pick up an item from the ground
@@ -6860,6 +6870,9 @@ def main():
             puzzle_name='puzzle_0',
             color_num=3,
             block_char='☐'
+        ),
+        trigger_door(
+            door_coord=(0, -5), patch_to_key='puzzle_0', invert=False
         )
     )
     for task in tasks:
