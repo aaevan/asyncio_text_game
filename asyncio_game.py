@@ -3633,7 +3633,7 @@ def announcement_at_coord(
     if tile is not None:
         map_dict[coord].tile = tile
     if describe_tile:
-        map_dict[coord].description = ''.join(announcement.split('|'))
+        map_dict[coord].description = ' '.join(announcement.split('|'))
 
 def is_data(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
@@ -6804,14 +6804,6 @@ async def door_init(loop):
             message_preset='ksh'
         ),
         bay_door_pair(
-            (2, -15),
-            (6, -15),
-            patch_to_key='bay_door_pair_2',
-            preset='thick',
-            pressure_plate_coord=((4, -13), (4, -17)),
-            message_preset='ksh'
-        ),
-        bay_door_pair(
             (-26, 21),
             (-14, 21),
             patch_to_key='bay_door_pair_3',
@@ -6865,15 +6857,20 @@ def main():
         display_current_tile(), #debug for map generation
         door_init(loop),
         puzzle_pair(
-            block_coord=(0, 0),
-            plate_coord=(0, -4),
+            block_coord=(3, -5),
+            plate_coord=(3, -11),
             puzzle_name='puzzle_0',
             color_num=3,
             block_char='☐'
         ),
-        trigger_door(
-            door_coord=(0, -5), patch_to_key='puzzle_0', invert=False
-        )
+        bay_door_pair(
+            (2, -15),
+            (6, -15),
+            patch_to_key='puzzle_0',
+            preset='thick',
+            pressure_plate_coord=((4, -17)),
+            message_preset='ksh'
+        ),
     )
     for task in tasks:
         loop.create_task(task)
