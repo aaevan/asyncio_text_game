@@ -44,7 +44,8 @@ class Map_tile:
         color_num=8,                        #color to display character
         is_door=False,                      #if true, can be toggled
         locked=False,                       #lock state of door
-        key_type=''                         #key required for entry
+        key_type='',                        #key required for entry
+        prevent_pushing=False,              #prevent pushing onto this square
     ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -83,6 +84,7 @@ class Map_tile:
         self.is_door = is_door
         self.locked = locked
         self.key_type = key_type #holds what keys fit this tile if it's a door
+        self.prevent_pushing = prevent_pushing #holds what keys fit this tile if it's a door
 
 
 class Actor:
@@ -1917,8 +1919,9 @@ def is_passable(checked_coords=(0, 0)):
 
 def push(direction='n', pusher='player', base_coord=None):
     """
-    basic pushing behavior for single-tile actors.
     objects do not clip into other objects or other actors.
+
+    returns True if object is pushed.
     """
     dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
     chosen_dir = dir_coords[direction]
@@ -1927,7 +1930,9 @@ def push(direction='n', pusher='player', base_coord=None):
     else:
         pusher_coords = base_coord
     destination_coords = add_coords(pusher_coords, chosen_dir)
-    if not map_dict[destination_coords].actors:
+    has_actors = bool(map_dict[destination_coords].actors)
+    not_viable_space = bool(map_dict[destination_coords].prevent_pushing)
+    if not has_actors or not_viable_space:
         return False
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
@@ -5328,12 +5333,28 @@ async def async_map_init():
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
+        puzzle_pair(
+            block_coord=(3, -5),
+            plate_coord=(3, -11),
+            puzzle_name='puzzle_0',
+            color_num=3,
+            block_char='☐'
+        ),
+        bay_door_pair(
+            (2, -15),
+            (6, -15),
+            patch_to_key='puzzle_0',
+            preset='thick',
+            pressure_plate_coord=((4, -17)),
+            message_preset='ksh'
+        ),
     ]
     for i in range(1):
         rand_coord = (randint(-5, -5), randint(-5, 5))
         tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
     for task in tasks:
-        await loop.create_task(task)
+        loop.create_task(task)
+
 
 async def trap_init():
     loop = asyncio.get_event_loop()
@@ -6849,28 +6870,13 @@ def main():
         minimap_init(loop),
         ui_setup(),
         printing_testing(),
-        async_map_init(),
         #TODO: fix follower vine to disappear after a set time:
         #shrouded_horror(start_coords=(29, -25)),
         death_check(),
         under_passage(),
         display_current_tile(), #debug for map generation
         door_init(loop),
-        puzzle_pair(
-            block_coord=(3, -5),
-            plate_coord=(3, -11),
-            puzzle_name='puzzle_0',
-            color_num=3,
-            block_char='☐'
-        ),
-        bay_door_pair(
-            (2, -15),
-            (6, -15),
-            patch_to_key='puzzle_0',
-            preset='thick',
-            pressure_plate_coord=((4, -17)),
-            message_preset='ksh'
-        ),
+        async_map_init(),
     )
     for task in tasks:
         loop.create_task(task)
