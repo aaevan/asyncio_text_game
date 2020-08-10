@@ -1970,8 +1970,6 @@ async def bay_door(
     A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have
     door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
-    [X]TODO: have bay doors (when closing) push any actor towards the direction 
-          that they're closing.
     [ ]TODO: account for crushing damage if the actor can be destroyed,
     [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
@@ -2024,6 +2022,7 @@ async def bay_door(
             breakable=False,
             description=door_description_presets[preset]
         )
+    last_spawn_coord = spawn_coord
     door_message = None
     if message_preset is not None and message_preset in message_presets: 
         door_message = message_presets[message_preset]
@@ -2046,7 +2045,7 @@ async def bay_door(
                     asyncio.ensure_future(
                         sound_message(
                             output_text=door_message[0], 
-                            sound_origin_coord=hinge_coord,
+                            sound_origin_coord=last_spawn_coord,
                             source_actor=None,
                             point_radius=18,
                             fade_duration=1,
@@ -2063,7 +2062,7 @@ async def bay_door(
                     asyncio.ensure_future(
                         sound_message(
                             output_text=door_message[0], 
-                            sound_origin_coord=hinge_coord,
+                            sound_origin_coord=last_spawn_coord,
                             source_actor=None,
                             point_radius=18,
                             fade_duration=1,
@@ -2886,7 +2885,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             }
         },
         'nut':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.red('⏣'),
             'usable_power':throw_item, 
             'power_kwargs':{'thrown_item_id':item_id}
@@ -2900,13 +2899,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'power_kwargs':{'batt_use':1}
         },
         'fused charge':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.green('⏣'),
             'usable_power':fused_throw_action, 
             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}
         },
         'dynamite':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.red('\\'),
             'usable_power':fused_throw_action, 
             'power_kwargs':{
@@ -2920,7 +2919,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             }
         },
         'shield wand':{
-            'uses':10,
+            'uses':17,
             'tile':term.blue('/'),
             'power_kwargs':{'radius':6},
             'usable_power':spawn_bubble,
@@ -2970,13 +2969,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':None
         },
         'dash trinket':{
-            'uses':9999,
+            'uses':19,
             'tile':term.blue('⥌'),
             'usable_power':dash_ability, 
             'power_kwargs':{'dash_length':20},
             'broken_text':wand_broken_text},
         'red key':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.red('⚷'),
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'red'},
@@ -2984,7 +2983,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':''
         },
         'green key':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.green('⚷'),
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'green'},
@@ -3000,21 +2999,21 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':None
         },
         'eye trinket':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.blue('⚭'),
             'usable_power':random_blink, 
             'power_kwargs':{'radius':50},
             'broken_text':wand_broken_text
         },
         'hop amulet':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.red('O̧'),
             'usable_power':teleport_in_direction, 
             'power_kwargs':{'distance':10},
             'broken_text':wand_broken_text
         },
         'looking glass':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3},
@@ -3214,7 +3213,7 @@ async def sow_texture(
     description='',
     pause_between=.02,
     only_passable=True,
-    append_description=False
+    append_description=True
 ):
     """ given a root node, picks random points within a radius length and writes
     characters from the given palette to their corresponding map_dict cell.
@@ -6874,7 +6873,7 @@ def main():
         #shrouded_horror(start_coords=(29, -25)),
         death_check(),
         under_passage(),
-        display_current_tile(), #debug for map generation
+        #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
     )
