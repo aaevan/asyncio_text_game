@@ -2928,10 +2928,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         'red potion':{
             'uses':1,
             'tile':term.red('◉'), 
-            'power_kwargs':{'item_id':item_id,
-            'total_restored':50},
+            'power_kwargs':{
+                'item_id':item_id,
+                'total_restored':50,
+            },
             'usable_power':health_potion,
-            'broken_text':wand_broken_text
+            'broken_text':wand_broken_text,
+            'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
         },
         'shiny stone':{
             'uses':9999,
@@ -3548,6 +3551,8 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'nw_off_main': Room((-4, -7), (4)),
+        'nw_room_off_main': Room((-18, -14), (5)),
         'pool_a': Room((0, 6), 3, 'water'),
         'pool_b': Room((5, 8), 4, 'water'),
         'pool_c': Room((2, 8), 2, 'water'),
@@ -3569,6 +3574,7 @@ def map_init():
         ('r', 't', 1, None, None),
         ('u', 'v', 1, None, None),
         ('h', 'i', 2, None, None),
+        ('nw_off_main', 'nw_room_off_main', 2, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
@@ -4964,8 +4970,17 @@ async def directional_alert(
             'radius_spread':3, 
             'angle_spread': 60,
             'warning_color':1,
-            'palette':"● ∙⦁·",
+            'palette':"█",
             'persist_delay':0,
+        },
+        'heal':{
+            'particle_count':5,
+            'radius':15, 
+            'radius_spread':3, 
+            'angle_spread': 360,
+            'warning_color':0x1c,
+            'palette':"█",
+            'persist_delay':.075,
         },
         'sound':{
             'particle_count':10,
@@ -5987,7 +6002,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
             radius=3,
             paint=True,
             seeds=5,
-            description="blood."
+            description="Blood."
         )
     if leaves_body:
         map_dict[actor_coords].tile = body_tile
@@ -6206,6 +6221,9 @@ async def health_potion(
     )
     for i in range(int(num_steps)):
         await asyncio.sleep(sub_second_step)
+        asyncio.ensure_future(
+            directional_alert(source_actor='player', preset='heal')
+        )
         if (actor_dict[actor_key].health + health_per_step >= actor_dict[actor_key].max_health):
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
         else:
