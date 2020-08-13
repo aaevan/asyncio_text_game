@@ -291,6 +291,12 @@ class Animation:
                 'behavior':'random',
                 'color_choices':(0x4c, 0x4c, 0x4c, 0x70),
             },
+            'terminal':{
+                'animation':('▤▥▦▧▨▩'), 
+                'behavior':'random',
+                #'color_choices':(0x1c, 0x2e, 0x2e, 0x2e),
+                'color_choices':(0x4c, 0x4c, 0x4c, 0x70),
+            },
             'loop test':{
                 'animation':('0123456789abcdefghi'), 
                 'behavior':'walk both', 
@@ -325,11 +331,6 @@ class Animation:
                 'animation':('∧∧∧∧‸‸‸     '), 
                 'behavior':'loop both', 
                 'color_choices':'7'
-            },
-            'terminal':{
-                'animation':('▯'), 
-                'behavior':'random', 
-                'color_choices':'78888'
             },
             'water':{
                 'animation':'███████▒▓▒', 
@@ -1112,7 +1113,16 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             description='ERROR',
             magic=False,
             is_animated=False
-        )
+        ),
+        'terminal':Map_tile(
+            tile='▤',
+            blocking=True,
+            passable=False,
+            description='A flickering monitor.',
+            magic=False,
+            is_animated=True,
+            animation=Animation(preset='terminal')
+        ),
     }
     map_dict[tile_coords].passable = presets[preset].passable
     map_dict[tile_coords].tile = presets[preset].tile
@@ -2425,6 +2435,24 @@ async def proximity_trigger(
 ):
     pass
 
+async def computer_terminal(
+    tile='▣',
+    spawn_coord=(0, 0),
+    patch_to_key='term_1',
+):
+    """
+    a terminal that toggles the state of a state_dict value
+    "green keycard required"
+    """
+    #map_dict[spawn_coord].tile = '?'
+    paint_preset(tile_coords=spawn_coord, preset='terminal')
+    neighbors = adjacent_tiles(coord=spawn_coord)
+    while True:
+        await asyncio.sleep(.1 + random() / 5)
+        rand_offset = randint(-5, 0)
+        for tile in neighbors:
+            map_dict[tile].brightness_mod = rand_offset
+
 async def pressure_plate(
     tile='░',
     spawn_coord=(4, 0), 
@@ -3086,7 +3114,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print('Inventory:')
-        clear_screen_region(x_size=15, y_size=10, screen_coord=(x_pos, y_pos+1))
+        clear_screen_region(x_size=17, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             if item_dict[item_id].uses >= 0:
@@ -5328,11 +5356,8 @@ async def async_map_init():
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
-        ((20, 0), 'nut'),
         ((31, -1), 'red potion'),
-        ((20, 0), 'dynamite'),
         ((20, 1), 'green key'),
-        ((20, -1), 'looking glass'), 
     )
     for coord, item_name in items:
         spawn_item_at_coords(
@@ -5680,6 +5705,14 @@ def offset_to_dir(offset):
         (-1, -1): 'nw',
     }
     return dir_of_travel[offset]
+
+def adjacent_tiles(coord=(0, 0)):
+    surrounding_coords = [
+        add_coords(coord, dir_to_offset(offset)) for offset in (
+            'n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'
+        )
+    ]
+    return surrounding_coords
 
 def dir_to_offset(dir_string):
     dirs_to_offsets = {
@@ -6894,6 +6927,8 @@ def main():
         #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
+        computer_terminal(spawn_coord=(-10, -3)),
+        computer_terminal(spawn_coord=(-4, -5)),
     )
     for task in tasks:
         loop.create_task(task)
