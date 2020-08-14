@@ -442,6 +442,7 @@ class Item:
         broken_text=" is broken.",
         mutable=True,
         breakable=True,
+        accepts_charges=False,
     ):
         self.name = name
         self.item_id = item_id
@@ -456,6 +457,7 @@ class Item:
         self.power_kwargs = power_kwargs
         self.mutable = mutable
         self.breakable = breakable
+        self.accepts_charges = accepts_charges
 
     async def use(self):
         if self.uses is not None and not self.broken:
@@ -2894,12 +2896,23 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':block_wand_text,
             'broken_text':' is out of charges'
         },
+        'battery':{
+            'uses':-1,
+            'tile':term.green('◈'), 
+            'power_kwargs':{
+                'item_id':item_id,
+                'num_charges':10,
+            },
+            'usable_power':battery_item,
+            'use_message':None,
+        },
         'blaster':{
             'uses':10,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
             'use_message':None,
             'broken_text':' is out of charges',
+            'accepts_charges':True,
             'power_kwargs':{
                 'speed':0,
                 'retract_speed':0,
@@ -2965,21 +2978,21 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
         },
         'shiny stone':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.blue('o'), 
             'power_kwargs':{'radius':5, 'track_actor':'player'}, 
             'usable_power':orbit,
             'broken_text':wand_broken_text
         },
         'shift amulet':{
-            'uses':999,
+            'uses':19,
             'tile':term.blue('O̧'),
             'power_kwargs':shift_amulet_kwargs,
             'usable_power':pass_between,
             'broken_text':'Something went wrong.'
         },
         'red sword':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.red('ļ'),
             'power_kwargs':{'length':9, 'speed':.1},
             'usable_power':sword_item_ability,
@@ -2987,7 +3000,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':None
         },
         'green sword':{
-            'uses':9999,
+            'uses':-1,
             'tile':term.green('ļ'),
             'power_kwargs':{
                 'length':9,
@@ -3822,6 +3835,8 @@ async def action_keypress(key):
         print_debug_grid() 
     elif key in '#':
         brightness_test()
+    elif key in 'C':
+        asyncio.ensure_future( add_uses_to_chosen_item())
     elif key in 'F': #fill screen with random colors
         fill_screen_with_colors()
     elif key in 'Z': #test out points_around_point and write result to map_dict
@@ -3904,7 +3919,7 @@ async def examine_facing():
         actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
         description_text = actor_dict[actor_name].description
     elif map_dict[examined_coord].items:
-        description_text = "Theres an item here!"
+        description_text = "There's an item here!"
     else:
         description_text = map_dict[examined_coord].description
     if description_text is not None:
@@ -3961,6 +3976,7 @@ async def toggle_doors():
     await toggle_door(door_coords)
 
 #Item Interaction---------------------------------------------------------------
+#TODO: a battery item that is used on other items to restore charges
 async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
@@ -3971,6 +3987,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
     if 'wand' in icon_name:
         icon_name = 'wand'
     icons = {
+        'battery':(
+            '┌───┐',
+            '│┌─┐│',
+            '││{}││'.format(term.green('+')),
+            '│└─┘│',
+            '└───┘',
+        ),
         'blaster':(
             '┌───┐',
             '│   │'.format(term.red('╱')),
@@ -4301,6 +4324,29 @@ async def use_chosen_item():
     item_id_choice = await choose_item()
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
+
+
+async def battery_item(
+    item_id=None,
+    num_charges=10,
+):
+    return_val = await add_uses_to_chosen_item(num_charges=num_charges)
+    if item_id and return_val:
+        del item_dict[item_id]
+        del actor_dict['player'].holding_items[item_id]
+
+async def add_uses_to_chosen_item(num_charges=10):
+    item_id_choice = await choose_item()
+    if item_id_choice != None:
+        item_name = item_dict[item_id_choice].name
+        accepts_charges = item_dict[item_id_choice].accepts_charges
+        if accepts_charges:
+            item_dict[item_id_choice].uses += num_charges
+            await append_to_log("Added {} charges to {}".format(num_charges, item_name))
+            return True
+        else:
+            await append_to_log("{} cannot be charged.".format(item_name.capitalize()))
+            return False
     
 async def use_item_in_slot(slot='q'):
     item_id = state_dict['{}_slot'.format(slot)]
@@ -5352,6 +5398,7 @@ async def async_map_init():
         ((8, 4), 'red potion'), 
         ((47, -31), 'red sword'), 
         ((23, 0), 'blaster'), 
+        ((18, 1), 'battery'), 
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
