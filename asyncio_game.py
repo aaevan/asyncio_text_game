@@ -1106,7 +1106,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             description='A pool of water.',
             magic=False,
             is_animated=True, 
-            animation=Animation(preset='water')
+            animation=Animation(preset='water'),
+            prevent_pushing=True,
         ),
         'error':Map_tile(
             tile='?',
@@ -2869,21 +2870,19 @@ async def temp_view_circle(
 #Item interaction---------------------------------------------------------------
 
 #TODO: create a weight that can be picked up and stored in one's inventory.
-#TODO: an item that when thrown, temporarily creates a circle of overriden_view == True
+#TODO: an item that when thrown, temporarily creates a circle of overridden_view == True
+#TODO: fix override_view to display a noisy (with brightness offsets) view instead of uniform single tone
 #TODO: items that are used immediately upon pickup
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
     wand_broken_text = ' is out of charges.'
-    shift_amulet_kwargs = {
-        'x_offset':1000, 'y_offset':1000, 'plane_name':'nightmare'
-    }
     possible_items = (
         'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red sword', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
         'rusty key', 'looking glass'
     )
-    block_wand_text = 'A shimmering block appears.'
+    block_wand_text = 'A shimmering block appears!'
     if instance_of == 'random':
         instance_of = choice(possible_items)
     item_id = generate_id(base_name=instance_of)
@@ -2901,13 +2900,14 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'tile':term.green('◈'), 
             'power_kwargs':{
                 'item_id':item_id,
-                'num_charges':10,
+                'num_charges':6,
             },
             'usable_power':battery_item,
             'use_message':None,
         },
+        #TODO: add a cooldown bar next to item display.
         'blaster':{
-            'uses':10,
+            'uses':6,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
             'use_message':None,
@@ -2987,7 +2987,11 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         'shift amulet':{
             'uses':19,
             'tile':term.blue('O̧'),
-            'power_kwargs':shift_amulet_kwargs,
+            'power_kwargs':{
+                'x_offset':1000,
+                'y_offset':1000,
+                'plane_name':'nightmare'
+            },
             'usable_power':pass_between,
             'broken_text':'Something went wrong.'
         },
@@ -3800,6 +3804,7 @@ async def action_keypress(key):
     elif key in 'Xx': #examine
         asyncio.ensure_future(examine_facing())
     elif key in ' ': #toggle doors
+        await use_action()
         await toggle_doors()
     elif key in 'g': #pick up an item from the ground
         asyncio.ensure_future(item_choices(coords=(x, y)))
@@ -3942,12 +3947,10 @@ async def toggle_door(door_coord):
     a cage door can be seen through but not passed through
     when space is pressed, the door's tile is changed and it is set to passable
     """
-    door_state = map_dict[door_coord].tile 
-    open_doors = [term.color(i)('▯') for i in range(10)]
-    open_doors.append('▯')
-    open_doors.append('▯')
-    closed_doors = [term.color(i)('▮') for i in range(10)]
-    closed_doors.append('▮')
+    door_state= term.strip_seqs(actor_dict[door_coord].tile)
+    #door_state = map_dict[door_coord].tile 
+    open_doors = ['▯']
+    closed_doors = ['▮']
     #change secret tiles to be a brightness offset instead of a fixed color
     secret_tile = term.color(0xeb)('𝄛')
     closed_doors.append(secret_tile)
@@ -3974,6 +3977,10 @@ async def toggle_doors():
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     door_coords = add_coords(player_coords, directions[facing])
     await toggle_door(door_coords)
+
+async def use_action():
+    
+
 
 #Item Interaction---------------------------------------------------------------
 #TODO: a battery item that is used on other items to restore charges
@@ -4328,7 +4335,7 @@ async def use_chosen_item():
 
 async def battery_item(
     item_id=None,
-    num_charges=10,
+    num_charges=6,
 ):
     return_val = await add_uses_to_chosen_item(num_charges=num_charges)
     if item_id and return_val:
