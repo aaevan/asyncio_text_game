@@ -3954,7 +3954,7 @@ async def toggle_door(door_coord):
     a cage door can be seen through but not passed through
     when space is pressed, the door's tile is changed and it is set to passable
     """
-    door_state= term.strip_seqs(actor_dict[door_coord].tile)
+    door_state= term.strip_seqs(map_dict[door_coord].tile)
     #door_state = map_dict[door_coord].tile 
     open_doors = ['▯']
     closed_doors = ['▮']
@@ -3997,16 +3997,12 @@ async def use_action(tile_coords=None):
         tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
     else:
         return
-    with term.location(5, 39):
-        print("tile_use_action: {}".format(tile_use_action))
-    with term.location(5, 40):
-        print("tile_use_action_kwargs: {}".format(tile_use_action_kwargs))
     if tile_use_action is None:
         return
     elif tile_use_action_kwargs is not None:
         tile_use_action(**tile_use_action_kwargs)
     else:
-        tile_use_action()
+        tile_use_action() #case for no arguments provided
 
 #Item Interaction---------------------------------------------------------------
 #TODO: a battery item that is used on other items to restore charges
