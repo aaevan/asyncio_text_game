@@ -46,6 +46,8 @@ class Map_tile:
         locked=False,                       #lock state of door
         key_type='',                        #key required for entry
         prevent_pushing=False,              #prevent pushing onto this square
+        use_action_func=None,             #function that runs on use action
+        use_action_kwargs=None,           #kwards of use_action function
     ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -83,9 +85,10 @@ class Map_tile:
         self.color_num = color_num
         self.is_door = is_door
         self.locked = locked
-        self.key_type = key_type #holds what keys fit this tile if it's a door
-        self.prevent_pushing = prevent_pushing #holds what keys fit this tile if it's a door
-
+        self.key_type = key_type
+        self.prevent_pushing = prevent_pushing
+        self.use_action_func = use_action_func
+        self.use_action_kwargs = use_action_kwargs
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -3914,11 +3917,15 @@ async def handle_input(map_dict, key):
     else:
         await action_keypress(key)
 
-async def examine_facing():
+def get_facing_coord():
     direction = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     player_coords = actor_dict['player'].coords()
     facing_offset = direction[state_dict['facing']]
-    examined_coord = add_coords(player_coords, facing_offset)
+    facing_coord = add_coords(player_coords, facing_offset)
+    return facing_coord
+
+async def examine_facing():
+    examined_coord = get_facing_coord()
     #add descriptions for actors
     if map_dict[examined_coord].actors:
         actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
@@ -3978,9 +3985,28 @@ async def toggle_doors():
     door_coords = add_coords(player_coords, directions[facing])
     await toggle_door(door_coords)
 
-async def use_action():
-    
-
+async def use_action(tile_coords=None):
+    """
+    for the given coordinate, if the Map_tile (or actor) has a use_action_func
+    (with use_action_kwargs), run that function, else, pass
+    """
+    if tile_coords is None:
+        tile_coords = get_facing_coord()
+    if map_dict[tile_coords] is not None:
+        tile_use_action = map_dict[tile_coords].use_action_func
+        tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
+    else:
+        return
+    with term.location(5, 39):
+        print("tile_use_action: {}".format(tile_use_action))
+    with term.location(5, 40):
+        print("tile_use_action_kwargs: {}".format(tile_use_action_kwargs))
+    if tile_use_action is None:
+        return
+    elif tile_use_action_kwargs is not None:
+        tile_use_action(**tile_use_action_kwargs)
+    else:
+        tile_use_action()
 
 #Item Interaction---------------------------------------------------------------
 #TODO: a battery item that is used on other items to restore charges
