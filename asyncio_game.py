@@ -2445,6 +2445,7 @@ async def computer_terminal(
     tile='▣',
     spawn_coord=(0, 0),
     patch_to_key='term_1',
+    message=('Door is now', ('locked', 'unlocked'))
 ):
     """
     a terminal that toggles the state of a state_dict value
@@ -2453,11 +2454,49 @@ async def computer_terminal(
     #map_dict[spawn_coord].tile = '?'
     paint_preset(tile_coords=spawn_coord, preset='terminal')
     neighbors = adjacent_tiles(coord=spawn_coord)
+    toggle_id = bool_toggle(patch_to_key=patch_to_key)
+    map_dict[spawn_coord].use_action_func = toggle_bool_toggle
+    map_dict[spawn_coord].use_action_kwargs = {
+        'patch_to_key':patch_to_key, 
+        'toggle_id':toggle_id,
+        'message':message,
+    }
     while True:
         await asyncio.sleep(.1 + random() / 5)
         rand_offset = randint(-5, 0)
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
+
+async def toggle_bool_toggle(patch_to_key, toggle_id, message):
+    toggle_state = state_dict[patch_to_key][toggle_id]
+    false_text = "{} {}.".format(message[0], message[1][0])
+    true_text =  "{} {}.".format(message[0], message[1][1])
+    if toggle_state == True:
+        toggle_state = False
+        output_text = false_text
+    else:
+        toggle_state = True
+        output_text = true_text
+    await append_to_log(message=output_text)
+
+def bool_toggle(
+    patch_to_key='door_1', 
+    toggle_id_base_name='toggle', 
+    toggle_message="Door {}",
+    starting_state=False,
+):
+    """
+    Sets up a new passive toggle at state_dict[patch_to_key][toggle_id]
+
+    Returns toggle_id for use in whatever it's used by.
+    """
+    toggle_id = generate_id(base_name=toggle_id_base_name)
+    with term.location(15, 40):
+        print('toggle_id:', toggle_id)
+    if state_dict[patch_to_key] is None:
+        state_dict[patch_to_key] = {}
+    state_dict[patch_to_key][toggle_id] = starting_state
+    return toggle_id
 
 async def pressure_plate(
     tile='░',
@@ -3985,7 +4024,7 @@ async def toggle_doors():
     door_coords = add_coords(player_coords, directions[facing])
     await toggle_door(door_coords)
 
-async def use_action(tile_coords=None):
+async def use_action(tile_coords=None, is_async=True):
     """
     for the given coordinate, if the Map_tile (or actor) has a use_action_func
     (with use_action_kwargs), run that function, else, pass
@@ -4000,9 +4039,16 @@ async def use_action(tile_coords=None):
     if tile_use_action is None:
         return
     elif tile_use_action_kwargs is not None:
-        tile_use_action(**tile_use_action_kwargs)
+        if is_async:
+            await tile_use_action(**tile_use_action_kwargs)
+        else:
+            tile_use_action(**tile_use_action_kwargs)
     else:
-        tile_use_action() #case for no arguments provided
+        if is_async:
+            await tile_use_action() #case for no arguments provided
+        else:
+            tile_use_action()
+
 
 #Item Interaction---------------------------------------------------------------
 #TODO: a battery item that is used on other items to restore charges
@@ -7003,7 +7049,7 @@ def main():
         #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
-        computer_terminal(spawn_coord=(-10, -3)),
+        #computer_terminal(spawn_coord=(-10, -3)),
         computer_terminal(spawn_coord=(-4, -5)),
     )
     for task in tasks:
