@@ -2471,11 +2471,13 @@ async def toggle_bool_toggle(patch_to_key, toggle_id, message):
     toggle_state = state_dict[patch_to_key][toggle_id]
     false_text = "{} {}.".format(message[0], message[1][0])
     true_text =  "{} {}.".format(message[0], message[1][1])
+    with term.location(15, 40):
+        print("toggle_state is:", toggle_state)
     if toggle_state == True:
-        toggle_state = False
+        state_dict[patch_to_key][toggle_id] = False
         output_text = false_text
     else:
-        toggle_state = True
+        state_dict[patch_to_key][toggle_id] = True
         output_text = true_text
     await append_to_log(message=output_text)
 
@@ -2491,8 +2493,6 @@ def bool_toggle(
     Returns toggle_id for use in whatever it's used by.
     """
     toggle_id = generate_id(base_name=toggle_id_base_name)
-    with term.location(15, 40):
-        print('toggle_id:', toggle_id)
     if state_dict[patch_to_key] is None:
         state_dict[patch_to_key] = {}
     state_dict[patch_to_key][toggle_id] = starting_state
