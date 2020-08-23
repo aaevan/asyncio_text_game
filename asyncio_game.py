@@ -1990,7 +1990,8 @@ async def bay_door(
     [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
     """
-    state_dict[patch_to_key] = {}
+    if type(state_dict[patch_to_key]) != dict:
+        state_dict[patch_to_key] = {}
     if orientation in ('n', 's'):
         style_dir = 'ns'
     elif orientation in ('e', 'w'):
@@ -2140,7 +2141,8 @@ async def bay_door_pair(
             b_segments = span - a_segments
     else:
         return
-    state_dict[patch_to_key] = {}
+    if type(state_dict[patch_to_key]) != dict:
+        state_dict[patch_to_key] = {}
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
@@ -2467,6 +2469,27 @@ async def computer_terminal(
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
 
+async def indicator_lamp(
+    tiles=('◉', '○'), 
+    tile_color=0x22, 
+    spawn_coord=(0, 0), 
+    patch_to_key='indicator_lamp', 
+    refresh_rate=.1
+):
+    map_dict[spawn_coord].tile = term.color(tile_color)(tiles[0])
+    current_tile = tiles[0]
+    while True:
+        with term.location(15, 35):
+            print("indicator lamp state is (patch_to_key:{}):{}".format(patch_to_key, await any_true(trigger_key=patch_to_key)))
+        await asyncio.sleep(refresh_rate)
+        if await any_true(trigger_key=patch_to_key):
+            set_tile = tiles[1]
+        else:
+            set_tile = tiles[0]
+        if set_tile != current_tile:
+            map_dict[spawn_coord].tile = term.color(tile_color)(set_tile)
+            current_tile = set_tile
+
 async def toggle_bool_toggle(patch_to_key, toggle_id, message):
     toggle_state = state_dict[patch_to_key][toggle_id]
     false_text = "{} {}.".format(message[0], message[1][0])
@@ -2493,7 +2516,7 @@ def bool_toggle(
     Returns toggle_id for use in whatever it's used by.
     """
     toggle_id = generate_id(base_name=toggle_id_base_name)
-    if state_dict[patch_to_key] is None:
+    if type(state_dict[patch_to_key]) is not dict:
         state_dict[patch_to_key] = {}
     state_dict[patch_to_key][toggle_id] = starting_state
     return toggle_id
@@ -5510,9 +5533,9 @@ async def async_map_init():
             message_preset='ksh'
         ),
     ]
-    for i in range(1):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    #for i in range(1):
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        #tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
     for task in tasks:
         loop.create_task(task)
 
@@ -6991,7 +7014,8 @@ async def door_init(loop):
         bay_door_pair(
             (-10, -2),
             (-10, 2),
-            patch_to_key='bay_door_pair_1',
+            #patch_to_key='bay_door_pair_1',
+            patch_to_key='computer_test',
             preset='thick',
             pressure_plate_coord=((-7, 0), (-13, 0)),
             message_preset='ksh'
@@ -7050,7 +7074,8 @@ def main():
         door_init(loop),
         async_map_init(),
         #computer_terminal(spawn_coord=(-10, -3)),
-        computer_terminal(spawn_coord=(-4, -5)),
+        computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
+        indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test')
     )
     for task in tasks:
         loop.create_task(task)
