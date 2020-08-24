@@ -2453,7 +2453,6 @@ async def computer_terminal(
     a terminal that toggles the state of a state_dict value
     "green keycard required"
     """
-    #map_dict[spawn_coord].tile = '?'
     paint_preset(tile_coords=spawn_coord, preset='terminal')
     neighbors = adjacent_tiles(coord=spawn_coord)
     toggle_id = bool_toggle(patch_to_key=patch_to_key)
@@ -2470,27 +2469,32 @@ async def computer_terminal(
             map_dict[tile].brightness_mod = rand_offset
 
 async def indicator_lamp(
-    tiles=('◉', '○'), 
-    tile_color=0x22, 
+    tiles=('◉','◉'), #○
+    tile_colors=(0x01, 0x22),
     spawn_coord=(0, 0), 
     patch_to_key='indicator_lamp', 
     refresh_rate=.1
 ):
-    map_dict[spawn_coord].tile = term.color(tile_color)(tiles[0])
+    false_tile = term.color(tile_colors[0])(tiles[0])
+    true_tile = term.color(tile_colors[1])(tiles[1])
+    map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
     current_tile = tiles[0]
     while True:
-        with term.location(15, 35):
-            print("indicator lamp state is (patch_to_key:{}):{}".format(patch_to_key, await any_true(trigger_key=patch_to_key)))
         await asyncio.sleep(refresh_rate)
         if await any_true(trigger_key=patch_to_key):
-            set_tile = tiles[1]
+            set_tile = true_tile
         else:
-            set_tile = tiles[0]
+            set_tile = false_tile
         if set_tile != current_tile:
-            map_dict[spawn_coord].tile = term.color(tile_color)(set_tile)
+            map_dict[spawn_coord].tile = set_tile
             current_tile = set_tile
 
-async def toggle_bool_toggle(patch_to_key, toggle_id, message):
+async def toggle_bool_toggle(
+    patch_to_key,
+    toggle_id,
+    message=('toggled_object is now', ('falsey', 'truthy')),
+    delay=1,
+):
     toggle_state = state_dict[patch_to_key][toggle_id]
     false_text = "{} {}.".format(message[0], message[1][0])
     true_text =  "{} {}.".format(message[0], message[1][1])
@@ -2502,6 +2506,7 @@ async def toggle_bool_toggle(patch_to_key, toggle_id, message):
     else:
         state_dict[patch_to_key][toggle_id] = True
         output_text = true_text
+    await asyncio.sleep(delay)
     await append_to_log(message=output_text)
 
 def bool_toggle(
