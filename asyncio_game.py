@@ -2507,7 +2507,7 @@ async def toggle_bool_toggle(
         state_dict[patch_to_key][toggle_id] = True
         output_text = true_text
     await asyncio.sleep(delay)
-    await append_to_log(message=output_text)
+    asyncio.ensure_future(append_to_log(message=output_text))
 
 def bool_toggle(
     patch_to_key='door_1', 
@@ -2748,8 +2748,15 @@ async def sword(
         ) 
         for i in range(1, length)
     ]
+    temp_output = []
+    for coord in segment_coords:
+        if map_dict[coord].blocking:
+            #trim everything past the first blocking tile:
+            segment_coords = segment_coords[:segment_coords.index(coord) + 1]
+            break
     to_damage_names = []
     player_coords = actor_dict['player'].coords()
+    #zip works here because it only zips up to the end of the shorter iterable:
     for segment_coord, segment_name in zip(segment_coords, sword_segment_names):
         actor_dict[segment_name] = Actor(
             name=segment_name,
@@ -3874,7 +3881,7 @@ async def action_keypress(key):
     elif key in 'Xx': #examine
         asyncio.ensure_future(examine_facing())
     elif key in ' ': #toggle doors
-        await use_action()
+        asyncio.ensure_future(use_action())
         await toggle_doors()
     elif key in 'g': #pick up an item from the ground
         asyncio.ensure_future(item_choices(coords=(x, y)))
