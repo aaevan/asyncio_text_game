@@ -46,8 +46,15 @@ class Map_tile:
         locked=False,                       #lock state of door
         key_type='',                        #key required for entry
         prevent_pushing=False,              #prevent pushing onto this square
-        use_action_func=None,             #function that runs on use action
-        use_action_kwargs=None,           #kwards of use_action function
+        use_action_func=None,               #function that runs on use action
+        use_action_kwargs=None,             #kwards of use_action function
+        toggle_states=None,                 #used for elements with multiple states
+                #example: toggle_states = (('▯', False, False), ('▮', True, True))
+                #the first element of each sub-tuple is the tile, '▯'
+                #the second is the blocking state: False
+                #the third element is the passable state: False
+                #('▮', True, True) --> a door that is solid and opaque when closed
+        toggle_state_index=None,            #keeps track of the current tile state
     ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -89,6 +96,8 @@ class Map_tile:
         self.prevent_pushing = prevent_pushing
         self.use_action_func = use_action_func
         self.use_action_kwargs = use_action_kwargs
+        self.toggle_states = toggle_states
+        self.toggle_state_index = toggle_state_index
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -2621,7 +2630,9 @@ async def trigger_door(
     patch_to_key='switch_1',
     door_coord=(0, 0),
     default_state='closed',
-    invert=False
+    invert=False,
+    open_index=0,
+    closed_index=1,
 ):
     draw_door(door_coord=door_coord, description='iron', locked=True)
     while True:
@@ -2629,16 +2640,8 @@ async def trigger_door(
         trigger_state = await any_true(trigger_key=patch_to_key)
         if invert:
             trigger_state = not trigger_state
-        if trigger_state == True:
-            if default_state == 'closed':
-                open_door(door_coord)
-            else:
-                close_door(door_coord)
-        else:
-            if default_state == 'closed':
-                close_door(door_coord)
-            else:
-                open_door(door_coord)
+        #TODO: fix trigger door to behave nicely with new door code
+        #await toggle_door(door_coord)
 
 async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
@@ -3387,8 +3390,14 @@ def secret_door(
     door_coord=(0, 0), 
     tile_description="The wall looks a little different here."
 ):
-    draw_door(door_coord=door_coord, locked=False, description='secret')
+    draw_door(
+        door_coord=door_coord,
+        locked=False,
+        preset='secret',
+        description='secret',
+    )
     map_dict[door_coord].description = tile_description
+    map_dict[door_coord].brightness_mod = 2
 
 def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
     room_center = add_coords(wall_coord, room_offset)
@@ -3406,32 +3415,43 @@ def draw_door(
     door_coord=(0, 0),
     closed=True,
     locked=False,
+    starting_toggle_index=1,
     description='wooden',
-    is_door=True
+    is_door=True,
+    preset='wooden'
 ):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
     attributes.
     """
+    door_presets = {
+        'wooden':(('▯', False, True), ('▮', True, False)),
+        'secret':(('▯', False, True), ('𝄛', True, False)),
+    }
     door_colors = {
         'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
         'iron':7, 'secret':0xeb
     }
-    if description == 'secret':
-        states = [('𝄛', False, True), ('▯', True, False)]
+    map_dict[door_coord].toggle_states = door_presets[preset]
+    map_dict[door_coord].toggle_state_index = starting_toggle_index
+    tile, blocking, passable = door_presets[preset][starting_toggle_index]
+    if description != 'secret':
+        door_tile = term.color(door_colors[description])(tile)
     else:
-        states = [('▮', False, True), ('▯', True, False)]
-    if closed:
-        tile, passable, blocking = states[0]
-    else:
-        tile, passable, blocking = states[1]
-    map_dict[door_coord].tile = term.color(door_colors[description])(tile)
+        door_tile = tile
+    map_dict[door_coord].tile = door_tile
     map_dict[door_coord].passable = passable
     map_dict[door_coord].blocking = blocking
-    map_dict[door_coord].is_door = is_door
+    map_dict[door_coord].is_door = True
     map_dict[door_coord].locked = locked
     map_dict[door_coord].key_type = description
+    if closed:
+        close_state = ' closed'
+    else:
+        close_state = 'n open'
+    door_description = "A{} {} door.".format(close_state, description)
+    map_dict[door_coord].description = door_description
     map_dict[door_coord].mutable = False
 
 async def fake_stairs(
@@ -4011,15 +4031,15 @@ async def examine_facing():
     if description_text is not None:
         await append_to_log(message=description_text)
 
-def open_door(door_coord, door_tile='▯'):
-    map_dict[door_coord].tile = door_tile
-    map_dict[door_coord].passable = True
-    map_dict[door_coord].blocking = False
+#def open_door(door_coord, door_tile='▯'):
+    #map_dict[door_coord].tile = door_tile
+    #map_dict[door_coord].passable = True
+    #map_dict[door_coord].blocking = False
 
-def close_door(door_coord, door_tile='▮'):
-    map_dict[door_coord].tile = door_tile
-    map_dict[door_coord].passable = False
-    map_dict[door_coord].blocking = True
+#def close_door(door_coord, door_tile='▮'):
+    #map_dict[door_coord].tile = door_tile
+    #map_dict[door_coord].passable = False
+    #map_dict[door_coord].blocking = True
 
 async def toggle_door(door_coord):
     """
@@ -4028,28 +4048,31 @@ async def toggle_door(door_coord):
     a cage door can be seen through but not passed through
     when space is pressed, the door's tile is changed and it is set to passable
     """
-    door_state= term.strip_seqs(map_dict[door_coord].tile)
-    #door_state = map_dict[door_coord].tile 
-    open_doors = ['▯']
-    closed_doors = ['▮']
-    #change secret tiles to be a brightness offset instead of a fixed color
-    secret_tile = term.color(0xeb)('𝄛')
-    closed_doors.append(secret_tile)
+    #TODO: generalize toggle_door to toggle_tile (for puzzles that have toggleable elements, switches)
+    if map_dict[door_coord].toggle_states is None:
+        return
+    toggle_states = map_dict[door_coord].toggle_states
+    toggle_state_index = map_dict[door_coord].toggle_state_index
+    current_tile_state = term.strip_seqs(map_dict[door_coord].tile)
+    with term.location(0, 40):
+        print('{}|{}|{}'.format(toggle_states, toggle_state_index, current_tile_state))
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].key_type
         output_text="The {} door is locked.".format(description)
-        await append_to_log(message=output_text)
-    elif door_state in closed_doors :
-        open_door_tile = open_doors[closed_doors.index(door_state)]
-        open_door(door_coord, door_tile=open_door_tile)
-        if door_state != secret_tile:
-            output_text = "You open the door."
-            await append_to_log(message=output_text)
-    elif door_state in open_doors:
-        closed_door_tile = closed_doors[open_doors.index(door_state)]
-        close_door(door_coord, door_tile=closed_door_tile)
-        output_text = "You close the door."
-        await append_to_log(message=output_text)
+    else:
+        new_toggle_state_index = (toggle_state_index + 1) % len(toggle_states)
+        new_tile, block_state, passable_state = toggle_states[new_toggle_state_index]
+        with term.location(0, 41):
+            print('new_tile:{}|block_state:{}|passable_state:{}'.format(new_tile, block_state, passable_state))
+        map_dict[door_coord].tile = new_tile
+        map_dict[door_coord].blocking = block_state #blocking: see through tile
+        map_dict[door_coord].passable = passable_state #passable: walk through tile
+        map_dict[door_coord].toggle_state_index = new_toggle_state_index
+        if block_state:
+            output_text = "You open the door"
+        else:
+            output_text = "You close the door"
+    await append_to_log(message=output_text)
 
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
