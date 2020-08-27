@@ -2640,14 +2640,6 @@ async def trigger_door(
         trigger_state = await any_true(trigger_key=patch_to_key)
         if invert:
             trigger_state = not trigger_state
-        with term.location(45, 0):
-            print(2644, "trigger_state:", trigger_state)
-        #if trigger_state == 1:
-            #
-        #elif trigger_state == 0:
-            #
-        #TODO: fix trigger door to behave nicely with new door code
-        #await toggle_door(door_coord)
 
 async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
