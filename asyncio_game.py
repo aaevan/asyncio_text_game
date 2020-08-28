@@ -2635,11 +2635,18 @@ async def trigger_door(
     closed_index=1,
 ):
     draw_door(door_coord=door_coord, description='iron', locked=True)
+    if default_state == 'closed':
+        set_state = closed_index
     while True:
         await asyncio.sleep(.25)
         trigger_state = await any_true(trigger_key=patch_to_key)
         if invert:
             trigger_state = not trigger_state
+        if trigger_state:
+            set_state = open_index
+        else:
+            set_state = closed_index
+        set_tile_toggle_state(door_coord, set_state)
 
 async def start_delay_wrapper(start_delay=1, delay_func=None, **kwargs):
     await asyncio.sleep(start_delay)
