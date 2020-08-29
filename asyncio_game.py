@@ -1758,7 +1758,7 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
         item_dict[item_id].tile = original_tile
 
 async def explosion_effect(
-    center=(0, 0),
+    center_coord=(0, 0),
     radius=6,
     damage=75,
     particle_count=25,
@@ -1783,16 +1783,18 @@ async def explosion_effect(
         #TODO: change damage based on distance from center?
         await damage_within_circle(center=center, radius=radius, damage=damage)
 
-async def fused_throw_action(
-    fuse_length=3,
+async def thrown_action(
     thrown_item_id=None,
     source_actor='player', 
     direction=None,
     throw_distance=13,
     rand_drift=2, 
+    fuse_length=3, #set to -1 for no fuse
+    single_use_item=True,
+    action_preset='dynamite',
     radius=6,
     damage=75,
-    particle_count=25
+    particle_count=25,
 ):
     await throw_item(
         thrown_item_id=thrown_item_id,
@@ -1801,16 +1803,27 @@ async def fused_throw_action(
         throw_distance=throw_distance, 
         rand_drift=rand_drift
     )
+    presets={
+        'dynamite':{
+            'called_function':'explosion_effect',
+            'kwargs':{
+                'radius':6,
+                'damage':75,
+                'particle_count':25,
+            }
+        }
+    }
+    called_function = presets[action_preset]['called_function']
+    function_kwargs = presets[action_preset]['kwargs']
     item_location = item_dict[thrown_item_id].current_location
-    await display_fuse(fuse_length=fuse_length, item_id=thrown_item_id)
-    if thrown_item_id in map_dict[item_location].items:
+    if fuse_length > 0:
+        await display_fuse(fuse_length=fuse_length, item_id=thrown_item_id)
+    if single_use_item and thrown_item_id in map_dict[item_location].items:
         del map_dict[item_location].items[thrown_item_id]
-    del item_dict[thrown_item_id]
-    await explosion_effect(
-        center=item_location,
-        radius=radius,
-        damage=damage,
-        particle_count=particle_count
+        del item_dict[thrown_item_id]
+    await called_function(
+        center_coord=item_location,
+        **function_kwargs,
     )
 
 async def damage_all_actors_at_coord(
@@ -2927,8 +2940,6 @@ async def temp_view_circle(
     instant=True,
     wipe_after=True,
 ):
-    #TODO: give option to mark all unseen before temp_view_circle as unseen
-    #      after circle fades.
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
@@ -3027,13 +3038,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         'fused charge':{
             'uses':-1,
             'tile':term.green('⏣'),
-            'usable_power':fused_throw_action, 
+            'usable_power':thrown_action, 
             'power_kwargs':{'thrown_item_id':item_id, 'radius':6}
         },
         'dynamite':{
             'uses':-1,
             'tile':term.red('\\'),
-            'usable_power':fused_throw_action, 
+            'usable_power':thrown_action, 
             'power_kwargs':{
                 'thrown_item_id':item_id,
                 'throw_distance':1, 
@@ -5013,7 +5024,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             if not state_dict['lock view']:
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
-                color_tuple = brightness_vals[4]
+                #give a slightly fuzzy but uniform view:
+                color_tuple = brightness_vals[9 + randint(-2, 2)]
             if print_choice in ('░', '▞', '𝄛', '■', '▣'):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
