@@ -2476,6 +2476,9 @@ async def computer_terminal(
     "green keycard required"
     """
     paint_preset(tile_coords=spawn_coord, preset='terminal')
+    map_dict[spawn_coord].description = "{}||{}".format(
+            map_dict[spawn_coord].description, "it reads:\"OPEN POD DOOR?\""
+    )
     neighbors = adjacent_tiles(coord=spawn_coord)
     toggle_id = bool_toggle(patch_to_key=patch_to_key)
     map_dict[spawn_coord].use_action_func = toggle_bool_toggle
@@ -7119,7 +7122,6 @@ def main():
         #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
-        #computer_terminal(spawn_coord=(-10, -3)),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test')
     )
