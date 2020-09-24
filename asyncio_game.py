@@ -2476,8 +2476,10 @@ async def computer_terminal(
     "green keycard required"
     """
     paint_preset(tile_coords=spawn_coord, preset='terminal')
-    map_dict[spawn_coord].description = "{}||{}".format(
-            map_dict[spawn_coord].description, "it reads:\"OPEN POD DOOR?\""
+    append_description(
+        coord=spawn_coord, 
+        added_message='it reads:\"OPEN POD DOOR?\"',
+        separator='||',
     )
     neighbors = adjacent_tiles(coord=spawn_coord)
     toggle_id = bool_toggle(patch_to_key=patch_to_key)
@@ -3330,6 +3332,13 @@ def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
     for x in range(*x_tuple):
         for y in range(*y_tuple):
             map_dict[(x, y)].description = text
+
+def append_description(coord, added_message, separator="||"):
+    map_dict[coord].description = "{}{}{}".format(
+        map_dict[coord].description, 
+        separator,
+        added_message,
+    )
 
 def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
     """
