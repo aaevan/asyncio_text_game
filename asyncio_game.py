@@ -2463,7 +2463,24 @@ async def proximity_trigger(
     test_rate=.1,
     visible=False,
 ):
-    pass
+    if type(state_dict[patch_to_key]) != dict:
+        state_dict[patch_to_key] = {}
+    points = get_line(coord_a, coord_b)[1:-1] #trim off the head and the tail
+    with term.location(45, 0):
+        print("points:", points)
+    for point in points:
+        asyncio.ensure_future(
+            pressure_plate(
+                tile='░',
+                spawn_coord=point,
+                patch_to_key=patch_to_key,
+                off_delay=0, 
+                test_rate=.1,
+                positives=('player'),
+                sound_choice=None,
+                brightness_mod=(0, 0),
+            )
+        )
 
 async def computer_terminal(
     tile='▣',
@@ -2585,7 +2602,7 @@ async def pressure_plate(
             coords=spawn_coord, positives=positives
         )
         if positive_result:
-            if not triggered:
+            if not triggered and sound_choice is not None:
                 await append_to_log(message=sound_effects[sound_choice])
             triggered = True
             map_dict[spawn_coord].brightness_mod = brightness_mod[1]
@@ -7132,7 +7149,9 @@ def main():
         door_init(loop),
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
-        indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test')
+        indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
+        proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
+        indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
     )
     for task in tasks:
         loop.create_task(task)
