@@ -1206,8 +1206,6 @@ def draw_line(
     coord_a=(0, 0),
     coord_b=(5, 5),
     preset='floor',
-    passable=True,
-    blocking=False
 ):
     """
     draws a line to the map_dict connecting coord_a to coord_b
@@ -1216,8 +1214,19 @@ def draw_line(
     points = get_line(coord_a, coord_b)
     for point in points:
         paint_preset(tile_coords=point, preset=preset)
-        map_dict[point].passable = passable
-        map_dict[point].blocking = blocking
+        #map_dict[point].passable = passable
+        #map_dict[point].blocking = blocking
+
+def draw_secret_passage(
+    coord_a=(-28, -14),
+    coord_b=(-23, -14),
+    preset='floor'
+):
+    points = get_line(coord_a, coord_b)
+    for point in points[1:-1]:
+        paint_preset(tile_coords=point, preset=preset)
+    for point in (points[0], points[-1]):
+        secret_door(door_coord=point)
 
 def halfway_point(point_a=(0, 0), point_b=(10, 10)):
     """
@@ -2466,8 +2475,6 @@ async def proximity_trigger(
     if type(state_dict[patch_to_key]) != dict:
         state_dict[patch_to_key] = {}
     points = get_line(coord_a, coord_b)[1:-1] #trim off the head and the tail
-    with term.location(45, 0):
-        print("points:", points)
     for point in points:
         asyncio.ensure_future(
             pressure_plate(
@@ -3781,9 +3788,9 @@ def map_init():
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
-    #for i in range(10):
-        #rand_coord = (randint(-10, 10), randint(-10, 10))
-        #spawn_column(spawn_coord=rand_coord)
+    draw_secret_passage(),
+    for coord in ((-21, -16), (-18, -15), (-15, -14)):
+        spawn_column(spawn_coord=coord)
 
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -3792,8 +3799,11 @@ def spawn_column(
     name='column', 
     cast_shadow=True, 
     shadow_length=4, 
-    shadow_mod=1.5,
+    shadow_mod=5,
 ):
+    """
+    note: base of column is not blocking because it obscures higher elements
+    """
     spawn_static_actor(
         base_name='y_hide_test', 
         spawn_coord=spawn_coord, 
@@ -3810,7 +3820,7 @@ def spawn_column(
             solid=False,
         )
         if cast_shadow and y_value <= shadow_length:
-            map_dict[column_segment_spawn_coord].brightness_mod = 1.5
+            map_dict[column_segment_spawn_coord].brightness_mod = shadow_mod
 
 def announcement_at_coord(
     announcement, 
