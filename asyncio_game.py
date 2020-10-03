@@ -2519,6 +2519,19 @@ async def computer_terminal(
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
 
+async def teleporter(
+    tile='X',
+    spawn_coord=(0, 0),
+    destination_coord=(0, -9),
+    description="What happens if you activate it?"
+):
+    paint_preset(tile_coords=spawn_coord, preset='goo')
+    map_dict[spawn_coord].description = description
+    map_dict[spawn_coord].use_action_func = flashy_teleport
+    map_dict[spawn_coord].use_action_kwargs = {
+        'destination':destination_coord,
+    }
+
 async def indicator_lamp(
     tiles=('◉','◉'), #○
     tile_colors=(0x01, 0x22),
@@ -7159,6 +7172,7 @@ def main():
         door_init(loop),
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
+        teleporter(),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
