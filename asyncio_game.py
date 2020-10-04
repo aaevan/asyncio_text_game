@@ -293,6 +293,11 @@ class Animation:
                 'behavior':'random', 
                 'color_choices':'3331'
             },
+            'glow':{
+                'animation':('X'), 
+                'behavior':'random',
+                'color_choices':[i for i in range(0xe8, 0xff)],
+            },
             'goo':{
                 'animation':('▒'), 
                 'behavior':'random',
@@ -1092,11 +1097,20 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True,
             animation=Animation(preset='nightmare')
         ),
+        'glow':Map_tile(
+            tile='0',
+            blocking=False,
+            passable=True,
+            description='',
+            magic=False,
+            is_animated=True,
+            animation=Animation(preset='glow')
+        ),
         'goo':Map_tile(
             tile='.',
             blocking=False,
             passable=True,
-            color_num=0x39,
+            #color_num=0x39,
             description='A shimmering and roiling purple goo.',
             magic=False,
             is_animated=True,
@@ -2525,7 +2539,7 @@ async def teleporter(
     destination_coord=(0, -9),
     description="What happens if you activate it?"
 ):
-    paint_preset(tile_coords=spawn_coord, preset='goo')
+    paint_preset(tile_coords=spawn_coord, preset='glow')
     map_dict[spawn_coord].description = description
     map_dict[spawn_coord].use_action_func = flashy_teleport
     map_dict[spawn_coord].use_action_kwargs = {
