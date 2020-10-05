@@ -254,7 +254,8 @@ class Animation:
                 'color_choices':'2'
             },
             'blob':{
-                'animation':('ööööÖ'),
+                #'animation':('ööööÖ'),
+                'animation':('123456789abcdef'),
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
@@ -293,10 +294,11 @@ class Animation:
                 'behavior':'random', 
                 'color_choices':'3331'
             },
-            'glow':{
-                'animation':('X'), 
-                'behavior':'random',
-                'color_choices':[i for i in range(0xe8, 0xff)],
+            'pulse':{
+                'animation':(base_tile), 
+                'behavior':'loop both',
+                'color_choices':
+                    [i for i in list(range(0xe8, 0xff, 2)) + list(range(0xff, 0xe8, -2))],
             },
             'goo':{
                 'animation':('▒'), 
@@ -316,7 +318,7 @@ class Animation:
             },
             'loop test':{
                 'animation':('0123456789abcdefghi'), 
-                'behavior':'walk both', 
+                'behavior':'loop both', 
                 'color_choices':'33333344444'
             },
             'mouth':{
@@ -384,7 +386,6 @@ class Animation:
             'walk color':{'color':'walk', 'tile':'random'},
             'walk frame':{'color':'random', 'tile':'walk'},
             'walk both':{'color':'walk', 'tile':'walk'},
-            'breathe':{'color':'breathe', 'tile':'breathe'}
         }
 
         current_behavior = behavior_lookup[self.behavior]
@@ -1097,14 +1098,14 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True,
             animation=Animation(preset='nightmare')
         ),
-        'glow':Map_tile(
+        'pulse':Map_tile(
             tile='0',
             blocking=False,
             passable=True,
             description='',
             magic=False,
             is_animated=True,
-            animation=Animation(preset='glow')
+            animation=Animation(preset='pulse')
         ),
         'goo':Map_tile(
             tile='.',
@@ -2539,7 +2540,7 @@ async def teleporter(
     destination_coord=(0, -9),
     description="What happens if you activate it?"
 ):
-    paint_preset(tile_coords=spawn_coord, preset='glow')
+    paint_preset(tile_coords=spawn_coord, preset='pulse')
     map_dict[spawn_coord].description = description
     map_dict[spawn_coord].use_action_func = flashy_teleport
     map_dict[spawn_coord].use_action_kwargs = {
@@ -5645,9 +5646,9 @@ async def async_map_init():
             message_preset='ksh'
         ),
     ]
-    #for i in range(1):
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        #tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    for i in range(1):
+        rand_coord = (randint(-5, -5), randint(-5, 5))
+        tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
     for task in tasks:
         loop.create_task(task)
 
