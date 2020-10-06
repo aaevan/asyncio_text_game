@@ -254,8 +254,7 @@ class Animation:
                 'color_choices':'2'
             },
             'blob':{
-                #'animation':('ööööÖ'),
-                'animation':('123456789abcdef'),
+                'animation':('ööööÖ'),
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
@@ -2567,6 +2566,49 @@ async def indicator_lamp(
         if set_tile != current_tile:
             map_dict[spawn_coord].tile = set_tile
             current_tile = set_tile
+
+async def alarm_bell(
+    tiles=('○','◉'),
+    tile_colors=(0x00, 0x01),
+    spawn_coord=(0, 0), 
+    patch_to_key='alarm_bell', 
+    refresh_rate=.1,
+    time_between_alarms=2,
+    fade_duration=1,
+    message="ALERT!|CONTAINMENT BREACH", #split on pipe character
+    silent=False,
+):
+    if type(state_dict[patch_to_key]) is not dict:
+        state_dict[patch_to_key] = {}
+    map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
+    tile_index = 0
+    alarm_timing_index = 0
+    alarm_trigger_num = round(time_between_alarms / refresh_rate)
+    alert_index = 0
+    latch = False
+    message_words = message.split("|")
+    while True:
+        await asyncio.sleep(refresh_rate)
+        alarm_timing_index = (alarm_timing_index + 1) % alarm_trigger_num
+        alarm_on = alarm_timing_index % alarm_trigger_num
+        alarm_triggered = await any_true(trigger_key=patch_to_key)
+        if alarm_triggered and alarm_on:
+            if latch == False and not silent:
+                asyncio.ensure_future(append_to_log(message="You trigger an alarm!"))
+            latch = True
+            await sound_message(
+                output_text="{}".format(message_words[alert_index]),
+                sound_origin_coord=spawn_coord,
+                point_radius=18,
+                fade_duration=fade_duration,
+            )
+            alert_index = (alert_index + 1) % len(message_words)
+            tile_index = (tile_index + 1) % (len(tiles))
+            map_dict[spawn_coord].tile = term.color(tile_colors[tile_index])(tiles[tile_index])
+        else:
+            latch = False
+            alert_index = 0
+            map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
 
 async def toggle_bool_toggle(
     patch_to_key,
@@ -7191,6 +7233,7 @@ def main():
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
+        alarm_bell(spawn_coord=(21, -1), patch_to_key='line_test'),
     )
     for task in tasks:
         loop.create_task(task)
