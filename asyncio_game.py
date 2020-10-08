@@ -2576,11 +2576,16 @@ async def alarm_bell(
     time_between_alarms=2,
     fade_duration=1,
     message="ALERT!|CONTAINMENT BREACH", #split on pipe character
+    tile_description=(
+        "An inert alarm module.", 
+        "The alarm is emitting a deafening siren."
+    ),
     silent=False,
 ):
     if type(state_dict[patch_to_key]) is not dict:
         state_dict[patch_to_key] = {}
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
+    map_dict[spawn_coord].description = tile_description[0]
     tile_index = 0
     alarm_timing_index = 0
     alarm_trigger_num = round(time_between_alarms / refresh_rate)
@@ -2596,6 +2601,7 @@ async def alarm_bell(
             if latch == False and not silent:
                 asyncio.ensure_future(append_to_log(message="You trigger an alarm!"))
             latch = True
+            map_dict[spawn_coord].description = tile_description[1]
             await sound_message(
                 output_text="{}".format(message_words[alert_index]),
                 sound_origin_coord=spawn_coord,
@@ -2609,6 +2615,7 @@ async def alarm_bell(
             latch = False
             alert_index = 0
             map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
+            map_dict[spawn_coord].description = tile_description[0]
 
 async def toggle_bool_toggle(
     patch_to_key,
@@ -6343,7 +6350,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     spawn_item_spray(base_coord=actor_coords, items=holding_items)
     return
 
-def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=2):
+def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=1):
     if items is None:
         return
     loop = asyncio.get_event_loop()
@@ -7234,6 +7241,7 @@ def main():
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         alarm_bell(spawn_coord=(21, -1), patch_to_key='line_test'),
+        alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=True),
     )
     for task in tasks:
         loop.create_task(task)
