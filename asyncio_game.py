@@ -2578,7 +2578,7 @@ async def alarm_bell(
     message="ALERT!|CONTAINMENT BREACH", #split on pipe character
     tile_description=(
         "An inert alarm module.", 
-        "The alarm is emitting a deafening siren."
+        "The alarm emits a deafening siren."
     ),
     silent=False,
 ):
@@ -3976,7 +3976,7 @@ async def handle_exit(key):
                           int(term.height / 2 - 2),)
     quit_question_text = 'Really quit? (y/n)'
     term_location = (
-        middle_x - int(len(quit_question_text)/2), middle_y - 16
+        middle_x - int(len(quit_question_text)/2), middle_y - 20
     )
     with term.location(*term_location):
         print(quit_question_text)
@@ -4887,18 +4887,20 @@ async def display_help():
     """
     x_offset, y_offset = offset_of_center(x_offset=-15, y_offset=-5)
     help_text = (
-        " wasd: move               ",
-        "shift: use with wasd to run",
-        "space: open/close doors   ",
-        " ijkl: look               ",
-        "    g: grab item menu,    ",
-        "       0-9 to choose      ",
+        " wasd: move/push          ",
+        " WASD: run (no pushing)   ",
+        "space: open/close/interact",
+        " ijkl: look in direction  ",
+        "    g: get item from tile,",
+        "       0-f to choose item ",
         "  Q/E: equip item to slot,",
-        "       0-9 to choose      ",
-        "  q/e: use equipped item, ",
+        "       0-f to choose item ",
+        "  q/e: use equipped item  ",
         "    t: throw chosen item  ",
         "    u: use selected item  ",
         "    x: examine tile       ",
+        "bkspc: quit dialog (y/n)  ",
+        "    ?: open this message  ",
     )
     for line_number, line in enumerate(help_text):
         x_print_coord, y_print_coord = 0, 0
