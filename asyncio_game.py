@@ -5027,8 +5027,7 @@ async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
         else:
             return LOS_result
 
-#TODO: add view distance limiting based on light level of current cell.
-#      an enemy that carves a path through explored map tiles and causes it to be forgotten.
+#TODO: an enemy that carves a path through explored map tiles and causes it to be forgotten.
 #      [ ]the tile displayed by gradient_tile_pairs is modified by the light level of the tile
 #      [ ]actors have a chance to not display based on the light level of the tile they are sitting on.
 #      [ ]actors which stay in darkness until lit up or a condition is met and then they change behavior
@@ -5161,8 +5160,6 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
     down to a nearby value.
 
     The greyscale values lie between 0xe8 (near-black) and 0x100 (white)
-
-
     """
     brightness_val = int(round(
         -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75, 1
@@ -5183,7 +5180,6 @@ async def check_contents_of_tile(coord):
                 player_coords = actor_dict['player'].coords()
                 if player_coords[1] >= y_hide_coord[1]:
                     actor_choice = actor_name
-                    #return actor_dict[actor_name].get_view()
                 else:
                     continue
             else:
@@ -5212,7 +5208,10 @@ def offset_of_center(x_offset=0, y_offset=0):
     return x_print, y_print
 
 def clear_screen_region(
-    x_size=10, y_size=10, screen_coord=(0, 0), debug=False
+    x_size=10, 
+    y_size=10,
+    screen_coord=(0, 0),
+    debug=False
 ):
     if debug:
         marker = str(randint(0, 9))
@@ -5223,10 +5222,12 @@ def clear_screen_region(
             print(marker * x_size)
 
 async def ui_box_draw(
-    position="top left", 
-    box_height=1, box_width=9, 
-    x_margin=30, y_margin=4,
-    one_time=False
+    position="top left",
+    box_height=1,
+    box_width=9,
+    x_margin=30,
+    y_margin=4,
+    one_time=False,
 ):
     """
     draws a box for UI elements
@@ -5435,7 +5436,7 @@ async def repeated_sound_message(
     source_actor=None,
     point_radius=18,
     rand_delay=True,
-    fade_duration=1
+    fade_duration=1,
 ):
     """
     Assumes the player is the center and creates a fading message at the
@@ -5493,7 +5494,11 @@ def timer_text(minutes, seconds):
     return output_text
 
 async def timer(
-    x_pos=0, y_pos=10, time_minutes=0, time_seconds=5, resolution=1
+    x_pos=0,
+    y_pos=10,
+    time_minutes=0,
+    time_seconds=5,
+    resolution=1,
 ):
     timer_text = timer_text(time_minutes, time_seconds)
     while True:
@@ -5515,7 +5520,11 @@ async def timer(
     return
 
 async def view_tile_init(
-    loop, term_x_radius=40, term_y_radius=20, max_view_radius=17, debug=False
+    loop,
+    term_x_radius=40,
+    term_y_radius=20,
+    max_view_radius=17,
+    debug=False
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
@@ -5576,7 +5585,7 @@ async def async_map_init():
     loop = asyncio.get_event_loop()
     #map drawing-------------------------------------------
     announcement_at_coord(
-        "There's a body here. |||Looks like you get their stuff.",
+        "There's a body here.|||Looks like you get their stuff.",
         coord=(8, 6), 
         describe_tile=True, 
         tile="g"
