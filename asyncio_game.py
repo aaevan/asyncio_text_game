@@ -481,9 +481,9 @@ class Item:
             if self.use_message is not None:
                 await append_to_log(message=self.use_message)
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
-            if self.uses is not None:
+            if self.uses is not None and self.uses != -1:
                 self.uses -= 1
-            if self.uses <= 0 and self.breakable:
+            if self.uses <= 0 and self.breakable and self.uses != -1:
                 self.broken = True
         elif self.broken:
             await append_to_log(
@@ -2575,8 +2575,8 @@ async def alarm_bell(
     refresh_rate=.1,
     time_between_alarms=2,
     fade_duration=1,
-    message="ALERT!|CONTAINMENT BREACH", #split on pipe character
-    tile_description=(
+    message="ALERT!|INTRUDER!", #split on pipe character
+    tile_descriptions=(
         "An inert alarm module.", 
         "The alarm emits a deafening siren."
     ),
@@ -2585,7 +2585,7 @@ async def alarm_bell(
     if type(state_dict[patch_to_key]) is not dict:
         state_dict[patch_to_key] = {}
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
-    map_dict[spawn_coord].description = tile_description[0]
+    map_dict[spawn_coord].description = tile_descriptions[0]
     tile_index = 0
     alarm_timing_index = 0
     alarm_trigger_num = round(time_between_alarms / refresh_rate)
@@ -2601,7 +2601,7 @@ async def alarm_bell(
             if latch == False and not silent:
                 asyncio.ensure_future(append_to_log(message="You trigger an alarm!"))
             latch = True
-            map_dict[spawn_coord].description = tile_description[1]
+            map_dict[spawn_coord].description = tile_descriptions[1]
             await sound_message(
                 output_text="{}".format(message_words[alert_index]),
                 sound_origin_coord=spawn_coord,
@@ -2615,7 +2615,7 @@ async def alarm_bell(
             latch = False
             alert_index = 0
             map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
-            map_dict[spawn_coord].description = tile_description[0]
+            map_dict[spawn_coord].description = tile_descriptions[0]
 
 async def toggle_bool_toggle(
     patch_to_key,
@@ -3668,7 +3668,6 @@ async def magic_door(
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
-        #just_teleported = actor_dict['player'].just_teleported
         just_teleported = state_dict['just teleported']
         #TODO: add an option for non-player actors to go through.
         if player_coords == start_coords and not just_teleported:
