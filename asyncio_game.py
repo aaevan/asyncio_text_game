@@ -2972,20 +2972,21 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     """
     await asyncio.sleep(.25)
     if map_dict[destination].passable:
-        await radial_fountain(
-            frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1)
-        )
+        asyncio.ensure_future(append_to_log(message="You feel slightly disoriented"))
+        #await radial_fountain(
+            #frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1)
+        #)
         await asyncio.sleep(.2)
         actor_dict[actor].update(coord=(1000, 1000))
         await asyncio.sleep(.8)
         actor_dict[actor].update(coord=(destination))
-        await radial_fountain(
-            frequency=.002,
-            collapse=False,
-            radius=(5, 12),
-            deathclock=30,
-            speed=(1, 1)
-        )
+        #await radial_fountain(
+            #frequency=.002,
+            #collapse=False,
+            #radius=(5, 12),
+            #deathclock=30,
+            #speed=(1, 1)
+        #)
     else:
         await append_to_log(message='Something is in the way.')
     
@@ -3014,9 +3015,8 @@ async def random_blink(actor='player', radius=20):
             return
 
 async def temporary_block(
-    duration=5, animation_preset='energy block', singleton=True,
+    duration=5, animation_preset='energy block',
 ):
-    #TODO: if singleton, destroy any previous blocks after the placement of a second
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
@@ -3036,7 +3036,6 @@ async def temporary_block(
             animation_preset=animation_preset
         )
     )
-
 
 async def temp_view_circle(
     duration=10, 
@@ -3865,6 +3864,8 @@ def map_init():
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
+    secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
+    draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
 
