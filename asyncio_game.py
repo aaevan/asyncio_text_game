@@ -4256,15 +4256,15 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
         'blaster':(
             '┌───┐',
             '│   │'.format(term.red('╱')),
-            '│v+=│',
-            '│// │'.format(term.bold(term.red('╳'))),
+            '│╒╤═│',
+            '│║  │'.format(term.bold(term.red('╳'))),
             '└───┘',
         ),
         'wand':(
             '┌───┐',
             '│  *│', 
-            '│ / │',
-            '│/  │',
+            '│ ╱ │',
+            '│╱  │',
             '└───┘',
         ),
         'red sword':(
