@@ -2962,7 +2962,13 @@ async def teleport_in_direction(direction=None, distance=15, flashy=True):
     if flashy:
         await flashy_teleport(destination=destination)
 
-async def flashy_teleport(destination=(0, 0), actor='player'):
+async def flashy_teleport(
+    destination=(0, 0),
+    actor='player',
+    delay=.25,
+    x_offset=1000,
+    y_offset=1000
+):
     """
     does a flash animation of drawing in particles then teleports the player
         to a given location.
@@ -2970,23 +2976,14 @@ async def flashy_teleport(destination=(0, 0), actor='player'):
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     """
-    await asyncio.sleep(.25)
+    await asyncio.sleep(delay)
     if map_dict[destination].passable:
         asyncio.ensure_future(append_to_log(message="You feel slightly disoriented"))
-        #await radial_fountain(
-            #frequency=.02, deathclock=75, radius=(5, 18), speed=(1, 1)
-        #)
-        await asyncio.sleep(.2)
-        actor_dict[actor].update(coord=(1000, 1000))
-        await asyncio.sleep(.8)
+        await pass_between(x_offset, y_offset, plane_name='nightmare')
+        await asyncio.sleep(3)
+        dest_coords = add_coords(destination, (x_offset, y_offset))
+        await pass_between(*dest_coords, plane_name='nightmare')
         actor_dict[actor].update(coord=(destination))
-        #await radial_fountain(
-            #frequency=.002,
-            #collapse=False,
-            #radius=(5, 12),
-            #deathclock=30,
-            #speed=(1, 1)
-        #)
     else:
         await append_to_log(message='Something is in the way.')
     
@@ -3712,7 +3709,7 @@ async def create_magic_door_pair(
 async def spawn_container(
     base_name='box',
     spawn_coord=(5, 5),
-    tile='☐',
+    tile='☒',
     breakable=True,
     moveable=True,
     preset='random',
@@ -5088,7 +5085,6 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             print_choice = await check_contents_of_tile((x_display_coord, y_display_coord))
             map_dict[tile_coord_key].seen = True
         elif display:
-            #add a line in here for different levels/dimensions:
             random_distance = abs(gauss(distance, 1))
             if random_distance < threshold: 
                 line_of_sight_result = await check_line_of_sight(
@@ -5141,7 +5137,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             if not state_dict['lock view']:
                 color_tuple = brightness_vals[int(tile_brightness)]
             else:
-                #give a slightly fuzzy but uniform view:
+                #if view locked, display a slightly fuzzy but uniform view:
                 color_tuple = brightness_vals[9 + randint(-2, 2)]
             if print_choice in ('░', '▞', '𝄛', '■', '▣'):
                 print_choice = term.color(color_tuple[0])(print_choice)
@@ -5150,7 +5146,6 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         with term.location(*print_location):
             print(print_choice)
         last_print_choice = print_choice
-        # only print something if it has changed:
 
 def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100):
     """
@@ -5172,9 +5167,9 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
 
 async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
-        #for each actor on the space, display the one with the lowest z-index
         actor_choice = None
         for actor_name in map_dict[coord].actors:
+            #y_hide_coord acts roughly like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
             if y_hide_coord is not None:
                 player_coords = actor_dict['player'].coords()
