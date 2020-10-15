@@ -1711,6 +1711,13 @@ async def toggle_scanner_state(batt_use=1):
     while (state_dict['scanner_state'] == True):
         await asyncio.sleep(1)
 
+async def timed_scanner_use(duration=5):
+    await append_to_log(message="The scanner flickers on.")
+    state_dict['scanner_state'] = True
+    await asyncio.sleep(5)
+    state_dict['scanner_state'] = False
+    await append_to_log(message="The scanner fades to black.")
+
 async def throw_item(
     thrown_item_id=False,
     source_actor='player', 
@@ -2967,7 +2974,8 @@ async def flashy_teleport(
     actor='player',
     delay=.25,
     x_offset=1000,
-    y_offset=1000
+    y_offset=1000,
+    start_message="You feel slightly disoriented.",
 ):
     """
     does a flash animation of drawing in particles then teleports the player
@@ -2978,7 +2986,7 @@ async def flashy_teleport(
     """
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
-        asyncio.ensure_future(append_to_log(message="You feel slightly disoriented"))
+        asyncio.ensure_future(append_to_log(message=start_message))
         await pass_between(x_offset, y_offset, plane_name='nightmare')
         await asyncio.sleep(3)
         dest_coords = add_coords(destination, (x_offset, y_offset))
@@ -3093,12 +3101,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'use_message':block_wand_text,
             'broken_text':' is out of charges'
         },
+        #TODO: add stackable items in inventory
         'battery':{
             'uses':-1,
             'tile':term.green('◈'), 
             'power_kwargs':{
                 'item_id':item_id,
-                'num_charges':6,
+                'num_charges':3,
             },
             'usable_power':battery_item,
             'use_message':None,
@@ -3130,12 +3139,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'scanner':{
-            'uses':-1,
+            'uses':5,
             'tile':term.green('𝄮'), 
-            'usable_power':toggle_scanner_state,
+            'usable_power':timed_scanner_use,
+            'accepts_charges':True,
             'use_message':None,
             'breakable':False,
-            'power_kwargs':{'batt_use':1}
+            'power_kwargs':{'duration':5}
         },
         'fused charge':{
             'uses':-1,
@@ -3260,6 +3270,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         },
         'looking glass':{
             'uses':-1,
+            'use_message':"You see yourself outside of yourself.",
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3},
@@ -3817,6 +3828,7 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
         'pool_a': Room((0, 6), 3, 'water'),
@@ -3861,8 +3873,10 @@ def map_init():
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
+    draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
+    draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
 
@@ -4102,7 +4116,7 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (0, 0)
+        destination = (31, -5)
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'n'
         return
@@ -5616,7 +5630,7 @@ async def async_map_init():
         distance_trigger=0
     )
     announcement_at_coord(
-        "This room might have been a cafeteria.|||Looks like business is closed.",
+        "Every surface is covered in a pulsating slime.|||You feel a little nauseous.",
         coord=(-17, -44),
         describe_tile=False,
         distance_trigger=0
@@ -5632,13 +5646,19 @@ async def async_map_init():
         ((17, 1), '2x2_block'),
         ((11, 0), '2x2_block'),
         ((-32, 3), '2x2_block'),
-        ((-28, 1), '2x2_block_thick'),
+        ((-28, 1), '2x2_block'),
         ((9, 3), '2x2_block'),
         ((7, 0), '2x2_block'),
         ((27, 0), '2x2_block'),
         ((29, 1), '2x2_block'),
         ((5, 0), '2x2_block'),
         ((7, 3), '2x2_block'),
+        #room to north of scanner spawn location
+        ((24, -16), '2x2_block'),
+        ((30, -13), '2x2_block'),
+        ((31, -16), '2x2_block'),
+        ((28, -13), '2x2_block'),
+        ((29, -15), '2x2_block'),
     )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
@@ -5665,6 +5685,8 @@ async def async_map_init():
         ((47, -31), 'red sword'), 
         ((23, 0), 'blaster'), 
         ((18, 1), 'battery'), 
+        ((23, -13), 'battery'), 
+        ((30, 7), 'battery'), #small s. room s. of spawn
         ((-1, -5), 'green sword'), 
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
@@ -5781,7 +5803,9 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
             preset='nightmare',
             annulus_radius=None
         )
-        asyncio.ensure_future(append_to_log(message="You're not alone in this place.||Something moves at the edge of your vision."))
+        asyncio.ensure_future(append_to_log(
+            message="You're not alone in this place.||||Something moves at the edge of your vision."
+        ))
     elif state_dict['plane'] == plane_name:
         destination = add_coords(player_coords, (-x_offset, -y_offset))
         plane = 'normal'
@@ -5791,9 +5815,6 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         map_dict[player_coords].passable = True
         actor_dict['player'].update(coord=destination)
         state_dict['plane'] = plane
-        with term.location(80, 0):
-            template_text = 'plane: {}, known location: {}'
-            print(template_text.format(plane, state_dict['known location']))
         if plane != 'normal':
             state_dict['known location'] = False
         else:
@@ -5858,16 +5879,20 @@ async def player_coord_readout(
     if centered:
         middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
         print_coord = (middle_x - x_offset, middle_y + y_offset)
+    state_dict['display_offset'] = [0, 0, 0]
     while True:
         await asyncio.sleep(refresh_time)
         player_coords = actor_dict['player'].coords()
         if state_dict['plane'] == 'normal':
-            printed_coords = player_coords
+            x_offset, y_offset, z_offset = state_dict['display_offset']
+            display_x, display_y = add_coords((x_offset, y_offset), player_coords)
+            display_z = state_dict['display_offset'][2]
+            printed_coords = (display_x, display_y, display_z)
         else:
             noise = "1234567890ABCDEF       ░░░░░░░░░░░ " 
-            printed_coords = ''.join([choice(noise) for _ in range(7)])
+            printed_coords = [''.join([choice(noise) for _ in range(2)]) for _ in range(3)]
         with term.location(*add_coords(print_coord, (0, 1))):
-            print("x:{} y:{}      ".format(*printed_coords))
+            print("x:{} y:{} z:{}     ".format(*printed_coords))
 
 async def ui_setup():
     """
