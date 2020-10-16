@@ -3020,15 +3020,14 @@ async def random_blink(actor='player', radius=20):
             return
 
 async def temporary_block(
-    duration=5, animation_preset='energy block',
+    duration=30,
+    animation_preset='energy block',
+    vanish_message=None,
 ):
     directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     facing_dir_offset = directions[state_dict['facing']]
     actor_coords = actor_dict['player'].coords()
-    spawn_coord = (
-        actor_coords[0] + facing_dir_offset[0],
-        actor_coords[1] + facing_dir_offset[1]
-    )
+    spawn_coord = add_coords(actor_coords, facing_dir_offset)
     block_id = generate_id(base_name='weight')
     asyncio.ensure_future(
         timed_actor(
@@ -3038,7 +3037,8 @@ async def temporary_block(
             rand_delay=0,
             solid=False,
             moveable=True, 
-            animation_preset=animation_preset
+            animation_preset=animation_preset,
+            vanish_message=vanish_message,
         )
     )
 
@@ -3080,7 +3080,7 @@ async def temp_view_circle(
 #TODO: fix override_view to display a noisy (with brightness offsets) view instead of uniform single tone
 #TODO: items that are used immediately upon pickup
 
-def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
+def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=False):
     wand_broken_text = ' is out of charges.'
     possible_items = (
         'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
@@ -3093,13 +3093,13 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='wand', on_actor_id=False):
         instance_of = choice(possible_items)
     item_id = generate_id(base_name=instance_of)
     item_catalog = {
-        'wand':{
+        'block wand':{
             'uses':10,
             'tile':term.blue('/'),
             'usable_power':temporary_block,
-            'power_kwargs':{'duration':5},
+            'power_kwargs':{'duration':30, 'vanish_message':'*POP!*'},
             'use_message':block_wand_text,
-            'broken_text':' is out of charges'
+            'broken_text':' is out of charges',
         },
         #TODO: add stackable items in inventory
         'battery':{
@@ -4247,15 +4247,13 @@ async def use_action(tile_coords=None, is_async=True):
 
 #Item Interaction---------------------------------------------------------------
 #TODO: a battery item that is used on other items to restore charges
-async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
+async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
     function.
     """
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
-    if 'wand' in icon_name:
-        icon_name = 'wand'
     icons = {
         'battery':(
             '┌───┐',
@@ -4271,7 +4269,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='wand'):
             '│║  │'.format(term.bold(term.red('╳'))),
             '└───┘',
         ),
-        'wand':(
+        'block wand':(
             '┌───┐',
             '│  *│', 
             '│ ╱ │',
@@ -5679,7 +5677,7 @@ async def async_map_init():
         loop.create_task(spawn_container(spawn_coord=coord))
     #item creation-----------------------------------------
     items = (
-        ((-3, 0), 'wand'), 
+        ((-3, 0), 'block wand'), 
         ((-3, -3), 'red key'), 
         ((8, 4), 'red potion'), 
         ((47, -31), 'red sword'), 
@@ -6652,7 +6650,8 @@ async def timed_actor(
     rand_delay=0,
     solid=True,
     moveable=False, 
-    animation_preset='shimmer'
+    animation_preset='shimmer',
+    vanish_message=None,
 ):
     """
     spawns an actor at given coords that disappears after a number of turns.
@@ -6681,6 +6680,8 @@ async def timed_actor(
     del map_dict[coords].actors[name]
     del actor_dict[name]
     map_dict[coords].passable = prev_passable_state
+    if vanish_message is not None:
+        await append_to_log(message=vanish_message)
 
 async def beam_spire(spawn_coord=(0, 0)):
     """
