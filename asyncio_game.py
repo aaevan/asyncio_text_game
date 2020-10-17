@@ -479,7 +479,7 @@ class Item:
     async def use(self):
         if self.uses is not None and not self.broken:
             if self.use_message is not None:
-                await append_to_log(message=self.use_message)
+                asyncio.ensure_future(append_to_log(message=self.use_message))
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
             if self.uses is not None and self.uses != -1:
                 self.uses -= 1
@@ -2633,8 +2633,6 @@ async def toggle_bool_toggle(
     toggle_state = state_dict[patch_to_key][toggle_id]
     false_text = "{} {}.".format(message[0], message[1][0])
     true_text =  "{} {}.".format(message[0], message[1][1])
-    with term.location(15, 40):
-        print("toggle_state is:", toggle_state)
     if toggle_state == True:
         state_dict[patch_to_key][toggle_id] = False
         output_text = false_text
@@ -3810,7 +3808,7 @@ def map_init():
         'b': Room((5, -20), 5),
         'c': Room((28, -28), 7),
         'd': Room((9, -39), 8),
-        'e': Room((-20, 20), 6),
+        'e': Room((-20, 20), (12, 12)),
         'f': Room((-35, 20), (5, 5)),
         'g': Room((28, -34), 6, 'chasm'),
         'h': Room((-30, -20), (7, 7)),
@@ -3841,8 +3839,8 @@ def map_init():
         ('b', 'c', 2, None, None),
         ('d', 'c', 2, None, None),
         ('b', 'd', 2, None, None),
-        ('a', 'e', 5, None, None),
-        ('e', 'f', 2, None, None),
+        ('a', 'e', 2, None, None),
+        ('e', 'f', 1, None, None),
         ('d', 'j', 2, 'goo', None),
         ('k', 'm', 2, 'grass', 'jagged'),
         ('n', 'o', 1, None, None),
@@ -3865,16 +3863,16 @@ def map_init():
         )
     for room in rooms.values():
         room.draw_room()
-    secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
+    #secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
+    secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
-    secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
@@ -5700,7 +5698,6 @@ async def async_map_init():
     tasks = [
         spawn_container(spawn_coord=(3, -4)),
         trap_init(),
-        under_passage(start=(-13, 20), end=(-26, 20), direction='ew'),
         beam_spire(spawn_coord=(26, -25)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
@@ -5721,9 +5718,14 @@ async def async_map_init():
             message_preset='ksh'
         ),
     ]
-    for i in range(1):
-        rand_coord = (randint(-5, -5), randint(-5, 5))
-        tasks.append(spawn_preset_actor(coords=rand_coord, preset='blob'))
+    monster_spawns = (
+       ((25, -13), 'blob'),
+       ((-4, -9), 'blob'),
+       ((-20, 16), 'blob'),
+    )
+    for coord, name in monster_spawns:
+        #rand_coord = (randint(-5, -5), randint(-5, 5))
+        tasks.append(spawn_preset_actor(coords=coord, preset=name))
     for task in tasks:
         loop.create_task(task)
 
