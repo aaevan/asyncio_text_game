@@ -2784,8 +2784,9 @@ async def swing(
     base_name='swing',
     rand_direction=False,
     swing_color=0xf9,
-    damage=20,
+    damage=50,
 ):
+    #TODO: fix swing entities so they don't invisibly cut tiles
     if base_actor:
         base_coord = actor_dict[base_actor].coords()
     if set_facing:
@@ -2807,7 +2808,7 @@ async def swing(
         'w': (['╱', '─', '╲'], ['sw', 'w', 'nw']),
     }
     chars, dirs = swing_chars[swing_direction]
-    #choose at random which direciton to swing from:
+    #choose at random the direction the arc starts:
     if rand_direction: 
         if random() > .5:
             chars.reverse()
@@ -2903,7 +2904,8 @@ async def sword(
         await asyncio.sleep(speed)
     await asyncio.sleep(delay_out)
     if mode == 'retract':
-        retract_order = zip(reversed(segment_coords), reversed(sword_segment_names))
+        #zip isn't reversible, weird nonsense is needed:
+        retract_order = reversed(list(zip(segment_coords, sword_segment_names)))
     elif mode == 'spear':
         retract_order = zip(segment_coords, sword_segment_names)
     else:
@@ -3216,7 +3218,8 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'length':9,
                 'speed':.05,
                 'damage':100,
-                'sword_color':2
+                'sword_color':2,
+                'player_sword_track':True,
             },
             'usable_power':sword_item_ability,
             'broken_text':'Something went wrong.',
@@ -3266,6 +3269,9 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'power_kwargs':{'distance':10},
             'broken_text':wand_broken_text
         },
+        #TODO: passwall item: makes a section of wall shimmer like temporary
+        #      blocks and passable for a short period of time. 
+        #      kill all actors left when time expires.
         'looking glass':{
             'uses':-1,
             'use_message':"You see yourself outside of yourself.",
@@ -4440,7 +4446,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=30, refresh_rate=.05
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5684,6 +5691,7 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-1, -5), 'green sword'), 
+        ((32, -5), 'green sword'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
