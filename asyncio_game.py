@@ -4124,8 +4124,6 @@ async def action_keypress(key):
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'n'
         return
-    elif key in '^':
-        asyncio.ensure_future(flame_jet())
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
     shifted_x, shifted_y = x + x_shift, y + y_shift
@@ -4250,7 +4248,6 @@ async def use_action(tile_coords=None, is_async=True):
 
 
 #Item Interaction---------------------------------------------------------------
-#TODO: a battery item that is used on other items to restore charges
 async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
     """
     prints an item's 3x3 icon representation. tiles are stored within this 
@@ -4446,8 +4443,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
-    width=40, height=10, x_margin=1, y_margin=30, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -4459,31 +4455,27 @@ async def console_box(
         )
     )
     while True:
-        #initially just group single line messages
-        grouped_messages = [['', hash(''), 0]]
+        grouped_messages = [['', hash(''), 1]]
         last_message_hash = ''
         message_index = len(state_dict['messages']) - 1
-        while len(grouped_messages) < height:
+        while len(grouped_messages) <= height:
             message, message_hash = state_dict['messages'][message_index]
-            #how can we read in hashes of messages? 
-            #The has is generated before the message starts to filter into 
-            #state_dict and sits alongside the partially filtered message
-            #the hash of an empty string is 0
+            spaces = ' ' * 80
             if message_hash != last_message_hash and last_message_hash != 0: 
-                #message text, hash of message, message repeat count
-                grouped_messages.append([message, hash(message), 0])
+                grouped_messages.append([message, message_hash, 1])
             else:
                 grouped_messages[-1][2] += 1
-            last_message_hash = message
+            last_message_hash = message_hash
             message_index -= 1
             if message_index <= 0:
                 break
-        #TODO: incorporate grouped messages somehow with append_to_log (hashes?)
-        #with term.location(0, 40):
-            #print("grouped_messages: {}".format(grouped_messages))
-        for index, line_y in enumerate(range(y_margin, y_margin + height)):
-            #change this line to reflect pulling (grouped) messages:
-            line_text = state_dict['messages'][-index - 1][0] #top is newest
+        for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
+            if count > 1 and message != '':
+                prefix = "({}) ".format(count)
+            else:
+                prefix = ""
+            line_text = "{}{}".format(prefix, message)
+            line_y = index + y_margin
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
         await asyncio.sleep(refresh_rate)
