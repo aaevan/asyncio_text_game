@@ -3932,6 +3932,8 @@ def announcement_at_coord(
     if tile is not None:
         map_dict[coord].tile = tile
     if describe_tile:
+        #strip repeated pipes:
+        announcement = re.sub('\|+', '|', announcement)
         map_dict[coord].description = ' '.join(announcement.split('|'))
 
 def is_data(): 
@@ -4460,7 +4462,6 @@ async def console_box(
         message_index = len(state_dict['messages']) - 1
         while len(grouped_messages) <= height:
             message, message_hash = state_dict['messages'][message_index]
-            spaces = ' ' * 80
             if message_hash != last_message_hash and last_message_hash != 0: 
                 grouped_messages.append([message, message_hash, 1])
             else:
@@ -4469,19 +4470,25 @@ async def console_box(
             message_index -= 1
             if message_index <= 0:
                 break
+        #TODO: fix trailing characters overwriting bounds of box
+        #      has something to do with how filter_into_log)
         for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
             if count > 1 and message != '':
-                prefix = "({}) ".format(count)
+                suffix = "({})".format(count)
             else:
-                prefix = ""
-            line_text = "{}{}".format(prefix, message)
+                suffix = ""
+            line_text = "{}{}".format(message, suffix)
             line_y = index + y_margin
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
+                #print(line_text))
         await asyncio.sleep(refresh_rate)
 
 async def append_to_log(
-    message="This is a test", wipe=False, wipe_time=5, wipe_char_time=.1
+    message="This is a test", 
+    wipe=False, 
+    wipe_time=5, 
+    wipe_char_time=.1,
 ):
     if '|' in message:
         messages = message.split('|')
@@ -4496,17 +4503,13 @@ async def append_to_log(
                     wipe_char_time=wipe_char_time,
                 )
         return
-    #start with the easy case of single-line messages, then expand to multiple line messages.
     message_lines = textwrap.wrap(message, 40)
-    padded_lines = ["{:<40}".format(line) for line in message_lines]
+    padded_lines = ["{:<37}".format(line) for line in message_lines]
     if wipe:
         wipe_text = ' ' * len(message)
     for index_offset, line in enumerate(reversed(padded_lines)):
         line_index = len(state_dict['messages'])
-        #do we add a hash AND a line number AND a message length?
         state_dict['messages'].append(('', hash(message)))
-        #TODO: add a hash of the message before it's fully printed,
-        #use that hash to see whether it's a repeat message
         asyncio.ensure_future(
             filter_into_log(
                 message=line, line_index=line_index
