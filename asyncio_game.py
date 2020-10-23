@@ -542,15 +542,16 @@ class Multi_tile_entity:
         blocking=False,
         fill_color=3,
         offset=(-1, -1),
-        description="THIS IS A {} MTE",
+        description="generic multi tile actor",
     ):
         self.name = name
         self.fill_color = fill_color
-        if '{}' in description:
-            description = description.format(preset)
         self.member_data = {}
         self.member_names = []
         tiles = self.mte_presets(preset)
+        preset_description = self.description_presets(preset)
+        if preset_description is not None:
+            description = preset_description
         for y in range(len(tiles)):
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
@@ -570,7 +571,7 @@ class Multi_tile_entity:
                     fill_color=fill_color,
                     description=description,
                 )
- 
+
     def mte_presets(self, preset):
         #Note: ' ' entries are ignored but keep the shape of the preset
         presets = {
@@ -652,6 +653,28 @@ class Multi_tile_entity:
         }
         return presets[preset]
 
+    def description_presets(self, preset):
+        presets = {
+            '2x2':'???',
+            'empty':'Nothing\'s here!',
+            'bold_2x2':'???',
+            '2x2_block':'A large wooden crate. It looks fragile.',
+            '2x2_block_thick':'A large crate heavily banded in metal.',
+            '3x3_block':'???',
+            '3x3':'???',
+            '3x3 fire':'???',
+            'writheball':'???',
+            'test_block':'???',
+            'fireball':'???',
+            '4x4 tester':'???',
+            '5x5 tester':'???',
+            'ns_couch':'???',
+            'ew_bookcase':'???',
+            'add_sign':'???',
+        }
+        if preset not in presets:
+            return None
+        return presets[preset]
 
     def add_segment(
         self,
@@ -4474,7 +4497,7 @@ async def console_box(
         #      has something to do with how filter_into_log)
         for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
             if count > 1 and message != '':
-                suffix = "({})".format(count)
+                suffix = "x{}".format(count)
             else:
                 suffix = ""
             line_text = "{}{}".format(message, suffix)
