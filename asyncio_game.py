@@ -731,6 +731,8 @@ class Multi_tile_entity:
             check_coord = add_coords(current_coord, move_by)
             if 'player' in map_dict[check_coord].actors:
                 return True
+            elif len(map_dict[check_coord].items) != 0:
+                return False
             elif not map_dict[check_coord].passable:
                 return False
             for actor in map_dict[check_coord].actors:
@@ -2036,6 +2038,8 @@ def push(direction='n', pusher='player', base_coord=None):
         pushed_coords = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coords, chosen_dir)
         if is_passable(pushed_destination):
+            if len(map_dict[coord].items) > 0:
+                return False
             actor_dict[pushed_name].update(coord=pushed_destination)
             return True
         else:
@@ -2546,7 +2550,7 @@ async def computer_terminal(
     paint_preset(tile_coords=spawn_coord, preset='terminal')
     append_description(
         coord=spawn_coord, 
-        added_message='it reads:\"OPEN POD DOOR?\"',
+        added_message='The monitor reads:\"OPEN POD DOOR?\"',
         separator='||',
     )
     neighbors = adjacent_tiles(coord=spawn_coord)
@@ -4050,7 +4054,6 @@ async def action_keypress(key):
     directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
     player_coords = actor_dict['player'].coords()
     if key in "wasd":
-        push_return_val = None
         if key in 'wasd':
             if state_dict['player_busy'] == True:
                 return
@@ -4151,18 +4154,16 @@ async def action_keypress(key):
         return
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
-    shifted_x, shifted_y = x + x_shift, y + y_shift
+    shifted_coord = add_coords((x, y), (x_shift, y_shift))
     if (
-        map_dict[(shifted_x, shifted_y)].passable and 
-        (shifted_x, shifted_y) is not (0, 0)
+        map_dict[shifted_coord].passable and 
+        shifted_coord != (0, 0)
     ):
         state_dict['last_location'] = (x, y)
         map_dict[(x, y)].passable = True #make previous space passable
-        update_coord = add_coords((x, y), (x_shift, y_shift))
-        actor_dict['player'].update(coord=update_coord)
+        actor_dict['player'].update(coord=shifted_coord)
         x, y = actor_dict['player'].coords()
         map_dict[(x, y)].passable = False #make current space impassable
-
 
 async def handle_input(map_dict, key):
     """
