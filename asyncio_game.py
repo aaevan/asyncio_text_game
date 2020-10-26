@@ -2035,10 +2035,10 @@ def push(direction='n', pusher='player', base_coord=None):
     elif not actor_dict[pushed_name].moveable:
         return False
     else:
-        pushed_coords = actor_dict[pushed_name].coords()
-        pushed_destination = add_coords(pushed_coords, chosen_dir)
+        pushed_coord = actor_dict[pushed_name].coords()
+        pushed_destination = add_coords(pushed_coord, chosen_dir)
         if is_passable(pushed_destination):
-            if len(map_dict[coord].items) > 0:
+            if len(map_dict[pushed_coord].items) > 0:
                 return False
             actor_dict[pushed_name].update(coord=pushed_destination)
             return True
@@ -4494,8 +4494,6 @@ async def console_box(
             message_index -= 1
             if message_index <= 0:
                 break
-        #TODO: fix trailing characters overwriting bounds of box
-        #      has something to do with how filter_into_log)
         for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
             if count > 1 and message != '':
                 suffix = "x{}".format(count)
@@ -4505,7 +4503,6 @@ async def console_box(
             line_y = index + y_margin
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width, ' '))
-                #print(line_text))
         await asyncio.sleep(refresh_rate)
 
 async def append_to_log(
@@ -5622,12 +5619,6 @@ async def async_map_init():
         tile="g"
     )
     announcement_at_coord(
-        "There's a slightly raised section of floor here.|||What happens if you step on it?",
-        coord=(4, -13),
-        describe_tile=True,
-        distance_trigger=1
-    )
-    announcement_at_coord(
         "The dooway shimmers slightly as you look through it.",
         coord=(-20, 24),
         describe_tile=True,
@@ -6022,6 +6013,15 @@ async def attack(
             seeds=randint(*spatter_range),
             description="Blood.", 
             append_description=True
+        )
+    if defender_key == 'player':
+        asyncio.ensure_future(
+            append_to_log(
+                "The {} hits you for {} damage!".format(
+                    actor_dict[attacker_key].base_name,
+                    attacker_strength,
+                )
+            )
         )
     actor_dict[defender_key].health -= attacker_strength
     if actor_dict[defender_key].health <= 0:
@@ -7288,7 +7288,7 @@ def main():
         quitter_daemon(),
         minimap_init(loop),
         ui_setup(),
-        printing_testing(),
+        #printing_testing(),
         #TODO: fix follower vine to disappear after a set time:
         #shrouded_horror(start_coords=(29, -25)),
         death_check(),
