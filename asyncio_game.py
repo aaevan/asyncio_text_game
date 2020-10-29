@@ -4620,11 +4620,16 @@ async def battery_item(
     num_charges=6,
 ):
     return_val = await add_uses_to_chosen_item(num_charges=num_charges)
+    with term.location(55, 0):
+        print(4624, "return_val:", return_val)
     if item_id and return_val:
         del item_dict[item_id]
         del actor_dict['player'].holding_items[item_id]
 
 async def add_uses_to_chosen_item(num_charges=10):
+    asyncio.ensure_future(
+        append_to_log("Charge which item?")
+    )
     item_id_choice = await choose_item()
     if item_id_choice != None:
         item_name = item_dict[item_id_choice].name
@@ -5145,7 +5150,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             if state_dict['plane'] == 'nightmare':
                 color_choice = 0
             else:
-                color_choice = 0xeb
+                color_choice = 0xea
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
@@ -5672,6 +5677,12 @@ async def async_map_init():
         ((31, -16), '2x2_block'),
         ((28, -13), '2x2_block'),
         ((29, -15), '2x2_block'),
+        ((13, 17), '2x2_block'),
+        ((11, 17), '2x2_block'),
+        ((9, 17), '2x2_block'),
+        ((15, 20), '2x2_block'),
+        ((13, 20), '2x2_block'),
+        ((11, 20), '2x2_block'),
     )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
