@@ -3592,13 +3592,15 @@ def draw_door(
     attributes.
     """
     door_presets = {
+        #((tile, blocking, passable), (tile, blocking, passable))
         'wooden':(('▯', False, True), ('▮', True, False)),
         'secret':(('▯', False, True), ('𝄛', True, False)),
+         'hatch':(('◍', False, True), ('●', False, True)),
     }
     door_colors = {
         'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-        'iron':7, 'secret':0xeb
+        'iron':7, 'hatch':0xee,
     }
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
@@ -3613,6 +3615,7 @@ def draw_door(
     map_dict[door_coord].is_door = True
     map_dict[door_coord].locked = locked
     map_dict[door_coord].key_type = description
+    #TODO: move this logic to toggle_door
     if closed:
         close_state = ' closed'
     else:
@@ -3902,6 +3905,9 @@ def map_init():
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
+    #draw_door(door_coord=(31, 6), preset='hatch', description='hatch')
+    draw_door(door_coord=(18, 0), preset='wooden', )
+    draw_door(door_coord=(18, -1), preset='hatch', description='hatch')
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
