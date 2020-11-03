@@ -2785,7 +2785,7 @@ async def trigger_door(
     open_index=0,
     closed_index=1,
 ):
-    draw_door(door_coord=door_coord, description='iron', locked=True)
+    draw_door(door_coord=door_coord, preset='iron door', locked=True)
     if default_state == 'closed':
         set_state = closed_index
     while True:
@@ -3561,7 +3561,6 @@ def secret_door(
         door_coord=door_coord,
         locked=False,
         preset='secret',
-        description='secret',
     )
     map_dict[door_coord].description = tile_description
     map_dict[door_coord].brightness_mod = 2
@@ -3583,7 +3582,7 @@ def draw_door(
     closed=True,
     locked=False,
     starting_toggle_index=1,
-    description='wooden',
+    #description='wooden door',
     is_door=True,
     preset='wooden'
 ):
@@ -3593,20 +3592,21 @@ def draw_door(
     """
     door_presets = {
         #((tile, blocking, passable), (tile, blocking, passable))
-        'wooden':(('▯', False, True), ('▮', True, False)),
+        'wooden door':(('▯', False, True), ('▮', True, False)),
         'secret':(('▯', False, True), ('𝄛', True, False)),
-         'hatch':(('◍', False, True), ('●', False, True)),
+        'hatch':(('◍', False, True), ('●', False, True)),
+        'iron door':(('▯', False, True), ('▮', True, False)),
     }
     door_colors = {
-        'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
+        'red':1, 'green':2, 'orange':3, 'wooden door':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-        'iron':7, 'hatch':0xee,
+        'iron door':7, 'hatch':0xee,
     }
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
     tile, blocking, passable = door_presets[preset][starting_toggle_index]
-    if description != 'secret':
-        door_tile = term.color(door_colors[description])(tile)
+    if preset != 'secret':
+        door_tile = term.color(door_colors[preset])(tile)
     else:
         door_tile = tile
     map_dict[door_coord].tile = door_tile
@@ -3614,13 +3614,13 @@ def draw_door(
     map_dict[door_coord].blocking = blocking
     map_dict[door_coord].is_door = True
     map_dict[door_coord].locked = locked
-    map_dict[door_coord].key_type = description
+    map_dict[door_coord].key_type = preset
     #TODO: move this logic to toggle_door
     if closed:
-        close_state = ' closed'
+        close_state = 'A closed'
     else:
-        close_state = 'n open'
-    door_description = "A{} {} door.".format(close_state, description)
+        close_state = 'An open'
+    door_description = "{} {}.".format(close_state, preset)
     map_dict[door_coord].description = door_description
     map_dict[door_coord].mutable = False
 
@@ -3906,8 +3906,8 @@ def map_init():
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
     #draw_door(door_coord=(31, 6), preset='hatch', description='hatch')
-    draw_door(door_coord=(18, 0), preset='wooden', )
-    draw_door(door_coord=(18, -1), preset='hatch', description='hatch')
+    draw_door(door_coord=(18, 0), preset='wooden door', )
+    draw_door(door_coord=(18, -1), preset='hatch')
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
@@ -4230,7 +4230,7 @@ async def toggle_door(door_coord):
             tile_coord=door_coord, 
             toggle_state_index=new_toggle_state_index,
         )
-        if door_state:
+        if door_state == True :
             output_text = "You open the door"
         else:
             output_text = "You close the door"
