@@ -44,7 +44,7 @@ class Map_tile:
         color_num=8,                        #color to display character
         is_door=False,                      #if true, can be toggled
         locked=False,                       #lock state of door
-        key_type='',                        #key required for entry
+        door_type='',                       #matches key required for entry
         prevent_pushing=False,              #prevent pushing onto this square
         use_action_func=None,               #function that runs on use action
         use_action_kwargs=None,             #kwards of use_action function
@@ -92,7 +92,7 @@ class Map_tile:
         self.color_num = color_num
         self.is_door = is_door
         self.locked = locked
-        self.key_type = key_type
+        self.door_type = door_type
         self.prevent_pushing = prevent_pushing
         self.use_action_func = use_action_func
         self.use_action_kwargs = use_action_kwargs
@@ -1982,8 +1982,8 @@ async def unlock_door(actor_key='player', opens='red'):
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, directions[check_dir])
-    door_type = map_dict[door_coord].key_type
-    if opens in map_dict[door_coord].key_type and map_dict[door_coord].is_door:
+    door_type = map_dict[door_coord].door_type
+    if opens in map_dict[door_coord].door_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
             output_text = 'You unlock the {} door.'.format(opens)
             map_dict[door_coord].locked = False
@@ -2785,7 +2785,7 @@ async def trigger_door(
     open_index=0,
     closed_index=1,
 ):
-    draw_door(door_coord=door_coord, preset='iron door', locked=True)
+    draw_door(door_coord=door_coord, preset='iron', locked=True)
     if default_state == 'closed':
         set_state = closed_index
     while True:
@@ -3382,7 +3382,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
                 print('{} {} {}'.format(item_dict[item_id].tile, item_dict[item_id].name, uses_text))
 
 async def filter_print(
-    output_text='You open the door.',
+    output_text='filter_print default text',
     x_offset=0,
     y_offset=-8, 
     pause_fade_in=.01,
@@ -3582,7 +3582,7 @@ def draw_door(
     closed=True,
     locked=False,
     starting_toggle_index=1,
-    #description='wooden door',
+    #description='wooden',
     is_door=True,
     preset='wooden'
 ):
@@ -3592,15 +3592,15 @@ def draw_door(
     """
     door_presets = {
         #((tile, blocking, passable), (tile, blocking, passable))
-        'wooden door':(('▯', False, True), ('▮', True, False)),
+        'wooden':(('▯', False, True), ('▮', True, False)),
         'secret':(('▯', False, True), ('𝄛', True, False)),
         'hatch':(('◍', False, True), ('●', False, True)),
-        'iron door':(('▯', False, True), ('▮', True, False)),
+        'iron':(('▯', False, True), ('▮', True, False)),
     }
     door_colors = {
-        'red':1, 'green':2, 'orange':3, 'wooden door':3, 'rusty':3, 
+        'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-        'iron door':7, 'hatch':0xee,
+        'iron':7, 'hatch':0xee,
     }
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
@@ -3614,7 +3614,7 @@ def draw_door(
     map_dict[door_coord].blocking = blocking
     map_dict[door_coord].is_door = True
     map_dict[door_coord].locked = locked
-    map_dict[door_coord].key_type = preset
+    map_dict[door_coord].door_type = preset
     #TODO: move this logic to toggle_door
     if closed:
         close_state = 'A closed'
@@ -3906,7 +3906,7 @@ def map_init():
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
     #draw_door(door_coord=(31, 6), preset='hatch', description='hatch')
-    draw_door(door_coord=(18, 0), preset='wooden door', )
+    draw_door(door_coord=(18, 0), preset='wooden', )
     draw_door(door_coord=(18, -1), preset='hatch')
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
@@ -4198,11 +4198,23 @@ def get_facing_coord():
 async def examine_facing():
     examined_coord = get_facing_coord()
     #add descriptions for actors
+    is_secret = False
+    if map_dict[examined_coord].door_type != '':
+        is_secret = 'secret' in map_dict[examined_coord].door_type
+    with term.location(55, 2):
+        print("is_secret:", is_secret)
     if map_dict[examined_coord].actors:
         actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
         description_text = actor_dict[actor_name].description
     elif map_dict[examined_coord].items:
         description_text = "There's an item here!"
+    elif map_dict[examined_coord].is_door and not is_secret:
+        is_open = map_dict[examined_coord].toggle_state_index == 0
+        door_type = map_dict[examined_coord].door_type
+        if is_open:
+            description_text = "An open {} door.".format(door_type)
+        else:
+            description_text = "A closed {} door.".format(door_type)
     else:
         description_text = map_dict[examined_coord].description
     if description_text is not None:
@@ -4222,7 +4234,7 @@ async def toggle_door(door_coord):
     toggle_state_index = map_dict[door_coord].toggle_state_index
     current_tile_state = term.strip_seqs(map_dict[door_coord].tile)
     if map_dict[door_coord].locked:
-        description = map_dict[door_coord].key_type
+        description = map_dict[door_coord].door_type
         output_text="The {} door is locked.".format(description)
     else:
         new_toggle_state_index = (toggle_state_index + 1) % len(toggle_states)
@@ -4230,10 +4242,11 @@ async def toggle_door(door_coord):
             tile_coord=door_coord, 
             toggle_state_index=new_toggle_state_index,
         )
-        if door_state == True :
-            output_text = "You open the door"
+        door_type = map_dict[door_coord].door_type
+        if door_state == False:
+            output_text = "You open the {} door".format(door_type)
         else:
-            output_text = "You close the door"
+            output_text = "You close the {} door".format(door_type)
     await append_to_log(message=output_text)
 
 def set_tile_toggle_state(tile_coord, toggle_state_index):
@@ -4626,8 +4639,6 @@ async def battery_item(
     num_charges=6,
 ):
     return_val = await add_uses_to_chosen_item(num_charges=num_charges)
-    with term.location(55, 0):
-        print(4624, "return_val:", return_val)
     if item_id and return_val:
         del item_dict[item_id]
         del actor_dict['player'].holding_items[item_id]
