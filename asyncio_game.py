@@ -3725,27 +3725,6 @@ async def magic_door(
                 state_dict['just teleported'] = True
                 state_dict['plane'] = destination_plane
 
-async def auto_teleporter_tile():
-    while(True):
-        await asyncio.sleep(.1)
-        player_coords = actor_dict['player'].coords()
-        just_teleported = state_dict['just teleported']
-        #TODO: add an option for non-player actors to go through.
-        if player_coords == start_coords and not just_teleported:
-            last_location = state_dict['last_location']
-            difference_from_door_coords = (
-                start_coords[0] - last_location[0], 
-                start_coords[1] - last_location[1]
-            )
-            destination = add_coords(end_coords, difference_from_door_coords)
-            if map_dict[destination].passable:
-                if not silent:
-                    await append_to_log(message="You are teleported.")
-                map_dict[player_coords].passable=True
-                actor_dict['player'].update(coord=destination)
-                state_dict['just teleported'] = True
-                state_dict['plane'] = destination_plane
-
 async def create_magic_door_pair(
     door_a_coords=(5, 5),
     door_b_coords=(-25, -25),
