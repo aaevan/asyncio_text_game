@@ -3671,9 +3671,10 @@ async def under_passage(
 async def magic_door(
     start_coords=(5, 5),
     end_coords=(-22, 18), 
-    horizon_orientation='vertical',
     silent=False,
-    destination_plane='normal'
+    destination_plane='normal',
+    description = "The air shimmers slightly between you and the space beyond.",
+    door_tile = "▯",
 ):
     """
     notes for portals/magic doors:
@@ -3692,7 +3693,6 @@ async def magic_door(
     when within a short distance, the entire field flickers (mostly) red to black
     red within view distance and only you and the tentacle monster are visible
     """
-    direction_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     animation = Animation(base_tile='▮', preset='door')
     map_dict[start_coords] = Map_tile(
         tile=" ",
@@ -3703,9 +3703,29 @@ async def magic_door(
         is_animated=True,
         animation=animation
     )
-    description = "The air shimmers slightly between you and the space beyond."
     map_dict[start_coords].description = description
-    map_dict[start_coords].tile = "M"
+    map_dict[start_coords].tile = door_tile
+    while(True):
+        await asyncio.sleep(.1)
+        player_coords = actor_dict['player'].coords()
+        just_teleported = state_dict['just teleported']
+        #TODO: add an option for non-player actors to go through.
+        if player_coords == start_coords and not just_teleported:
+            last_location = state_dict['last_location']
+            difference_from_door_coords = (
+                start_coords[0] - last_location[0], 
+                start_coords[1] - last_location[1]
+            )
+            destination = add_coords(end_coords, difference_from_door_coords)
+            if map_dict[destination].passable:
+                if not silent:
+                    await append_to_log(message="You are teleported.")
+                map_dict[player_coords].passable=True
+                actor_dict['player'].update(coord=destination)
+                state_dict['just teleported'] = True
+                state_dict['plane'] = destination_plane
+
+async def auto_teleporter_tile():
     while(True):
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
@@ -4950,7 +4970,7 @@ async def display_help():
         "  q/e: use equipped item  ",
         "    t: throw chosen item  ",
         "    u: use selected item  ",
-        "    x: examine tile       ",
+        "    x: examine faced tile ",
         "bkspc: quit dialog (y/n)  ",
         "    ?: open this message  ",
     )
