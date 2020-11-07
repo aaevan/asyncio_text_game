@@ -1912,6 +1912,8 @@ async def damage_actor(
 ):
     debris_dict = {'wood':('SMASH!', ',.\''),
                    'stone':('SMASH!', '..:o')}
+    if actor_dict[actor].breakable == False:
+        return
     if hasattr(actor_dict[actor], 'health'):
         current_health = actor_dict[actor].health
     else:
@@ -3913,6 +3915,7 @@ def map_init():
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
+    spawn_column(spawn_coord=(30, -5), tile='╪')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
 
@@ -3924,6 +3927,7 @@ def spawn_column(
     cast_shadow=True, 
     shadow_length=4, 
     shadow_mod=5,
+    solid_base=True,
 ):
     """
     note: base of column is not blocking because it obscures higher elements
@@ -3933,7 +3937,8 @@ def spawn_column(
         spawn_coord=spawn_coord, 
         tile=tile, 
         y_hide_coord=None, 
-        solid=True,
+        solid=solid_base,
+        breakable=False,
     )
     for y_value in range(height):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
@@ -3942,6 +3947,7 @@ def spawn_column(
             spawn_coord=column_segment_spawn_coord, 
             tile=tile, y_hide_coord=spawn_coord, 
             solid=False,
+            breakable=False,
         )
         if cast_shadow and y_value <= shadow_length:
             map_dict[column_segment_spawn_coord].brightness_mod = shadow_mod
@@ -4653,6 +4659,8 @@ async def add_uses_to_chosen_item(num_charges=10):
         if accepts_charges:
             item_dict[item_id_choice].uses += num_charges
             await append_to_log("Added {} charges to {}".format(num_charges, item_name))
+            if item_dict[item_id_choice].broken:
+                item_dict[item_id_choice].broken = False
             return True
         else:
             await append_to_log("{} cannot be charged.".format(item_name.capitalize()))
@@ -5743,7 +5751,7 @@ async def async_map_init():
     tasks = [
         spawn_container(spawn_coord=(3, -4)),
         trap_init(),
-        beam_spire(spawn_coord=(26, -25)),
+        #beam_spire(spawn_coord=(26, -25)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
