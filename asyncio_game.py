@@ -163,7 +163,8 @@ class Actor:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
         map_dict[self.coords()].actors[self.name] = True
-        run_on_entry = map_dict[self.coords].run_on_entry
+        run_on_entry = map_dict[self.coords()].run_on_entry
+        run_on_entry_kwargs = map_dict[self.coords()].run_on_entry_kwargs
         if run_on_entry is not None:
             if iscoroutinefunction(run_on_entry):
                 asyncio.ensure_future(
@@ -2591,15 +2592,21 @@ async def teleport_if_open():
 
 async def teleporter(
     tile='X',
-    spawn_coord=(0, 0),
-    destination_coord=(0, -9),
-    description="What happens if you activate it?"
+    spawn_coord=(1, 1),
+    destination_coord=(1, -9),
+    description="What happens if you step on it?"
 ):
     paint_preset(tile_coords=spawn_coord, preset='pulse')
     map_dict[spawn_coord].description = description
-    map_dict[spawn_coord].use_action_func = flashy_teleport
-    map_dict[spawn_coord].use_action_kwargs = {
+    #map_dict[spawn_coord].use_action_func = teleport
+    #map_dict[spawn_coord].use_action_kwargs = {
+        #'destination':destination_coord,
+    #}
+    map_dict[spawn_coord].run_on_entry = teleport
+    map_dict[spawn_coord].run_on_entry_kwargs = {
+        'origin':spawn_coord,
         'destination':destination_coord,
+        'delay':0,
     }
 
 async def indicator_lamp(
@@ -3016,15 +3023,18 @@ async def teleport_in_direction(direction=None, distance=15, flashy=True):
     destination_offset = directions_to_offsets[direction]
     destination = add_coords(player_coords, destination_offset)
     if flashy:
-        await flashy_teleport(destination=destination)
+        await teleport(destination=destination)
 
-async def flashy_teleport(
+async def teleport(
+    origin=(0, 0),
     destination=(0, 0),
-    actor='player',
+    #actor='player',
+    actor=None,
     delay=.25,
     x_offset=1000,
     y_offset=1000,
     start_message="You feel slightly disoriented.",
+    flashy=False
 ):
     """
     does a flash animation of drawing in particles then teleports the player
@@ -3036,10 +3046,15 @@ async def flashy_teleport(
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
         asyncio.ensure_future(append_to_log(message=start_message))
-        await pass_between(x_offset, y_offset, plane_name='nightmare')
-        await asyncio.sleep(3)
-        dest_coords = add_coords(destination, (x_offset, y_offset))
-        await pass_between(*dest_coords, plane_name='nightmare')
+        if flashy:
+            asyncio.ensure_future(
+                pass_between(x_offset, y_offset, plane_name='nightmare')
+            )
+            await asyncio.sleep(3)
+            dest_coords = add_coords(destination, (x_offset, y_offset))
+            await pass_between(*dest_coords, plane_name='nightmare')
+        if actor is None:
+            actor = next(iter(map_dict[origin].actors))
         actor_dict[actor].update(coord=(destination))
     else:
         await append_to_log(message='Something is in the way.')
