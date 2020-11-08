@@ -11,6 +11,7 @@ from blessed import Terminal
 from copy import copy
 from collections import defaultdict
 from datetime import datetime
+from inspect import iscoroutinefunction
 from itertools import cycle, repeat
 from math import acos, cos, degrees, pi, radians, sin, sqrt
 from random import randint, choice, gauss, random, shuffle
@@ -55,6 +56,8 @@ class Map_tile:
                 #the third element is the passable state: False
                 #('▮', True, True) --> a door that is solid and opaque when closed
         toggle_state_index=None,            #keeps track of the current tile state
+        run_on_entry=None,
+        run_on_entry_kwargs=None,
     ):
         """ 
         Create a new Map_tile, map_dict holds tiles.
@@ -98,6 +101,8 @@ class Map_tile:
         self.use_action_kwargs = use_action_kwargs
         self.toggle_states = toggle_states
         self.toggle_state_index = toggle_state_index
+        self.run_on_entry = run_on_entry
+        self.run_on_entry_kwargs = run_on_entry_kwargs
 
 class Actor:
     """ the representation of a single actor that lives on the map. """
@@ -158,6 +163,14 @@ class Actor:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
         map_dict[self.coords()].actors[self.name] = True
+        run_on_entry = map_dict[self.coords].run_on_entry
+        if run_on_entry is not None:
+            if iscoroutinefunction(run_on_entry):
+                asyncio.ensure_future(
+                    run_on_entry(**run_on_entry_kwargs)
+                )
+            else:
+                run_on_entry(**run_on_entry_kwargs)
 
     def coords(self):
         return self.coord
@@ -2569,6 +2582,13 @@ async def computer_terminal(
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
 
+#TODO: linked with hatch: when the tile's toggle state index is "open" (1?),
+#      run the tile's command.
+# this might look like a few lines in update() that run when an actor newly
+# occupies a tile.async
+async def teleport_if_open():
+    pass
+
 async def teleporter(
     tile='X',
     spawn_coord=(0, 0),
@@ -3918,7 +3938,11 @@ def map_init():
     spawn_column(spawn_coord=(30, -5), tile='╪')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
-
+    map_dict[(25, -1)].run_on_entry = draw_circle
+    map_dict[(25, -1)].run_on_entry_kwargs = {
+        'center_coord':(25, -1),
+        'preset':'floor'
+    }
 def spawn_column(
     spawn_coord=(0, 0), 
     tile='┃', 
