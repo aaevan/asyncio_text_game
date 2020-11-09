@@ -2598,10 +2598,6 @@ async def teleporter(
 ):
     paint_preset(tile_coords=spawn_coord, preset='pulse')
     map_dict[spawn_coord].description = description
-    #map_dict[spawn_coord].use_action_func = teleport
-    #map_dict[spawn_coord].use_action_kwargs = {
-        #'destination':destination_coord,
-    #}
     map_dict[spawn_coord].run_on_entry = teleport
     map_dict[spawn_coord].run_on_entry_kwargs = {
         'origin':spawn_coord,
@@ -2904,8 +2900,19 @@ async def sword(
     delay_out=0,
     thick=False,
 ):
-    """extends and retracts a line of characters
-    TODO: end the range once it hits a wall
+    """
+    extends and retracts a line of characters
+
+    mode controls the behavior of the cleanup:
+    retract: 
+        creates: 1, 2, 3, 4, 5 
+        then ...
+        removes 5, 4, 3, 2, 1
+
+    spear: (used by 'blaster' item)
+        creates: 1, 2, 3, 4, 5, ..., n
+        then ...
+        removes: 1, 2, 3, 4, 5, ..., n
     """
     if thick:
         ns_tile = '┃'
@@ -2919,7 +2926,6 @@ async def sword(
         's':(0, 1, ns_tile),
         'w':(-1, 0, ew_tile)
     }
-    opposite_directions = {'n':'s', 'e':'w', 's':'n', 'w':'e'}
     if player_sword_track:
         if 'player_busy' in state_dict and state_dict['player_busy'] == True:
             return False
