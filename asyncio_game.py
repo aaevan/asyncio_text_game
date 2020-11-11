@@ -1333,6 +1333,8 @@ def check_point_within_arc(
         (facing_angle - half_arc) % 360,
         (facing_angle + half_arc) % 360
     )
+    with term.location(55, 3):
+        print(1331, facing_angle, "arc_range:", arc_range)
     found_angle = round(
         find_angle(p0=twelve_reference, p1=center, p2=checked_point)
     )
@@ -4092,7 +4094,10 @@ def key_to_compass(key):
         'w':'n', 'a':'w', 's':'s', 'd':'e', 
         'W':'n', 'A':'w', 'S':'s', 'D':'e', 
         'i':'n', 'j':'w', 'k':'s', 'l':'e',
-        'I':'n', 'J':'w', 'K':'s', 'L':'e'
+        'I':'n', 'J':'w', 'K':'s', 'L':'e',
+        'u':'nw', 'o':'ne', 'm':'sw', '.':'se',
+        'U':'nw', 'O':'ne', 'M':'sw', '>':'se',
+        ',':'s', '>':'s',
     }
     return key_to_compass_char[key]
 
@@ -4125,7 +4130,7 @@ async def action_keypress(key):
             direction=key_to_compass(key),
             time_between_steps=.04
         ))
-    elif key in "ijklIJKL": #change viewing direction
+    elif key in "ijklIJKLuom.UOM>,<": #change viewing direction
         state_dict['facing'] = key_to_compass(key)
     elif key in '?':
             await display_help() 
@@ -4894,40 +4899,21 @@ def point_at_distance_and_angle(
     if rounded:
         return (round(central_point[0] + x), round(central_point[1] + y))
 
-async def angle_checker(angle_from_twelve=0, fov=120):
-    """
-    breaks out angle_checking code used in view_tile()
-    Determines whether the currently checked view tile is in the
-    main field of view.
-    """
-    angle_from_twelve = int(angle_from_twelve)
-    half_fov = fov // 2
-    directions = (
-        'n', 'e', 's', 'w',
-        'ne', 'se', 'sw', 'nw'
-    )
-    angle_pairs = (
-        (360, 0), (90, 90), (180, 180), (270, 270),
-        (135, 135), (35, 35), (315, 315), (225, 225)
-    )
-    dir_to_angle_pair = dict(zip(directions, angle_pairs))
-    facing = state_dict['facing'] 
-    arc_pair = dir_to_angle_pair[facing] #in the format (angle, angle)
-    is_in_left = (arc_pair[0] - half_fov) <= angle_from_twelve <= (arc_pair[0] + half_fov)
-    is_in_right = (arc_pair[1] - half_fov) <= angle_from_twelve <= (arc_pair[1] + half_fov)
-    if is_in_left or is_in_right:
-        return True
-    else:
-        return False
-
 def dir_to_angle(facing_dir, offset=0, mirror_ns=False):
-    dirs_to_angle = {
-        'n':180, 'e':90, 's':360, 'w':270,
-        'ne':135, 'se':35, 'sw':315, 'nw':225
-    }
     if mirror_ns:
-        dirs_to_angle['n'] = 360
-        dirs_to_angle['s'] = 180
+        dirs_to_angle = {
+            #'n':180, 'e':90, 's':360, 'w':270, #swap n with s
+            'n':360, 'e':90, 's':180, 'w':270,
+            #'ne':135, 'se':45, 'sw':315, 'nw':225 # swap ne w/ se, sw w/ nw
+            'ne':45, 'se':135, 'sw':225, 'nw':315,
+        }
+    else:
+        dirs_to_angle = {
+            'n':180, 'e':90, 's':360, 'w':270,
+            'ne':135, 'se':45, 'sw':315, 'nw':225
+        }
+    #dirs_to_angle['n'] = 360
+    #dirs_to_angle['s'] = 180
     return (dirs_to_angle[facing_dir] + offset) % 360
 
 async def angle_swing(radius=15):
