@@ -1333,8 +1333,6 @@ def check_point_within_arc(
         (facing_angle - half_arc) % 360,
         (facing_angle + half_arc) % 360
     )
-    with term.location(55, 3):
-        print(1331, facing_angle, "arc_range:", arc_range)
     found_angle = round(
         find_angle(p0=twelve_reference, p1=center, p2=checked_point)
     )
@@ -1348,15 +1346,12 @@ def check_point_within_arc(
     return result
 
 def angle_in_arc(given_angle, arc_begin=45, arc_end=135):
-    if arc_begin > arc_end:
-        if given_angle < 90:
-            result = given_angle <= arc_end
-        elif given_angle > 270:
-            result = arc_begin <= given_angle
-        else:
-            result = False
-    else:
-        result = arc_begin < given_angle < arc_end
+    if arc_end < arc_begin and given_angle < arc_begin:
+        arc_end += 360
+        given_angle += 360
+    elif arc_end < arc_begin and given_angle > arc_begin:
+        arc_end += 360
+    result = arc_begin < given_angle < arc_end
     return result
 
 def points_around_point(
@@ -4209,7 +4204,8 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (31, -5)
+        #destination = (31, -5)
+        destination = (82, 4) #outside in grassy area (good for view testing)
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'n'
         return
@@ -5162,6 +5158,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         )
         tile_coord_key = (x_display_coord, y_display_coord)
         #check whether the current tile is within the current field of view
+        #TODO: push the next five lines into angle_in_arc
         current_angle = state_dict['current_angle']
         l_angle, r_angle = (
             (current_angle - fov // 2) % 360, 
@@ -5807,9 +5804,8 @@ async def async_map_init():
        ((-4, -9), 'blob'),
        ((-20, 16), 'blob'),
     )
-    for coord, name in monster_spawns:
-        #rand_coord = (randint(-5, -5), randint(-5, 5))
-        tasks.append(spawn_preset_actor(coords=coord, preset=name))
+    #for coord, name in monster_spawns:
+        #tasks.append(spawn_preset_actor(coords=coord, preset=name))
     for task in tasks:
         loop.create_task(task)
 
