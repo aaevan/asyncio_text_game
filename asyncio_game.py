@@ -2584,13 +2584,37 @@ async def computer_terminal(
 #      run the tile's command.
 # this might look like a few lines in update() that run when an actor newly
 # occupies a tile.async
-async def teleport_if_open():
-    pass
+async def teleport_if_open(
+    tile_coords=(0, 0), 
+    destination_coords=(20, 20),
+    open_index=0,
+    player_facing_destination='e',
+    use_message="You climb down the ladder",
+):
+    if map_dict[tile_coords].toggle_state_index == open_index:
+        actor_list = list(map_dict[tile_coords].actors)
+        for actor in actor_list:
+            actor_name = actor_dict[actor].name
+            actor_dict[actor].update(destination_coords)
+            if actor_name == "player":
+                state_dict['facing'] = player_facing_destination
+            asyncio.ensure_future(append_to_log(message=use_message))
+
+async def teleporting_hatch(
+    hatch_coords=(27, 1),
+    destination_coords=(19, 0),
+):
+    draw_door(door_coord=hatch_coords, preset='hatch')
+    map_dict[hatch_coords].run_on_entry = teleport_if_open
+    map_dict[hatch_coords].run_on_entry_kwargs = {
+        'tile_coords':hatch_coords,
+        'destination_coords':destination_coords,
+    }
 
 async def teleporter(
     tile='X',
     spawn_coord=(1, 1),
-    destination_coord=(1, -9),
+    destination_coords=(1, -9),
     description="What happens if you step on it?"
 ):
     paint_preset(tile_coords=spawn_coord, preset='pulse')
@@ -2598,7 +2622,7 @@ async def teleporter(
     map_dict[spawn_coord].run_on_entry = teleport
     map_dict[spawn_coord].run_on_entry_kwargs = {
         'origin':spawn_coord,
-        'destination':destination_coord,
+        'destination':destination_coords,
         'delay':0,
     }
 
@@ -3929,9 +3953,9 @@ def map_init():
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
-        destination_coord = (rooms[destination].center_coord)
+        destination_coords = (rooms[destination].center_coord)
         rooms[source].connect_to_room(
-            room_coord=destination_coord,
+            room_coord=destination_coords,
             passage_width=width,
             fade_to_preset=fade_to_preset,
             style=style
@@ -4031,6 +4055,7 @@ async def get_key(map_dict, help_wait_count=100):
     """handles raw keyboard data, passes to handle_input if its interesting.
     Also, displays help tooltip if no input for a time."""
     debug_text = "key is: {}, same_count is: {}           "
+    #TODO: fix help menu message to poll from consolidated messages (w/ repeats)
     help_text = 'Press ? for help menu.'
     old_settings = termios.tcgetattr(sys.stdin)
     try:
@@ -7360,6 +7385,7 @@ def main():
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         teleporter(),
+        teleporting_hatch(),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
