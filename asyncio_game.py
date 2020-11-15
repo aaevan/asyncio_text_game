@@ -2580,35 +2580,51 @@ async def computer_terminal(
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
 
-#TODO: linked with hatch: when the tile's toggle state index is "open" (1?),
-#      run the tile's command.
-# this might look like a few lines in update() that run when an actor newly
-# occupies a tile.async
 async def teleport_if_open(
     tile_coords=(0, 0), 
     destination_coords=(20, 20),
     open_index=0,
-    player_facing_destination='e',
+    player_facing_end='s',
     use_message="You climb down the ladder",
+    use_offset=(1000, 1000, -1),
+    bypass_state=False
 ):
-    if map_dict[tile_coords].toggle_state_index == open_index:
+    if map_dict[tile_coords].toggle_state_index == open_index or bypass_state:
         actor_list = list(map_dict[tile_coords].actors)
         for actor in actor_list:
+            if not actor_dict[actor].moveable:
+                continue
             actor_name = actor_dict[actor].name
             actor_dict[actor].update(destination_coords)
             if actor_name == "player":
-                state_dict['facing'] = player_facing_destination
-            asyncio.ensure_future(append_to_log(message=use_message))
+                state_dict['facing'] = player_facing_end
+                asyncio.ensure_future(append_to_log(message=use_message))
+                if use_offset:
+                    state_dict["display_offset"] = use_offset
 
 async def teleporting_hatch(
     hatch_coords=(27, 1),
     destination_coords=(19, 0),
+    use_offset=(0, 0, 0),
+    ladder=False,
+    player_facing_end='s',
 ):
-    draw_door(door_coord=hatch_coords, preset='hatch')
+    if ladder:
+        spawn_column(spawn_coord=(hatch_coords), tile='╪', solid_base=False)
+        use_message="You climb up the ladder"
+        bypass_state=True
+    else:
+        draw_door(door_coord=hatch_coords, preset='hatch')
+        use_message="You climb down the ladder"
+        bypass_state=False
     map_dict[hatch_coords].run_on_entry = teleport_if_open
     map_dict[hatch_coords].run_on_entry_kwargs = {
         'tile_coords':hatch_coords,
         'destination_coords':destination_coords,
+        'use_message':use_message,
+        'use_offset':use_offset,
+        'bypass_state':bypass_state,
+        'player_facing_end':player_facing_end,
     }
 
 async def teleporter(
@@ -3925,6 +3941,7 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'basement': Room((1000, 1000), (10, 10)),
         'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
@@ -3980,11 +3997,6 @@ def map_init():
     spawn_column(spawn_coord=(30, -5), tile='╪')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
-    map_dict[(25, -1)].run_on_entry = draw_circle
-    map_dict[(25, -1)].run_on_entry_kwargs = {
-        'center_coord':(25, -1),
-        'preset':'floor'
-    }
 def spawn_column(
     spawn_coord=(0, 0), 
     tile='┃', 
@@ -3995,6 +4007,7 @@ def spawn_column(
     shadow_mod=5,
     solid_base=True,
 ):
+    #TODO: in 'x' description, do not describe if it has a y_hide_coord
     """
     note: base of column is not blocking because it obscures higher elements
     """
@@ -4005,6 +4018,7 @@ def spawn_column(
         y_hide_coord=None, 
         solid=solid_base,
         breakable=False,
+        moveable=False,
     )
     for y_value in range(height):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
@@ -4014,6 +4028,7 @@ def spawn_column(
             tile=tile, y_hide_coord=spawn_coord, 
             solid=False,
             breakable=False,
+            moveable=False,
         )
         if cast_shadow and y_value <= shadow_length:
             map_dict[column_segment_spawn_coord].brightness_mod = shadow_mod
@@ -4277,8 +4292,6 @@ async def examine_facing():
     is_secret = False
     if map_dict[examined_coord].door_type != '':
         is_secret = 'secret' in map_dict[examined_coord].door_type
-    with term.location(55, 2):
-        print("is_secret:", is_secret)
     if map_dict[examined_coord].actors:
         actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
         description_text = actor_dict[actor_name].description
@@ -4564,7 +4577,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -7331,7 +7345,7 @@ async def door_init(loop):
             message_preset='ksh'
         ),
         bay_door_pair(
-            (-26, 21),
+            (-27, 21),
             (-14, 21),
             patch_to_key='bay_door_pair_3',
             preset='thick',
@@ -7385,7 +7399,18 @@ def main():
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         teleporter(),
-        teleporting_hatch(),
+        teleporting_hatch(
+            destination_coords=(1000, 1001),
+            use_offset=(-1000, -1000, -1),
+            player_facing_end='s',
+        ),
+        teleporting_hatch(
+            hatch_coords=(1000, 1000), 
+            use_offset=(0, 0, 0), 
+            destination_coords=(26, 1), 
+            player_facing_end='w',
+            ladder=True,
+        ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
