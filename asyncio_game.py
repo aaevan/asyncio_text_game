@@ -2602,6 +2602,46 @@ async def teleport_if_open(
                 if use_offset:
                     state_dict["display_offset"] = use_offset
 
+async def hatch_pair(
+    origin=(15, -1),
+    destination=(15, -1),
+    origin_z=0,       #where you start/return to
+    destination_z=-1, #where you end up
+    origin_offset=(0, 1),
+    destination_offset=(0, 1),
+    origin_offset=(0, 0)
+    offset=(1000, 1000),
+    start_end_dir='s',
+    dest_end_dir='s',
+):
+    origin_hatch_coords = (
+        origin[0] + destination_offset[0] + -offset[0],
+        origin[1] + destination_offset[1] + -offset[1]
+    )
+    destination_ladder_coords = ( #always a ladder
+        *add_coords(destination, offset),
+        destination_z
+    )
+    use_offset_origin = (-offset[0], -offset[1], destination_z
+    origin_offset = (-offset[0], -offset[1], destination[2])
+    asyncio.ensure_future(
+        teleporting_hatch(
+            hatch_coords=(27, 1),
+            destination_coords=(1000, 1001),
+            use_offset=(-1000, -1000, -1),
+            player_facing_end=dest_end_dir,
+        )
+    )
+    asyncio.ensure_future(
+        teleporting_hatch(
+            hatch_coords=(1000, 1000), 
+            use_offset=(0, 0, 0), 
+            destination_coords=(26, 1), 
+            player_facing_end=dest_end_dir,
+            ladder=True,
+        )
+    )
+
 async def teleporting_hatch(
     hatch_coords=(27, 1),
     destination_coords=(19, 0),
