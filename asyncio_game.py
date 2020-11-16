@@ -2605,40 +2605,41 @@ async def teleport_if_open(
 async def hatch_pair(
     origin=(15, -1),
     destination=(15, -1),
-    origin_z=0,       #where you start/return to
-    destination_z=-1, #where you end up
-    origin_offset=(0, 1),
-    destination_offset=(0, 1),
-    origin_offset=(0, 0)
-    offset=(1000, 1000),
-    start_end_dir='s',
-    dest_end_dir='s',
+    origin_z=0,       #where the hatch is spawned
+    destination_z=-1, #where the ladder is spawned
+    #offset to an empty square next to the hatch
+    origin_landing_offset=(0, 1), 
+    #offset to an empty square next to the bottom of the ladder:
+    destination_landing_offset=(0, 1), 
+    origin_display_offset=(0, 0), #change if going from a non standard floor
+    tile_shift_offset=(1000, 1000),
+    start_end_dir='s', #the direction faced when teleported to the origin
+    dest_end_dir='s', #the direction faced when teleported to the destination
 ):
-    origin_hatch_coords = (
-        origin[0] + destination_offset[0] + -offset[0],
-        origin[1] + destination_offset[1] + -offset[1]
-    )
-    destination_ladder_coords = ( #always a ladder
-        *add_coords(destination, offset),
-        destination_z
-    )
-    use_offset_origin = (-offset[0], -offset[1], destination_z
-    origin_offset = (-offset[0], -offset[1], destination[2])
+    hatch_coords = origin
+    ladder_coords = add_coords(destination, tile_shift_offset)
+    hatch_landing_coords = add_coords(origin, origin_landing_offset)
+    ladder_landing_coords = add_coords(ladder_coords, destination_landing_offset)
+    hatch_use_offset = (*invert_coords(tile_shift_offset), destination_z)
+    ladder_use_offset = (*invert_coords(origin_display_offset), origin_z)
+    #hatch:
     asyncio.ensure_future(
         teleporting_hatch(
-            hatch_coords=(27, 1),
-            destination_coords=(1000, 1001),
-            use_offset=(-1000, -1000, -1),
-            player_facing_end=dest_end_dir,
+            hatch_coords=hatch_coords,
+            destination_coords=ladder_landing_coords,
+            use_offset=hatch_use_offset,
+            ladder=False,
+            player_facing_end=start_end_dir,
         )
     )
+    #ladder:
     asyncio.ensure_future(
         teleporting_hatch(
-            hatch_coords=(1000, 1000), 
-            use_offset=(0, 0, 0), 
-            destination_coords=(26, 1), 
-            player_facing_end=dest_end_dir,
+            hatch_coords=ladder_coords,
+            destination_coords=hatch_landing_coords,
+            use_offset=ladder_use_offset,
             ladder=True,
+            player_facing_end=dest_end_dir,
         )
     )
 
@@ -6300,6 +6301,9 @@ def diff_coords(coord_a=(0, 0), coord_b=(10, 10)):
               coord_a[1] - coord_b[1])
     return output
 
+def invert_coords(coord):
+    return(-coord[0], -coord[1])
+
 def generate_id(base_name="name"):
     return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
 
@@ -7439,6 +7443,7 @@ def main():
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         teleporter(),
+        hatch_pair(),
         teleporting_hatch(
             destination_coords=(1000, 1001),
             use_offset=(-1000, -1000, -1),
