@@ -2604,7 +2604,7 @@ async def teleport_if_open(
 
 async def hatch_pair(
     origin=(15, -1),
-    destination=(15, -1),
+    destination=None,
     origin_z=0,       #where the hatch is spawned
     destination_z=-1, #where the ladder is spawned
     #offset to an empty square next to the hatch
@@ -2616,6 +2616,8 @@ async def hatch_pair(
     start_end_dir='s', #the direction faced when teleported to the origin
     dest_end_dir='s', #the direction faced when teleported to the destination
 ):
+    if destination is None:
+        destination = origin
     hatch_coords = origin
     ladder_coords = add_coords(destination, tile_shift_offset)
     hatch_landing_coords = add_coords(origin, origin_landing_offset)
