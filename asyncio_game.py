@@ -1908,9 +1908,17 @@ async def damage_all_actors_at_coord(
             )
         await damage_actor(actor=actor[0], damage=damage, display_above=False)
 
-async def damage_within_circle(center=(0, 0), radius=6, damage=75):
+async def damage_within_circle(
+    center=(0, 0), 
+    radius=6, 
+    damage=75,
+    inverse_square_damage=False,
+):
     area_of_effect = get_circle(center=center, radius=radius)
     for coord in area_of_effect:
+        dist_from_center = point_to_point_distance(center, coord)
+        if inverse_square_damage: 
+            damage = round(1 / (dist_from_center ** 2))
         await damage_all_actors_at_coord(coord=coord, damage=damage)
 
 async def damage_actor(
@@ -2604,7 +2612,7 @@ async def teleport_if_open(
 
 async def hatch_pair(
     origin=(15, -1),
-    destination=None,
+    destination=None, #origin is copied if no destination is given
     origin_z=0,       #where the hatch is spawned
     destination_z=-1, #where the ladder is spawned
     #offset to an empty square next to the hatch
@@ -2653,7 +2661,9 @@ async def teleporting_hatch(
     player_facing_end='s',
 ):
     if ladder:
-        spawn_column(spawn_coord=(hatch_coords), tile='╪', solid_base=False)
+        spawn_column(
+            spawn_coord=(hatch_coords), tile='╪', solid_base=False, name='ladder',
+        )
         use_message="You climb up the ladder"
         bypass_state=True
     else:
@@ -4037,7 +4047,7 @@ def map_init():
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
-    spawn_column(spawn_coord=(30, -5), tile='╪')
+    spawn_column(spawn_coord=(30, -5), tile='╪', name='ladder')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
 def spawn_column(
@@ -4062,6 +4072,7 @@ def spawn_column(
         solid=solid_base,
         breakable=False,
         moveable=False,
+        description="A {} rises into the ceiling.".format(name),
     )
     for y_value in range(height):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
@@ -4333,11 +4344,18 @@ async def examine_facing():
     examined_coord = get_facing_coord()
     #add descriptions for actors
     is_secret = False
+    has_visible_actor = False
+    for actor in map_dict[examined_coord].actors:
+        if actor_dict[actor].y_hide_coord is None:
+            has_visible_actor = True
+            actor_description = actor_dict[actor].description
     if map_dict[examined_coord].door_type != '':
         is_secret = 'secret' in map_dict[examined_coord].door_type
-    if map_dict[examined_coord].actors:
-        actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
-        description_text = actor_dict[actor_name].description
+    #if map_dict[examined_coord].actors:
+    if has_visible_actor:
+        #actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
+        #description_text = actor_dict[actor_name].description
+        description_text = actor_description
     elif map_dict[examined_coord].items:
         description_text = "There's an item here!"
     elif map_dict[examined_coord].is_door and not is_secret:
@@ -4620,8 +4638,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
-    width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
