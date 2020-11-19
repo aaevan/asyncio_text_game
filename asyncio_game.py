@@ -1765,9 +1765,12 @@ async def throw_item(
     Moves item from player's inventory to another tile at distance 
     throw_distance
     """
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
+    directions = {
+        'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
+
+    }
     if direction is None:
-        direction_tuple = directions[state_dict['facing']]
+        direction_tuple = dir_to_offset(state_dict['facing'])
     if not thrown_item_id:
         thrown_item_id = await choose_item()
     if thrown_item_id == None:
@@ -2781,8 +2784,8 @@ async def toggle_bool_toggle(
     else:
         state_dict[patch_to_key][toggle_id] = True
         output_text = true_text
-    await asyncio.sleep(delay)
     asyncio.ensure_future(append_to_log(message=output_text))
+    await asyncio.sleep(delay)
 
 def bool_toggle(
     patch_to_key='door_1', 
@@ -4638,7 +4641,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
