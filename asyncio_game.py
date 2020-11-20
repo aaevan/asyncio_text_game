@@ -3480,26 +3480,53 @@ async def display_items_at_coord(
     x_pos=2,
     y_pos=12
 ):
-    last_coord = None
     item_list = ' '
-    with term.location(x_pos, y_pos):
-        print('Items here:')
+    current_list_hash = 0
+    last_list_hash = 0
     while True:
         await asyncio.sleep(.1)
         player_coords = actor_dict['player'].coords()
         
-        clear_screen_region(
-            x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1)
-        )
         item_list = [item for item in map_dict[player_coords].items]
-        for number, item_id in enumerate(item_list):
-            with term.location(x_pos, (y_pos + 1) + number):
-                print('{} {}'.format(
-                    item_dict[item_id].tile, 
-                    item_dict[item_id].name
+        current_list_hash = hash(str(item_list))
+        if current_list_hash != last_list_hash:
+            clear_screen_region(
+                x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1)
+            )
+        #TODO: fix choose_item to not blank out item names
+        if current_list_hash != last_list_hash:
+            if len(item_list) > 0:
+                filter_text = 'Items here:'
+            else:
+                filter_text = '           '
+            asyncio.ensure_future(
+                filter_print(
+                    output_text=filter_text, 
+                    absolute_coord=(x_pos, y_pos),
+                    wipe=False,
                 )
             )
-        last_coord = player_coords
+        if len(item_list) > 0:
+            for number, item_id in enumerate(item_list):
+                name_location = (x_pos + 2, (y_pos + 1) + number)
+                icon_location = (x_pos, (y_pos + 1) + number)
+                item_icon = item_dict[item_id].tile
+                item_name = item_dict[item_id].name
+                if current_list_hash != last_list_hash:
+                    asyncio.ensure_future(
+                        filter_print(
+                            output_text = item_name,
+                            absolute_coord = name_location,
+                            wipe=False,
+                        )
+                    )
+                with term.location(*icon_location):
+                    print(item_icon)
+        else:
+            current_list_hash = 0
+            with term.location(x_pos, y_pos):
+                print('           ')
+        last_list_hash = current_list_hash
 
 async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
     item_list = ' '
@@ -3526,7 +3553,9 @@ async def filter_print(
     pause_stay_on=1, 
     delay=0,
     blocking=False,
-    hold_for_lock=True
+    hold_for_lock=True,
+    absolute_coord=None,
+    wipe=True,
 ):
     if hold_for_lock:
         while True:
@@ -3539,8 +3568,11 @@ async def filter_print(
     middle_x, middle_y = (
         int(term.width / 2 - 2), int(term.height / 2 - 2),
     )
-    y_location = term.height + y_offset
-    x_location = middle_x + x_offset
+    if absolute_coord is None:
+        y_location = term.height + y_offset
+        x_location = middle_x + x_offset
+    else:
+        x_location, y_location = absolute_coord
     numbered_chars = [(place, char) for place, char in enumerate(output_text)]
     shuffle(numbered_chars)
     for char in numbered_chars:
@@ -3549,6 +3581,8 @@ async def filter_print(
         if not blocking:
             await asyncio.sleep(pause_fade_in)
     shuffle(numbered_chars)
+    if wipe == False:
+        return
     await asyncio.sleep(pause_stay_on)
     for char in numbered_chars:
         with term.location(char[0] + x_location, y_location):
@@ -4041,9 +4075,6 @@ def map_init():
     secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
-    #draw_door(door_coord=(31, 6), preset='hatch', description='hatch')
-    draw_door(door_coord=(18, 0), preset='wooden', )
-    draw_door(door_coord=(18, -1), preset='hatch')
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     draw_secret_passage(),
@@ -4641,7 +4672,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=1, y_margin=9, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5861,8 +5893,8 @@ async def async_map_init():
         ((-3, -3), 'red key'), 
         ((8, 4), 'red potion'), 
         ((47, -31), 'red sword'), 
-        ((23, 0), 'blaster'), 
-        ((18, 1), 'battery'), 
+        ((-21, -18), 'blaster'), 
+        ((-18, -19), 'battery'), 
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-1, -5), 'green sword'), 
@@ -7481,7 +7513,6 @@ def main():
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
-        alarm_bell(spawn_coord=(21, -1), patch_to_key='line_test'),
         alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=True),
     )
     for task in tasks:
