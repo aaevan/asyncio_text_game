@@ -1037,7 +1037,7 @@ actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(
-    name='player', tile='@', tile_color=6, health=100,
+    coord=(2, 2), name='player', tile='@', tile_color=6, health=100,
 )
 actor_dict['player'].update((23, 0))
 
@@ -3493,7 +3493,6 @@ async def display_items_at_coord(
             clear_screen_region(
                 x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1)
             )
-        #TODO: fix choose_item to not blank out item names
         if current_list_hash != last_list_hash:
             if len(item_list) > 0:
                 filter_text = 'Items here:'
@@ -4650,7 +4649,6 @@ async def choose_item(
     menu_choices = [index for index, _ in enumerate(item_id_choices)]
     state_dict['menu_choices'] = menu_choices
     state_dict['in_menu'] = True
-    clear_screen_region(x_size=20, y_size=5, screen_coord=(x_pos, y_pos))
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
             print("{}:".format(str(hex(number))[-1]))
@@ -4666,14 +4664,13 @@ async def choose_item(
             state_dict['in_menu'] = False
             state_dict['menu_choice'] = -1 # not in range as 1 evaluates as True.
             return_val = item_id_choices[int(menu_choice, 16)]
-    clear_screen_region(
+    clear_screen_region( #clear number choices along left edge
         x_size=2, y_size=len(item_id_choices), screen_coord=(x_pos, y_pos)
     )
     return return_val
 
 async def console_box(
     width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
-    #width=40, height=10, x_margin=1, y_margin=9, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
