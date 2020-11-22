@@ -368,7 +368,6 @@ class Animation:
                 'animation':'███████▒▓▒', 
                 'behavior':'random',
                 'color_choices':([0x11 for i in range(50)] + list(range(0x11, 0x15)))
-                #'color_choices':('6' * 10 + '4')
             },
             'writhe':{
                 'animation':('╭╮╯╰╭╮╯╰'),
@@ -1016,6 +1015,9 @@ async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
         asyncio.ensure_future(rand_blink(actor_name=segment))
 
 def brightness_test(print_coord=(110, 32)):
+    """
+    prints out a test pattern of possible colors
+    """
     term_width, term_height = term.width, term.height
     print_coord = (term.width - 3 * 17) + 2, (term.height - 18)
     output = []
@@ -1197,7 +1199,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
     if presets[preset].brightness_mod:
-        map_dict[tile_coords].brightness_mod += rand_float(*presets[preset].brightness_mod)
+        rand_offset = rand_float(*presets[preset].brightness_mod)
+        map_dict[tile_coords].brightness_mod += rand_offset
     if presets[preset].is_animated:
         map_dict[tile_coords].is_animated = presets[preset].is_animated
         map_dict[tile_coords].animation = Animation(preset=preset)
@@ -1765,12 +1768,9 @@ async def throw_item(
     Moves item from player's inventory to another tile at distance 
     throw_distance
     """
-    directions = {
-        'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
-
-    }
     if direction is None:
-        direction_tuple = dir_to_offset(state_dict['facing'])
+        direction = state_dict['facing']
+    direction_tuple = dir_to_offset(state_dict['facing'])
     if not thrown_item_id:
         thrown_item_id = await choose_item()
     if thrown_item_id == None:
@@ -1778,9 +1778,8 @@ async def throw_item(
         return False
     del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
-    throw_vector = (
-        direction_tuple[0] * throw_distance,
-        direction_tuple[1] * throw_distance
+    throw_vector = scaled_dir_offset(
+        dir_string=direction, scale_by=throw_distance
     )
     destination = add_coords(starting_point, throw_vector)
     if rand_drift:
@@ -2120,14 +2119,11 @@ async def bay_door(
     door = await spawn_mte(
         base_name=patch_to_key, spawn_coord=hinge_coord, preset='empty'
     )
-    dir_offsets = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
-    dir_coord_increment = dir_offsets[orientation]
     segment_names = []
     door_id = generate_id(base_name=patch_to_key)
     for segment_num in range(segments):
-        offset = (
-            dir_coord_increment[0] * (1 + segment_num), 
-            dir_coord_increment[1] * (1 + segment_num)
+        offset = scaled_dir_offset(
+            dir_string=orientation, scale_by=(1 + segment_num)
         )
         spawn_coord = add_coords(hinge_coord, offset)
         segment_name = '{}_{}'.format(door_id, segment_num)
@@ -2196,7 +2192,7 @@ async def bay_door(
                 #if it's pushable and the pushed-to space is either a wall or another bay door,
                 #deal a whole bunch of damage to the jammed actor
                 check_space = segment[1]
-                check_push_space = add_coords(dir_coord_increment, segment[1])
+                check_push_space = add_coords(dir_to_offset(orientation), segment[1])
                 segment_name = segment[0]
                 push_return = push(direction=orientation, base_coord=segment[1])
                 passable = is_passable(checked_coords=check_space)
@@ -3533,7 +3529,7 @@ async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print('Inventory:')
-        clear_screen_region(x_size=17, y_size=10, screen_coord=(x_pos, y_pos+1))
+        clear_screen_region(x_size=19, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             if item_dict[item_id].uses >= 0:
@@ -3784,7 +3780,6 @@ def draw_door(
     map_dict[door_coord].is_door = True
     map_dict[door_coord].locked = locked
     map_dict[door_coord].door_type = preset
-    #TODO: move this logic to toggle_door
     if closed:
         close_state = 'A closed'
     else:
@@ -4671,6 +4666,7 @@ async def choose_item(
 
 async def console_box(
     width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    #width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5289,7 +5285,6 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         )
         tile_coord_key = (x_display_coord, y_display_coord)
         #check whether the current tile is within the current field of view
-        #TODO: push the next five lines into angle_in_arc
         current_angle = state_dict['current_angle']
         l_angle, r_angle = (
             (current_angle - fov // 2) % 360, 
@@ -5896,6 +5891,7 @@ async def async_map_init():
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-1, -5), 'green sword'), 
         ((32, -5), 'green sword'), #debug
+        ((25, -1), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
@@ -6272,18 +6268,40 @@ def adjacent_tiles(coord=(0, 0)):
     ]
     return surrounding_coords
 
-def dir_to_offset(dir_string):
+def opposite_dir(dir_string='n'):
+    """
+    Returns the opposite cardinal direction.
+    """
+    opposites = {
+        'n' :'s',
+        'e' :'w',
+        's' :'n',
+        'w' :'e',
+        'ne':'sw',
+        'se':'nw',
+        'sw':'ne',
+        'nw':'se',
+    }
+    return opposites[dir_string]
+
+def dir_to_offset(dir_string='n', inverse=False):
+    if inverse:
+        dir_string = opposite_dir(dir_string)
     dirs_to_offsets = {
-        'n' : ( 0, -1),
-        'e' : ( 1,  0),
-        's':  ( 0,  1),
-        'w':  (-1,  0),
-        'ne': ( 1, -1),
-        'se': ( 1,  1),
-        'sw': (-1,  1),
-        'nw': (-1, -1),
+        'n' :(0, -1),
+        'e' :(1, 0),
+        's':(0, 1),
+        'w':(-1, 0),
+        'ne':(1, -1),
+        'se':(1, 1),
+        'sw':(-1, 1),
+        'nw':(-1, -1),
     }
     return dirs_to_offsets[dir_string]
+
+def scaled_dir_offset(dir_string='n', scale_by=5):
+    dir_offset = dir_to_offset(dir_string)
+    return (dir_offset[0] * scale_by, dir_offset[1] * scale_by)
 
 async def wait(name_key=None, **kwargs):
     """
@@ -6668,12 +6686,13 @@ async def follower_vine(
         )
     mte_dict[vine_name].vine_instructions = "M" * num_segments
     mte_dict[vine_name].vine_facing_dir = facing_dir
-    direction_offsets = {
-        'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
-    }
-    inverse_direction_offsets = {
-        'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),
-    }
+    #TODO: remove next six lines
+    #direction_offsets = {
+        #'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
+    ##}
+    #inverse_direction_offsets = {
+        #'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),
+    #}
     if color_choice is None:
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
@@ -6684,16 +6703,16 @@ async def follower_vine(
         write_dir = mte_dict[vine_name].vine_facing_dir
         if root_node_key is None:
             current_coord = add_coords(
-                inverse_direction_offsets[write_dir], 
+                dir_to_offset(write_dir, inverse=True), 
                 actor_dict[mte_dict[vine_name].member_names[0]].coords()
             )
         else:
             current_coord = add_coords(
-                inverse_direction_offsets[write_dir], 
+                dir_to_offset(write_dir, inverse=True), 
                 actor_dict[root_node_key].coords()
             )
         write_list = [] #clear out write_list
-        next_offset = direction_offsets[write_dir]
+        next_offset = dir_to_offset(write_dir)
         write_coord = add_coords(next_offset, current_coord)
         instructions = mte_dict[vine_name].vine_instructions
         dir_increment = {'L':-1, 'M':0, 'R':1}
@@ -6702,7 +6721,7 @@ async def follower_vine(
             write_dir = num_to_facing_dir(
                 facing_dir_to_num(write_dir) + dir_increment[turn_instruction]
             )
-            next_offset = direction_offsets[write_dir]
+            next_offset = dir_to_offset(write_dir)
             segment_tile = choose_vine_tile(prev_dir, write_dir)
             write_list.append((write_coord, segment_tile)) #add to the end of write_list
             write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
@@ -6951,13 +6970,7 @@ async def flame_jet(
     spread=10,
 ):
     particle_count = round(duration / rate)
-    dir_to_angle = {
-        'n':0,
-        'e':90,
-        's':180,
-        'w':270,
-    }
-    base_angle = dir_to_angle[facing]
+    base_angle = dir_to_angle(facing)
     for i in range(particle_count):
         rand_angle = randint(-spread, spread) + base_angle
         asyncio.ensure_future(
@@ -7157,11 +7170,10 @@ async def radial_fountain(
 async def dash_along_direction(
     actor_key='player', direction='n', distance=10, time_between_steps=.03
 ):
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     current_coord = actor_dict[actor_key].coords()
-    direction_step = directions[direction]
-    destination = (current_coord[0] + direction_step[0] * distance,
-                   current_coord[1] + direction_step[1] * distance)
+    direction_step = dir_to_offset(direction)
+    scaled_offset = scaled_dir_offset(dir_string=direction, scale_by=distance)
+    destination = add_coords(current_coord, scaled_offset)
     coord_list = get_line(current_coord, destination)
     await move_through_coords(
         actor_key=actor_key,
@@ -7285,27 +7297,11 @@ async def death_check():
             await asyncio.sleep(3)
             state_dict['killall'] = True
 
-async def environment_check(rate=.1):
-    """
-    checks actors that share a space with the player and applies status effects
-    and/or damage over time for obstacle-type actors such as tentacles from 
-    vine_grow().
-    """
-    while actor_dict['player'].health >= 0:
-        await asyncio.sleep(rate)
-        player_coords = actor_dict['player'].coords()
-        with term.location(40, 0):
-            print(" " * 10)
-        with term.location(40, 0):
-            print(len([i for i in map_dict[player_coords].actors.items()]))
-
 async def spawn_preset_actor(
     coords=(0, 0), preset='blob', speed=1, holding_items=[]
 ):
     """
     spawns an entity with various presets based on preset given.
-    *** does not need to be set at top level. Can be nested in map and character
-    placement.
     """
     loop = asyncio.get_event_loop()
     actor_id = generate_id(base_name=preset)
