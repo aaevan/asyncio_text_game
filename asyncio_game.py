@@ -1833,7 +1833,7 @@ async def explosion_effect(
     destroys_terrain=True
 ):
     await radial_fountain(
-        tile_anchor=center,
+        tile_anchor=center_coord,
         anchor_actor='player', 
         frequency=.001,
         radius=(radius, radius + 3),
@@ -1845,11 +1845,11 @@ async def explosion_effect(
     )
     if destroys_terrain:
         #TODO: fix so this doesn't "destroy" voids and things that don't make sense
-        area_of_effect = get_circle(center=center, radius=radius)
-        draw_circle(center_coord=center, radius=radius)
+        area_of_effect = get_circle(center=center_coord, radius=radius)
+        draw_circle(center_coord=center_coord, radius=radius)
     if damage:
-        #TODO: change damage based on distance from center?
-        await damage_within_circle(center=center, radius=radius, damage=damage)
+        #TODO: change damage based on distance from center_coord?
+        await damage_within_circle(center=center_coord, radius=radius, damage=damage)
 
 async def thrown_action(
     thrown_item_id=None,
@@ -1873,7 +1873,7 @@ async def thrown_action(
     )
     presets={
         'dynamite':{
-            'called_function':'explosion_effect',
+            'called_function':explosion_effect,
             'kwargs':{
                 'radius':6,
                 'damage':75,
@@ -3006,21 +3006,32 @@ async def sword(
     if thick:
         ns_tile = '┃'
         ew_tile = '━'
+        ne_sw_tile = '╱'
+        se_nw_tile = '╲'
     else:
         ns_tile = '│'
         ew_tile = '─'
-    dir_coords = {
-        'n':(0, -1, ns_tile),
-        'e':(1, 0, ew_tile),
-        's':(0, 1, ns_tile),
-        'w':(-1, 0, ew_tile)
+        ne_sw_tile = '╱'
+        se_nw_tile = '╲'
+    dir_coord_tiles = {
+        'n':ns_tile,
+        'ne':ne_sw_tile,
+        'e':ew_tile,
+        'se':se_nw_tile,
+        's':ns_tile,
+        'sw':ne_sw_tile,
+        'w':ew_tile,
+        'nw':se_nw_tile,
     }
     if player_sword_track:
         if 'player_busy' in state_dict and state_dict['player_busy'] == True:
             return False
         state_dict['player_busy'] = True
     starting_coords = actor_dict[actor].coords()
-    chosen_dir = dir_coords[direction]
+    chosen_dir = (
+        *dir_to_offset(dir_string=direction),
+        dir_coord_tiles[direction]
+    )
     sword_id = generate_id(base_name=name)
     sword_segment_names = [
         '{}_{}_{}'.format(name, sword_id, segment) for segment in range(1, length)
@@ -3310,7 +3321,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'uses':-1,
             'tile':term.green('⏣'),
             'usable_power':thrown_action, 
-            'power_kwargs':{'thrown_item_id':item_id, 'radius':6}
+            'power_kwargs':{'thrown_item_id':item_id, 'radius':3}
         },
         'dynamite':{
             'uses':-1,
@@ -3921,9 +3932,11 @@ async def spawn_container(
     breakable=True,
     moveable=True,
     preset='random',
-    description='A wooden box.'
+    description='A wooden box.',
+    box_choices=None,
 ):
-    box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
+    if box_choices is None:
+        box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
     container_id = spawn_static_actor(
@@ -5904,7 +5917,7 @@ async def async_map_init():
         )
     #actor creation----------------------------------------
     tasks = [
-        spawn_container(spawn_coord=(3, -4)),
+        spawn_container(spawn_coord=(3, -4), box_choices=['green sword']),
         trap_init(),
         #beam_spire(spawn_coord=(26, -25)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
@@ -6622,7 +6635,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     spawn_item_spray(base_coord=actor_coords, items=holding_items)
     return
 
-def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=1):
+def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=0):
     if items is None:
         return
     loop = asyncio.get_event_loop()
