@@ -2808,7 +2808,7 @@ async def pressure_plate(
     test_rate=.1,
     positives=None,
     sound_choice='default',
-    brightness_mod=(3, -5),
+    brightness_mod=(2, -2),
 ):
     """
     creates a pressure plate on the map at specified spawn_coord.
@@ -2966,7 +2966,7 @@ async def swing(
         offset = dir_to_offset(print_direction)
         print_coord = add_coords(base_coord, offset)
         actor_dict[swing_id].tile = term.on_color(0xea)(swing_char)
-        actor_dict[swing_id].update(print_coord)
+        actor_dict[swing_id].update(print_coord, make_passable=False)
         await damage_all_actors_at_coord(
             coord=print_coord, damage=damage, source_actor='player'
         )
@@ -4038,7 +4038,9 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
-        'basement': Room((1000, 1000), (10, 10)),
+        'basement': Room((1000, 1000), (5, 5)),
+        'basement_left': Room((985, 1000), (5, 5)),
+        'basement_right': Room((1015, 1000), (5, 5)),
         'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
@@ -4063,6 +4065,8 @@ def map_init():
         ('r', 't', 1, None, None),
         ('u', 'v', 1, None, None),
         ('h', 'i', 2, None, None),
+        ('basement', 'basement_left', 1, None, None),
+        ('basement', 'basement_right', 1, None, None),
         ('nw_off_main', 'nw_room_off_main', 2, None, None),
     ]
     for passage in passage_tuples:
@@ -4101,7 +4105,6 @@ def spawn_column(
     shadow_mod=5,
     solid_base=True,
 ):
-    #TODO: in 'x' description, do not describe if it has a y_hide_coord
     """
     note: base of column is not blocking because it obscures higher elements
     """
@@ -4678,7 +4681,7 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.05
+    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.1
     #width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
