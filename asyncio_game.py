@@ -196,20 +196,31 @@ class Room:
         center_coord=(-30, -30),
         dimensions=(10, 10),
         floor_preset='floor',
-        inner_radius=None
+        inner_radius=None,
+        z_level=0,
+        per_level_offset=(-1000, -1000) #multiplied by number of z levels
     ):
-        self.center_coord = center_coord
+        if z_level == 0:
+            self.center_coord = center_coord
+        else:
+            total_offsets = (
+                per_level_offset[0] * z_level,
+                per_level_offset[1] * z_level,
+            )
+            self.center_coord = add_coords(center_coord, total_offsets)
         self.dimensions = dimensions
         self.floor_preset = floor_preset
         self.inner_radius = inner_radius
 
-    def draw_room(self):
+    def draw_room(self, debug=False):
         """
         draws a circle if given a number
         draws a rectangle if given a 2-tuple
         if given an inner_radius value, the circle will be drawn as a ring.
         """
         if type(self.dimensions) == int:
+            if debug:
+                print("drawing circular room of radius {} at coords {}".format(self.dimensions, self.center_coord))
             draw_circle(
                 center_coord=self.center_coord,
                 radius=self.dimensions, 
@@ -217,12 +228,15 @@ class Room:
                 annulus_radius=self.inner_radius
             )
         elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
+            if debug:
+                print("drawing square room of dimensions {} at coords {}".format(self.dimensions, self.center_coord))
             draw_centered_box(
                 middle_coord=self.center_coord, 
                 x_size=self.dimensions[0],
                 y_size=self.dimensions[1], 
                 preset=self.floor_preset
             )
+
     def connect_to_room(
             self, 
             room_coord=(100, 100), 
@@ -4027,7 +4041,6 @@ def map_init():
         'i': Room((-30, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
         'k': Room((9, -47), (1, 1), 'grass'),
-        'l': Room((0, 0), 100, 'grass', inner_radius=70),
         'm': Room((9, -69), 5,),
         'n': Room((0, -20), 1,),
         'o': Room((-10, -20), (3, 3)),
@@ -4038,15 +4051,16 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
-        'basement': Room((1000, 1000), (5, 5)),
-        'basement_left': Room((985, 1000), (5, 5)),
-        'basement_right': Room((1015, 1000), (5, 5)),
+        'basement': Room((0, 0), (5, 5), z_level=-1),
+        'basement_left': Room((-15, 0), (5, 5), z_level=-1),
+        'basement_right': Room((15, 0), (5, 5), z_level=-1),
         'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
         'pool_a': Room((0, 6), 3, 'water'),
         'pool_b': Room((5, 8), 4, 'water'),
         'pool_c': Room((2, 8), 2, 'water'),
+        'l': Room((0, 0), 100, 'grass', inner_radius=70),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -6097,7 +6111,7 @@ async def status_bar(
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
 
 async def player_coord_readout(
-    x_offset=0, y_offset=0, refresh_time=.1, centered=True
+    x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=False
 ):
     if centered:
         middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
@@ -6116,6 +6130,9 @@ async def player_coord_readout(
             printed_coords = [''.join([choice(noise) for _ in range(2)]) for _ in range(3)]
         with term.location(*add_coords(print_coord, (0, 1))):
             print("x:{} y:{} z:{}     ".format(*printed_coords))
+        if debug:
+            with term.location(*add_coords(print_coord, (0, 2))):
+                print("x:{} y:{}       ".format(*player_coords))
 
 async def ui_setup():
     """
