@@ -3755,17 +3755,42 @@ def secret_door(
     map_dict[door_coord].description = tile_description
     map_dict[door_coord].brightness_mod = 2
 
-def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, size=5):
+def room_with_door(
+    wall_coord=(0, 0), 
+    room_offset=(-5, 0), 
+    square=True, 
+    dimensions=(3, 3),
+    door_type='cell',
+    floor_preset='floor',
+    locked=False
+):
+    room_center = add_coords(wall_coord, room_offset)
+    n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
+    draw_door(wall_coord, preset=door_type, locked=locked)
+    if square:
+        draw_centered_box(
+            middle_coord=room_center,
+            x_size=dimensions[0],
+            y_size=dimensions[1],
+            preset=floor_preset
+        )
+    else:
+        draw_circle(center_coord=room_center, radius=size[0])
+    
+def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, dimensions=(5, 5)):
     room_center = add_coords(wall_coord, room_offset)
     n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
     secret_door(door_coord=wall_coord)
     announcement_at_coord("You found a secret room!", coord=room_center, )
     if square:
         draw_centered_box(
-            middle_coord=room_center, x_size=size, y_size=size, preset="floor"
+            middle_coord=room_center,
+            x_size=dimensions[0],
+            y_size=dimensions[1],
+            preset="floor"
         )
     else:
-        draw_circle(center_coord=room_center, radius=size)
+        draw_circle(center_coord=room_center, radius=size[0])
 
 def draw_door(
     door_coord=(0, 0),
@@ -3786,11 +3811,12 @@ def draw_door(
         'secret':(('▯', False, True), ('𝄛', True, False)),
         'hatch':(('◍', False, True), ('●', False, True)),
         'iron':(('▯', False, True), ('▮', True, False)),
+        'cell':(('▯', False, True), ('╬', False, False)),
     }
     door_colors = {
         'red':1, 'green':2, 'orange':3, 'wooden':3, 'rusty':3, 
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
-        'iron':7, 'hatch':0xee,
+        'iron':7, 'hatch':0xee, 'cell':0xee,
     }
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
@@ -4054,13 +4080,16 @@ def map_init():
         'basement': Room((0, 0), (5, 5), z_level=-1),
         'basement_left': Room((-15, 0), (5, 5), z_level=-1),
         'basement_right': Room((15, 0), (5, 5), z_level=-1),
+        'basement_right_e': Room((22, 0), (5, 5), z_level=-1),
+        'basement_se': Room((40, 18), (10, 5), z_level=-1),
+        'basement_se_left': Room((22, 18), (8, 15), z_level=-1),
         'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
         'pool_a': Room((0, 6), 3, 'water'),
         'pool_b': Room((5, 8), 4, 'water'),
         'pool_c': Room((2, 8), 2, 'water'),
-        'l': Room((0, 0), 100, 'grass', inner_radius=70),
+        #'l': Room((0, 0), 100, 'grass', inner_radius=70),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -4082,6 +4111,9 @@ def map_init():
         ('basement', 'basement_left', 1, None, None),
         ('basement', 'basement_right', 1, None, None),
         ('nw_off_main', 'nw_room_off_main', 2, None, None),
+        ('basement_right', 'basement_right_e', 1, None, None),
+        ('basement_se', 'basement_se_left', 1, None, None),
+        ('basement_right_e', 'basement_se_left', 1, None, None),
     ]
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
@@ -4096,12 +4128,13 @@ def map_init():
         room.draw_room()
     #secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
-    secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), size=3)
-    secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), size=3)
-    secret_room(wall_coord=(31, -2), room_offset=(0, -3), size=3)
-    secret_room(wall_coord=(31, 2), room_offset=(0, 4), size=3)
+    secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), dimensions=(3, 3))
+    secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), dimensions=(3, 3))
+    secret_room(wall_coord=(31, -2), room_offset=(0, -3), dimensions=(3, 3))
+    secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
+    room_with_door(wall_coord=(21, -2), room_offset=(0, -2), locked=True)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
@@ -4311,7 +4344,7 @@ async def action_keypress(key):
         asyncio.ensure_future(temp_view_circle(on_actor='player'))
     elif key in '3': #shift amulet power
         asyncio.ensure_future(pass_between(
-            x_offset=1000, y_offset=1000, plane_name='nightmare'
+            x_offset=9999, y_offset=9999, plane_name='nightmare'
         ))
     #DEBUG COMMANDS--------------------------------------------------------
     elif key in '8': #export map
@@ -5960,9 +5993,10 @@ async def async_map_init():
        ((25, -13), 'blob'),
        ((-4, -9), 'blob'),
        ((-20, 16), 'blob'),
+       ((21, -4), 'angel'),
     )
-    #for coord, name in monster_spawns:
-        #tasks.append(spawn_preset_actor(coords=coord, preset=name))
+    for coord, name in monster_spawns:
+        tasks.append(spawn_preset_actor(coords=coord, preset=name))
     for task in tasks:
         loop.create_task(task)
 
@@ -7524,6 +7558,7 @@ def main():
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         teleporter(),
         hatch_pair(),
+        hatch_pair(origin=(40, 18)),
         teleporting_hatch(
             destination_coords=(1000, 1001),
             use_offset=(-1000, -1000, -1),
