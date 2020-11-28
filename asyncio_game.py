@@ -1055,7 +1055,6 @@ item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(
     coord=(2, 2), name='player', tile='@', tile_color=6, health=100,
 )
-actor_dict['player'].update((23, 0))
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -1909,7 +1908,8 @@ async def thrown_action(
     )
 
 async def damage_all_actors_at_coord(
-    coord=(0, 0), damage=10, source_actor=None, quiet=True
+    #coord=(0, 0), damage=10, source_actor=None, quiet=True
+    coord=(0, 0), damage=10, source_actor=None, quiet=False
 ):
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
@@ -1945,8 +1945,6 @@ async def damage_actor(
     blood=False,
     material='wood'
 ):
-    debris_dict = {'wood':('SMASH!', ',.\''),
-                   'stone':('SMASH!', '..:o')}
     if actor_dict[actor].breakable == False:
         return
     if hasattr(actor_dict[actor], 'health'):
@@ -1963,25 +1961,38 @@ async def damage_actor(
             return
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
-    if actor_dict[actor].health <= 0 and actor_dict[actor].breakable == True:
-        message, palette = debris_dict[material]
-        await append_to_log(message=message)
-        root_coord = actor_dict[actor].coords()
-        asyncio.ensure_future(
-            sow_texture(
-                root_coord,
-                palette=palette,
-                radius=3,
-                seeds=6, 
-                passable=True,
-                stamp=True,
-                paint=False,
-                color_num=8,
-                description='Broken {}.'.format(material),
-                pause_between=.06
-            )
-        )
+    if actor_dict[actor].health <= 0:
+        if actor_dict[actor].breakable == True:
+            root_coord = actor_dict[actor].coords()
+            await spray_debris(root_coord=root_coord, preset=material)
         await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
+
+async def spray_debris(
+    root_coord=(0, 0), 
+    preset="wood", 
+    radius=3, 
+    num_seeds=6,
+    color_num=8,
+    template_message='Broken {}',
+):
+    debris_dict = {'wood':('SMASH!', ',.\''),
+                   'stone':('SMASH!', '..:o')}
+    message, palette = debris_dict[preset]
+    await append_to_log(message=message)
+    asyncio.ensure_future(
+        sow_texture(
+            root_coord,
+            palette=palette,
+            radius=radius,
+            seeds=num_seeds, 
+            passable=True,
+            stamp=True,
+            paint=False,
+            color_num=color_num,
+            description=template_message.format(preset),
+            pause_between=.06
+        )
+    )
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
     if not hasattr(actor_dict[actor], 'coords'):
@@ -2318,7 +2329,7 @@ async def circle_of_darkness(
     actor_id = generate_id(base_name=name)
     loop = asyncio.get_event_loop()
     loop.create_task(
-        basic_actor(
+        nasic_actor(
             coord=start_coords,
             speed=.5,
             movement_function=seek_actor, 
@@ -3719,8 +3730,7 @@ async def sow_texture(
         if map_dict[toss_coord].magic == True:
             continue
         if paint:
-            if map_dict[toss_coord].tile not in "▮▯": #ignore doors
-                map_dict[toss_coord].color_num = 1
+            map_dict[toss_coord].color_num = 1
         else:
             random_tile = choice(palette)
             map_dict[toss_coord].color_num = color_num
@@ -4134,7 +4144,10 @@ def map_init():
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
+    room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=False)
     room_with_door(wall_coord=(21, -2), room_offset=(0, -2), locked=True)
+    room_with_door(wall_coord=(23, 6), room_offset=(8, 0), locked=True)
+    room_with_door(wall_coord=(17, -2), room_offset=(0, -2), locked=False)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
@@ -4425,9 +4438,8 @@ async def handle_input(map_dict, key):
         await action_keypress(key)
 
 def get_facing_coord():
-    direction = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     player_coords = actor_dict['player'].coords()
-    facing_offset = direction[state_dict['facing']]
+    facing_offset = dir_to_offset(state_dict['facing'])
     facing_coord = add_coords(player_coords, facing_offset)
     return facing_coord
 
@@ -4503,8 +4515,7 @@ async def toggle_doors():
     x, y = actor_dict['player'].coords()
     player_coords = actor_dict['player'].coords()
     facing = state_dict['facing']
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    door_coords = add_coords(player_coords, directions[facing])
+    door_coords = add_coords(player_coords, dir_to_offset(facing))
     await toggle_door(door_coords)
 
 async def use_action(tile_coords=None, is_async=True):
@@ -4728,8 +4739,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=40, height=10, x_margin=1, y_margin=10, refresh_rate=.05 #for debugging
+    #width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=40, height=10, x_margin=1, y_margin=15, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5947,6 +5958,7 @@ async def async_map_init():
         ((-3, 0), 'block wand'), 
         ((-3, -3), 'red key'), 
         ((8, 4), 'red potion'), 
+        ((18, -3), 'red potion'), 
         ((47, -31), 'red sword'), 
         ((-21, -18), 'blaster'), 
         ((-18, -19), 'battery'), 
@@ -5954,7 +5966,7 @@ async def async_map_init():
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-1, -5), 'green sword'), 
         ((32, -5), 'green sword'), #debug
-        ((25, -1), 'dash trinket'), #debug
+        ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
@@ -5990,9 +6002,9 @@ async def async_map_init():
         ),
     ]
     monster_spawns = (
-       ((25, -13), 'blob'),
-       ((-4, -9), 'blob'),
-       ((-20, 16), 'blob'),
+       #((25, -13), 'blob'),
+       #((-4, -9), 'blob'),
+       #((-20, 16), 'blob'),
        ((21, -4), 'angel'),
     )
     for coord, name in monster_spawns:
@@ -6603,7 +6615,9 @@ async def basic_actor(
     animation=" ",
     holding_items=[],
     movement_function_kwargs={},
-    description='A featureless blob'
+    description='A featureless blob',
+    breakable=True,
+    health=10,
 ):
     """
     actors can:
@@ -6625,14 +6639,18 @@ async def basic_actor(
         is_animated=is_animated,
         animation=animation,
         holding_items=holding_items,
-        description=description
+        description=description,
+        breakable=breakable,
+        health=health,
     )
     coords = actor_dict[name_key].coords()
     while True:
+        await asyncio.sleep(speed)
+        if not hasattr(actor_dict[name_key], 'health'):
+            return
         if actor_dict[name_key].health <= 0:
             await kill_actor(name_key=name_key)
             return
-        await asyncio.sleep(speed)
         next_coords = await movement_function(
             name_key=name_key, **movement_function_kwargs
         )
@@ -6889,6 +6907,8 @@ async def health_potion(
     duration=2,
     sub_second_step=.1
 ):
+    if actor_dict['player'].health <= 0:
+        return
     if item_id:
         del item_dict[item_id]
         del actor_dict['player'].holding_items[item_id]
@@ -6901,6 +6921,8 @@ async def health_potion(
     )
     for i in range(int(num_steps)):
         await asyncio.sleep(sub_second_step)
+        if actor_dict['player'].health <= 0:
+            return
         asyncio.ensure_future(
             directional_alert(source_actor='player', preset='heal')
         )
@@ -7376,7 +7398,7 @@ async def spawn_preset_actor(
     start_coords = coords
     if preset == 'blob':
         item_drops = ['red potion']
-        description = 'A gibbering mass of green slime that pulses and writhes before your eyes.'
+        description = 'A gibbering mass of green slime.'
         loop.create_task(
             basic_actor(
                 coord=coords,
@@ -7390,11 +7412,14 @@ async def spawn_preset_actor(
                 is_animated=True,
                 animation=Animation(preset="blob"),
                 holding_items=item_drops,
-                description=description
+                description=description,
+                breakable=True,
+                health=10,
             )
         )
     elif preset == 'angel':
-        item_drops = ['dash trinket']
+        item_drops = ['health potion']
+        description = 'A strangely menacing angel statue.'
         loop.create_task(
             basic_actor(
                 coord=coords,
@@ -7406,6 +7431,9 @@ async def spawn_preset_actor(
                 base_attack=20,
                 is_animated=None,
                 holding_items=item_drops,
+                description=description,
+                breakable=True,
+                health=200,
             )
         )
     elif preset == 'test':
@@ -7524,9 +7552,10 @@ async def door_init(loop):
         loop.create_task(door_pair)
 
 def state_setup():
+    actor_dict['player'].update((24, -5))
+    state_dict['facing'] = 's'
     state_dict['just teleported'] = False
     state_dict["player_health"] = 100
-    state_dict['facing'] = 'w'
     state_dict['menu_choices'] = []
     state_dict['plane'] = 'normal'
     state_dict['printing'] = False
@@ -7559,22 +7588,10 @@ def main():
         teleporter(),
         hatch_pair(),
         hatch_pair(origin=(40, 18)),
-        teleporting_hatch(
-            destination_coords=(1000, 1001),
-            use_offset=(-1000, -1000, -1),
-            player_facing_end='s',
-        ),
-        teleporting_hatch(
-            hatch_coords=(1000, 1000), 
-            use_offset=(0, 0, 0), 
-            destination_coords=(26, 1), 
-            player_facing_end='w',
-            ladder=True,
-        ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
-        alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=True),
+        alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
     )
     for task in tasks:
         loop.create_task(task)
