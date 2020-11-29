@@ -1053,7 +1053,12 @@ actor_dict = defaultdict(lambda: [None])
 state_dict = defaultdict(lambda: None)
 item_dict = defaultdict(lambda: None)
 actor_dict['player'] = Actor(
-    coord=(2, 2), name='player', tile='@', tile_color=6, health=100,
+    coord=(2, 2), 
+    name='player', 
+    tile='@', 
+    tile_color=6, 
+    health=100,
+    breakable=True,
 )
 
 #Drawing functions--------------------------------------------------------------
@@ -1922,7 +1927,7 @@ async def damage_all_actors_at_coord(
             asyncio.ensure_future(
                 directional_alert(source_actor=source_actor)
             )
-        await damage_actor(actor=actor[0], damage=damage, display_above=False)
+        await damage_actor(actor=actor[0], damage=damage, display_above=True)
 
 async def damage_within_circle(
     center=(0, 0), 
@@ -1961,11 +1966,11 @@ async def damage_actor(
             return
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
-    if actor_dict[actor].health <= 0:
+    if actor_dict[actor].health <= 0 and actor != 'player':
         if actor_dict[actor].breakable == True:
             root_coord = actor_dict[actor].coords()
             await spray_debris(root_coord=root_coord, preset=material)
-        await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
+            await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
 async def spray_debris(
     root_coord=(0, 0), 
@@ -1995,6 +2000,7 @@ async def spray_debris(
     )
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
+    #TODO: fix hiding of seen wall tiles?
     if not hasattr(actor_dict[actor], 'coords'):
         return
     actor_coords = actor_dict[actor].coords()
@@ -2021,7 +2027,9 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
                 start_coords=start_coords, 
                 end_coords=end_coords,
                 debris=False,
-                animation=False
+                animation=False,
+                always_visible=True,
+                no_clip=False,
             )
         )
 
@@ -2453,7 +2461,11 @@ async def spike_trap(
     """
     trap_origin_id = generate_id(base_name=base_name)
     actor_dict[trap_origin_id] = Actor(
-        name=trap_origin_id, moveable=False, tile='◘', tile_color='grey'
+        name=trap_origin_id,
+        moveable=False,
+        tile='◘',
+        tile_color='grey',
+        base_name='spike trap',
     )
     actor_dict[trap_origin_id].update(coord=coord)
     while True:
@@ -3082,11 +3094,13 @@ async def sword(
             name=segment_name,
             moveable=False,
             tile=chosen_dir[2],
-            tile_color=sword_color
+            tile_color=sword_color,
+            base_name='spike trap',
         )
         map_dict[segment_coord].actors[segment_name] = True
+        base_name = actor_dict[segment_name].base_name
         await damage_all_actors_at_coord(
-            coord=segment_coord, damage=damage, source_actor='player'
+            coord=segment_coord, damage=damage, source_actor=base_name,
         )
         await asyncio.sleep(speed)
     await asyncio.sleep(delay_out)
@@ -3146,20 +3160,15 @@ async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
 async def teleport_in_direction(direction=None, distance=15, flashy=True):
     if direction is None:
         direction = state_dict['facing']
-    directions_to_offsets = {
-        'n':(0, -distance), 'e':(distance, 0), 
-        's':(0, distance), 'w':(-distance, 0),
-    }
     player_coords = actor_dict['player'].coords()
-    destination_offset = directions_to_offsets[direction]
+    destination_offset = scaled_dir_offset(dir_string=direction, scale_by=distance)
     destination = add_coords(player_coords, destination_offset)
     if flashy:
-        await teleport(destination=destination)
+        await teleport(actor='player', destination=destination)
 
 async def teleport(
     origin=(0, 0),
     destination=(0, 0),
-    #actor='player',
     actor=None,
     delay=.25,
     x_offset=1000,
@@ -3772,20 +3781,42 @@ def room_with_door(
     dimensions=(3, 3),
     door_type='cell',
     floor_preset='floor',
-    locked=False
+    locked=False,
+    z_level=0,
+    per_level_offset=(-1000, -1000) #multiplied by number of z levels
 ):
     room_center = add_coords(wall_coord, room_offset)
-    n_wide_passage(coord_a=wall_coord, coord_b=room_center, width=1)
-    draw_door(wall_coord, preset=door_type, locked=locked)
-    if square:
-        draw_centered_box(
-            middle_coord=room_center,
-            x_size=dimensions[0],
-            y_size=dimensions[1],
-            preset=floor_preset
-        )
-    else:
-        draw_circle(center_coord=room_center, radius=size[0])
+    offset_door_coord, offset_room_center = [level_offset_coord(
+        starting_coord=coord,
+        per_level_offset=per_level_offset,
+        z_level=z_level
+    ) for coord in (wall_coord, room_center)]
+    print(offset_door_coord, offset_room_center)
+    n_wide_passage(
+        coord_a=offset_door_coord,
+        coord_b=offset_room_center,
+        width=1
+    )
+    draw_door(offset_door_coord, preset=door_type, locked=locked)
+    Room(
+        center_coord=room_center,
+        dimensions=dimensions,
+        z_level=z_level,
+        floor_preset=floor_preset,
+        per_level_offset=per_level_offset,
+    ).draw_room()
+
+def level_offset_coord(
+    starting_coord=(0, 0),
+    per_level_offset=(-1000, -1000),
+    z_level=0,
+):
+    total_offsets = (
+        per_level_offset[0] * z_level,
+        per_level_offset[1] * z_level,
+    )
+    offset_coord = add_coords(starting_coord, total_offsets)
+    return offset_coord
     
 def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, dimensions=(5, 5)):
     room_center = add_coords(wall_coord, room_offset)
@@ -4146,7 +4177,7 @@ def map_init():
     secret_door(door_coord=(21, 2))
     room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=False)
     room_with_door(wall_coord=(21, -2), room_offset=(0, -2), locked=True)
-    room_with_door(wall_coord=(23, 6), room_offset=(8, 0), locked=True)
+    room_with_door(wall_coord=(23, 6), room_offset=(8, 0), locked=True, z_level=-1)
     room_with_door(wall_coord=(17, -2), room_offset=(0, -2), locked=False)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
@@ -4402,10 +4433,9 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        #destination = (31, -5)
-        destination = (82, 4) #outside in grassy area (good for view testing)
+        destination = (2, -41)
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'n'
+        state_dict['facing'] = 'e'
         return
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
@@ -7145,7 +7175,8 @@ async def travel_along_line(
     damage=None,
     ignore_head=False,
     no_clip=True,
-    source_actor=None
+    source_actor=None,
+    always_visible=False,
 ):
     points = get_line(start_coords, end_coords)
     if no_clip:
@@ -7175,10 +7206,20 @@ async def travel_along_line(
     if ignore_head:
         points = points[1:]
     for point in points:
+        if not map_dict[point].seen:
+            hide_after = True
+        else:
+            hide_after = False
         await asyncio.sleep(speed)
         if particle_id in map_dict[last_location].actors:
             del map_dict[last_location].actors[particle_id]
+            if always_visible:
+                map_dict[last_location].override_view = False
+                if hide_after:
+                    map_dict[last_location].seen=False
         map_dict[point].actors[particle_id] = True
+        if always_visible:
+            map_dict[point].override_view = True
         actor_dict[particle_id].update(coord=point)
         if damage is not None:
             await damage_all_actors_at_coord(
@@ -7191,6 +7232,10 @@ async def travel_along_line(
             map_dict[last_location].description = "Debris."
     del map_dict[last_location].actors[particle_id]
     del actor_dict[particle_id]
+    if always_visible:
+        map_dict[last_location].override_view = False
+        if hide_after:
+            map_dict[last_location].seen=False
 
 async def radial_fountain(
     anchor_actor='player',
