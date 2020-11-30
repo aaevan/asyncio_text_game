@@ -749,8 +749,6 @@ class Multi_tile_entity:
         """
         Checks whether all of the member actors can fit into a new configuration
         """
-        coord_to_dir = {(0, -1):'n', (1, 0):'e', (0, 1):'s', (-1, 0):'w'}
-        check_position = {}
         for member_name in self.member_names:
             if not actor_dict[member_name].moveable:
                 return False
@@ -960,7 +958,12 @@ async def spawn_mte(
     )
     return mte_id
 
-def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
+def multi_push(
+    push_dir='e',
+    pushed_actor=None,
+    mte_parent=None,
+    ignore_diagonals=True,
+):
     """
     pushes a multi_tile entity.
     This requires that we check each leading face for additional entities:
@@ -975,8 +978,10 @@ def multi_push(push_dir='e', pushed_actor=None, mte_parent=None):
     elif pushed_actor is not None and mte_parent is None:
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
         print('mte_parent: {}'.format(mte_parent))
-    dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
-    move_by = dir_coords[push_dir]
+    #move_by = dir_coords[push_dir]
+    if push_dir in ('ne', 'se', 'sw', 'nw') and ignore_diagonals:
+        return False
+    move_by = dir_to_offset(push_dir)
     if mte_dict[mte_parent].check_collision(move_by=move_by):
         mte_dict[mte_parent].move(move_by=move_by)
         return True
@@ -2034,10 +2039,9 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
         )
 
 async def unlock_door(actor_key='player', opens='red'):
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
-    door_coord = add_coords(actor_coord, directions[check_dir])
+    door_coord = add_coords(actor_coord, dir_to_offset(check_dir))
     door_type = map_dict[door_coord].door_type
     if opens in map_dict[door_coord].door_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
@@ -2066,14 +2070,20 @@ def is_passable(checked_coords=(0, 0)):
     else:
         return False
 
-def push(direction='n', pusher='player', base_coord=None):
+def push(
+    direction='n',
+    pusher='player',
+    base_coord=None,
+    no_diagonals=True
+):
     """
     objects do not clip into other objects or other actors.
 
     returns True if object is pushed.
     """
-    dir_coords = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0)}
-    chosen_dir = dir_coords[direction]
+    if direction in ('ne', 'se', 'sw', 'nw') and no_diagonals:
+        return
+    chosen_dir = dir_to_offset(direction)
     if base_coord is None:
         pusher_coords = actor_dict[pusher].coords()
     else:
@@ -3228,8 +3238,8 @@ async def temporary_block(
     animation_preset='energy block',
     vanish_message=None,
 ):
-    directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
-    facing_dir_offset = directions[state_dict['facing']]
+    player_facing = state_dict['facing']
+    facing_dir_offset = dir_to_offset(player_facing)
     actor_coords = actor_dict['player'].coords()
     spawn_coord = add_coords(actor_coords, facing_dir_offset)
     block_id = generate_id(base_name='weight')
@@ -3448,6 +3458,14 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'tile':term.green('⚷'),
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'green'},
+            'broken_text':wand_broken_text,
+            'use_message':None
+        },
+        'cell key':{
+            'uses':-1,
+            'tile':term.color(00)('⚷'),
+            'usable_power':unlock_door, 
+            'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
             'use_message':None
         },
@@ -4336,16 +4354,17 @@ async def menu_keypress(key):
 async def action_keypress(key):
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
-    directions = {'a':(-1, 0), 'd':(1, 0), 'w':(0, -1), 's':(0, 1),}
     player_coords = actor_dict['player'].coords()
     if key in "wasd":
         if key in 'wasd':
             if state_dict['player_busy'] == True:
                 return
+            dir_from_key = key_to_compass(key)
+            offset_from_dir = dir_to_offset(dir_from_key)
             push(pusher='player', direction=key_to_compass(key))
-            walk_destination = add_coords(player_coords, directions[key])
+            walk_destination = add_coords(player_coords, offset_from_dir)
             if is_passable(walk_destination):
-                x_shift, y_shift = directions[key]
+                x_shift, y_shift = offset_from_dir
         state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
         #TODO: hold shift and away from an object to pull?
@@ -4693,6 +4712,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│ {} │'.format(term.red('╒')),
             '│ {} │'.format(term.red('│')),
             '│ {} │'.format(term.red('O')),
+            '└───┘',
+        ),
+        'cell key':(
+            '┌───┐',
+            '│ {} │'.format(term.color(00)('╒')),
+            '│ {} │'.format(term.color(00)('│')),
+            '│ {} │'.format(term.color(00)('O')),
             '└───┘',
         ),
         'green key':(
@@ -5234,11 +5260,10 @@ async def tile_debug_info(offset_coord=(50, 0), offset_from_center=False):
     middle_coord = get_term_middle()
     dummy_text = []
     while True:
-        directions = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
         check_dir = state_dict['facing']
         check_coord = add_coords(
             actor_dict['player'].coords(),
-            directions[check_dir]
+            dir_to_offset(check_dir),
         )
         output_text = [
             f'tile_debug_info:',
@@ -5270,9 +5295,8 @@ async def check_line_of_sight(coord_a, coord_b):
     #since walls and thin corridors are special cases,
     #if the last coord is blocking, just change coord_b to check the new non-wall tile
     if map_dict[coord_b].blocking:
-        neighbors = {'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),}
         neighbor_coords = [
-            add_coords(coord_b, neighbor) for neighbor in neighbors.values()
+            add_coords(coord_b, dir_to_offset(direction)) for direction in ('n', 'e', 's', 'w')
         ]
         non_walls = []
         for coord in neighbor_coords:
@@ -6002,6 +6026,7 @@ async def async_map_init():
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((20, 1), 'green key'),
+        ((26, -3), 'cell key'),
     )
     for coord, item_name in items:
         spawn_item_at_coords(
@@ -6801,13 +6826,6 @@ async def follower_vine(
         )
     mte_dict[vine_name].vine_instructions = "M" * num_segments
     mte_dict[vine_name].vine_facing_dir = facing_dir
-    #TODO: remove next six lines
-    #direction_offsets = {
-        #'n':(0, -1), 'e':(1, 0), 's':(0, 1), 'w':(-1, 0),
-    ##}
-    #inverse_direction_offsets = {
-        #'n':(0, 1), 'e':(-1, 0), 's':(0, -1), 'w':(1, 0),
-    #}
     if color_choice is None:
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
