@@ -2039,6 +2039,7 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
         )
 
 async def unlock_door(actor_key='player', opens='red'):
+    #TODO: only lock door if it's closed
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, dir_to_offset(check_dir))
@@ -2466,8 +2467,7 @@ async def spike_trap(
     trap_type='sword',
 ):
     """
-    Generate a stationary, actor that periodically puts out spikes in each
-    direction given at rate spike_rate.
+    Generate a stationary, actor that emits a spike when triggered.
     """
     trap_origin_id = generate_id(base_name=base_name)
     actor_dict[trap_origin_id] = Actor(
@@ -2633,6 +2633,39 @@ async def computer_terminal(
         rand_offset = randint(-5, 0)
         for tile in neighbors:
             map_dict[tile].brightness_mod = rand_offset
+
+async def test_print_at_coord(
+    message="testing, {} ",
+    coord=(55, 0),
+    repeats=3
+):
+    """
+    (only used in use_action_fork)
+    """
+    for i in range(1, repeats + 1):
+        with term.location(*coord):
+            print(message.format(i))
+        await asyncio.sleep(1)
+
+async def use_action_fork(
+    func_list=[
+        (test_print_at_coord, True, {'message':'use_action_fork func 1! {}', 'coord':(55, 0)}),
+        (test_print_at_coord, True, {'message':'use_action_fork func 2! {}', 'coord':(55, 1)}),
+        (test_print_at_coord, True, {'message':'use_action_fork func 3! {}', 'coord':(55, 2)}),
+    ]
+):
+    """
+    func_list is a list of functions with all the things they need.
+    each item in func_list will give:
+        the name of the function
+        whether or not the function is async
+        the kwargs of that function
+    """
+    for (action_func, is_async, kwargs) in func_list:
+        if is_async:
+            asyncio.ensure_future(action_func(**kwargs))
+        else:
+            action_func(**kwargs)
 
 async def teleport_if_open(
     tile_coords=(0, 0), 
@@ -3858,7 +3891,9 @@ def draw_door(
     starting_toggle_index=1,
     #description='wooden',
     is_door=True,
-    preset='wooden'
+    preset='wooden',
+    z_level=0,
+    color_num=None,
 ):
     """
     creates a door at the specified map_dict coordinate and sets the relevant
@@ -3867,6 +3902,7 @@ def draw_door(
     door_presets = {
         #((tile, blocking, passable), (tile, blocking, passable))
         'wooden':(('▯', False, True), ('▮', True, False)),
+        'green':(('▯', False, True), ('▮', True, False)),
         'secret':(('▯', False, True), ('𝄛', True, False)),
         'hatch':(('◍', False, True), ('●', False, True)),
         'iron':(('▯', False, True), ('▮', True, False)),
@@ -3877,14 +3913,19 @@ def draw_door(
         'blue':4, 'purple':5, 'cyan':6, 'grey':7, 'white':8,
         'iron':7, 'hatch':0xee, 'cell':0xee,
     }
+    if door_coord != 0:
+        door_coord = level_offset_coord(
+            starting_coord=door_coord,
+            z_level=z_level,
+        )
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
+    if color_num is None and preset != 'secret':
+        color_num = door_colors[preset]
     tile, blocking, passable = door_presets[preset][starting_toggle_index]
     if preset != 'secret':
-        door_tile = term.color(door_colors[preset])(tile)
-    else:
-        door_tile = tile
-    map_dict[door_coord].tile = door_tile
+        map_dict[door_coord].color_num = color_num
+    map_dict[door_coord].tile = tile
     map_dict[door_coord].passable = passable
     map_dict[door_coord].blocking = blocking
     map_dict[door_coord].is_door = True
@@ -4193,10 +4234,11 @@ def map_init():
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
-    room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=False)
+    room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=True)
     room_with_door(wall_coord=(21, -2), room_offset=(0, -2), locked=True)
     room_with_door(wall_coord=(23, 6), room_offset=(8, 0), locked=True, z_level=-1)
     room_with_door(wall_coord=(17, -2), room_offset=(0, -2), locked=False)
+    draw_door(preset='green', door_coord=(12, 0), z_level=-1, locked=True)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
@@ -4204,6 +4246,10 @@ def map_init():
     spawn_column(spawn_coord=(30, -5), tile='╪', name='ladder')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
+    #map_dict BOOKMARK
+    map_dict[(25, -4)].use_action_func = use_action_fork
+    map_dict[(25, -4)].use_action_kwargs = {}
+
 def spawn_column(
     spawn_coord=(0, 0), 
     tile='┃', 
@@ -6071,7 +6117,6 @@ async def async_map_init():
 async def trap_init():
     loop = asyncio.get_event_loop()
     node_offsets = ((-6, 's'), (6, 'n'))
-    nodes = [(i, *offset) for i in range(-5, 6) for offset in node_offsets]
     base_coord = (9, -41)
     draw_centered_box(middle_coord=base_coord, x_size=11, y_size=11, preset='floor')
     rand_coords = {
@@ -6088,11 +6133,15 @@ async def trap_init():
                 spawn_coord=coord, patch_to_key='switch_1'
             )
         )
+    spike_trap_coords = [
+        (i, *offset) for i in range(-5, 6) for offset in node_offsets
+    ]
     loop.create_task(
         multi_spike_trap(
-            nodes=nodes, base_coord=base_coord, patch_to_key='switch_1'
+            nodes=spike_trap_coords, base_coord=base_coord, patch_to_key='switch_1'
         )
     )
+    #lower_spike_trap_coords = 
     state_dict['switch_2'] = {}
     loop.create_task(
         pressure_plate(
