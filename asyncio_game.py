@@ -2049,8 +2049,11 @@ async def unlock_door(actor_key='player', opens='red'):
             output_text = 'You unlock the {} door.'.format(opens)
             map_dict[door_coord].locked = False
         elif not map_dict[door_coord].locked:
-            output_text = 'You lock the {} door.'.format(opens)
-            map_dict[door_coord].locked = True
+            if is_passable(door_coord):
+                output_text = 'You can\'t lock an open door!'
+            else:
+                output_text = 'You lock the {} door.'.format(opens)
+                map_dict[door_coord].locked = True
     elif not map_dict[door_coord].is_door:
         output_text = "That isn't a door."
     else:
@@ -3007,7 +3010,6 @@ async def swing(
     swing_color=0xf9,
     damage=50,
 ):
-    #TODO: fix swing entities so they don't invisibly cut tiles
     if base_actor:
         base_coord = actor_dict[base_actor].coords()
     if set_facing:
@@ -3055,6 +3057,7 @@ async def swing(
     del map_dict[print_coord].actors[swing_id]
     del actor_dict[swing_id]
 
+#TODO: fix strange clipping behavior with MTEs while facing north and pushing??
 async def sword(
     direction='n',
     actor='player',
@@ -5556,6 +5559,7 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
     return brightness_val
 
 async def check_contents_of_tile(coord):
+    #TODO: clean up some of these very different return values
     if map_dict[coord].actors:
         actor_choice = None
         for actor_name in map_dict[coord].actors:
