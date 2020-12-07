@@ -286,6 +286,12 @@ class Animation:
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
+            'presence':{
+                'animation':('●'),
+                'behavior':'random',
+                #'color_choices':list(range(0xe8, 0xff))
+                'color_choices':list(range(0xf7, 0xff))
+            },
             'bullet':{
                 'animation':('◦◦◦○'),
                 'behavior':'random',
@@ -6111,6 +6117,7 @@ async def async_map_init():
        #((-4, -9), 'blob'),
        #((-20, 16), 'blob'),
        ((21, -4), 'angel'),
+       ((-7, -2), 'presence'),
     )
     for coord, name in monster_spawns:
         tasks.append(spawn_preset_actor(coords=coord, preset=name))
@@ -6404,7 +6411,12 @@ async def attack(
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_alert(source_actor=attacker_key))
 
-async def seek_actor(name_key=None, seek_key='player', repel=False):
+async def seek_actor(
+    name_key=None, 
+    seek_key='player', 
+    repel=False, 
+    walk_through_walls=False
+):
     current_coord = actor_dict[name_key].coords()
     target_coord = actor_dict[seek_key].coords()
     is_hurtful = actor_dict[name_key].hurtful
@@ -6419,10 +6431,13 @@ async def seek_actor(name_key=None, seek_key='player', repel=False):
     eight_adjacencies = [
         add_coords(current_coord, offset) for offset in eight_offsets
     ]
-    open_spaces = list(filter(
-        lambda coord: is_passable(coord) == True,
-        eight_adjacencies
-    ))
+    if walk_through_walls:
+        open_spaces = eight_adjacencies
+    else:
+        open_spaces = list(filter(
+            lambda coord: is_passable(coord) == True,
+            eight_adjacencies
+        ))
     distances = [
         point_to_point_distance(coord, target_coord) for coord in open_spaces
     ]
@@ -6520,7 +6535,11 @@ async def waver(name_key=None, seek_key='player', **kwargs):
         )
     return movement_choice
 
-async def angel_seek(name_key=None, seek_key='player'):
+async def angel_seek(
+    name_key=None,
+    seek_key='player',
+    walk_through_walls=False,
+):
     """
     Seeks only when the player isn't looking.
     """
@@ -6532,7 +6551,10 @@ async def angel_seek(name_key=None, seek_key='player'):
         movement_choice = actor_location
     else:
         movement_choice = await seek_actor(
-            name_key=name_key, seek_key=seek_key, repel=False
+            name_key=name_key,
+            seek_key=seek_key,
+            repel=False,
+            walk_through_walls=walk_through_walls,
         )
     return movement_choice
 
@@ -6726,6 +6748,7 @@ async def basic_actor(
     description='A featureless blob',
     breakable=True,
     health=10,
+    moveable=True,
 ):
     """
     actors can:
@@ -6750,6 +6773,7 @@ async def basic_actor(
         description=description,
         breakable=breakable,
         health=health,
+        moveable=moveable,
     )
     coords = actor_dict[name_key].coords()
     while True:
@@ -6774,7 +6798,7 @@ async def basic_actor(
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
-            actor_dict[name_key].update(coord=next_coords)
+            actor_dict[name_key].update(coord=next_coords, make_passable=False)
 
 def distance_to_actor(actor_a=None, actor_b='player'):
     if actor_a is None:
@@ -7541,6 +7565,7 @@ async def spawn_preset_actor(
                 coord=coords,
                 speed=.15,
                 movement_function=angel_seek, 
+                movement_function_kwargs={}, 
                 tile='A',
                 name_key=name,
                 hurtful=True,
@@ -7552,6 +7577,31 @@ async def spawn_preset_actor(
                 health=200,
             )
         )
+    elif preset == 'presence':
+        item_drops = ['health potion']
+        description = 'Well that wasn\'t there before...'
+        loop.create_task(
+            basic_actor(
+                coord=coords,
+                speed=2,
+                movement_function=angel_seek, 
+                movement_function_kwargs={
+                    'walk_through_walls':True,
+                }, 
+                tile='●',
+                name_key=name,
+                hurtful=True,
+                base_attack=999,
+                is_animated=True,
+                animation=Animation(preset="presence"),
+                holding_items=item_drops,
+                description=description,
+                breakable=True,
+                health=9999,
+                moveable=False,
+            )
+        )
+    
     elif preset == 'test':
         item_drops = ['nut']
         loop.create_task(
