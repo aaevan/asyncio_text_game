@@ -4850,8 +4850,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=40, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=40, height=10, x_margin=1, y_margin=15, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=15, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -4892,6 +4892,7 @@ async def append_to_log(
     wipe=False, 
     wipe_time=5, 
     wipe_char_time=.1,
+    line_length=45
 ):
     if '|' in message:
         messages = message.split('|')
@@ -4906,7 +4907,7 @@ async def append_to_log(
                     wipe_char_time=wipe_char_time,
                 )
         return
-    message_lines = textwrap.wrap(message, 40)
+    message_lines = textwrap.wrap(message, line_length)
     padded_lines = ["{:<37}".format(line) for line in message_lines]
     if wipe:
         wipe_text = ' ' * len(message)
@@ -6539,6 +6540,15 @@ async def angel_seek(
     name_key=None,
     seek_key='player',
     walk_through_walls=False,
+    tether_coord=(0, 0),
+    tether_length=10,
+    message_on_movement=None,
+    message_dist_thresholds=(5, 10, 20),
+    dist_threshold_descriptors=(
+        'behind you',
+        'close by',
+        'a ways away',
+    ),
 ):
     """
     Seeks only when the player isn't looking.
@@ -6548,7 +6558,7 @@ async def angel_seek(
         checked_point=actor_location, arc_width=120
     )
     if within_fov:
-        movement_choice = actor_location
+        return actor_location
     else:
         movement_choice = await seek_actor(
             name_key=name_key,
@@ -6556,6 +6566,24 @@ async def angel_seek(
             repel=False,
             walk_through_walls=walk_through_walls,
         )
+    if point_to_point_distance(tether_coord, movement_choice) > tether_length:
+        return actor_location
+    if message_on_movement is not None and movement_choice != actor_location:
+        close_dist, med_dist, far_dist = message_dist_thresholds
+        close_message, med_message, far_message = dist_threshold_descriptors
+        dist_to_target = distance_to_actor(actor_a=name_key, actor_b=seek_key)
+        dist_message=''
+        if dist_to_target <= close_dist:
+            dist_message = close_message
+        elif dist_to_target <= med_dist:
+            dist_message = med_message
+        elif dist_to_target <= far_dist:
+            dist_message = far_message
+        if dist_message != '':
+            message = "You hear {} from {}.".format(message_on_movement, dist_message)
+            asyncio.ensure_future(
+                append_to_log(message=message)
+            )
     return movement_choice
 
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
@@ -7578,15 +7606,21 @@ async def spawn_preset_actor(
             )
         )
     elif preset == 'presence':
+        #todo: drop an item that allows walking through walls
         item_drops = ['health potion']
-        description = 'Well that wasn\'t there before...'
+        description = (
+            'Well, that wasn\'t there before.|||'
+            'It\'s a large faintly shimmering sphere hovering in midair.'
+        )
         loop.create_task(
             basic_actor(
                 coord=coords,
-                speed=2,
+                speed=1.5,
                 movement_function=angel_seek, 
                 movement_function_kwargs={
                     'walk_through_walls':True,
+                    'tether_coord':coords,
+                    'message_on_movement':'a buzzing noise'
                 }, 
                 tile='●',
                 name_key=name,
@@ -7597,7 +7631,7 @@ async def spawn_preset_actor(
                 holding_items=item_drops,
                 description=description,
                 breakable=True,
-                health=9999,
+                health=999,
                 moveable=False,
             )
         )
