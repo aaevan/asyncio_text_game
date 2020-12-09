@@ -1168,7 +1168,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             animation=Animation(preset='nightmare')
         ),
         'pulse':Map_tile(
-            tile='0',
+            tile='o',
             blocking=False,
             passable=True,
             description='',
@@ -2772,10 +2772,14 @@ async def teleporter(
     tile='X',
     spawn_coord=(1, 1),
     destination_coords=(1, -9),
-    description="What happens if you step on it?"
+    description="What happens if you step on it?",
+    magic_door_view=True,
 ):
     paint_preset(tile_coords=spawn_coord, preset='pulse')
     map_dict[spawn_coord].description = description
+    if magic_door_view:
+        map_dict[spawn_coord].magic = True
+        map_dict[spawn_coord].magic_destination = destination_coords
     map_dict[spawn_coord].run_on_entry = teleport
     map_dict[spawn_coord].run_on_entry_kwargs = {
         'origin':spawn_coord,
@@ -3235,6 +3239,13 @@ async def teleport(
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     """
+    if state_dict['just teleported']:
+        with term.location(55, 0):
+            print("skipping teleport!")
+        await asyncio.sleep(1)
+        with term.location(55, 0):
+            print("                  ")
+        return
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
         asyncio.ensure_future(append_to_log(message=start_message))
@@ -3248,6 +3259,7 @@ async def teleport(
         if actor is None:
             actor = next(iter(map_dict[origin].actors))
         actor_dict[actor].update(coord=(destination))
+        state_dict['just teleported'] = True
     else:
         await append_to_log(message='Something is in the way.')
     
@@ -3947,48 +3959,6 @@ def draw_door(
     door_description = "{} {}.".format(close_state, preset)
     map_dict[door_coord].description = door_description
     map_dict[door_coord].mutable = False
-
-async def fake_stairs(
-    coord_a=(8, 0),
-    coord_b=(-10, 0), 
-    hallway_offset=(-1000, -1000),
-    hallway_length=15
-):
-    #draw hallway
-    draw_box(
-        top_left=hallway_offset, x_size=hallway_length, y_size=1, tile="░"
-    )
-    coord_a_hallway = add_coords(coord_a, hallway_offset)
-    coord_b_hallway = add_coords(coord_a_hallway, (hallway_length, 0))
-    #create magic doors:
-    await create_magic_door_pair(
-        door_a_coords=coord_a, door_b_coords=coord_a_hallway, silent=True
-    )
-    await create_magic_door_pair(
-        door_a_coords=coord_b, door_b_coords=coord_b_hallway, silent=True
-    )
-
-async def under_passage(
-    start=(-20, 27),
-    end=(-20, 13),
-    offset=(-1000, -1000), 
-    width=1,
-    direction='ns',
-    length=10
-):
-    """
-    Assumes parallel starting and ending directions.
-    """
-    under_start = add_coords(start, offset)
-    end_offsets = {'ns':(0, length), 'ew':(length, 0)}
-    under_end = add_coords(under_start, end_offsets[direction])
-    n_wide_passage(coord_a=under_start, coord_b=under_end, width=width)
-    await create_magic_door_pair(
-        door_a_coords=start, door_b_coords=under_start, silent=True
-    )
-    await create_magic_door_pair(
-        door_a_coords=end, door_b_coords=under_end, silent=True
-    )
 
 #TODO: create a mirror
 
@@ -7780,12 +7750,12 @@ def main():
         #TODO: fix follower vine to disappear after a set time:
         #shrouded_horror(start_coords=(29, -25)),
         death_check(),
-        under_passage(),
         #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
-        teleporter(),
+        teleporter(spawn_coord=(1, 1), destination_coords=(1, -9)),
+        teleporter(spawn_coord=(1, -9), destination_coords=(1, 1)),
         hatch_pair(),
         hatch_pair(origin=(40, 18)),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
