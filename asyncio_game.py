@@ -1148,6 +1148,14 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             magic=False,
             is_animated=False
         ),
+        'cell bars':Map_tile(
+            tile='║',
+            blocking=False,
+            passable=False,
+            description='Sturdy metal bars',
+            magic=False,
+            is_animated=False
+        ),
         'tiles':Map_tile(
             tile='▞',
             blocking=False,
@@ -4228,6 +4236,9 @@ def map_init():
     #map_dict BOOKMARK
     map_dict[(25, -4)].use_action_func = use_action_fork
     map_dict[(25, -4)].use_action_kwargs = {}
+    for cell in ((23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5)):
+        paint_preset(tile_coords=cell, preset='cell bars')
+    map_dict
 
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -6086,7 +6097,7 @@ async def async_map_init():
     monster_spawns = (
        #((25, -13), 'blob'),
        #((-4, -9), 'blob'),
-       #((-20, 16), 'blob'),
+       ((21, -5), 'blob'),
        ((21, -4), 'angel'),
        ((-7, -2), 'presence'),
     )
