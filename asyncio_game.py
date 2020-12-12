@@ -2053,7 +2053,6 @@ async def damage_numbers(actor=None, damage=10, squares_above=5):
         )
 
 async def unlock_door(actor_key='player', opens='red'):
-    #TODO: only lock door if it's closed
     check_dir = state_dict['facing']
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, dir_to_offset(check_dir))
@@ -6097,7 +6096,7 @@ async def async_map_init():
     monster_spawns = (
        #((25, -13), 'blob'),
        #((-4, -9), 'blob'),
-       ((21, -5), 'blob'),
+       ((17, -4), 'blob'),
        ((21, -4), 'angel'),
        ((-7, -2), 'presence'),
     )
@@ -6522,7 +6521,7 @@ async def angel_seek(
     seek_key='player',
     walk_through_walls=False,
     tether_coord=(0, 0),
-    tether_length=10,
+    tether_length=0,
     message_on_movement=None,
     message_dist_thresholds=(5, 10, 20),
     dist_threshold_descriptors=(
@@ -6547,8 +6546,9 @@ async def angel_seek(
             repel=False,
             walk_through_walls=walk_through_walls,
         )
-    if point_to_point_distance(tether_coord, movement_choice) > tether_length:
-        return actor_location
+    if tether_length > 0:
+        if point_to_point_distance(tether_coord, movement_choice) > tether_length:
+            return actor_location
     if message_on_movement is not None and movement_choice != actor_location:
         close_dist, med_dist, far_dist = message_dist_thresholds
         close_message, med_message, far_message = dist_threshold_descriptors
@@ -7574,8 +7574,8 @@ async def spawn_preset_actor(
                 coord=coords,
                 speed=.15,
                 movement_function=angel_seek, 
-                movement_function_kwargs={}, 
-                tile='A',
+                movement_function_kwargs={'tether_length':0}, 
+                tile='Ψ',
                 name_key=name,
                 hurtful=True,
                 base_attack=20,
