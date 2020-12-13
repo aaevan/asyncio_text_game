@@ -4229,7 +4229,6 @@ def map_init():
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
-    spawn_column(spawn_coord=(30, -5), tile='╪', name='ladder')
     for coord in ((-21, -16), (-18, -15), (-15, -14)):
         spawn_column(spawn_coord=coord)
     #map_dict BOOKMARK
@@ -7324,7 +7323,7 @@ async def travel_along_line(
         map_dict[point].actors[particle_id] = True
         if always_visible:
             map_dict[point].override_view = True
-        actor_dict[particle_id].update(coord=point)
+        actor_dict[particle_id].update(coord=point, make_passable=False)
         if damage is not None:
             await damage_all_actors_at_coord(
                 coord=point, damage=damage, source_actor=source_actor
@@ -7575,6 +7574,9 @@ async def spawn_preset_actor(
                 speed=.15,
                 movement_function=angel_seek, 
                 movement_function_kwargs={'tether_length':0}, 
+                #TODO: figure out why the combining character takes on the color 
+                #of the player when adjacent (to the left)
+                #tile='\u030A\u034FΨ', #"psi character with a ring over it"
                 tile='Ψ',
                 name_key=name,
                 hurtful=True,
