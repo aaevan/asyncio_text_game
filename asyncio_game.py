@@ -3074,7 +3074,6 @@ async def swing(
     del map_dict[print_coord].actors[swing_id]
     del actor_dict[swing_id]
 
-#TODO: fix strange clipping behavior with MTEs while facing north and pushing??
 async def sword(
     direction='n',
     actor='player',
@@ -3376,7 +3375,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'use_message':block_wand_text,
             'broken_text':' is out of charges',
         },
-        #TODO: add stackable items in inventory
         'battery':{
             'uses':-1,
             'tile':term.green('◈'), 
@@ -3387,7 +3385,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'usable_power':battery_item,
             'use_message':None,
         },
-        #TODO: add a cooldown bar next to item display.
         'blaster':{
             'uses':6,
             'tile':term.red('τ'),
@@ -6549,22 +6546,41 @@ async def angel_seek(
         if point_to_point_distance(tether_coord, movement_choice) > tether_length:
             return actor_location
     if message_on_movement is not None and movement_choice != actor_location:
-        close_dist, med_dist, far_dist = message_dist_thresholds
-        close_message, med_message, far_message = dist_threshold_descriptors
-        dist_to_target = distance_to_actor(actor_a=name_key, actor_b=seek_key)
-        dist_message=''
-        if dist_to_target <= close_dist:
-            dist_message = close_message
-        elif dist_to_target <= med_dist:
-            dist_message = med_message
-        elif dist_to_target <= far_dist:
-            dist_message = far_message
-        if dist_message != '':
-            message = "You hear {} from {}.".format(message_on_movement, dist_message)
-            asyncio.ensure_future(
-                append_to_log(message=message)
+        asyncio.ensure_future(
+            distance_based_message(
+                message_dist_thresholds=message_dist_thresholds,
+                dist_threshold_descriptors=dist_threshold_descriptors,
+                source_actor=name_key,
+                target_actor='player',
+                message=message_on_movement,
             )
+        )
     return movement_choice
+
+async def distance_based_message(
+    message_dist_thresholds=(5, 10, 20),
+    dist_threshold_descriptors=( 'behind you', 'close by', 'a ways away'),
+    source_actor=None,
+    target_actor='player',
+    message="distance based message!"
+):
+    if source_actor is None:
+        return
+    close_dist, med_dist, far_dist = message_dist_thresholds
+    close_message, med_message, far_message = dist_threshold_descriptors
+    dist_to_target = distance_to_actor(actor_a=source_actor, actor_b=target_actor)
+    dist_message=''
+    if dist_to_target <= close_dist:
+        dist_message = close_message
+    elif dist_to_target <= med_dist:
+        dist_message = med_message
+    elif dist_to_target <= far_dist:
+        dist_message = far_message
+    if dist_message != '':
+        message = "You hear {} from {}.".format(message, dist_message)
+        asyncio.ensure_future(
+            append_to_log(message=message)
+        )
 
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     """
