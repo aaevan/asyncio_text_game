@@ -1969,6 +1969,8 @@ async def damage_actor(
     blood=False,
     material='wood'
 ):
+    if actor_dict[actor] is None:
+        return
     if actor_dict[actor].breakable == False:
         return
     if hasattr(actor_dict[actor], 'health'):
@@ -6090,8 +6092,7 @@ async def async_map_init():
         ),
     ]
     monster_spawns = (
-       #((25, -13), 'blob'),
-       #((-4, -9), 'blob'),
+       ((23, -14), 'blob'),
        ((17, -4), 'blob'),
        ((21, -4), 'angel'),
        ((-7, -2), 'presence'),
