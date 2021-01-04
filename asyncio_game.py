@@ -6044,8 +6044,8 @@ async def async_map_init():
         loop.create_task(spawn_container(spawn_coord=coord))
     #item creation-----------------------------------------
     items = (
-        ((-3, 0), 'block wand'), 
-        ((-3, -3), 'red key'), 
+        ((5, 12), 'block wand'), 
+        ((-30, -23), 'red key'), 
         ((8, 4), 'red potion'), 
         ((18, -3), 'red potion'), 
         ((47, -31), 'red sword'), 
@@ -6053,14 +6053,14 @@ async def async_map_init():
         ((-18, -19), 'battery'), 
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
-        ((-1, -5), 'green sword'), 
+        ((1, -23), 'green sword'), 
         ((32, -5), 'green sword'), #debug
         ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
-        ((20, 1), 'green key'),
+        ((26, -13), 'green key'),
         ((26, -3), 'cell key'),
     )
     for coord, item_name in items:
@@ -7789,9 +7789,9 @@ def main():
         hatch_pair(),
         hatch_pair(origin=(40, 18)),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
-        proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
-        indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
-        alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
+        #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
+        #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
+        #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
     )
     for task in tasks:
         loop.create_task(task)
