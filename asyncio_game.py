@@ -1967,7 +1967,8 @@ async def damage_actor(
     display_above=True,
     leaves_body=False,
     blood=False,
-    material='wood'
+    material='wood',
+    descriptive_noun="the actor",
 ):
     if actor_dict[actor] is None:
         return
@@ -1990,19 +1991,22 @@ async def damage_actor(
     if actor_dict[actor].health <= 0 and actor != 'player':
         if actor_dict[actor].breakable == True:
             root_coord = actor_dict[actor].coords()
-            await spray_debris(root_coord=root_coord, preset=material)
+            await spray_debris(
+                noun=descriptive_noun, root_coord=root_coord, preset=material
+            )
             await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
 async def spray_debris(
     root_coord=(0, 0), 
+    noun="box",
     preset="wood", 
     radius=3, 
     num_seeds=6,
     color_num=8,
     template_message='Broken {}',
 ):
-    debris_dict = {'wood':('SMASH!', ',.\''),
-                   'stone':('SMASH!', '..:o')}
+    debris_dict = {'wood':('The {} shatters!'.format(noun), ',.\''),
+                   'stone':('The {} shatters!'.format(noun), '..:o')}
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
     asyncio.ensure_future(
@@ -6002,7 +6006,7 @@ async def async_map_init():
     )
     #spawn multi-tile entities-----------------------------
     mte_spawns = (
-        ((17, 1), '2x2_block'),
+        ((20, 1), '2x2_block'),
         ((11, 0), '2x2_block'),
         ((-32, 3), '2x2_block'),
         ((-28, 1), '2x2_block'),
