@@ -4189,7 +4189,7 @@ def map_init():
         ('a', 'e', 2, None, None),
         ('e', 'f', 1, None, None),
         ('d', 'j', 2, 'goo', None),
-        ('k', 'm', 2, 'grass', 'jagged'),
+        ('k', 'm', 2, 'floor', 'jagged'),
         ('n', 'o', 1, None, None),
         ('a', 'p', 2, None, None),
         ('q', 'r', 1, None, None),
