@@ -4178,7 +4178,6 @@ def map_init():
         'pool_a': Room((0, 6), 3, 'water'),
         'pool_b': Room((5, 8), 4, 'water'),
         'pool_c': Room((2, 8), 2, 'water'),
-        #'l': Room((0, 0), 100, 'grass', inner_radius=70),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -7204,9 +7203,29 @@ async def beam_spire(spawn_coord=(0, 0)):
                         )
             await asyncio.sleep(.1)
 
-async def flame_jet(
-    origin=(-9, 3),
+async def repeating_flame_jet(
+    origin=(-9, -11),
     facing='e',
+    off_interval=1,
+    on_interval=1,
+    reach=5,
+    rate=.2,
+    spread=0,
+):
+    while True:
+        await asyncio.sleep(off_interval)
+        await flame_jet(
+            origin=origin,
+            facing=facing,
+            duration=on_interval,
+            reach=reach,
+            rate=rate,
+            spread=spread,
+        )
+
+async def flame_jet(
+    origin=(-7, 10),
+    facing='nw',
     duration=1,
     reach=10,
     rate=.1,
@@ -7214,8 +7233,12 @@ async def flame_jet(
 ):
     particle_count = round(duration / rate)
     base_angle = dir_to_angle(facing)
+    with term.location(55, 0):
+        print(base_angle)
     for i in range(particle_count):
         rand_angle = randint(-spread, spread) + base_angle
+        with term.location(50, randint(0, 10)):
+            print(rand_angle)
         asyncio.ensure_future(
             fire_projectile(
                 start_coords=origin, firing_angle=rand_angle
@@ -7796,6 +7819,7 @@ def main():
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
+        repeating_flame_jet(),
     )
     for task in tasks:
         loop.create_task(task)
