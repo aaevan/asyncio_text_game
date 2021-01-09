@@ -7228,20 +7228,19 @@ async def flame_jet(
     facing='nw',
     duration=1,
     reach=10,
+    reach_spread=(4, 6),
     rate=.1,
     spread=10,
 ):
     particle_count = round(duration / rate)
     base_angle = dir_to_angle(facing)
-    with term.location(55, 0):
-        print(base_angle)
     for i in range(particle_count):
-        rand_angle = randint(-spread, spread) + base_angle
-        with term.location(50, randint(0, 10)):
-            print(rand_angle)
         asyncio.ensure_future(
             fire_projectile(
-                start_coords=origin, firing_angle=rand_angle
+                start_coords=origin, 
+                firing_angle=base_angle,
+                degree_spread=(-spread, spread),
+                radius_spread=reach_spread
             )
         )
         await asyncio.sleep(rate)
