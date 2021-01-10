@@ -4488,9 +4488,9 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (2, -41)
+        destination = (-13, -12)
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'e'
+        state_dict['facing'] = 'se'
         return
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
@@ -7205,11 +7205,11 @@ async def beam_spire(spawn_coord=(0, 0)):
 
 async def repeating_flame_jet(
     origin=(-9, -11),
-    facing='e',
+    facing='sw',
     off_interval=1,
     on_interval=1,
     reach=5,
-    rate=.2,
+    rate=.05,
     spread=0,
 ):
     while True:
