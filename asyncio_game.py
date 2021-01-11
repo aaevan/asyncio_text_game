@@ -322,6 +322,14 @@ class Animation:
                 'color_choices':'111333',
                 'background':'0111333'
             },
+            'steam':{
+                'animation':('▖▘▙▚▛▜▝▞▟'), 
+                'behavior':'random', 
+                'color_choices':
+                    [i for i in list(range(0xf2, 0xfe))],
+                'background':
+                    [i for i in list(range(0xf2, 0xfe))],
+            },
             'fire':{
                 'animation':'^∧', 
                 'behavior':'random', 
@@ -331,7 +339,8 @@ class Animation:
                 'animation':(base_tile), 
                 'behavior':'loop both',
                 'color_choices':
-                    [i for i in list(range(0xe8, 0xff, 2)) + list(range(0xff, 0xe8, -2))],
+                    [i for i in list(range(0xe8, 0xff, 2)) 
+                              + list(range(0xff, 0xe8, -2))],
             },
             'goo':{
                 'animation':('▒'), 
@@ -996,7 +1005,9 @@ async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     await asyncio.sleep(delay)
     rand_angle = randint(0, 360)
     rand_radius = randint(*radius_range)
-    start_point = actor_dict[actor_name].coords(),
+    start_point = actor_dict[actor_name].coords()
+    with term.location(55, 2):
+        print(start_point)
     end_point = add_coords(
         start_point,
         point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
@@ -2517,7 +2528,7 @@ async def spike_trap(
                 )
             elif trap_type == 'flame':
                 asyncio.ensure_future(
-                    flame_jet(
+                    particle_jet(
                         origin=(-27, 17),
                         duration=2, 
                         facing='e',
@@ -4238,8 +4249,8 @@ def map_init():
     map_dict[(25, -4)].use_action_kwargs = {}
     for cell in ((23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5)):
         paint_preset(tile_coords=cell, preset='cell bars')
-    map_dict
-
+    map_dict[(-9, -12)].tile = '╔'
+    
 def spawn_column(
     spawn_coord=(0, 0), 
     tile='┃', 
@@ -4472,8 +4483,6 @@ async def action_keypress(key):
     elif key in '9': #creates a passage in a random direction from the player
         facing_angle = dir_to_angle(state_dict['facing'])
         chain_of_arcs(starting_angle=facing_angle, start_coords=player_coords, num_arcs=5)
-    elif key in 'b': #
-        asyncio.ensure_future(rand_blink())
     elif key in 'M': #spawn an mte near the player
         spawn_coords = add_coords(player_coords, (2, 2))
         mte_id = asyncio.ensure_future(
@@ -5202,8 +5211,6 @@ def dir_to_angle(facing_dir, offset=0, mirror_ns=False):
             'n':180, 'e':90, 's':360, 'w':270,
             'ne':135, 'se':45, 'sw':315, 'nw':225
         }
-    #dirs_to_angle['n'] = 360
-    #dirs_to_angle['s'] = 180
     return (dirs_to_angle[facing_dir] + offset) % 360
 
 async def angle_swing(radius=15):
@@ -7186,7 +7193,7 @@ async def beam_spire(spawn_coord=(0, 0)):
             if player_distance < 40:
                 for i in range(10):
                     asyncio.ensure_future(
-                        fire_projectile(
+                        projectile(
                             actor_key=turret_id, firing_angle=angle
                         )
                     )
@@ -7203,27 +7210,30 @@ async def beam_spire(spawn_coord=(0, 0)):
                         )
             await asyncio.sleep(.1)
 
-async def repeating_flame_jet(
+async def repeating_particle_jet(
     origin=(-9, -11),
-    facing='sw',
+    facing='s',
     off_interval=1,
     on_interval=1,
     reach=5,
     rate=.05,
-    spread=0,
+    spread=10,
+    offset=-90,
 ):
     while True:
         await asyncio.sleep(off_interval)
-        await flame_jet(
+        await particle_jet(
             origin=origin,
             facing=facing,
             duration=on_interval,
             reach=reach,
             rate=rate,
             spread=spread,
+            offset=offset,
+            particle_preset='steam',
         )
 
-async def flame_jet(
+async def particle_jet(
     origin=(-7, 10),
     facing='nw',
     duration=1,
@@ -7231,21 +7241,24 @@ async def flame_jet(
     reach_spread=(4, 6),
     rate=.1,
     spread=10,
+    offset=0,
+    particle_preset='explosion',
 ):
     particle_count = round(duration / rate)
-    base_angle = dir_to_angle(facing)
+    base_angle = dir_to_angle(facing, mirror_ns=True) + offset
     for i in range(particle_count):
         asyncio.ensure_future(
-            fire_projectile(
+            projectile(
                 start_coords=origin, 
                 firing_angle=base_angle,
                 degree_spread=(-spread, spread),
-                radius_spread=reach_spread
+                radius_spread=reach_spread,
+                animation_preset=particle_preset,
             )
         )
         await asyncio.sleep(rate)
 
-async def fire_projectile(
+async def projectile(
     start_coords=(0, 0),
     actor_key=None,
     firing_angle=45,
@@ -7471,7 +7484,7 @@ async def move_through_coords(
     if apply_offset is True, the path starts at actor's current location.
     drag_through solid toggles whether solid obstacles stop the motion.
     """
-    steps = await path_into_steps(coord_list)
+    steps = path_into_steps(coord_list)
     for step in steps:
         actor_coords = actor_dict[actor_key].coords()
         new_position = add_coords(actor_coords, step)
@@ -7483,7 +7496,7 @@ async def move_through_coords(
             return
         await asyncio.sleep(time_between_steps)
 
-async def path_into_steps(coord_list):
+def path_into_steps(coord_list):
     """
     takes a list of coordinates and returns a series of piecewise steps to 
     shift something along that line. 
@@ -7818,7 +7831,7 @@ def main():
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
-        repeating_flame_jet(),
+        repeating_particle_jet(),
     )
     for task in tasks:
         loop.create_task(task)
