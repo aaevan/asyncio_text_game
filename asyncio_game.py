@@ -2961,6 +2961,21 @@ async def pressure_plate(
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].brightness_mod = brightness_mod[0]
 
+def passive_pressure_plate(
+    tile='░',
+    spawn_coord=(4, 0), 
+    patch_to_key='switch_1',
+    off_delay=.5, 
+    test_rate=.1,
+    positives=None,
+    sound_choice='default',
+    brightness_mod=(2, -2),
+):
+    #TODO: see teleporter for template on "run_on_entry" usage
+
+def passive_pressure_plate_loop():
+    pass
+
 async def puzzle_pair(
     block_coord=(-10, -10),
     plate_coord=(-10, -7),
@@ -7216,7 +7231,7 @@ async def repeating_particle_jet(
     off_interval=1,
     on_interval=1,
     reach=5,
-    rate=.05,
+    rate=.09,
     spread=10,
     offset=-90,
 ):
