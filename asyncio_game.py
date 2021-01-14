@@ -18,6 +18,9 @@ from random import randint, choice, gauss, random, shuffle
 from subprocess import call
 from time import sleep
 
+#TODO: a way to create whole puzzle rooms in one command
+#TODO: a way to randomly generate a series of puzzle rooms??
+
 #Class definitions--------------------------------------------------------------
 class Map_tile:
     """ 
@@ -2536,7 +2539,7 @@ async def spike_trap(
                     )
                 )
 
-async def check_actors_on_tile(coords=(0, 0), positives=''):
+def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
     for actor in actors_on_square:
         for weight in positives:
@@ -2945,7 +2948,7 @@ async def pressure_plate(
     triggered = False
     while True:
         await asyncio.sleep(test_rate)
-        positive_result = await check_actors_on_tile(
+        positive_result = check_actors_on_tile(
             coords=spawn_coord, positives=positives
         )
         if positive_result:
@@ -2972,9 +2975,34 @@ def passive_pressure_plate(
     brightness_mod=(2, -2),
 ):
     #TODO: see teleporter for template on "run_on_entry" usage
-
-def passive_pressure_plate_loop():
     pass
+
+async def pressure_plate_loop(
+    test_rate=.1,
+    off_delay=.5,
+):
+    """
+    called by a tile set up by passive_pressure_plate
+    """
+    exit_condition = False
+    triggered = False
+    while not exit_condition:
+        positive_result = check_actors_on_tile(
+            coords=spawn_coord, positives=positives
+        )
+        if positive_result:
+            if not triggered and sound_choice is not None:
+                await append_to_log(message=sound_effects[sound_choice])
+            triggered = True
+            map_dict[spawn_coord].brightness_mod = brightness_mod[1]
+            state_dict[patch_to_key][plate_id] = True
+            if off_delay:
+                await asyncio.sleep(off_delay)
+        else:
+            triggered = False
+            state_dict[patch_to_key][plate_id] = False
+            map_dict[spawn_coord].brightness_mod = brightness_mod[0]
+        await asyncio.sleep(test_rate)
 
 async def puzzle_pair(
     block_coord=(-10, -10),
@@ -3899,7 +3927,6 @@ def room_with_door(
         per_level_offset=per_level_offset,
         z_level=z_level
     ) for coord in (wall_coord, room_center)]
-    print(offset_door_coord, offset_room_center)
     n_wide_passage(
         coord_a=offset_door_coord,
         coord_b=offset_room_center,
