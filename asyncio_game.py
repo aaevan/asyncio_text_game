@@ -2798,7 +2798,7 @@ async def teleporting_hatch(
 async def teleporter(
     tile='X',
     spawn_coord=(1, 1),
-    destination_coords=(1, -9),
+    destination_coords=(1, -6),
     description="What happens if you step on it?",
     magic_door_view=True,
 ):
@@ -2813,6 +2813,30 @@ async def teleporter(
         'destination':destination_coords,
         'delay':0,
     }
+
+async def broken_steam_pipe(
+    pipe_char='╚',
+    facing='e',
+    pipe_coord=(0, -10),
+    steam_source=(1, -10),
+    off_interval=3,
+    start_delay=.5,
+    angle_spread=10
+):
+    #todo: a lookup table to pair wall coord with an elbow
+    map_dict[pipe_coord].tile = '╚'
+    map_dict[pipe_coord].description = (
+        'A jagged pipe periodically spewing steam.'
+    )
+    asyncio.ensure_future(
+        repeating_particle_jet(
+            start_delay=start_delay,
+            origin=steam_source,
+            facing=facing,
+            off_interval=off_interval,
+            angle_spread=angle_spread,
+        )
+    )
 
 async def indicator_lamp(
     tiles=('◉','◉'), #○
@@ -4292,6 +4316,7 @@ def map_init():
     for cell in ((23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5)):
         paint_preset(tile_coords=cell, preset='cell bars')
     map_dict[(-9, -12)].tile = '╔'
+    map_dict[(-13, -10)].tile = '╝'
     
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -7257,32 +7282,36 @@ async def repeating_particle_jet(
     facing='s',
     off_interval=1,
     on_interval=1,
-    reach=5,
+    radius=5,
     rate=.09,
-    spread=10,
+    angle_spread=10,
     offset=-90,
+    radius_spread=(0, 2),
+    start_delay=0
 ):
+    await asyncio.sleep(start_delay)
     while True:
         await asyncio.sleep(off_interval)
         await particle_jet(
             origin=origin,
             facing=facing,
             duration=on_interval,
-            reach=reach,
+            radius=radius,
             rate=rate,
-            spread=spread,
+            angle_spread=angle_spread,
             offset=offset,
             particle_preset='steam',
+            radius_spread=radius_spread
         )
 
 async def particle_jet(
     origin=(-7, 10),
     facing='nw',
     duration=1,
-    reach=10,
-    reach_spread=(4, 6),
+    radius=10,
+    radius_spread=(0, 2),
     rate=.1,
-    spread=10,
+    angle_spread=10,
     offset=0,
     particle_preset='explosion',
 ):
@@ -7291,10 +7320,11 @@ async def particle_jet(
     for i in range(particle_count):
         asyncio.ensure_future(
             projectile(
+                radius=radius,
                 start_coords=origin, 
                 firing_angle=base_angle,
-                degree_spread=(-spread, spread),
-                radius_spread=reach_spread,
+                angle_spread=(-angle_spread, angle_spread),
+                radius_spread=radius_spread,
                 animation_preset=particle_preset,
             )
         )
@@ -7305,13 +7335,13 @@ async def projectile(
     actor_key=None,
     firing_angle=45,
     radius=10, 
-    radius_spread=(10, 14),
-    degree_spread=(-30, 30),
+    radius_spread=(0, 4),
+    angle_spread=(-30, 30),
     damage=5,
     animation_preset='explosion'
 ):
     rand_radius = randint(*radius_spread) + radius
-    rand_angle = randint(*degree_spread) + firing_angle
+    rand_angle = randint(*angle_spread) + firing_angle
     if actor_key is not None:
         start_coords = actor_dict[actor_key].coords()
     x_shift, y_shift = point_given_angle_and_radius(
@@ -7865,8 +7895,8 @@ def main():
         door_init(loop),
         async_map_init(),
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
-        teleporter(spawn_coord=(1, 1), destination_coords=(1, -9)),
-        teleporter(spawn_coord=(1, -9), destination_coords=(1, 1)),
+        teleporter(spawn_coord=(1, 1), destination_coords=(1, -6)),
+        teleporter(spawn_coord=(1, -6), destination_coords=(1, 1)),
         hatch_pair(),
         hatch_pair(origin=(40, 18)),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
@@ -7874,6 +7904,16 @@ def main():
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
         repeating_particle_jet(),
+        repeating_particle_jet(start_delay=1, origin=(-13, -11), facing='n'),
+        broken_steam_pipe(
+            pipe_char='╚',
+            pipe_coord=(0, -10),
+            start_delay=.5,
+            steam_source=(1, -10), 
+            facing='e',
+            off_interval=3,
+            angle_spread=10,
+        ),
     )
     for task in tasks:
         loop.create_task(task)
