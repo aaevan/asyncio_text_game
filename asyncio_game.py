@@ -2823,7 +2823,22 @@ async def broken_steam_pipe(
     start_delay=.5,
     angle_spread=10
 ):
-    #todo: a lookup table to pair wall coord with an elbow
+    #TODO: a lookup table to pair wall coord with an elbow
+    #TODO: a way to adjust the background color of a tile according to the distance
+    tile_dirs = {
+        ('w', 's'):'╔',
+        ('n', 'e'):'╔',
+        ('e', 's'):'╗',
+        ('n', 'w'):'╗',
+        ('s', 'e'):'╚',
+        ('w', 'n'):'╚',
+        ('e', 'n'):'╝',
+        ('s', 'w'):'╝',
+        ('e', 'e'):'═',
+        ('w', 'w'):'═',
+        ('s', 's'):'║',
+        ('n', 'n'):'║',
+    }
     map_dict[pipe_coord].tile = '╚'
     map_dict[pipe_coord].description = (
         'A jagged pipe periodically spewing steam.'
