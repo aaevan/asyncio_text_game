@@ -1408,34 +1408,6 @@ def angle_in_arc(given_angle, arc_begin=45, arc_end=135):
     result = arc_begin < given_angle < arc_end
     return result
 
-def points_around_point(
-    radius=5,
-    radius_spread=2,
-    middle_point=(0, 0),
-    in_cone=(0, 90),
-    num_points=5
-):
-    """
-    returns a number of points fanned out around a middle point.
-    given a non-zero radius_spread value, the points will be at a random radius
-    centered on radius. 
-    
-    example: radius 5, radius_spread 2 becomes 5 +/- 2 or randint(3, 7)
-    if in_cone is not None, the returned points are restricted to an arc.
-    """
-    #TODO: possibly useful for arc of blood in opposite direction from attack
-    points = []
-    radius_range = (radius - radius_spread, radius + radius_spread)
-    for _ in range(num_points):
-        rand_angle = randint(*in_cone)
-        rand_radius = randint(*radius_range)
-        points.append(
-            point_given_angle_and_radius(
-                angle=rand_angle, radius=rand_radius
-            )
-        )
-    return points
-
 def get_points_along_line(
     start_point=(0, 0), end_point=(10, 10), num_points=5
 ):
@@ -4549,10 +4521,6 @@ async def action_keypress(key):
         asyncio.ensure_future( add_uses_to_chosen_item())
     elif key in 'F': #fill screen with random colors
         fill_screen_with_colors()
-    elif key in 'Z': #test out points_around_point and write result to map_dict
-        points = points_around_point()
-        for point in points:
-            map_dict[add_coords(point, player_coords)].tile = '$'
     elif key in '(':
         spawn_coord = player_coords
         vine_name = "testing"
