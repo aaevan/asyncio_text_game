@@ -2787,17 +2787,15 @@ async def teleporter(
     }
 
 async def broken_steam_pipe(
-    pipe_char='╚',
-    facing='e',
+    pipe_dirs=('s', 'e'),
     pipe_coord=(0, -10),
-    steam_source=(1, -10),
     off_interval=3,
     start_delay=.5,
     angle_spread=10
 ):
-    #TODO: a lookup table to pair wall coord with an elbow
     #TODO: a way to adjust the background color of a tile according to the distance
-    tile_dirs = {
+    #different tilesets?
+    pipe_chars_from_dirs = {
         ('w', 's'):'╔',
         ('n', 'e'):'╔',
         ('e', 's'):'╗',
@@ -2811,7 +2809,10 @@ async def broken_steam_pipe(
         ('s', 's'):'║',
         ('n', 'n'):'║',
     }
-    map_dict[pipe_coord].tile = '╚'
+    pipe_char = pipe_chars_from_dirs[pipe_dirs]
+    facing = pipe_dirs[1]
+    steam_source = add_coords(pipe_coord, dir_to_offset(facing))
+    map_dict[pipe_coord].tile = pipe_char
     map_dict[pipe_coord].description = (
         'A jagged pipe periodically spewing steam.'
     )
@@ -4302,8 +4303,6 @@ def map_init():
     map_dict[(25, -4)].use_action_kwargs = {}
     for cell in ((23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5)):
         paint_preset(tile_coords=cell, preset='cell bars')
-    map_dict[(-9, -12)].tile = '╔'
-    map_dict[(-13, -10)].tile = '╝'
     
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -7886,16 +7885,12 @@ def main():
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
-        repeating_particle_jet(),
-        repeating_particle_jet(start_delay=1, origin=(-13, -11), facing='n'),
+        broken_steam_pipe(),
         broken_steam_pipe(
-            pipe_char='╚',
-            pipe_coord=(0, -10),
-            start_delay=.5,
-            steam_source=(1, -10), 
-            facing='e',
-            off_interval=3,
-            angle_spread=10,
+            pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
+        ),
+        broken_steam_pipe(
+            pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
         ),
     )
     for task in tasks:
