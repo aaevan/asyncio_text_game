@@ -1070,7 +1070,7 @@ def brightness_test(print_coord=(110, 32)):
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
-brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
+#brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -1085,6 +1085,12 @@ actor_dict['player'] = Actor(
     health=100,
     breakable=True,
 )
+
+def brightness_val(index, get_length=False):
+    brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
+    if get_length:
+        return len(brightness_vals)
+    return brightness_vals[index]
 
 #Drawing functions--------------------------------------------------------------
 def tile_preset(preset='floor'):
@@ -2814,7 +2820,7 @@ async def broken_steam_pipe(
     steam_source = add_coords(pipe_coord, dir_to_offset(facing))
     map_dict[pipe_coord].tile = pipe_char
     map_dict[pipe_coord].description = (
-        'A jagged pipe periodically spewing steam.'
+        'A jagged pipe periodically spews steam.'
     )
     asyncio.ensure_future(
         repeating_particle_jet(
@@ -5496,6 +5502,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         angle_from_twelve = 360 - angle_from_twelve
     display = False
     player_coords = actor_dict['player'].coords()
+
     while True:
         state_dict["view_tile_count"] += 1
         await asyncio.sleep(distance * .0075 + .05 + random() * .1) #update speed
@@ -5572,16 +5579,20 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             brightness_mod = map_dict[tile_coord_key].brightness_mod
             tile_brightness = get_brightness(distance, brightness_mod)
             if not state_dict['lock view']:
-                color_tuple = brightness_vals[int(tile_brightness)]
+                color_tuple = brightness_val(int(tile_brightness))
             else:
                 #if view locked, display a slightly fuzzy but uniform view:
-                color_tuple = brightness_vals[9 + randint(-2, 2)]
+                color_tuple = brightness_val(9 + randint(-2, 2))
             if print_choice in ('░', '▞', '𝄛', '■', '▣'):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
         with term.location(*print_location):
             print(print_choice)
+            #TODO: apply tile brightness to background color of tiles.
+            #brightness_mod = map_dict[tile_coord_key].brightness_mod
+            #tile_brightness = get_brightness(distance, brightness_mod)
+            #print(term.on_color(tile_brightness)(print_choice))
         last_print_choice = print_choice
 
 def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100):
@@ -5593,14 +5604,14 @@ def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100
 
     The greyscale values lie between 0xe8 (near-black) and 0x100 (white)
     """
-    brightness_val = int(round(
+    brightness_value = int(round(
         -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75, 1
     ))
-    if brightness_val <= 0:
+    if brightness_value <= 0:
         return 0
-    elif brightness_val >= len(brightness_vals) - 1:
-        return len(brightness_vals) - 1
-    return brightness_val
+    elif brightness_value >= brightness_val(0, get_length=True) - 1:
+        return brightness_val(0, get_length=True) - 1
+    return brightness_value
 
 async def check_contents_of_tile(coord):
     #TODO: clean up some of these very different return values
