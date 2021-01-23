@@ -5589,13 +5589,9 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 print_choice = term.color(tile_color)(print_choice)
         with term.location(*print_location):
             print(print_choice)
-            #TODO: apply tile brightness to background color of tiles.
-            #brightness_mod = map_dict[tile_coord_key].brightness_mod
-            #tile_brightness = get_brightness(distance, brightness_mod)
-            #print(term.on_color(tile_brightness)(print_choice))
         last_print_choice = print_choice
 
-def get_brightness(distance, brightness_mod, lower_limit=0xe8, upper_limit=0x100):
+def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0x100):
     """
     brighness falls off according to the below equation
 
@@ -6596,6 +6592,7 @@ async def angel_seek(
         'close by',
         'a ways away',
     ),
+    wipe_walked_memory=False,
 ):
     """
     Seeks only when the player isn't looking.
@@ -6626,6 +6623,8 @@ async def angel_seek(
                 message=message_on_movement,
             )
         )
+    if wipe_walked_memory:
+        map_dict[movement_choice].seen = False
     return movement_choice
 
 async def distance_based_message(
@@ -7724,7 +7723,8 @@ async def spawn_preset_actor(
                 movement_function_kwargs={
                     'walk_through_walls':True,
                     'tether_coord':coords,
-                    'message_on_movement':'a buzzing noise'
+                    'message_on_movement':'a buzzing noise',
+                    'wipe_walked_memory':True,
                 }, 
                 tile='●',
                 name_key=name,
