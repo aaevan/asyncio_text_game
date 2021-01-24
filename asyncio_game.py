@@ -1164,7 +1164,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile=' ',
             blocking=False,
             passable=False,
-            description='A gaping void',
+            description='A yawning abyss.',
             magic=False,
             is_animated=False
         ),
@@ -2820,7 +2820,7 @@ async def broken_steam_pipe(
     steam_source = add_coords(pipe_coord, dir_to_offset(facing))
     map_dict[pipe_coord].tile = pipe_char
     map_dict[pipe_coord].description = (
-        'A jagged pipe periodically spews steam.'
+        'The broken pipe spews gouts of hot steam.'
     )
     asyncio.ensure_future(
         repeating_particle_jet(
@@ -6599,7 +6599,7 @@ async def angel_seek(
     """
     actor_location = actor_dict[name_key].coords()
     within_fov = check_point_within_arc(
-        checked_point=actor_location, arc_width=120
+        checked_point=actor_location, arc_width=150
     )
     if within_fov:
         return actor_location
@@ -6614,15 +6614,16 @@ async def angel_seek(
         if point_to_point_distance(tether_coord, movement_choice) > tether_length:
             return actor_location
     if message_on_movement is not None and movement_choice != actor_location:
-        asyncio.ensure_future(
-            distance_based_message(
-                message_dist_thresholds=message_dist_thresholds,
-                dist_threshold_descriptors=dist_threshold_descriptors,
-                source_actor=name_key,
-                target_actor='player',
-                message=message_on_movement,
+        if random() > .9:
+            asyncio.ensure_future(
+                distance_based_message(
+                    message_dist_thresholds=message_dist_thresholds,
+                    dist_threshold_descriptors=dist_threshold_descriptors,
+                    source_actor=name_key,
+                    target_actor='player',
+                    message=message_on_movement,
+                )
             )
-        )
     if wipe_walked_memory:
         map_dict[movement_choice].seen = False
     return movement_choice
@@ -7347,7 +7348,8 @@ async def projectile(
         damage=damage, 
         animation=Animation(preset=animation_preset), 
         ignore_head=True,
-        source_actor=actor_key
+        source_actor=actor_key,
+        description="A cloud of scalding steam!"
     )
 
 def point_given_angle_and_radius(angle=0, radius=10):
@@ -7400,6 +7402,7 @@ async def travel_along_line(
     no_clip=True,
     source_actor=None,
     always_visible=False,
+    description="A cloud of scalding steam!"
 ):
     points = get_line(start_coords, end_coords)
     if no_clip:
@@ -7422,7 +7425,8 @@ async def travel_along_line(
         tile=tile,
         moveable=False,
         is_animated=is_animated,
-        animation=animation
+        animation=animation,
+        description=description,
     )
     map_dict[start_coords].actors[particle_id] = True
     last_location = points[0]
@@ -7708,6 +7712,8 @@ async def spawn_preset_actor(
                 health=200,
             )
         )
+    #TODO: enemy that is only seen by its trail through your remembered tiles
+    #      puts random tiles in place of previous memory?
     elif preset == 'presence':
         #todo: drop an item that allows walking through walls
         item_drops = ['health potion']
