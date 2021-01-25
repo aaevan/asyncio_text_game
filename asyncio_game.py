@@ -3433,10 +3433,11 @@ async def temp_view_circle(
 #TODO: items that are used immediately upon pickup
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=False):
+    #TODO: move item picture to inside of item definitions
     wand_broken_text = ' is out of charges.'
     possible_items = (
         'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
-        'shiny stone', 'shift amulet', 'red sword', 'vine wand',
+        'shiny stone', 'shift amulet', 'red spike', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
         'rusty key', 'looking glass'
     )
@@ -3553,10 +3554,10 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'usable_power':pass_between,
             'broken_text':'Something went wrong.'
         },
-        'red sword':{
+        'red spike':{
             'uses':-1,
             'tile':term.red('ļ'),
-            'power_kwargs':{'length':9, 'speed':.1},
+            'power_kwargs':{'length':4, 'speed':.07},
             'usable_power':sword_item_ability,
             'broken_text':'Something went wrong.',
             'use_message':None
@@ -4552,9 +4553,10 @@ async def action_keypress(key):
         test_room = cave_room()
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        destination = (-13, -12)
+        #destination = (-13, -12) #near steam vents
+        destination = (45, -31) #near red spike
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'se'
+        state_dict['facing'] = 'e'
         return
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
@@ -4723,7 +4725,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│╱  │',
             '└───┘',
         ),
-        'red sword':(
+        'red spike':(
             '┌───┐',
             '│  {}│'.format(term.red('╱')),
             '│ {} │'.format(term.red('╱')),
@@ -6114,7 +6116,7 @@ async def async_map_init():
         ((-30, -23), 'red key'), 
         ((8, 4), 'red potion'), 
         ((18, -3), 'red potion'), 
-        ((47, -31), 'red sword'), 
+        ((47, -31), 'red spike'), 
         ((-21, -18), 'blaster'), 
         ((-18, -19), 'battery'), 
         ((23, -13), 'battery'), 
