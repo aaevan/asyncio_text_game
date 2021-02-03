@@ -4419,9 +4419,6 @@ async def get_key(map_dict, help_wait_count=100):
     finally: 
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) 
 
-async def handle_movement(map_dict, key):
-    pass
-
 async def handle_exit(key):
     middle_x, middle_y = (int(term.width / 2 - 2), 
                           int(term.height / 2 - 2),)
@@ -4438,6 +4435,40 @@ async def handle_exit(key):
             print(' ' * len(quit_question_text))
         state_dict['exiting'] = False
 
+async def free_look(
+    key,
+    starting_angle=None,
+    cursor_location=None,
+    persistent_values={
+        'look angle'=0,
+        'cursor location'=(0, 0),
+    }
+):
+    """
+    causes a cursor to appear, controlled by ijkl
+    exit if key is not ijkl or x
+
+    ijkl moves cursor.
+    x examines highlighted square.
+
+    update facing angle
+
+    on return, rounds 'current_angle' value to the nearest 8th rotation
+    and sets facing dir to that rounded (to nearest 45?) value.
+    """
+    if starting_angle is not None and type(starting_angle) == int:
+        persistent_values['look angle'] = starting_angle
+    if cursor_location is not None and type(cursor_location) == tuple:
+        persistent_values['cursor location'] = cursor_location
+    state_dict['current_angle'] = current_angle
+    if key not in 'ijkluom.x'
+        state_dict['looking'] = False
+    elif key in 'ijkluom.':
+        offset = key_to_offset(key)
+            #current_value = persistent_values['cursor location']
+            #next_value = add_coords(current_value, (
+            #persistent_values['cursor location'] = add_coords(
+
 def key_to_compass(key):
     key_to_compass_char = {
         'w':'n', 'a':'w', 's':'s', 'd':'e', 
@@ -4449,6 +4480,9 @@ def key_to_compass(key):
         ',':'s', '>':'s',
     }
     return key_to_compass_char[key]
+
+def key_to_offset(key):
+    return dir_to_offset(key_to_compass(key))
 
 async def menu_keypress(key):
     if key in '0123456789abcdef':
@@ -4585,6 +4619,8 @@ async def handle_input(map_dict, key):
         await menu_keypress(key)
     elif state_dict['exiting'] == True:
         await handle_exit(key)
+    elif state_dict['looking'] == True:
+        await free_look(key)
     else:
         await action_keypress(key)
 
