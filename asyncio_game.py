@@ -4439,9 +4439,10 @@ async def free_look(
     key,
     starting_angle=None,
     cursor_location=None,
-    persistent_values={
-        'look angle'=0,
-        'cursor location'=(0, 0),
+    static_vars={
+        'look_angle':0,
+        'cursor_location':(0, 0),
+        'cursor_actor_coord':(0, 0),
     }
 ):
     """
@@ -4455,20 +4456,32 @@ async def free_look(
 
     on return, rounds 'current_angle' value to the nearest 8th rotation
     and sets facing dir to that rounded (to nearest 45?) value.
+
+    have some help text appear when this mode is activated
+
+    cursor location is given as an offset from the current location of the player.
+
+    if a tile cannot be seen, description should be "hidden"?
     """
+    center_term_coord = offset_of_center(static_vars['cursor_location'])
+    player_coord = actor_dict['player'].coords()
+    describe_coord = add_coords(center_term_coord, player_coord)
     if starting_angle is not None and type(starting_angle) == int:
-        persistent_values['look angle'] = starting_angle
+        static_vars['look_angle'] = starting_angle
     if cursor_location is not None and type(cursor_location) == tuple:
-        persistent_values['cursor location'] = cursor_location
+        static_vars['cursor_location'] = cursor_location
     state_dict['current_angle'] = current_angle
-    if key not in 'ijkluom.x'
+    if key not in 'ijkluom.x':
         state_dict['looking'] = False
     elif key in 'ijkluom.':
         offset = key_to_offset(key)
-            #current_value = persistent_values['cursor location']
-            #next_value = add_coords(current_value, (
-            #persistent_values['cursor location'] = add_coords(
-
+        current_value = static_vars['cursor_location']
+        next_value = add_coords(current_value, offset)
+        static_vars['cursor_location'] = next_value
+    elif key in 'xX':
+        pass
+        #update location of cursor actor??
+    
 def key_to_compass(key):
     key_to_compass_char = {
         'w':'n', 'a':'w', 's':'s', 'd':'e', 
@@ -4519,7 +4532,7 @@ async def action_keypress(key):
     elif key in '?':
             await display_help() 
     elif key in 'Xx': #examine
-        asyncio.ensure_future(examine_facing())
+        asyncio.ensure_future(examine_tile())
     elif key in ' ': #toggle doors
         asyncio.ensure_future(use_action())
         await toggle_doors()
@@ -4630,8 +4643,9 @@ def get_facing_coord():
     facing_coord = add_coords(player_coords, facing_offset)
     return facing_coord
 
-async def examine_facing():
-    examined_coord = get_facing_coord()
+async def examine_tile(examined_coord=None):
+    if examined_coord is None:
+        examined_coord = get_facing_coord()
     #add descriptions for actors
     is_secret = False
     has_visible_actor = False
