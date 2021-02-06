@@ -4463,14 +4463,19 @@ async def free_look(
 
     if a tile cannot be seen, description should be "hidden"?
     """
-    center_term_coord = offset_of_center(static_vars['cursor_location'])
+    actual_print_location = offset_of_center(static_vars['cursor_location'])
     player_coord = actor_dict['player'].coords()
-    describe_coord = add_coords(center_term_coord, player_coord)
+    describe_coord = add_coords(static_vars['cursor_location'], player_coord)
+    with term.location(55, 0):
+        print("printing cursor at coord: {}  ".format(actual_print_location))
+    asyncio.ensure_future(
+        cursor_background(actual_print_location)
+    )
     if starting_angle is not None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
     if cursor_location is not None and type(cursor_location) == tuple:
         static_vars['cursor_location'] = cursor_location
-    state_dict['current_angle'] = current_angle
+    #state_dict['current_angle'] = current_angle
     if key not in 'ijkluom.x':
         state_dict['looking'] = False
     elif key in 'ijkluom.':
@@ -4479,8 +4484,17 @@ async def free_look(
         next_value = add_coords(current_value, offset)
         static_vars['cursor_location'] = next_value
     elif key in 'xX':
+        asyncio.ensure_future(examine_tile())
         pass
         #update location of cursor actor??
+
+async def cursor_background(cursor_location):
+    with term.location(*cursor_location):
+        print('╳')
+    await asyncio.sleep(.1)
+    with term.location(*cursor_location):
+        print(' ')
+    await asyncio.sleep(.1)
     
 def key_to_compass(key):
     key_to_compass_char = {
@@ -4531,8 +4545,10 @@ async def action_keypress(key):
         state_dict['facing'] = key_to_compass(key)
     elif key in '?':
             await display_help() 
-    elif key in 'Xx': #examine
+    elif key in 'x': #examine
         asyncio.ensure_future(examine_tile())
+    elif key in 'X': #examine
+        state_dict['looking'] = True
     elif key in ' ': #toggle doors
         asyncio.ensure_future(use_action())
         await toggle_doors()
@@ -4947,8 +4963,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=45, height=10, x_margin=1, y_margin=15, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5068,7 +5084,7 @@ async def key_slot_checker(
         else:
             item_name = 'empty'
         if centered:
-            x_coord, y_coord = offset_of_center(*print_location)
+            x_coord, y_coord = offset_of_center(print_location)
         else:
             x_coord, y_coord = print_location
         with term.location(x_coord + 2, y_coord + 5):
@@ -5379,7 +5395,7 @@ async def display_help():
     """
     displays controls at an unused part of the screen.
     """
-    x_offset, y_offset = offset_of_center(x_offset=-15, y_offset=-5)
+    x_offset, y_offset = offset_of_center((-15, -5))
     help_text = (
         " wasd: move/push          ",
         " WASD: run (no pushing)   ",
@@ -5690,7 +5706,8 @@ async def check_contents_of_tile(coord):
         else:
             return map_dict[coord].tile
 
-def offset_of_center(x_offset=0, y_offset=0):
+def offset_of_center(coord):
+    x_offset, y_offset = coord
     window_width, window_height = term.width, term.height
     middle_x, middle_y = (
         int(window_width / 2 - 2), 
@@ -6399,8 +6416,8 @@ async def ui_setup():
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
     loop.create_task(console_box())
-    loop.create_task(display_items_at_coord())
-    loop.create_task(display_items_on_actor())
+    #loop.create_task(display_items_at_coord()) #DEBUG
+    #loop.create_task(display_items_on_actor()) #DEBUG
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     #loop.create_task(tile_debug_info())
