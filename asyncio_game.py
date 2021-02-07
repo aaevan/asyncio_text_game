@@ -2668,6 +2668,7 @@ async def use_action_fork(
         (test_print_at_coord, True, {'message':'use_action_fork func 3! {}', 'coord':(55, 2)}),
     ]
 ):
+    #TODO: come back to this idea!
     """
     func_list is a list of functions with all the things they need.
     each item in func_list will give:
@@ -4401,7 +4402,8 @@ async def get_key(map_dict, help_wait_count=100):
                 if key is not None:
                     player_health = actor_dict["player"].health
                     if player_health > 0:
-                        await handle_input(map_dict, key)
+                        asyncio.ensure_future(handle_input(map_dict, key))
+                        #await handle_input(map_dict, key)
             if old_key == key:
                 state_dict['same_count'] += 1
             else:
@@ -4463,39 +4465,57 @@ async def free_look(
 
     if a tile cannot be seen, description should be "hidden"?
     """
-    actual_print_location = offset_of_center(static_vars['cursor_location'])
+    blocked_message = "Your view is blocked!"
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
-    with term.location(55, 0):
-        print("printing cursor at coord: {}  ".format(actual_print_location))
-    asyncio.ensure_future(
-        cursor_background(actual_print_location)
-    )
     if starting_angle is not None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
     if cursor_location is not None and type(cursor_location) == tuple:
         static_vars['cursor_location'] = cursor_location
-    #state_dict['current_angle'] = current_angle
+    debounce = False
     if key not in 'ijkluom.x':
         state_dict['looking'] = False
+        static_vars['cursor_location'] = (0, 0)
+        debounce = True
+        asyncio.ensure_future(
+            append_to_log(message=blocked_message)
+        )
+        return key
     elif key in 'ijkluom.':
         offset = key_to_offset(key)
         current_value = static_vars['cursor_location']
         next_value = add_coords(current_value, offset)
         static_vars['cursor_location'] = next_value
-    elif key in 'xX':
-        asyncio.ensure_future(examine_tile())
-        pass
-        #update location of cursor actor??
+        debounce = True
+    elif key in 'x':
+        can_see = await check_line_of_sight(player_coord, describe_coord)
+        if can_see:
+            asyncio.ensure_future(examine_tile(describe_coord))
+        #TODO: add an option to make things seen but not in LOS 
+        #      have different description text
+        #elif not can_see and map_dict[describe_coord].seen:
+            #asyncio.ensure_future(examine_tile("You remember seeing" + describe_coord))
+        else:
+            asyncio.ensure_future(
+                append_to_log(message=blocked_message)
+            )
+        debounce = True
+    elif key in '?':
+        await display_help(mode="looking") 
+        debounce = True
+    actual_print_location = offset_of_center(static_vars['cursor_location'])
+    asyncio.ensure_future(
+        fade_print(
+            output_text='╳',
+            print_coord=actual_print_location,
+            fade_delay=0,
+            step_delay=.02,
+        )
+    )
+    if debounce:
+        await asyncio.sleep(1)
+    return None
 
-async def cursor_background(cursor_location):
-    with term.location(*cursor_location):
-        print('╳')
-    await asyncio.sleep(.1)
-    with term.location(*cursor_location):
-        print(' ')
-    await asyncio.sleep(.1)
-    
 def key_to_compass(key):
     key_to_compass_char = {
         'w':'n', 'a':'w', 's':'s', 'd':'e', 
@@ -4544,11 +4564,13 @@ async def action_keypress(key):
     elif key in "ijklIJKLuom.UOM>,<": #change viewing direction
         state_dict['facing'] = key_to_compass(key)
     elif key in '?':
-            await display_help() 
+        await display_help() 
     elif key in 'x': #examine
         asyncio.ensure_future(examine_tile())
     elif key in 'X': #examine
         state_dict['looking'] = True
+        #append_to_log(message=blocked_message)
+        await display_help(mode="looking") 
     elif key in ' ': #toggle doors
         asyncio.ensure_future(use_action())
         await toggle_doors()
@@ -4649,7 +4671,9 @@ async def handle_input(map_dict, key):
     elif state_dict['exiting'] == True:
         await handle_exit(key)
     elif state_dict['looking'] == True:
-        await free_look(key)
+        return_val = await free_look(key)
+        if return_val is not None:
+            await action_keypress(return_val)
     else:
         await action_keypress(key)
 
@@ -4963,8 +4987,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5391,12 +5415,12 @@ async def crosshairs(
         await asyncio.sleep(refresh_delay)
 #UI/HUD functions---------------------------------------------------------------
 
-async def display_help():
+async def display_help(mode="normal"):
     """
     displays controls at an unused part of the screen.
     """
     x_offset, y_offset = offset_of_center((-15, -5))
-    help_text = (
+    help_text_normal = (
         " wasd: move/push          ",
         " WASD: run (no pushing)   ",
         "space: open/close/interact",
@@ -5412,6 +5436,15 @@ async def display_help():
         "bkspc: quit dialog (y/n)  ",
         "    ?: open this message  ",
     )
+    help_text_looking = (
+        " ijkl: move cursor        ",
+        "    x: describe tile      ",
+        "other: exit look mode     ",
+    )
+    if mode == "normal":
+        help_text = help_text_normal
+    elif mode == "looking":
+        help_text = help_text_looking
     for line_number, line in enumerate(help_text):
         x_print_coord, y_print_coord = 0, 0
         asyncio.ensure_future(
@@ -5898,7 +5931,6 @@ async def directional_alert(
 async def fade_print(
     output_text="This is a test", 
     print_coord=(55, 0),
-    fade_step=1, 
     fade_range=(0xe8, 0xff),
     fade_delay=.5, #how long to wait before starting to fade text
     step_delay=.05, #how long between each step through the range
@@ -6416,8 +6448,8 @@ async def ui_setup():
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
     loop.create_task(console_box())
-    #loop.create_task(display_items_at_coord()) #DEBUG
-    #loop.create_task(display_items_on_actor()) #DEBUG
+    loop.create_task(display_items_at_coord()) #DEBUG
+    loop.create_task(display_items_on_actor()) #DEBUG
     loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
     loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
     #loop.create_task(tile_debug_info())
