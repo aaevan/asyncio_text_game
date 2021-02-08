@@ -4447,6 +4447,8 @@ async def free_look(
         'cursor_actor_coord':(0, 0),
     }
 ):
+    #TODO: limit the distance away a tile can be examined
+    #      OR exit when edge of view tiles is reached with cursor
     """
     causes a cursor to appear, controlled by ijkl
     exit if key is not ijkl or x
@@ -4514,15 +4516,24 @@ async def free_look(
     )
     if debounce:
         await asyncio.sleep(1)
-    state_dict['current_angle'] = (
-        180 - angle_point_to_point(
+    facing_angle = round_to_nearest_n(
+        value=angle_point_to_point(
             coord_a=player_coord,
             coord_b=describe_coord,
-        )
+        ), 
+        nearest_n=45
     )
     with term.location(55, 0):
-        print("current_angle:", state_dict['current_angle'], 360 - state_dict['current_angle'])
+        print("facing_angle: {}    ".format(facing_angle))
+    state_dict['facing'] = angle_to_dir(facing_angle)
     return None
+
+def round_to_nearest_n(value=123, nearest_n=25):
+    nearest_n = abs(nearest_n)
+    if nearest_n >= 1:
+        return round(value / nearest_n) * nearest_n
+    if nearest_n < 1:
+        return round(value * (1 / nearest_n)) / (1 / nearest_n)
 
 def key_to_compass(key):
     key_to_compass_char = {
@@ -5354,28 +5365,38 @@ def point_at_distance_and_angle(
         return (round(central_point[0] + x), round(central_point[1] + y))
 
 def dir_to_angle(facing_dir, offset=0, mirror_ns=False):
+    mirrored_dirs_to_angle = {
+        'n':360, 'e':90, 's':180, 'w':270,
+        'ne':45, 'se':135, 'sw':225, 'nw':315,
+    }
+    dirs_to_angle = {
+        'n':180, 'e':90, 's':360, 'w':270,
+        'ne':135, 'se':45, 'sw':315, 'nw':225
+    }
     if mirror_ns:
-        dirs_to_angle = {
-            #'n':180, 'e':90, 's':360, 'w':270, #swap n with s
-            'n':360, 'e':90, 's':180, 'w':270,
-            #'ne':135, 'se':45, 'sw':315, 'nw':225 # swap ne w/ se, sw w/ nw
-            'ne':45, 'se':135, 'sw':225, 'nw':315,
-        }
+        return (mirrored_dirs_to_angle[facing_dir] + offset) % 360
     else:
-        dirs_to_angle = {
-            'n':180, 'e':90, 's':360, 'w':270,
-            'ne':135, 'se':45, 'sw':315, 'nw':225
-        }
-    return (dirs_to_angle[facing_dir] + offset) % 360
+        return (dirs_to_angle[facing_dir] + offset) % 360
+
+def angle_to_dir(facing_dir, offset=0, mirror_ns=False):
+    angle_to_dirs = {
+        0:'n', 360:'n', 90:'e', 180:'s', 270:'w',
+        45:'ne', 135:'se', 225:'sw', 315:'nw',
+    }
+    mirrored_angle_to_dirs = {
+        180:'n', 90:'e', 0:'s', 360:'s', 270:'w',
+        135:'ne', 45:'se', 315:'sw', 225:'nw',
+    }
+    if mirror_ns:
+        return mirrored_angle_to_dirs[(facing_dir + offset) % 360]
+    else:
+        return angle_to_dirs[(facing_dir + offset) % 360]
 
 async def angle_swing(radius=15):
     current_angle = dir_to_angle(state_dict['facing'])
     while True:
         await asyncio.sleep(.01)
-        if not state_dict['looking']:
-            pull_angle = dir_to_angle(state_dict['facing'])
-        else:
-            continue
+        pull_angle = dir_to_angle(state_dict['facing'])
         difference = current_angle - pull_angle
         if difference < -180:
             difference %= 360
