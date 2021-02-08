@@ -4514,6 +4514,14 @@ async def free_look(
     )
     if debounce:
         await asyncio.sleep(1)
+    state_dict['current_angle'] = (
+        180 - angle_point_to_point(
+            coord_a=player_coord,
+            coord_b=describe_coord,
+        )
+    )
+    with term.location(55, 0):
+        print("current_angle:", state_dict['current_angle'], 360 - state_dict['current_angle'])
     return None
 
 def key_to_compass(key):
@@ -5363,7 +5371,11 @@ def dir_to_angle(facing_dir, offset=0, mirror_ns=False):
 async def angle_swing(radius=15):
     current_angle = dir_to_angle(state_dict['facing'])
     while True:
-        pull_angle = dir_to_angle(state_dict['facing'])
+        await asyncio.sleep(.01)
+        if not state_dict['looking']:
+            pull_angle = dir_to_angle(state_dict['facing'])
+        else:
+            continue
         difference = current_angle - pull_angle
         if difference < -180:
             difference %= 360
@@ -5373,8 +5385,9 @@ async def angle_swing(radius=15):
             current_angle += 5
         elif difference > 0:
             current_angle -= 5
+        elif -5 < difference < 5:
+            current_angle = pull_angle
         state_dict['current_angle'] = current_angle
-        await asyncio.sleep(.01)
 
 async def crosshairs(
     radius=18,
