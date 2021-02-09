@@ -4445,7 +4445,8 @@ async def free_look(
         'look_angle':0,
         'cursor_location':(0, 0),
         'cursor_actor_coord':(0, 0),
-    }
+    },
+    cutout_dist=16,
 ):
     #TODO: limit the distance away a tile can be examined
     #      OR exit when edge of view tiles is reached with cursor
@@ -4475,7 +4476,8 @@ async def free_look(
     if cursor_location is not None and type(cursor_location) == tuple:
         static_vars['cursor_location'] = cursor_location
     debounce = False
-    if key not in 'ijkluom.x':
+    dist_from_player = point_to_point_distance(player_coord, describe_coord)
+    if key not in 'ijkluom.x' or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
         debounce = True
