@@ -4477,7 +4477,7 @@ async def free_look(
         static_vars['cursor_location'] = cursor_location
     debounce = False
     dist_from_player = point_to_point_distance(player_coord, describe_coord)
-    if key not in 'ijkluom.x' or dist_from_player >= cutout_dist:
+    if key not in 'ijkluom.x?' or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
         debounce = True
@@ -4505,6 +4505,8 @@ async def free_look(
             )
         debounce = True
     elif key in '?':
+        with term.location(55, 0):
+            print("4509!")
         await display_help(mode="looking") 
         debounce = True
     actual_print_location = offset_of_center(static_vars['cursor_location'])
@@ -4525,8 +4527,6 @@ async def free_look(
         ), 
         nearest_n=45
     )
-    with term.location(55, 0):
-        print("facing_angle: {}    ".format(facing_angle))
     state_dict['facing'] = angle_to_dir(facing_angle)
     return None
 
