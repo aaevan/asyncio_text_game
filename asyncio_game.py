@@ -4289,8 +4289,8 @@ def map_init():
         room.draw_room()
     #secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
-    secret_room(wall_coord=(-40, 22), room_offset=(-3, 0), dimensions=(3, 3))
-    secret_room(wall_coord=(-40, 18), room_offset=(-3, 0), dimensions=(3, 3))
+    secret_room(wall_coord=(-38, 22), room_offset=(-3, 0), dimensions=(3, 3))
+    secret_room(wall_coord=(-38, 18), room_offset=(-3, 0), dimensions=(3, 3))
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), dimensions=(3, 3))
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
@@ -4497,8 +4497,8 @@ async def free_look(
             asyncio.ensure_future(examine_tile(describe_coord))
         #TODO: add an option to make things seen but not in LOS 
         #      have different description text
-        #elif not can_see and map_dict[describe_coord].seen:
-            #asyncio.ensure_future(examine_tile("You remember seeing" + describe_coord))
+        elif not can_see and map_dict[describe_coord].seen:
+            asyncio.ensure_future(examine_tile(describe_coord, tense='past'))
         else:
             asyncio.ensure_future(
                 append_to_log(message=blocked_message)
@@ -4704,7 +4704,7 @@ def get_facing_coord():
     facing_coord = add_coords(player_coords, facing_offset)
     return facing_coord
 
-async def examine_tile(examined_coord=None):
+async def examine_tile(examined_coord=None, tense='present'):
     if examined_coord is None:
         examined_coord = get_facing_coord()
     #add descriptions for actors
@@ -4733,6 +4733,8 @@ async def examine_tile(examined_coord=None):
     else:
         description_text = map_dict[examined_coord].description
     if description_text is not None:
+        if tense == 'past':
+            description_text = "Here, you remember seeing " + description_text
         await append_to_log(message=description_text)
 
 async def toggle_door(door_coord):
@@ -5660,6 +5662,10 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             arc_begin=l_angle,
             arc_end=r_angle
         )
+        if state_dict['plane'] == 'nightmare':
+            color_choice = 0
+        else:
+            color_choice = 0xe9 #a dark gray
         if (x_offset, y_offset) == (0, 0):
             display=True
         if map_dict[x_display_coord, y_display_coord].override_view:
@@ -5683,6 +5689,9 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 elif line_of_sight_result != False and line_of_sight_result != None:
                     #catches tiles beyond magic doors:
                     print_choice = line_of_sight_result
+                elif line_of_sight_result == False and map_dict[tile_coord_key].seen:
+                    remembered_tile = map_dict[x_display_coord, y_display_coord].tile
+                    print_choice = term.color(color_choice)(str(remembered_tile))
                 else:
                     #catches tiles blocked from view:
                     print_choice = ' '
@@ -5690,10 +5699,6 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 #catches fuzzy fringe starting at threshold:
                 print_choice = ' '
         elif not display and map_dict[x_display_coord, y_display_coord].seen:
-            if state_dict['plane'] == 'nightmare':
-                color_choice = 0
-            else:
-                color_choice = 0xea
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
@@ -6238,7 +6243,7 @@ async def async_map_init():
     containers = [
         (3, -2),
         (3, -3),
-        (-44, 21), 
+        (-41, 21), 
         (-36, 18),
         (-36, 22),
         (4, -24)
