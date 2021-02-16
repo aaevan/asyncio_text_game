@@ -1829,7 +1829,7 @@ async def throw_item(
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = 'throwing {}.'.format(item_dict[thrown_item_id].name)
+    throw_text = 'Throwing {}.'.format(item_dict[thrown_item_id].name)
     await append_to_log(message=throw_text)
     await travel_along_line(
         name='thrown_item_id',
@@ -4722,7 +4722,15 @@ async def examine_tile(examined_coord=None, tense='present'):
         #description_text = actor_dict[actor_name].description
         description_text = actor_description
     elif map_dict[examined_coord].items:
-        description_text = "There's an item here!"
+        item_list = list(iter(map_dict[examined_coord].items))
+        top_item_name = item_dict[item_list[0]].name
+        if len(item_list) > 1:
+            multi_item_template = "There are {} items here!||On top is {}."
+            description_text = multi_item_template.format(
+                len(item_list), word_with_article(top_item_name)
+            )
+        else:
+            description_text = "There's {} here!".format(word_with_article(top_item_name))
     elif map_dict[examined_coord].is_door and not is_secret:
         is_open = map_dict[examined_coord].toggle_state_index == 0
         door_type = map_dict[examined_coord].door_type
@@ -6806,6 +6814,13 @@ def fuzzy_forget(name_key=None, radius=3, forget_count=5):
         map_dict[rand_point].seen = False
 
 #misc utility functions---------------------------------------------------------
+def word_with_article(word="word"):
+    if word in 'aeiou':
+        article = 'an'
+    else:
+        article = 'a'
+    return "{} {}".format(article, word)
+
 def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
     output = (coord_a[0] + coord_b[0],
               coord_a[1] + coord_b[1])
