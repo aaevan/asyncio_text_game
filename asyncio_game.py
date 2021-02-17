@@ -2796,6 +2796,7 @@ async def teleporter(
 async def broken_steam_pipe(
     pipe_dirs=('s', 'e'),
     pipe_coord=(0, -10),
+    on_interval=3,
     off_interval=3,
     start_delay=.5,
     angle_spread=10
@@ -2828,9 +2829,18 @@ async def broken_steam_pipe(
             start_delay=start_delay,
             origin=steam_source,
             facing=facing,
+            on_interval=on_interval,
             off_interval=off_interval,
             angle_spread=angle_spread,
         )
+    )
+    await asyncio.sleep(start_delay)
+    asyncio.ensure_future(
+        repeated_sound_message(
+            output_text="*ssssssss*", 
+            sound_origin_coord=pipe_coord,
+            interval=(on_interval + off_interval),
+        ),
     )
 
 async def indicator_lamp(
@@ -4830,15 +4840,15 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         'battery':(
             '┌───┐',
             '│┌─┐│',
-            '││{}││'.format(term.green('+')),
+            '││*││'.replace('*', term.green('+')),
             '│└─┘│',
             '└───┘',
         ),
         'blaster':(
             '┌───┐',
-            '│   │'.format(term.red('╱')),
+            '│   │'.replace('*', term.red('╱')),
             '│╒╤═│',
-            '│║  │'.format(term.bold(term.red('╳'))),
+            '│║  │'.replace('*', term.bold(term.red('╳'))),
             '└───┘',
         ),
         'block wand':(
@@ -4850,16 +4860,16 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'red spike':(
             '┌───┐',
-            '│  {}│'.format(term.red('╱')),
-            '│ {} │'.format(term.red('╱')),
-            '│{}  │'.format(term.bold(term.red('╳'))),
+            '│  *│'.replace('*', term.red('╱')),
+            '│ * │'.replace('*', term.red('╱')),
+            '│*  │'.replace('*', term.red('╳')),
             '└───┘',
         ),
         'green sword':(
             '┌───┐',
-            '│  {}│'.format(term.green('╱')),
-            '│ {} │'.format(term.green('╱')),
-            '│{}  │'.format(term.bold(term.green('╳'))),
+            '│  *│'.replace('*', term.green('╱')),
+            '│ * │'.replace('*', term.green('╱')),
+            '│*  │'.replace('*', term.green('╳')),
             '└───┘',
         ),
         'nut':(
@@ -4879,7 +4889,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
        'red potion':(
            '┌───┐',
            '│┌O┐│', 
-           '│|{}|│'.format(term.red('█')),
+           '│|*|│'.replace('*', term.red('█')),
            '│└─┘│',
            '└───┘',
         ),
@@ -4893,29 +4903,29 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         'scanner':(
             '┌───┐',
             '│┌─┦│', 
-            '│|{}|│'.format(term.green('█')),
+            '│|*|│'.replace('*', term.green('█')),
             '│└o┘│',
             '└───┘',
         ),
         'dynamite':(
             '┌───┐',
             '│ ╭ │', 
-            '│ {} │'.format(term.red('█')),
-            '│ {} │'.format(term.red('█')),
+            '│ * │'.replace('*', term.red('█')),
+            '│ * │'.replace('*', term.red('█')),
             '└───┘',
         ),
         'shift amulet':(
             '┌───┐',
             '│╭─╮│', 
             '││ ││',
-            '│╰{}╯│'.format(term.blue('ʘ')),
+            '│╰*╯│'.replace('*', term.blue('ʘ')),
             '└───┘',
         ),
         'hop amulet':(
             '┌───┐',
             '│╭─╮│', 
             '││ ││',
-            '│╰{}╯│'.format(term.red('ʘ')),
+            '│╰*╯│'.replace('*', term.red('ʘ')),
             '└───┘',
         ),
         'looking glass':( 
@@ -4934,30 +4944,30 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'red key':(
             '┌───┐',
-            '│ {} │'.format(term.red('╒')),
-            '│ {} │'.format(term.red('│')),
-            '│ {} │'.format(term.red('O')),
+            '│ * │'.replace('*', term.red('╒')),
+            '│ * │'.replace('*', term.red('│')),
+            '│ * │'.replace('*', term.red('O')),
             '└───┘',
         ),
         'cell key':(
             '┌───┐',
-            '│ {} │'.format(term.color(00)('╒')),
-            '│ {} │'.format(term.color(00)('│')),
-            '│ {} │'.format(term.color(00)('O')),
+            '│ * │'.replace('*', term.color(00)('╒')),
+            '│ * │'.replace('*', term.color(00)('│')),
+            '│ * │'.replace('*', term.color(00)('O')),
             '└───┘',
         ),
         'green key':(
             '┌───┐',
-            '│ {} │'.format(term.green('╒')),
-            '│ {} │'.format(term.green('│')),
-            '│ {} │'.format(term.green('O')),
+            '│ * │'.replace('*', term.green('╒')),
+            '│ * │'.replace('*', term.green('│')),
+            '│ * │'.replace('*', term.green('O')),
             '└───┘',
         ),
         'rusty key':(
             '┌───┐',
-            '│ {} │'.format(term.color(3)('╒')),
-            '│ {} │'.format(term.color(3)('│')),
-            '│ {} │'.format(term.color(3)('O')),
+            '│ * │'.replace('*', term.color(3)('╒')),
+            '│ * │'.replace('*', term.color(3)('│')),
+            '│ * │'.replace('*', term.color(3)('O')),
             '└───┘',),
         'shiny stone':(
             '┌───┐',   #effect while equipped: orbit
@@ -6071,6 +6081,7 @@ async def sound_message(
         print_coord = ((print_coord[0] - len(output_text)), print_coord[1])
     elif print_coord[0] == x_middle:
         print_coord = ((print_coord[0] - (len(output_text) // 2)), print_coord[1])
+    #TODO: a "sustain_length" for sound effect so it doesn't immediately fade
     await distanced_fade_print(
         output_text=output_text, 
         origin=sound_origin_coord,
@@ -8061,12 +8072,12 @@ def main():
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
         broken_steam_pipe(),
-        broken_steam_pipe(
-            pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
-        ),
-        broken_steam_pipe(
-            pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
-        ),
+        #broken_steam_pipe(
+            #pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
+        #),
+        #broken_steam_pipe(
+            #pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
+        #),
     )
     for task in tasks:
         loop.create_task(task)
