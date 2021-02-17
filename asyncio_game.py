@@ -1960,7 +1960,7 @@ async def damage_actor(
     leaves_body=False,
     blood=False,
     material='wood',
-    descriptive_noun="the actor",
+    descriptive_noun="actor",
 ):
     if actor_dict[actor] is None:
         return
@@ -4293,6 +4293,7 @@ def map_init():
     secret_room(wall_coord=(-38, 18), room_offset=(-3, 0), dimensions=(3, 3))
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), dimensions=(3, 3))
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
+    secret_room(wall_coord=(-32, 5), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
     secret_door(door_coord=(21, 2))
     room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=True)
@@ -4660,7 +4661,8 @@ async def action_keypress(key):
         write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
         #destination = (-13, -12) #near steam vents
-        destination = (45, -31) #near red spike
+        #destination = (45, -31) #near red spike
+        destination = (-33, -1) #near red spike
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'e'
         return
@@ -4841,7 +4843,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'block wand':(
             '┌───┐',
-            '│  *│', 
+            '│  ▨│', 
             '│ ╱ │',
             '│╱  │',
             '└───┘',
@@ -6220,7 +6222,7 @@ async def async_map_init():
     mte_spawns = (
         ((20, 1), '2x2_block'),
         ((11, 0), '2x2_block'),
-        ((-32, 3), '2x2_block'),
+        ((-32, 4), '2x2_block'),
         ((-28, 1), '2x2_block'),
         ((9, 3), '2x2_block'),
         ((7, 0), '2x2_block'),
@@ -6260,7 +6262,7 @@ async def async_map_init():
         loop.create_task(spawn_container(spawn_coord=coord))
     #item creation-----------------------------------------
     items = (
-        ((5, 12), 'block wand'), 
+        ((-32, 10), 'block wand'), 
         ((-30, -23), 'red key'), 
         ((8, 4), 'red potion'), 
         ((18, -3), 'red potion'), 
@@ -6270,7 +6272,6 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((1, -23), 'green sword'), 
-        ((32, -5), 'green sword'), #debug
         ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
