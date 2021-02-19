@@ -130,7 +130,8 @@ class Actor:
         tile_color=8,
         description="A featureless gray blob",
         y_hide_coord=None,
-        solid=True
+        solid=True,
+        made_of="material not set",
     ):
         self.name = name
         self.base_name = base_name
@@ -155,7 +156,8 @@ class Actor:
         self.blocking = blocking
         self.description = description
         self.y_hide_coord = y_hide_coord
-        self.solid=solid
+        self.solid = solid
+        self.made_of = made_of
 
     def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
@@ -1960,7 +1962,6 @@ async def damage_actor(
     leaves_body=False,
     blood=False,
     material='wood',
-    descriptive_noun="actor",
 ):
     if actor_dict[actor] is None:
         return
@@ -1983,8 +1984,10 @@ async def damage_actor(
     if actor_dict[actor].health <= 0 and actor != 'player':
         if actor_dict[actor].breakable == True:
             root_coord = actor_dict[actor].coords()
+            actor_noun = actor_dict[actor].base_name
+            actor_material = actor_dict[actor].made_of
             await spray_debris(
-                noun=descriptive_noun, root_coord=root_coord, preset=material
+                noun=actor_noun, root_coord=root_coord, preset=actor_material
             )
             await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
@@ -1997,8 +2000,11 @@ async def spray_debris(
     color_num=8,
     template_message='Broken {}',
 ):
-    debris_dict = {'wood':('The {} shatters!'.format(noun), ',.\''),
-                   'stone':('The {} shatters!'.format(noun), '..:o')}
+    debris_dict = {
+        'wood':(f'The {noun} turns to splinters!', ',.\''),
+        'stone':(f'The {noun} shatters!', '..:o'),
+        'jelly':(f'The {noun} explodes! Ew!', '..:o')
+    }
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
     asyncio.ensure_future(
@@ -6207,25 +6213,19 @@ async def async_map_init():
     )
     announcement_at_coord(
         "A loose pebble tumbles off the edge. |||You don't hear it land.", 
-        coord=(31, -28), 
+        coord=(22, -30), 
         describe_tile=False, 
-        distance_trigger=0
+        distance_trigger=2
     )
-    announcement_at_coord(
-        "The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", 
-        coord=(25, -27), 
-        describe_tile=False, 
-        distance_trigger=0
-    )
+    #announcement_at_coord(
+        #"The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", 
+        #coord=(25, -27), 
+        #describe_tile=False, 
+        #distance_trigger=0
+    #)
     announcement_at_coord(
         "Every surface is covered in a pulsating slime.|||You feel a little nauseous.",
         coord=(-17, -44),
-        describe_tile=False,
-        distance_trigger=0
-    )
-    announcement_at_coord(
-        "It's pretty but there's nothing much going on out here.||It's hard to see much in this darkness.",
-        coord=(10, -68), 
         describe_tile=False,
         distance_trigger=0
     )
@@ -6999,10 +6999,10 @@ async def choose_shroud_move(shroud_name_key='', core_name_key=''):
 async def basic_actor(
     coord=(0, 0),
     speed=1,
-    tile="*", 
+    tile='*', 
     movement_function=wander,
-    name_key="test",
-    base_name="test",
+    name_key='test',
+    base_name='test',
     hurtful=False,
     base_attack=5,
     is_animated=False,
@@ -7013,6 +7013,7 @@ async def basic_actor(
     breakable=True,
     health=10,
     moveable=True,
+    made_of='material not set',
 ):
     """
     actors can:
@@ -7038,6 +7039,7 @@ async def basic_actor(
         breakable=breakable,
         health=health,
         moveable=moveable,
+        made_of=made_of,
     )
     coords = actor_dict[name_key].coords()
     while True:
@@ -7856,6 +7858,7 @@ async def spawn_preset_actor(
                 description=description,
                 breakable=True,
                 health=10,
+                made_of='jelly',
             )
         )
     elif preset == 'angel':
@@ -7863,6 +7866,7 @@ async def spawn_preset_actor(
         description = 'A strangely menacing angel statue.'
         loop.create_task(
             basic_actor(
+                base_name='angel statue',
                 coord=coords,
                 speed=.15,
                 movement_function=angel_seek, 
@@ -7879,6 +7883,7 @@ async def spawn_preset_actor(
                 description=description,
                 breakable=True,
                 health=200,
+                made_of='stone',
             )
         )
     #TODO: enemy that is only seen by its trail through your remembered tiles
