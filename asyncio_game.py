@@ -1095,29 +1095,6 @@ def brightness_val(index, get_length=False):
     return brightness_vals[index]
 
 #Drawing functions--------------------------------------------------------------
-def tile_preset(preset='floor'):
-    presets = {
-        'floor':Map_tile(
-            tile='░', 
-            blocking=False,
-            passable=True,
-            description='A smooth patch of stone floor.',
-            magic=True,
-            is_animated=False,
-            animation=None
-        ),
-        'wall':Map_tile(
-            tile='𝄛',
-            blocking=False,
-            passable=True,
-            description='A rough stone wall.',
-            magic=True,
-            is_animated=False,
-            animation=None
-        )
-    }
-    return presets[preset]
-
 def paint_preset(tile_coords=(0, 0), preset='floor'):
     """
     Applies a preset to an existing map tile.
@@ -1269,6 +1246,36 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
 def rand_float(min_val, max_val, round_places=2):
     return round((random() * (max_val - min_val)) + min_val, round_places)
 
+def get_coords_in_box(
+    top_left=(0, 0),
+    x_size=3,
+    y_size=3,
+    bottom_right=(3, 3),
+    filled=True,
+):
+    #TODO: fix this so there aren't redundant items.
+    x_min, y_min = top_left[0], top_left[1]
+    x_max, y_max = x_min + x_size, y_min + y_size
+    x_values = range(x_min, x_max)
+    y_values = range(y_min, y_max)
+    coord_list = []
+    if filled:
+        for x in x_values:
+            for y in y_values:
+                coord_list.append((x, y))
+    else:
+        corners = [(x_min, y_min), (x_min, y_min), (x_max, y_max)]
+        coord_list.extend(corners)
+        for x in range(x_min, x_max):
+            for y in (y_min, y_max):
+                coord_list.append((x, y))
+        for y in range(y_min, y_max):
+            for x in (x_min, x_max):
+                coord_list.append((x, y))
+        coord_list = list(set(coord_list))
+    return coord_list
+
+
 def draw_box(
     top_left=(0, 0),
     x_size=1,
@@ -1299,6 +1306,7 @@ def draw_box(
                 write_coords.append((x, y))
     for point in write_coords:
         paint_preset(tile_coords=point, preset=preset)
+    return write_coords
 
 def draw_centered_box(
     middle_coord=(0, 0),
@@ -4311,11 +4319,15 @@ def map_init():
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_room(wall_coord=(-32, 5), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
-    secret_door(door_coord=(21, 2))
+    secret_door(door_coord=(21, 6))
+    #cells near spawn:
     room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=True)
     room_with_door(wall_coord=(21, -2), room_offset=(0, -2), locked=True)
     room_with_door(wall_coord=(23, 6), room_offset=(8, 0), locked=True, z_level=-1)
     room_with_door(wall_coord=(17, -2), room_offset=(0, -2), locked=False)
+    room_with_door(wall_coord=(25, 2), room_offset=(0, 2), locked=True)
+    room_with_door(wall_coord=(21, 2), room_offset=(0, 2), locked=True)
+    room_with_door(wall_coord=(17, 2), room_offset=(0, 2), locked=True)
     draw_door(preset='green', door_coord=(12, 0), z_level=-1, locked=True)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
@@ -4326,8 +4338,29 @@ def map_init():
     #map_dict BOOKMARK
     map_dict[(25, -4)].use_action_func = use_action_fork
     map_dict[(25, -4)].use_action_kwargs = {}
-    for cell in ((23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5)):
+    for cell in (
+        #north cell block
+        (23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5), 
+        #southern cell block
+        (23, 3), (23, 4), (23, 5), (19, 3), (19, 4), (19, 5), 
+    ):
         paint_preset(tile_coords=cell, preset='cell bars')
+
+def convert_pass_state_to_preset(
+    cell_coord=(0, 0),
+    preset='cell bars',
+    pass_state=False,
+    #starting_preset="
+):
+    """
+    set pass_state to False to select solid tiles (places where you can't walk)
+    set pass_state to True to select passable tiles (places where you can walk)
+    """
+    if map_dict[cell_coord].passable == pass_state:
+        paint_preset(tile_coords=cell_coord, preset=preset)
+    
+def convert_cells_in_box():
+    pass
     
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -4654,8 +4687,6 @@ async def action_keypress(key):
         spawn_coord = player_coords
         vine_name = "testing"
         asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
-    elif key in '%':
-        asyncio.ensure_future(distanced_fade_print())
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -4682,6 +4713,14 @@ async def action_keypress(key):
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'e'
         return
+    elif key in '%':
+        player_coords = actor_dict['player'].coords()
+        with term.location(55, 0):
+            print(get_coords_in_box())
+        with term.location(55, 1):
+            print(get_coords_in_box(filled=False))
+        for coord in adjacent_tiles(coord=player_coords):
+            convert_pass_state_to_preset(coord)
     elif key in 'T': #place a temporary pushable block
         asyncio.ensure_future(temporary_block())
     shifted_coord = add_coords((x, y), (x_shift, y_shift))
