@@ -291,6 +291,16 @@ class Animation:
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
+            'leech':{
+                'animation':('⟆⟅'),
+                'behavior':'random',
+                'color_choices':(0x16, 0x22, 0x1c)
+            },
+            'critter':{
+                'animation':('.'),
+                'behavior':'random',
+                'color_choices':(0xac, 0xa6, 0xca)
+            },
             'presence':{
                 'animation':('●'),
                 'behavior':'random',
@@ -2011,7 +2021,8 @@ async def spray_debris(
     debris_dict = {
         'wood':(f'The {noun} turns to splinters!', ',.\''),
         'stone':(f'The {noun} shatters!', '..:o'),
-        'jelly':(f'The {noun} explodes! Ew!', '..:o')
+        'jelly':(f'The {noun} splatters! Ew!', '..:o'),
+        'flesh':(f'The {noun} explodes! Gross.', '~⟅\'\"'),
     }
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
@@ -3461,7 +3472,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
     #TODO: move item picture to inside of item definitions
     wand_broken_text = ' is out of charges.'
     possible_items = (
-        'wand', 'nut', 'fused charge', 'shield wand', 'red potion',
+        'wand', 'nut', 'seed', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red spike', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
         'rusty key', 'looking glass'
@@ -3511,6 +3522,12 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         'nut':{
             'uses':-1,
             'tile':term.red('⏣'),
+            'usable_power':throw_item, 
+            'power_kwargs':{'thrown_item_id':item_id}
+        },
+        'seed':{
+            'uses':-1,
+            'tile':'.',
             'usable_power':throw_item, 
             'power_kwargs':{'thrown_item_id':item_id}
         },
@@ -4375,6 +4392,11 @@ def spawn_column(
     """
     note: base of column is not blocking because it obscures higher elements
     """
+    #TODO:
+    # add a z_index to actors so that they can be blocked from 
+    # sight by columns and/or flying creatures.
+    # small creatures have a lower z_index than larger creatures,
+    # column tiles (or tiles with a y_hide_coord) have a much higher value
     spawn_static_actor(
         base_name='y_hide_test', 
         spawn_coord=spawn_coord, 
@@ -4934,7 +4956,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
        'red potion':(
            '┌───┐',
            '│┌O┐│', 
-           '│|*|│'.replace('*', term.red('█')),
+           '││*││'.replace('*', term.red('█')),
            '│└─┘│',
            '└───┘',
         ),
@@ -6360,6 +6382,10 @@ async def async_map_init():
     ]
     monster_spawns = (
        ((23, -14), 'blob'),
+       ((20, 5), 'leech'),
+       ((22, 4), 'leech'),
+       ((23, 1), 'critter'),
+       ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
        ((21, -4), 'angel'),
        ((-7, -2), 'presence'),
@@ -6583,13 +6609,15 @@ async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
         await asyncio.sleep(speed)
 
 #Actor behavior functions-------------------------------------------------------
-async def wander(name_key=None, **kwargs):
+async def wander(name_key=None, chance_wait=.25, **kwargs):
     """ 
     randomly increments or decrements x_current and y_current
     if square to be moved to is passable
     """
     x_current, y_current = actor_dict[name_key].coords()
     x_move, y_move = randint(-1, 1), randint(-1, 1)
+    if random() <= chance_wait:
+        return (x_current, y_current)
     next_position = add_coords((x_current, y_current), (x_move, y_move))
     if is_passable(next_position):
         return next_position
@@ -6660,12 +6688,19 @@ async def seek_actor(
     name_key=None, 
     seek_key='player', 
     repel=False, 
-    walk_through_walls=False
+    walk_through_walls=False,
+    active_distance=30,
+    wander_if_idle=True,
 ):
     current_coord = actor_dict[name_key].coords()
     target_coord = actor_dict[seek_key].coords()
     is_hurtful = actor_dict[name_key].hurtful
     current_distance = point_to_point_distance(current_coord, target_coord)
+    if current_distance > active_distance:
+        if wander_if_idle:
+            return await wander(name_key=name_key)
+        else:
+            return current_coord
     if is_hurtful and current_distance <= 1:
         await attack(attacker_key=name_key, defender_key=seek_key)
     eight_offsets = [
@@ -7900,6 +7935,53 @@ async def spawn_preset_actor(
                 made_of='jelly',
             )
         )
+    if preset == 'leech':
+        item_drops = ['nut']
+        description = 'A large slowly writhing parasite.'
+        loop.create_task(
+            basic_actor(
+                coord=coords,
+                speed=.5,
+                movement_function=seek_actor, 
+                movement_function_kwargs={'active_distance':10},
+                tile='⟅',
+                name_key=name,
+                base_name=preset,
+                hurtful=True,
+                base_attack=10,
+                is_animated=True,
+                animation=Animation(preset="leech"),
+                holding_items=item_drops,
+                description=description,
+                breakable=True,
+                health=50,
+                made_of='flesh',
+            )
+        )
+    if preset == 'critter':
+        item_drops = ['nut']
+        description = 'A small scared bit of fuzz.'
+        loop.create_task(
+            basic_actor(
+                coord=coords,
+                speed=.3,
+                movement_function=seek_actor, 
+                movement_function_kwargs={'repel':True, 'active_distance':5},
+                tile='.',
+                name_key=name,
+                base_name=preset,
+                hurtful=True,
+                base_attack=0,
+                is_animated=True,
+                animation=Animation(preset='critter'),
+                holding_items=item_drops,
+                description=description,
+                breakable=False,
+                health=1,
+                made_of='flesh',
+            )
+        )
+
     elif preset == 'angel':
         item_drops = ['health potion']
         description = 'A strangely menacing angel statue.'
