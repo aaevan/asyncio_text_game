@@ -2871,22 +2871,30 @@ async def broken_steam_pipe(
 async def indicator_lamp(
     tiles=('◉','◉'), #○
     tile_colors=(0x01, 0x22),
+    tile_false_color='red',
+    tile_true_color='green',
     spawn_coord=(0, 0), 
     patch_to_key='indicator_lamp', 
-    refresh_rate=.1
+    refresh_rate=.1,
+    template_string="The indicator light glows {}.",
 ):
     false_tile = term.color(tile_colors[0])(tiles[0])
     true_tile = term.color(tile_colors[1])(tiles[1])
+    false_descr = template_string.format(tile_false_color)
+    true_descr = template_string.format(tile_true_color)
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
     current_tile = tiles[0]
     while True:
         await asyncio.sleep(refresh_rate)
         if await any_true(trigger_key=patch_to_key):
             set_tile = true_tile
+            set_descr = true_descr
         else:
             set_tile = false_tile
+            set_descr = false_descr
         if set_tile != current_tile:
             map_dict[spawn_coord].tile = set_tile
+            map_dict[spawn_coord].description = set_descr
             current_tile = set_tile
 
 async def alarm_bell(
