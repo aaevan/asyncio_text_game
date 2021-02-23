@@ -2023,6 +2023,7 @@ async def spray_debris(
         'stone':(f'The {noun} shatters!', '..:o'),
         'jelly':(f'The {noun} splatters! Ew!', '..:o'),
         'flesh':(f'The {noun} explodes! Gross.', '~⟅\'\"'),
+        'energy':(f'The {noun} seems to fold in on itself.|It\'s gone.', '~⟅\'\"'),
     }
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
@@ -4185,6 +4186,7 @@ async def spawn_container(
     preset='random',
     description='A wooden box.',
     box_choices=None,
+    material='wood',
 ):
     if box_choices is None:
         box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
@@ -4196,7 +4198,8 @@ async def spawn_container(
         tile=tile,
         moveable=moveable,
         breakable=breakable,
-        description=description
+        description=description,
+        material=material,
     )
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
@@ -4232,6 +4235,7 @@ def spawn_static_actor(
     y_hide_coord=None,
     solid=True,
     description='STATIC ACTOR',
+    material="material not set",
 ):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
@@ -4248,6 +4252,7 @@ def spawn_static_actor(
         is_animated = False
         animation = None
     actor_dict[actor_id] = Actor(
+        base_name=base_name,
         name=actor_id,
         tile=tile,
         is_animated=is_animated,
@@ -4260,6 +4265,7 @@ def spawn_static_actor(
         description=description,
         y_hide_coord=y_hide_coord,
         solid=solid,
+        made_of=material,
     )
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
@@ -4739,7 +4745,8 @@ async def action_keypress(key):
     elif key in 'y': #teleport to debug location
         #destination = (-13, -12) #near steam vents
         #destination = (45, -31) #near red spike
-        destination = (-33, -1) #near red spike
+        #destination = (-33, -1) #near red spike
+        destination = (-41, 22) #sw corner of map
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'e'
         return
@@ -7124,6 +7131,7 @@ async def basic_actor(
         made_of=made_of,
     )
     coords = actor_dict[name_key].coords()
+    actor_dict[name_key].update(coord=coords, make_passable=False)
     while True:
         await asyncio.sleep(speed)
         if not hasattr(actor_dict[name_key], 'health'):
@@ -7943,7 +7951,7 @@ async def spawn_preset_actor(
                 made_of='jelly',
             )
         )
-    if preset == 'leech':
+    elif preset == 'leech':
         item_drops = ['nut']
         description = 'A large slowly writhing parasite.'
         loop.create_task(
@@ -7966,7 +7974,7 @@ async def spawn_preset_actor(
                 made_of='flesh',
             )
         )
-    if preset == 'critter':
+    elif preset == 'critter':
         item_drops = ['nut']
         description = 'A small scared bit of fuzz.'
         loop.create_task(
@@ -8026,6 +8034,7 @@ async def spawn_preset_actor(
         )
         loop.create_task(
             basic_actor(
+                base_name='floating orb',
                 coord=coords,
                 speed=1.5,
                 movement_function=angel_seek, 
@@ -8046,6 +8055,7 @@ async def spawn_preset_actor(
                 breakable=True,
                 health=999,
                 moveable=False,
+                made_of='energy',
             )
         )
     
