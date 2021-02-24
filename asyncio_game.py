@@ -21,6 +21,11 @@ from time import sleep
 #TODO: a way to create whole puzzle rooms in one command
 #TODO: a way to randomly generate a series of puzzle rooms??
 
+#TODO: use unicode big parentheses in a multi-tile entity?
+    #⎛  ⎞
+    #⎜  ⎟
+    #⎝  ⎠
+
 #Class definitions--------------------------------------------------------------
 class Map_tile:
     """ 
@@ -600,15 +605,20 @@ class Multi_tile_entity:
         fill_color=3,
         offset=(-1, -1),
         description="generic multi tile actor",
+        made_of=None,
     ):
         self.name = name
         self.fill_color = fill_color
         self.member_data = {}
         self.member_names = []
+        self.made_of = made_of
         tiles = self.mte_presets(preset)
         preset_description = self.description_presets(preset)
+        preset_made_of = self.made_of_presets(preset)
         if preset_description is not None:
             description = preset_description
+        if preset_made_of is not None:
+            made_of = preset_description
         for y in range(len(tiles)):
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
@@ -627,6 +637,7 @@ class Multi_tile_entity:
                     blocking=blocking,
                     fill_color=fill_color,
                     description=description,
+                    made_of=preset_made_of,
                 )
 
     def mte_presets(self, preset):
@@ -733,6 +744,29 @@ class Multi_tile_entity:
             return None
         return presets[preset]
 
+    def made_of_presets(self, preset):
+        presets = {
+            '2x2':'wood',
+            'empty':'???',
+            'bold_2x2':'???',
+            '2x2_block':'wood',
+            '2x2_block_thick':'wood',
+            '3x3_block':'???',
+            '3x3':'???',
+            '3x3 fire':'???',
+            'writheball':'???',
+            'test_block':'???',
+            'fireball':'???',
+            '4x4 tester':'???',
+            '5x5 tester':'???',
+            'ns_couch':'???',
+            'ew_bookcase':'???',
+            'add_sign':'???',
+        }
+        if preset not in presets:
+            return None
+        return presets[preset]
+
     def add_segment(
         self,
         segment_tile='?',
@@ -745,7 +779,8 @@ class Multi_tile_entity:
         fill_color=8,
         moveable=True,
         breakable=True,
-        description='mte_segment'
+        description='mte_segment',
+        made_of='757: mte material not set',
     ):
         animation_key = {'E':'explosion', 'W':'writhe'}
         self.member_data[offset] = {
@@ -770,7 +805,8 @@ class Multi_tile_entity:
             moveable=moveable,
             literal_name=True,
             breakable=breakable,
-            description=description
+            description=description,
+            material=made_of,
         )
         self.member_names.append(segment_name)
         return segment_name
@@ -1263,7 +1299,6 @@ def get_coords_in_box(
     bottom_right=(3, 3),
     filled=True,
 ):
-    #TODO: fix this so there aren't redundant items.
     x_min, y_min = top_left[0], top_left[1]
     x_max, y_max = x_min + x_size, y_min + y_size
     x_values = range(x_min, x_max)
@@ -1284,7 +1319,6 @@ def get_coords_in_box(
                 coord_list.append((x, y))
         coord_list = list(set(coord_list))
     return coord_list
-
 
 def draw_box(
     top_left=(0, 0),
@@ -2024,6 +2058,7 @@ async def spray_debris(
         'jelly':(f'The {noun} splatters! Ew!', '..:o'),
         'flesh':(f'The {noun} explodes! Gross.', '~⟅\'\"'),
         'energy':(f'The {noun} seems to fold in on itself.|It\'s gone.', '~⟅\'\"'),
+        '???':(f'The {noun} vanishes.', ' '),
     }
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
@@ -3613,6 +3648,20 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'broken_text':'Something went wrong.',
             'use_message':None
         },
+        'knife':{
+            'uses':-1,
+            'tile':term.color(0xed)('†'),
+            'power_kwargs':{
+                'length':2,
+                'speed':.05,
+                'damage':10,
+                'sword_color':0xed,
+                'player_sword_track':True,
+            },
+            'usable_power':sword_item_ability,
+            #'broken_text':'Something went wrong.',
+            'use_message':None
+        },
         'green sword':{
             'uses':-1,
             'tile':term.green('ļ'),
@@ -4942,9 +4991,16 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'red spike':(
             '┌───┐',
-            '│  *│'.replace('*', term.red('╱')),
+            '│   │'.replace('*', term.red('╱')),
             '│ * │'.replace('*', term.red('╱')),
             '│*  │'.replace('*', term.red('╳')),
+            '└───┘',
+        ),
+        'knife':(
+            '┌───┐',
+            '│   │',
+            '│ * │'.replace('*', term.color(0xed)('╱')),
+            '│*  │'.replace('*', term.color(0xed)('╳')),
             '└───┘',
         ),
         'green sword':(
@@ -6359,6 +6415,7 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((1, -23), 'green sword'), 
+        ((26, 5), 'knife'), 
         ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
@@ -7993,7 +8050,7 @@ async def spawn_preset_actor(
                 holding_items=item_drops,
                 description=description,
                 breakable=False,
-                health=1,
+                health=10,
                 made_of='flesh',
             )
         )
