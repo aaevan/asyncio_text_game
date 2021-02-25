@@ -613,12 +613,7 @@ class Multi_tile_entity:
         self.member_names = []
         self.made_of = made_of
         tiles = self.mte_presets(preset)
-        preset_description = self.description_presets(preset)
-        preset_made_of = self.made_of_presets(preset)
-        if preset_description is not None:
-            description = preset_description
-        if preset_made_of is not None:
-            made_of = preset_description
+        description, base_name, segment_made_of = self.description_presets(preset)
         for y in range(len(tiles)):
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
@@ -630,6 +625,7 @@ class Multi_tile_entity:
                     segment_tile = tiles[y][x]
                 segment_name = f'{self.name}_{(x, y)}'
                 self.add_segment(
+                    base_name=base_name,
                     segment_tile=segment_tile,
                     write_coord=write_coord,
                     offset=(x, y),
@@ -637,7 +633,7 @@ class Multi_tile_entity:
                     blocking=blocking,
                     fill_color=fill_color,
                     description=description,
-                    made_of=preset_made_of,
+                    made_of=segment_made_of,
                 )
 
     def mte_presets(self, preset):
@@ -723,45 +719,22 @@ class Multi_tile_entity:
 
     def description_presets(self, preset):
         presets = {
-            '2x2':'???',
-            'empty':'Nothing\'s here!',
-            'bold_2x2':'???',
-            '2x2_block':'A large wooden crate. It looks fragile.',
-            '2x2_block_thick':'A large crate heavily banded in metal.',
-            '3x3_block':'???',
-            '3x3':'???',
-            '3x3 fire':'???',
-            'writheball':'???',
-            'test_block':'???',
-            'fireball':'???',
-            '4x4 tester':'???',
-            '5x5 tester':'???',
-            'ns_couch':'???',
-            'ew_bookcase':'???',
-            'add_sign':'???',
-        }
-        if preset not in presets:
-            return None
-        return presets[preset]
-
-    def made_of_presets(self, preset):
-        presets = {
-            '2x2':'wood',
-            'empty':'???',
-            'bold_2x2':'???',
-            '2x2_block':'wood',
-            '2x2_block_thick':'wood',
-            '3x3_block':'???',
-            '3x3':'???',
-            '3x3 fire':'???',
-            'writheball':'???',
-            'test_block':'???',
-            'fireball':'???',
-            '4x4 tester':'???',
-            '5x5 tester':'???',
-            'ns_couch':'???',
-            'ew_bookcase':'???',
-            'add_sign':'???',
+            '2x2':('???', 'A side of the box', 'wood'),
+            'empty':('Nothing\'s here!', 'One patch of nothingness', 'nothingness'),
+            'bold_2x2':('???', 'reinforced box', 'wood'),
+            '2x2_block':('A large wooden crate. It looks fragile.', 'A side of the crate', 'wood'),
+            '2x2_block_thick':('A large crate heavily banded in metal.', 'Part of the banded crate', 'reinforced wood'),
+            '3x3_block':('???', '3x3 block', 'wood'),
+            '3x3':('???', 'of ???', '???'),
+            '3x3 fire':('???', 'mass of fire', 'fire'),
+            'writheball':('???', 'mass of tentacles', 'writhe'),
+            'test_block':('???', 'test material', '???'),
+            'fireball':('???', 'bit of flame', 'fire'),
+            '4x4 tester':('???', 'of 4x4', '???'),
+            '5x5 tester':('???', 'of 5x5', '???'),
+            'ns_couch':('???', 'chunk of couch', 'wood'),
+            'ew_bookcase':('???', 'piece of bookcase', 'wood'),
+            'add_sign':('???', 'piece of sign', 'wood'),
         }
         if preset not in presets:
             return None
@@ -772,8 +745,8 @@ class Multi_tile_entity:
         segment_tile='?',
         write_coord=(0, 0),
         offset=(0, 0), 
+        base_name="TEST",
         segment_name='test',
-        literal_name=True,
         animation_preset=None,
         blocking=False,
         fill_color=8,
@@ -796,14 +769,14 @@ class Multi_tile_entity:
             animation_preset=None
         written_tile = term.color(fill_color)(segment_tile)
         member_name = spawn_static_actor(
-            base_name=segment_name, 
+            actor_id=segment_name,
+            base_name=base_name,
             tile=written_tile,
             spawn_coord=write_coord, 
             animation_preset=animation_preset,
             multi_tile_parent=self.name,
             blocking=blocking,
             moveable=moveable,
-            literal_name=True,
             breakable=breakable,
             description=description,
             material=made_of,
@@ -1000,7 +973,7 @@ class Multi_tile_entity:
                     offset=segment_data['offset'],
                     segment_name='{}_{}'.format(segment_data['name'], number),
                     blocking=segment_data['blocking'],
-                    literal_name=True, animation_preset=None
+                    preset=None
                 )
         for member_name in self.member_names:
             del map_dict[actor_dict[member_name].coords()].actors[member_name]
@@ -1014,7 +987,7 @@ async def spawn_mte(
     blocking=True,
     fill_color=3,
 ):
-    mte_id = generate_id(base_name=base_name)
+    mte_id = generate_id(base_name=preset)
     mte_dict[mte_id] = Multi_tile_entity(
         name=mte_id,
         anchor_coord=spawn_coord,
@@ -2053,11 +2026,11 @@ async def spray_debris(
     template_message='Broken {}',
 ):
     debris_dict = {
-        'wood':(f'The {noun} turns to splinters!', ',.\''),
-        'stone':(f'The {noun} shatters!', '..:o'),
-        'jelly':(f'The {noun} splatters! Ew!', '..:o'),
-        'flesh':(f'The {noun} explodes! Gross.', '~⟅\'\"'),
-        'energy':(f'The {noun} seems to fold in on itself.|It\'s gone.', '~⟅\'\"'),
+        'wood':(f'{noun} turns to splinters!', ',.\''),
+        'stone':(f'{noun} shatters into pieces!', '..:o'),
+        'jelly':(f'{noun} splatters! Ew!', '..:o'),
+        'flesh':(f'{noun} explodes! Gross.', '~⟅\'\"'),
+        'energy':(f'{noun} seems to fold in on itself.|It\'s gone.', '~⟅\'\"'),
         '???':(f'The {noun} vanishes.', ' '),
     }
     message, palette = debris_dict[preset]
@@ -3404,11 +3377,7 @@ async def teleport(
         radial_fountain but in reverse
     """
     if state_dict['just teleported']:
-        with term.location(55, 0):
-            print("skipping teleport!")
         await asyncio.sleep(1)
-        with term.location(55, 0):
-            print("                  ")
         return
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
@@ -3653,7 +3622,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'tile':term.color(0xed)('†'),
             'power_kwargs':{
                 'length':2,
-                'speed':.05,
+                'speed':.1,
                 'damage':10,
                 'sword_color':0xed,
                 'player_sword_track':True,
@@ -4227,7 +4196,7 @@ async def create_magic_door_pair(
     )
 
 async def spawn_container(
-    base_name='box',
+    base_name='The box',
     spawn_coord=(5, 5),
     tile='☒',
     breakable=True,
@@ -4272,6 +4241,7 @@ async def spawn_weight(
     )
 
 def spawn_static_actor(
+    actor_id=None,
     base_name='static',
     spawn_coord=(5, 5),
     tile='☐',
@@ -4280,7 +4250,6 @@ def spawn_static_actor(
     moveable=False,
     multi_tile_parent=None,
     blocking=False,
-    literal_name=False,
     y_hide_coord=None,
     solid=True,
     description='STATIC ACTOR',
@@ -4290,9 +4259,8 @@ def spawn_static_actor(
     Spawns a static (non-controlled) actor at coordinates spawn_coord
     and returns the static actor's id.
     """
-    if literal_name:
-        actor_id = base_name
-    else:
+
+    if actor_id is None:
         actor_id = generate_id(base_name=base_name)
     if animation_preset is not None:
         is_animated = True
@@ -4640,8 +4608,6 @@ async def free_look(
             )
         debounce = True
     elif key in '?':
-        with term.location(55, 0):
-            print("4509!")
         await display_help(mode="looking") 
         debounce = True
     actual_print_location = offset_of_center(static_vars['cursor_location'])
@@ -6717,7 +6683,6 @@ async def delay_follow(
         moveable=False,
         multi_tile_parent=None, 
         blocking=False, 
-        literal_name=False,
         description='Your shadow.'
     )
     while True:
