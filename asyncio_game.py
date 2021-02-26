@@ -2011,9 +2011,10 @@ async def damage_actor(
             root_coord = actor_dict[actor].coords()
             actor_noun = actor_dict[actor].base_name
             actor_material = actor_dict[actor].made_of
-            await spray_debris(
-                noun=actor_noun, root_coord=root_coord, preset=actor_material
-            )
+            if not leaves_body:
+                await spray_debris(
+                    noun=actor_noun, root_coord=root_coord, preset=actor_material
+                )
             await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
 
 async def spray_debris(
@@ -2025,13 +2026,15 @@ async def spray_debris(
     color_num=8,
     template_message='Broken {}',
 ):
+    if "The" not in noun or "the" not in noun:
+        noun = f"The {noun}"
     debris_dict = {
         'wood':(f'{noun} turns to splinters!', ',.\''),
         'stone':(f'{noun} shatters into pieces!', '..:o'),
         'jelly':(f'{noun} splatters! Ew!', '..:o'),
         'flesh':(f'{noun} explodes! Gross.', '~⟅\'\"'),
         'energy':(f'{noun} seems to fold in on itself.|It\'s gone.', '~⟅\'\"'),
-        '???':(f'The {noun} vanishes.', ' '),
+        '???':(f'{noun} vanishes.', ' '),
     }
     message, palette = debris_dict[preset]
     await append_to_log(message=message)
@@ -4196,7 +4199,7 @@ async def create_magic_door_pair(
     )
 
 async def spawn_container(
-    base_name='The box',
+    base_name='box',
     spawn_coord=(5, 5),
     tile='☒',
     breakable=True,
@@ -8004,7 +8007,7 @@ async def spawn_preset_actor(
                 coord=coords,
                 speed=.3,
                 movement_function=seek_actor, 
-                movement_function_kwargs={'repel':True, 'active_distance':5},
+                movement_function_kwargs={'repel':True, 'active_distance':7},
                 tile='.',
                 name_key=name,
                 base_name=preset,
@@ -8014,7 +8017,7 @@ async def spawn_preset_actor(
                 animation=Animation(preset='critter'),
                 holding_items=item_drops,
                 description=description,
-                breakable=False,
+                breakable=True,
                 health=10,
                 made_of='flesh',
             )
