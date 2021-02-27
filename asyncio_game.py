@@ -2036,6 +2036,8 @@ async def spray_debris(
     radius=3, 
     num_seeds=6,
     color_num=8,
+    #TODO: add another line item for which word to use in the description:
+    # i.e: "Bits of flesh" instead of "Broken flesh"
     template_message='Broken {}',
 ):
     if "The" not in noun or "the" not in noun:
@@ -4725,7 +4727,7 @@ async def action_keypress(key):
         asyncio.ensure_future(use_item_in_slot(slot='e'))
     elif key in 'h': #debug health restore
         asyncio.ensure_future(health_potion())
-    elif key in 'u':
+    elif key in 'U':
         asyncio.ensure_future(use_chosen_item())
     #ITEM TEST COMMANDS----------------------------------------------------
     elif key in 'f': #use sword in facing direction
@@ -5183,7 +5185,7 @@ async def console_box(
             line_text = "{}{}".format(message, suffix)
             line_y = index + y_margin
             with term.location(x_margin, line_y):
-                print(line_text.ljust(width, ' '))
+                print(line_text.ljust(width + 1, ' '))
         await asyncio.sleep(refresh_rate)
 
 async def append_to_log(
@@ -5608,15 +5610,17 @@ async def display_help(mode="normal"):
         " wasd: move/push          ",
         " WASD: run (no pushing)   ",
         "space: open/close/interact",
-        " ijkl: look in direction  ",
+        " ijkl: look N,E,S,W",
+        " uom.: look NW,NE,SW,SE",
         "    g: get item from tile,",
         "       0-f to choose item ",
         "  Q/E: equip item to slot,",
         "       0-f to choose item ",
         "  q/e: use equipped item  ",
         "    t: throw chosen item  ",
-        "    u: use selected item  ",
+        "    U: use selected item  ",
         "    x: examine faced tile ",
+        "    X: enter look mode",
         "bkspc: quit dialog (y/n)  ",
         "    ?: open this message  ",
     )
@@ -8219,11 +8223,11 @@ async def door_init(loop):
         loop.create_task(door_pair)
 
 async def starting_messages():
-    await asyncio.sleep(3)
+    await asyncio.sleep(5)
     await append_to_log(message='You wake in a small dark cell with a splitting headache.')
-    await asyncio.sleep(3)
+    await asyncio.sleep(5)
     await append_to_log(message='You hear the noises of unseen creatures.')
-    await asyncio.sleep(3)
+    await asyncio.sleep(5)
     await append_to_log(message='Finding a way out of here seems like a good place to start.')
     await asyncio.sleep(5)
     await append_to_log(message='It looks like someone left a key for you.')
