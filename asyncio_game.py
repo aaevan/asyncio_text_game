@@ -720,10 +720,22 @@ class Multi_tile_entity:
     def description_presets(self, preset):
         presets = {
             '2x2':('???', 'A side of the box', 'wood'),
-            'empty':('Nothing\'s here!', 'One patch of nothingness', 'nothingness'),
+            'empty':(
+                'Nothing\'s here!', 
+                'One patch of nothingness', 
+                'nothingness'
+            ),
             'bold_2x2':('???', 'reinforced box', 'wood'),
-            '2x2_block':('A large wooden crate. It looks fragile.', 'A side of the crate', 'wood'),
-            '2x2_block_thick':('A large crate heavily banded in metal.', 'Part of the banded crate', 'reinforced wood'),
+            '2x2_block':(
+                'A large wooden crate. It looks fragile.',
+                'A side of the crate',
+                'wood'
+            ),
+            '2x2_block_thick':(
+                'A large crate heavily banded in metal.',
+                'Part of the banded crate', 
+                'reinforced wood'
+            ),
             '3x3_block':('???', '3x3 block', 'wood'),
             '3x3':('???', 'of ???', '???'),
             '3x3 fire':('???', 'mass of fire', 'fire'),
@@ -5144,7 +5156,7 @@ async def console_box(
     asyncio.ensure_future(
         ui_box_draw(
             box_height=height, 
-            box_width=width, 
+            box_width=width + 1, 
             x_margin=x_margin - 1,
             y_margin=y_margin - 1
         )
@@ -5179,7 +5191,9 @@ async def append_to_log(
     wipe=False, 
     wipe_time=5, 
     wipe_char_time=.1,
-    line_length=45
+    line_length=45,
+    #starting_indicator='>',
+    starting_indicator='➢',
 ):
     if '|' in message:
         messages = message.split('|')
@@ -5201,9 +5215,14 @@ async def append_to_log(
     for index_offset, line in enumerate(reversed(padded_lines)):
         line_index = len(state_dict['messages'])
         state_dict['messages'].append(('', hash(message)))
+        if index_offset == len(padded_lines) - 1:
+            formatted_message = f'{starting_indicator} {line}'
+        else:
+            formatted_message = f'  {line}'
         asyncio.ensure_future(
             filter_into_log(
-                message=line, line_index=line_index
+                message=formatted_message, 
+                line_index=line_index,
             )
         )
     if wipe:
@@ -8199,6 +8218,16 @@ async def door_init(loop):
     for door_pair in door_pairs:
         loop.create_task(door_pair)
 
+async def starting_messages():
+    await asyncio.sleep(3)
+    await append_to_log(message='You wake in a small dark cell with a splitting headache.')
+    await asyncio.sleep(3)
+    await append_to_log(message='You hear the noises of unseen creatures.')
+    await asyncio.sleep(3)
+    await append_to_log(message='Finding a way out of here seems like a good place to start.')
+    await asyncio.sleep(5)
+    await append_to_log(message='It looks like someone left a key for you.')
+
 def state_setup():
     actor_dict['player'].update((24, -5))
     state_dict['facing'] = 's'
@@ -8241,12 +8270,13 @@ def main():
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
         broken_steam_pipe(),
-        #broken_steam_pipe(
-            #pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
-        #),
-        #broken_steam_pipe(
-            #pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
-        #),
+        broken_steam_pipe(
+            pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
+        ),
+        broken_steam_pipe(
+            pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
+        ),
+        starting_messages()
     )
     for task in tasks:
         loop.create_task(task)
