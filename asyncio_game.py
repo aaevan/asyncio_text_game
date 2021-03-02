@@ -6406,7 +6406,7 @@ async def async_map_init():
         ((-18, -19), 'battery'), 
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
-        ((1, -23), 'green sword'), 
+        ((-22, -45), 'green sword'), 
         ((26, 5), 'knife'), 
         ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
