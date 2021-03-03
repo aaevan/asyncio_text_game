@@ -1539,7 +1539,8 @@ def n_wide_passage(
     blocking=False,
     width=3,
     fade_to_preset=None,
-    fade_bracket=(.25, .75)
+    fade_bracket=(.25, .75),
+    just_return_values=False,
 ):
     total_distance = point_to_point_distance(coord_a, coord_b)
     origin = (0, 0)
@@ -1562,6 +1563,8 @@ def n_wide_passage(
         line_points = get_line(offset_coord_a, offset_coord_b)
         for point in line_points:
             points_to_write.add(point)
+    if just_return_values:
+        return list(points_to_write)
     for point in points_to_write:
         if fade_to_preset is not None:
             if prob_fade_point_to_point(
@@ -1576,6 +1579,7 @@ def n_wide_passage(
             paint_preset(tile_coords=point, preset=write_preset)
         else:
             paint_preset(tile_coords=point, preset=preset)
+    return list(points_to_write)
 
 def prob_fade_point_to_point(
     start_point=(0, 0), 
@@ -3717,6 +3721,14 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         #TODO: passwall item: makes a section of wall shimmer like temporary
         #      blocks and passable for a short period of time. 
         #      kill all actors left when time expires.
+        #'passwall wand'
+        'passwall wand':{
+            'uses':5,
+            'tile':term.color(0xca)('/'),
+            'power_kwargs':{'radius':6},
+            'usable_power':spawn_bubble,
+            'broken_text':wand_broken_text
+        },
         'looking glass':{
             'uses':-1,
             'use_message':"You see yourself outside of yourself.",
@@ -4747,6 +4759,17 @@ async def action_keypress(key):
         print_debug_grid() 
     elif key in '#':
         brightness_test()
+    elif key in '@':
+        pass
+        asyncio.ensure_future(
+            append_to_log(message="Passwall!")
+        )
+        asyncio.ensure_future(
+            passwall_effect(
+                origin_coord=player_coords,
+                direction=state_dict['facing'],
+            )
+        )
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
     elif key in 'F': #fill screen with random colors
@@ -4968,6 +4991,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         'block wand':(
             '┌───┐',
             '│  ▨│', 
+            '│ ╱ │',
+            '│╱  │',
+            '└───┘',
+        ),
+        'passwall wand':(
+            '┌───┐',
+            '│  *│'.replace('*', term.color(0xca)('#')), 
             '│ ╱ │',
             '│╱  │',
             '└───┘',
@@ -7492,6 +7522,47 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     await asyncio.sleep(duration)
     state_dict['bubble_cooldown'] = False
     return True
+
+async def passwall_effect(
+    origin_coord=(0, 0), 
+    depth_of_cut=5, 
+    direction='n',
+    duration=1,
+    width=2
+):
+    scaled_offset = scaled_dir_offset(
+        dir_string=direction, scale_by=depth_of_cut
+    )
+    end_coord = add_coords(origin_coord, scaled_offset)
+    points = n_wide_passage(
+        coord_a=origin_coord,
+        coord_b=end_coord,
+        width=width,
+        just_return_values=True,
+    )
+    starting_state = {}
+    for point in points:
+        #TODO: set the tiles made passable temporarily to a shimmer effect
+        starting_state[point] = (
+            map_dict[point].passable, 
+            map_dict[point].tile,
+            map_dict[point].blocking,
+        )
+        if not map_dict[point].passable:
+            map_dict[point].passable = True
+            map_dict[point].tile = "."
+            map_dict[point].blocking = False
+    asyncio.ensure_future(append_to_log(message="passwall starting."))
+    print(starting_state)
+    await asyncio.sleep(duration)
+    asyncio.ensure_future(append_to_log(message="passwall finished."))
+    #reset passable state
+    for coord, (passable, tile, blocking) in starting_state.items():
+        with term.location(55, randint(0, 10)):
+            print(coord, passable, tile, blocking)
+        map_dict[point].passable = passable
+        map_dict[point].tile = tile
+        map_dict[point].blocking = blocking
 
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
