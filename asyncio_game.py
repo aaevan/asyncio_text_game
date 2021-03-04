@@ -7543,26 +7543,39 @@ async def passwall_effect(
     starting_state = {}
     for point in points:
         #TODO: set the tiles made passable temporarily to a shimmer effect
+        actors_on_square = [actor for actor in map_dict[point].actors.items()]
+        if len(actors_on_square) != 0:
+            continue
         starting_state[point] = (
             map_dict[point].passable, 
             map_dict[point].tile,
             map_dict[point].blocking,
         )
         if not map_dict[point].passable:
-            map_dict[point].passable = True
-            map_dict[point].tile = "."
-            map_dict[point].blocking = False
-    asyncio.ensure_future(append_to_log(message="passwall starting."))
-    print(starting_state)
+            if len(actors_on_square) == 0:
+                map_dict[point].passable = True
+                map_dict[point].tile = "."
+                map_dict[point].blocking = False
+    asyncio.ensure_future(append_to_log(message="The wall disappears!"))
     await asyncio.sleep(duration)
-    asyncio.ensure_future(append_to_log(message="passwall finished."))
+    asyncio.ensure_future(append_to_log(message="The wall reappears!"))
     #reset passable state
     for coord, (passable, tile, blocking) in starting_state.items():
-        with term.location(55, randint(0, 10)):
-            print(coord, passable, tile, blocking)
-        map_dict[point].passable = passable
-        map_dict[point].tile = tile
-        map_dict[point].blocking = blocking
+        map_dict[coord].passable = passable
+        if passable == False:
+            if actor_dict['player'].coords() == coord:
+                asyncio.ensure_future(
+                    append_to_log(
+                        message="You are entombed within the wall."
+                    )
+                )
+            asyncio.ensure_future(
+                damage_all_actors_at_coord(
+                    coord=coord, damage=9999,
+                )
+            )
+        map_dict[coord].tile = tile
+        map_dict[coord].blocking = blocking
 
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
