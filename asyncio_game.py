@@ -404,9 +404,9 @@ class Animation:
                 'color_choices':'1' * 5 + '7'
             },
             'shimmer':{
-                'animation':(base_tile), 
+                'animation':(base_tile, base_tile), 
                 'behavior':'random', 
-                'color_choices':'1234567'
+                'color_choices':(0x0e, 0x19, 0x1f, 0x9f),
             },
             'spikes':{
                 'animation':('∧∧∧∧‸‸‸     '), 
@@ -5594,7 +5594,7 @@ async def angle_swing(radius=15):
 
 async def crosshairs(
     radius=18,
-    crosshair_chars=('.', '*', '.'),
+    crosshair_chars=('ˑ', '∙', 'ˑ'),
     fov=30, 
     refresh_delay=.05
 ):
@@ -6685,6 +6685,7 @@ async def ui_setup():
     )
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
+#TODO: cull?
 async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
     """
     an attempt at creating fake whole-screen noise
@@ -7527,7 +7528,7 @@ async def passwall_effect(
     origin_coord=(0, 0), 
     depth_of_cut=5, 
     direction='n',
-    duration=1,
+    duration=3,
     width=2
 ):
     scaled_offset = scaled_dir_offset(
@@ -7542,7 +7543,6 @@ async def passwall_effect(
     )
     starting_state = {}
     for point in points:
-        #TODO: set the tiles made passable temporarily to a shimmer effect
         actors_on_square = [actor for actor in map_dict[point].actors.items()]
         if len(actors_on_square) != 0:
             continue
@@ -7550,17 +7550,22 @@ async def passwall_effect(
             map_dict[point].passable, 
             map_dict[point].tile,
             map_dict[point].blocking,
+            map_dict[point].is_animated,
+            map_dict[point].animation,
         )
         if not map_dict[point].passable:
+            base_tile = map_dict[point].tile
             if len(actors_on_square) == 0:
                 map_dict[point].passable = True
                 map_dict[point].tile = "."
+                map_dict[point].animation = Animation(base_tile=base_tile, preset='shimmer')
+                map_dict[point].is_animated = True
                 map_dict[point].blocking = False
     asyncio.ensure_future(append_to_log(message="The wall disappears!"))
     await asyncio.sleep(duration)
     asyncio.ensure_future(append_to_log(message="The wall reappears!"))
     #reset passable state
-    for coord, (passable, tile, blocking) in starting_state.items():
+    for coord, (passable, tile, blocking, is_animated, animation) in starting_state.items():
         map_dict[coord].passable = passable
         if passable == False:
             if actor_dict['player'].coords() == coord:
@@ -7576,6 +7581,8 @@ async def passwall_effect(
             )
         map_dict[coord].tile = tile
         map_dict[coord].blocking = blocking
+        map_dict[point].is_animated = is_animated
+        map_dict[point].animation = animation
 
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
