@@ -3724,9 +3724,10 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         #'passwall wand'
         'passwall wand':{
             'uses':5,
+            'use_message':"A section of wall turns transparent and insubstantial.||You'd best not get trapped.",
             'tile':term.color(0xca)('/'),
-            'power_kwargs':{'radius':6},
-            'usable_power':spawn_bubble,
+            'power_kwargs':{'duration':3},
+            'usable_power':passwall_effect,
             'broken_text':wand_broken_text
         },
         'looking glass':{
@@ -6445,6 +6446,7 @@ async def async_map_init():
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
         ((26, -3), 'cell key'),
+        ((24, -5), 'passwall wand'),
     )
     for coord, item_name in items:
         spawn_item_at_coords(
@@ -7525,12 +7527,19 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     return True
 
 async def passwall_effect(
-    origin_coord=(0, 0), 
+    #origin_coord=(0, 0), 
+    #direction='n',
     depth_of_cut=5, 
-    direction='n',
     duration=3,
     width=2
 ):
+    if state_dict['passwall running'] == False:
+        state_dict['passwall running'] = True
+    else:
+        #asyncio.ensure_future(append_to_log(message=""))
+        return
+    origin_coord=actor_dict['player'].coords()
+    direction=state_dict['facing']
     scaled_offset = scaled_dir_offset(
         dir_string=direction, scale_by=depth_of_cut
     )
@@ -7581,8 +7590,9 @@ async def passwall_effect(
             )
         map_dict[coord].tile = tile
         map_dict[coord].blocking = blocking
-        map_dict[point].is_animated = is_animated
-        map_dict[point].animation = animation
+        map_dict[coord].is_animated = is_animated
+        map_dict[coord].animation = animation
+    state_dict['passwall running'] = False
 
 async def points_at_distance(radius=5, central_point=(0, 0)):
     every_five = [i * 5 for i in range(72)]
@@ -8327,7 +8337,7 @@ def state_setup():
     actor_dict['player'].update((24, -5))
     state_dict['facing'] = 's'
     state_dict['just teleported'] = False
-    state_dict["player_health"] = 100
+    state_dict['player_health'] = 100
     state_dict['menu_choices'] = []
     state_dict['plane'] = 'normal'
     state_dict['printing'] = False
@@ -8336,6 +8346,7 @@ def state_setup():
     state_dict['view_tile_count'] = 0
     state_dict['scanner_state'] = False
     state_dict['lock view'] = False
+    state_dict['passwall running'] = False
 
 def main():
     state_setup()
