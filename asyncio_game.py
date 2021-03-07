@@ -4761,16 +4761,8 @@ async def action_keypress(key):
     elif key in '#':
         brightness_test()
     elif key in '@':
-        pass
-        asyncio.ensure_future(
-            append_to_log(message="Passwall!")
-        )
-        asyncio.ensure_future(
-            passwall_effect(
-                origin_coord=player_coords,
-                direction=state_dict['facing'],
-            )
-        )
+        asyncio.ensure_future(append_to_log(message="Passwall!"))
+        asyncio.ensure_future(passwall_effect())
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
     elif key in 'F': #fill screen with random colors
@@ -7226,6 +7218,9 @@ async def basic_actor(
         #checked again here because actors can be pushed around
         current_coords = actor_dict[name_key].coords()
         if current_coords != next_coords:
+            #catch condition where player is dead and actor is missing(?):
+            if actor_dict['player'].health <= 0:
+                return
             dist_to_player = distance_to_actor(name_key, 'player')
             noise_level = (1 / dist_to_player ** 2) * 10
             if random() <= noise_level:
@@ -7284,6 +7279,8 @@ def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=0):
     coord_choices = [
         point for point in circle_points if map_dict[point].passable
     ]
+    if coord_choices == []:
+        return
     for item in items:
         item_coord = choice(coord_choices)
         spawn_item_at_coords(coord=item_coord, instance_of=item)
