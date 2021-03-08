@@ -6679,24 +6679,6 @@ async def ui_setup():
     )
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
-#TODO: cull?
-async def shimmer_text(output_text=None, screen_coord=(0, 1), speed=.1):
-    """
-    an attempt at creating fake whole-screen noise
-    """
-    x_size, y_size = (term.width - 2, term.height - 2)
-    rand_coords = []
-    old_coords = []
-    noise = '      ▒▓▒ ▒▓▒' 
-    while True:
-        if output_text is None:
-            output_text = "the quick brown fox jumps over the lazy dog"
-        rand_color = [term.color(choice((7, 8)))(char) for char in output_text]
-        shimmer_text = ''.join(rand_color)
-        with term.location(*screen_coord):
-            print(shimmer_text)
-        await asyncio.sleep(speed)
-
 #Actor behavior functions-------------------------------------------------------
 async def wander(name_key=None, chance_wait=.25, **kwargs):
     """ 
