@@ -523,7 +523,6 @@ class Item:
         breakable=True,
         accepts_charges=False,
         stackable=False,
-        max_stack=None,
         quantity=None,
     ):
         self.name = name
@@ -541,7 +540,6 @@ class Item:
         self.breakable = breakable
         self.accepts_charges = accepts_charges
         self.stackable = stackable
-        self.max_stack = max_stack
         self.quantity = quantity
 
     async def use(self):
@@ -3533,7 +3531,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         'battery':{
             'uses':1,
             'stackable':True,
-            'max_stack':5,
             'tile':term.green('◈'), 
             'power_kwargs':{
                 'item_id':item_id,
@@ -3564,7 +3561,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         'nut':{
             'uses':1,
             'stackable':True,
-            'max_stack':10,
             'tile':term.red('⏣'),
             'usable_power':throw_item, 
             'power_kwargs':{'thrown_item_id':item_id}
@@ -3614,7 +3610,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         'red potion':{
             'uses':1,
             'stackable':True,
-            'max_stack':10,
             'tile':term.red('◉'), 
             'power_kwargs':{
                 'item_id':item_id,
@@ -3661,7 +3656,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'player_sword_track':True,
             },
             'usable_power':sword_item_ability,
-            #'broken_text':'Something went wrong.',
             'use_message':None
         },
         'green sword':{
@@ -3730,10 +3724,6 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'power_kwargs':{'distance':10},
             'broken_text':wand_broken_text
         },
-        #TODO: passwall item: makes a section of wall shimmer like temporary
-        #      blocks and passable for a short period of time. 
-        #      kill all actors left when time expires.
-        #'passwall wand'
         'passwall wand':{
             'uses':5,
             'use_message':"A section of wall turns transparent and insubstantial.||You'd best not get trapped.",
@@ -3753,41 +3743,28 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
     }
     #item generation:
     if instance_of in item_catalog:
-        ###
-        #TODO: figure out stacking of items and combining of two stacks
-        #      fill one stack then start a new one?
-        #      just get rid of stack size entirely?
-        """
+        base_name = item_id.split('_')[0]
         for index, item_name in enumerate(map_dict[coord].items):
-            base_name = item_name.split('_')[0]
             is_stackable = item_dict[item_name].stackable
             item_uses = item_dict[item_name].uses 
-            max_stack_size = item_dict[item_name].max_stack 
-            if is_stackable:
-                not_max_stack = item_uses < max_stack_size
-            with term.location(55, index):
-                print(index, item_name, base_name, is_stackable, item_uses)
-            if base_name in item_name and is_stackable and not_max_stack:
+            if base_name in item_name and is_stackable:
                 item_dict[item_name].uses += 1
-                with term.location(100, index):
-                    print(3769)
                 break
-        """
-        ###
-        if True: #filler until the above works
-        #else:
+        #only execute if the for loop completes:
+        else:
             item_dict[item_id] = Item(
                 name=instance_of,
                 item_id=item_id,
                 spawn_coord=coord,
                 **item_catalog[instance_of]
             )
+            max_items_on_tile = 10
             if not on_actor_id:
-                if len(map_dict[coord].items) < 10:
+                if len(map_dict[coord].items) < max_items_on_tile:
                     map_dict[coord].items[item_id] = True
                 else:
                     for coord in adjacent_passable_tiles(base_coord=coord):
-                        if len(map_dict[coord].items) < 10:
+                        if len(map_dict[coord].items) < max_items_on_tile:
                             map_dict[coord].items[item_id] = True
                             break
             else:
@@ -3813,17 +3790,19 @@ async def display_items_at_coord(
     item_list = ' '
     current_list_hash = 0
     last_list_hash = 0
+    force_reprint_counter = 0
     while True:
         await asyncio.sleep(.1)
+        force_reprint_counter = (force_reprint_counter + 1) % 10
         player_coords = actor_dict['player'].coords()
         
         item_list = [item for item in map_dict[player_coords].items]
-        current_list_hash = hash(str(item_list))
+        item_uses = [item_dict[item_id].uses for item_id in item_list]
+        current_list_hash = hash(str(item_list) + str(item_uses))
         if current_list_hash != last_list_hash:
             clear_screen_region(
                 x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1)
             )
-        if current_list_hash != last_list_hash:
             if len(item_list) > 0:
                 filter_text = 'Items here:'
             else:
@@ -3836,9 +3815,9 @@ async def display_items_at_coord(
                 )
             )
         if len(item_list) > 0:
-            for number, item_id in enumerate(item_list):
-                name_location = (x_pos + 2, (y_pos + 1) + number)
-                icon_location = (x_pos, (y_pos + 1) + number)
+            for index, item_id in enumerate(item_list):
+                name_location = (x_pos + 2, (y_pos + 1) + index)
+                icon_location = (x_pos, (y_pos + 1) + index)
                 item_icon = item_dict[item_id].tile
                 item_name = item_dict[item_id].name
                 if item_dict[item_id].uses >= 0:
@@ -4801,9 +4780,8 @@ async def action_keypress(key):
     elif key in '#':
         brightness_test()
     elif key in '@':
-        spawn_item_at_coords(coord=player_coords, instance_of='red potion')
-        spawn_item_at_coords(coord=player_coords, instance_of='battery')
-        spawn_item_at_coords(coord=player_coords, instance_of='nut')
+        rand_item = choice(('red potion', 'battery', 'nut'))
+        spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
     elif key in 'F': #fill screen with random colors
@@ -5443,10 +5421,7 @@ async def get_item(coords=(0, 0), item_id=None, source='ground'):
     for index, item_name in enumerate(actor_dict['player'].holding_items):
         is_stackable = item_dict[item_name].stackable
         item_uses = item_dict[item_name].uses 
-        max_stack_size = item_dict[item_name].max_stack 
-        if is_stackable:
-            not_max_stack = item_uses < max_stack_size
-        if base_name in item_name and is_stackable and not_max_stack:
+        if base_name in item_name and is_stackable:
             item_dict[item_name].uses += 1
             break
     else:
