@@ -4813,7 +4813,8 @@ async def action_keypress(key):
         #destination = (-13, -12) #near steam vents
         #destination = (45, -31) #near red spike
         #destination = (-33, -1) #near red spike
-        destination = (-41, 22) #sw corner of map
+        #destination = (-41, 22) #sw corner of map
+        destination = (3, -41) #near spike traps
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'e'
         return
@@ -5191,8 +5192,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -8297,6 +8298,11 @@ async def quitter_daemon():
         await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
+            #pending = asyncio.Task.all_tasks()
+            #for task in pending:
+                #print(f'dir(task):')
+                #print(dir(task))
+            #loop.run_until_complete(asyncio.gather(*pending))
             loop.stop()
             loop.close()
 
