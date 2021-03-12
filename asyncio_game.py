@@ -1123,7 +1123,7 @@ actor_dict['player'] = Actor(
     breakable=True,
 )
 
-def brightness_val(index, get_length=False):
+def get_brightness_val(index, get_length=False):
     brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
     if get_length:
         return len(brightness_vals)
@@ -2495,7 +2495,7 @@ async def multi_spike_trap(
             moveable=False, 
             tile='◘', 
             tile_color=0,
-            description="You notice a hole in this section of wall."
+            description="There's a hole in this section of smooth stone wall."
         )
         actor_dict[node_name].update(coord=node_coord)
         map_dict[node_coord].tile = '◘'
@@ -4429,8 +4429,16 @@ def map_init():
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
     draw_secret_passage(coord_a=(30, -18), coord_b=(30, -21))
-    for coord in ((-21, -16), (-18, -15), (-15, -14)):
+    for coord in (
+        (-21, -16), (-18, -15), (-15, -14), 
+    ):
         spawn_column(spawn_coord=coord)
+    for coord in (
+        (7, -66), (11, -66),
+        (7, -69), (11, -69), 
+        (7, -72), (11, -72), 
+    ):
+        spawn_column(spawn_coord=coord, height=3)
     #map_dict BOOKMARK
     map_dict[(25, -4)].use_action_func = use_action_fork
     map_dict[(25, -4)].use_action_kwargs = {}
@@ -4467,6 +4475,7 @@ def spawn_column(
     shadow_length=4, 
     shadow_mod=5,
     solid_base=True,
+    blocking=False,
 ):
     """
     note: base of column is not blocking because it obscures higher elements
@@ -4485,13 +4494,24 @@ def spawn_column(
         breakable=False,
         moveable=False,
         description="A {} rises into the ceiling.".format(name),
+        blocking=blocking,
     )
-    for y_value in range(height):
+    map_dict[spawn_coord].tile=tile
+    map_dict[spawn_coord].blocking=blocking
+    brightness_shift = 7
+    column_colors = [
+        get_brightness_val(i*brightness_shift)[0] for i in range(height)
+    ]
+    with term.location(55, randint(0, 10)):
+        print(height, column_colors)
+    for height_index, y_value in enumerate(range(height)):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
+        segment_tile = term.color(column_colors[height_index])(tile)
         spawn_static_actor(
             base_name='y_hide_test', 
             spawn_coord=column_segment_spawn_coord, 
-            tile=tile, y_hide_coord=spawn_coord, 
+            tile=segment_tile,
+            y_hide_coord=spawn_coord, 
             solid=False,
             breakable=False,
             moveable=False,
@@ -5192,8 +5212,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5921,10 +5941,10 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             brightness_mod = map_dict[tile_coord_key].brightness_mod
             tile_brightness = get_brightness(distance, brightness_mod)
             if not state_dict['lock view']:
-                color_tuple = brightness_val(int(tile_brightness))
+                color_tuple = get_brightness_val(int(tile_brightness))
             else:
                 #if view locked, display a slightly fuzzy but uniform view:
-                color_tuple = brightness_val(9 + randint(-2, 2))
+                color_tuple = get_brightness_val(9 + randint(-2, 2))
             if print_choice in ('░', '▞', '𝄛', '■', '▣'):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
@@ -5947,8 +5967,8 @@ def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0
     ))
     if brightness_value <= 0:
         return 0
-    elif brightness_value >= brightness_val(0, get_length=True) - 1:
-        return brightness_val(0, get_length=True) - 1
+    elif brightness_value >= get_brightness_val(0, get_length=True) - 1:
+        return get_brightness_val(0, get_length=True) - 1
     return brightness_value
 
 async def check_contents_of_tile(coord):
@@ -6465,8 +6485,6 @@ async def async_map_init():
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
         ((26, -3), 'cell key'),
-        ((25, -3), 'red potion'),
-        ((24, -3), 'red potion'),
         ((24, -5), 'passwall wand'),
     )
     for coord, item_name in items:
@@ -6515,14 +6533,10 @@ async def async_map_init():
 
 async def trap_init():
     loop = asyncio.get_event_loop()
-    node_offsets = ((-6, 's'), (6, 'n'))
-    base_coord = (9, -41)
-    draw_centered_box(middle_coord=base_coord, x_size=11, y_size=11, preset='floor')
-    rand_coords = {
-        (
-            randint(-5, 5) + base_coord[0], 
-            randint(-5, 5) + base_coord[1]
-        ) 
+    base_coord = (9, -50)
+    draw_centered_box(middle_coord=base_coord, x_size=9, y_size=11, preset='floor')
+    rand_coords = { #dict comprehension:
+        (randint(-4, 4) + base_coord[0], randint(-5, 5) + base_coord[1]) 
         for _ in range(20)
     }
     state_dict['switch_1'] = {}
@@ -6532,8 +6546,9 @@ async def trap_init():
                 spawn_coord=coord, patch_to_key='switch_1'
             )
         )
+    node_offsets = ((-5, 'e'), (5, 'w'))
     spike_trap_coords = [
-        (i, *offset) for i in range(-5, 6) for offset in node_offsets
+        (offset, i, facing) for i in range(-5, 6) for (offset, facing) in node_offsets
     ]
     loop.create_task(
         multi_spike_trap(
