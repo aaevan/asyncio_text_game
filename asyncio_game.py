@@ -1124,10 +1124,15 @@ actor_dict['player'] = Actor(
 )
 
 def get_brightness_val(index, get_length=False):
+    low_val, high_val = 0xe8, 0xff
+    index_max = high_val - low_val
     brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
     if get_length:
         return len(brightness_vals)
-    return brightness_vals[index]
+    if index >= index_max:
+        return brightness_vals[-1]
+    else:
+        return brightness_vals[index]
 
 #Drawing functions--------------------------------------------------------------
 def paint_preset(tile_coords=(0, 0), preset='floor'):
@@ -4498,12 +4503,10 @@ def spawn_column(
     )
     map_dict[spawn_coord].tile=tile
     map_dict[spawn_coord].blocking=blocking
-    brightness_shift = 7
+    brightness_shift = 6
     column_colors = [
         get_brightness_val(i*brightness_shift)[0] for i in range(height)
     ]
-    with term.location(55, randint(0, 10)):
-        print(height, column_colors)
     for height_index, y_value in enumerate(range(height)):
         column_segment_spawn_coord = add_coords(spawn_coord, (0, -y_value))
         segment_tile = term.color(column_colors[height_index])(tile)
@@ -4781,9 +4784,8 @@ async def action_keypress(key):
         asyncio.ensure_future(health_potion())
     elif key in 'U':
         asyncio.ensure_future(use_chosen_item())
-    #ITEM TEST COMMANDS----------------------------------------------------
-    elif key in 'f': #use sword in facing direction
-        await sword_item_ability(length=3)
+    #elif key in 'f': #use sword in facing direction
+        #await sword_item_ability(length=3)
     elif key in 'F': #use sword in facing direction
         await swing(base_actor='player')
     elif key in 'Y': #looking glass power
@@ -6477,15 +6479,16 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-22, -45), 'green sword'), 
-        ((26, 5), 'knife'), 
         ((22, -5), 'dash trinket'), #debug
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
+        #in starting cell:
         ((26, -3), 'cell key'),
-        ((24, -5), 'passwall wand'),
+        ((26, -5), 'knife'), 
+        ((24, 5), 'passwall wand'),
     )
     for coord, item_name in items:
         spawn_item_at_coords(
