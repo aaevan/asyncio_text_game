@@ -4064,7 +4064,7 @@ def room_with_door(
 ):
     room_center = add_coords(wall_coord, room_offset)
     offset_door_coord, offset_room_center = [level_offset_coord(
-        starting_coord=coord,
+        coord=coord,
         per_level_offset=per_level_offset,
         z_level=z_level
     ) for coord in (wall_coord, room_center)]
@@ -4083,7 +4083,7 @@ def room_with_door(
     ).draw_room()
 
 def level_offset_coord(
-    starting_coord=(0, 0),
+    coord=(0, 0),
     per_level_offset=(-1000, -1000),
     z_level=0,
 ):
@@ -4091,7 +4091,7 @@ def level_offset_coord(
         per_level_offset[0] * z_level,
         per_level_offset[1] * z_level,
     )
-    offset_coord = add_coords(starting_coord, total_offsets)
+    offset_coord = add_coords(coord, total_offsets)
     return offset_coord
     
 def secret_room(wall_coord=(0, 0), room_offset=(10, 0), square=True, dimensions=(5, 5)):
@@ -4140,7 +4140,7 @@ def draw_door(
     }
     if door_coord != 0:
         door_coord = level_offset_coord(
-            starting_coord=door_coord,
+            coord=door_coord,
             z_level=z_level,
         )
     map_dict[door_coord].toggle_states = door_presets[preset]
@@ -6488,7 +6488,7 @@ async def async_map_init():
         #in starting cell:
         ((26, -3), 'cell key'),
         ((26, -5), 'knife'), 
-        ((24, 5), 'passwall wand'),
+        (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
         spawn_item_at_coords(
