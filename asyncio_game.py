@@ -7865,6 +7865,7 @@ async def travel_along_line(
         is_animated=is_animated,
         animation=animation,
         description=description,
+        solid=False,
     )
     map_dict[start_coords].actors[particle_id] = True
     last_location = points[0]
