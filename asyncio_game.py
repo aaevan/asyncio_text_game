@@ -8130,7 +8130,9 @@ async def spawn_preset_actor(
             )
         )
     elif preset == 'leech':
-        item_drops = ['nut']
+        #TODO: a thematically relevant item: maybe a one-time use that drains
+        #      nearby monsters of life for a set duration?
+        item_drops = ['battery']
         description = 'A large slowly writhing parasite.'
         loop.create_task(
             basic_actor(
@@ -8177,7 +8179,7 @@ async def spawn_preset_actor(
         )
 
     elif preset == 'angel':
-        item_drops = ['red potion']
+        item_drops = ['shift amulet']
         description = 'A strangely menacing angel statue.'
         loop.create_task(
             basic_actor(
@@ -8204,8 +8206,8 @@ async def spawn_preset_actor(
     #TODO: enemy that is only seen by its trail through your remembered tiles
     #      puts random tiles in place of previous memory?
     elif preset == 'presence':
-        #todo: drop an item that allows walking through walls
-        item_drops = ['red potion']
+        #TODO: drop an item that allows walking through walls
+        item_drops = ['passwall wand']
         description = (
             'Well, that wasn\'t there before.|||'
             'It\'s a large faintly shimmering sphere hovering in midair.'
