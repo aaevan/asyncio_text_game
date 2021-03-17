@@ -3515,7 +3515,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
     #TODO: move item picture to inside of item definitions
     wand_broken_text = ' is out of charges.'
     possible_items = (
-        'wand', 'nut', 'seed', 'fused charge', 'shield wand', 'red potion',
+        'wand', 'pebble', 'seed', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red spike', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
         'rusty key', 'looking glass'
@@ -3563,10 +3563,10 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'thick':True,
             }
         },
-        'nut':{
+        'pebble':{
             'uses':1,
             'stackable':True,
-            'tile':term.red('⏣'),
+            'tile':term.red('·'),
             'usable_power':throw_item, 
             'power_kwargs':{'thrown_item_id':item_id}
         },
@@ -4260,7 +4260,7 @@ async def spawn_container(
     material='wood',
 ):
     if box_choices is None:
-        box_choices = ['', 'nut', 'dynamite', 'red potion', 'fused charge']
+        box_choices = ['', 'pebble', 'dynamite', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
     container_id = spawn_static_actor(
@@ -4802,7 +4802,7 @@ async def action_keypress(key):
     elif key in '#':
         brightness_test()
     elif key in '@':
-        rand_item = choice(('red potion', 'battery', 'nut'))
+        rand_item = choice(('red potion', 'battery', 'pebble'))
         spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
@@ -5056,11 +5056,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│*  │'.replace('*', term.green('╳')),
             '└───┘',
         ),
-        'nut':(
+        'pebble':(
             '┌───┐',
-            '│/ \│', 
-            '│\_/│',
-            '│\_/│',
+            '│   │', 
+            '│   │',
+            '│ ● │',
             '└───┘',
         ),
         'dash trinket':(
@@ -8155,7 +8155,7 @@ async def spawn_preset_actor(
             )
         )
     elif preset == 'critter':
-        item_drops = ['nut']
+        item_drops = ['pebble']
         description = 'A small scared bit of fuzz.'
         loop.create_task(
             basic_actor(
@@ -8240,7 +8240,7 @@ async def spawn_preset_actor(
         )
     
     elif preset == 'test':
-        item_drops = ['nut']
+        item_drops = ['pebble']
         loop.create_task(
             basic_actor(
                 coord=coords,
