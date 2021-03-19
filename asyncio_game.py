@@ -1857,7 +1857,14 @@ async def throw_item(
     if thrown_item_id == None:
         await append_to_log(message='Nothing to throw!')
         return False
-    del actor_dict['player'].holding_items[thrown_item_id]
+    #TODO: implement throwing of just one of something stackable
+    #      but don't just throw one use of a wand or somethign silly
+    #uses_count = item_dict[thrown_item_id].uses
+    #with term.location(55, 0):
+        #print(f"uses remaining: {uses_count}")
+    #item_dict[thrown_item_id] -= 1
+    if uses_count == 0:
+        del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
     throw_vector = scaled_dir_offset(
         dir_string=direction, scale_by=throw_distance
