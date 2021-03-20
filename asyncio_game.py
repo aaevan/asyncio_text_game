@@ -1857,12 +1857,10 @@ async def throw_item(
     if thrown_item_id == None:
         await append_to_log(message='Nothing to throw!')
         return False
-    #TODO: implement throwing of just one of something stackable
-    #      but don't just throw one use of a wand or somethign silly
-    #uses_count = item_dict[thrown_item_id].uses
-    #with term.location(55, 0):
-        #print(f"uses remaining: {uses_count}")
-    #item_dict[thrown_item_id] -= 1
+    uses_count = item_dict[thrown_item_id].uses
+    is_stackable = item_dict[thrown_item_id].stackable
+    if is_stackable:
+        item_dict[thrown_item_id].uses -= 1
     if uses_count == 0:
         del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
@@ -1899,7 +1897,12 @@ async def throw_item(
         animation=None,
         debris=None
     )
-    map_dict[destination].items[thrown_item_id] = True
+    if not is_stackable:
+        map_dict[destination].items[thrown_item_id] = True
+    else:
+        item_preset_name = item_dict[thrown_item_id].name
+        await asyncio.sleep(1)
+        spawn_item_at_coords(coord=destination, instance_of=item_preset_name)
     item_dict[thrown_item_id].current_location = destination
     return True
 
