@@ -1861,7 +1861,7 @@ async def throw_item(
     is_stackable = item_dict[thrown_item_id].stackable
     if is_stackable:
         item_dict[thrown_item_id].uses -= 1
-    if uses_count == 0:
+    if uses_count == 0 or not is_stackable:
         del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
     throw_vector = scaled_dir_offset(
@@ -1919,7 +1919,7 @@ async def display_fuse(fuse_length=3, item_id=None, reset_tile=True):
 async def explosion_effect(
     center_coord=(0, 0),
     radius=6,
-    damage=75,
+    damage=500,
     particle_count=25,
     destroys_terrain=True
 ):
@@ -4380,6 +4380,7 @@ def map_init():
         'basement_right_e': Room((22, 0), (5, 5), z_level=-1),
         'basement_se': Room((40, 18), (10, 5), z_level=-1),
         'basement_se_left': Room((22, 18), (8, 15), z_level=-1),
+        'veranda': Room((9, -74), 20, 'grass', z_level=1),
         'entry_righthand': Room((28, -15), (10, 5)),
         'nw_off_main': Room((-4, -7), (4)),
         'nw_room_off_main': Room((-18, -14), (5)),
@@ -4846,9 +4847,10 @@ async def action_keypress(key):
         #destination = (45, -31) #near red spike
         #destination = (-33, -1) #near red spike
         #destination = (-41, 22) #sw corner of map
-        destination = (3, -41) #near spike traps
+        #destination = (3, -41) #near spike traps
+        destination = (9, -70) #near spike traps
         actor_dict['player'].update(coord=destination)
-        state_dict['facing'] = 'e'
+        state_dict['facing'] = 'n'
         return
     elif key in '%':
         player_coords = actor_dict['player'].coords()
@@ -6688,7 +6690,7 @@ async def status_bar(
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
 
 async def player_coord_readout(
-    x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=False
+    x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=True
 ):
     if centered:
         middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
@@ -8417,6 +8419,13 @@ def main():
         teleporter(spawn_coord=(1, -6), destination_coords=(1, 1)),
         hatch_pair(),
         hatch_pair(origin=(40, 18)),
+        #TODO: figure out why the ladder is spawning on the upper part. related to 'veranda' room
+        hatch_pair(
+            origin=(9, -74), 
+            origin_z=0, 
+            destination_z=1, 
+            tile_shift_offset=(-1000, -1000)
+        ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
