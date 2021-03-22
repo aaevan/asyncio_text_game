@@ -2091,7 +2091,6 @@ async def spray_debris(
     )
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
-    #TODO: fix hiding of seen wall tiles?
     if not hasattr(actor_dict[actor], 'coords'):
         return
     actor_coords = actor_dict[actor].coords()
@@ -4633,8 +4632,6 @@ async def free_look(
     },
     cutout_dist=16,
 ):
-    #TODO: limit the distance away a tile can be examined
-    #      OR exit when edge of view tiles is reached with cursor
     """
     causes a cursor to appear, controlled by ijkl
     exit if key is not ijkl or x
@@ -4936,7 +4933,8 @@ async def examine_tile(examined_coord=None, tense='present'):
         description_text = map_dict[examined_coord].description
     if description_text is not None:
         if tense == 'past':
-            description_text = "Here, you remember seeing " + description_text
+            description_text = description_text[0].lower() + description_text[1:]
+            description_text = "You remember seeing " + description_text
         await append_to_log(message=description_text)
 
 async def toggle_door(door_coord):
@@ -5233,7 +5231,7 @@ async def console_box(
     asyncio.ensure_future(
         ui_box_draw(
             box_height=height, 
-            box_width=width + 1, 
+            box_width=width + 2, 
             x_margin=x_margin - 1,
             y_margin=y_margin - 1
         )
@@ -5260,7 +5258,7 @@ async def console_box(
             line_text = "{}{}".format(message, suffix)
             line_y = index + y_margin
             with term.location(x_margin, line_y):
-                print(line_text.ljust(width + 1, ' '))
+                print(line_text.ljust(width + 2, ' '))
         await asyncio.sleep(refresh_rate)
 
 async def append_to_log(
