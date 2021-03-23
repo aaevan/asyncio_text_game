@@ -2790,6 +2790,7 @@ async def hatch_pair(
     tile_shift_offset=(1000, 1000),
     start_end_dir='s', #the direction faced when teleported to the origin
     dest_end_dir='s', #the direction faced when teleported to the destination
+    ladder_start='first'
 ):
     if destination is None:
         destination = origin
@@ -2800,12 +2801,20 @@ async def hatch_pair(
     hatch_use_offset = (*invert_coords(tile_shift_offset), destination_z)
     ladder_use_offset = (*invert_coords(origin_display_offset), origin_z)
     #hatch:
+    map_dict[hatch_coords].is_animated = False
+    map_dict[ladder_coords].is_animated = False
+    if ladder_start == 'first':
+        first_ladder, second_ladder = True, False
+    elif ladder_start == 'second':
+        first_ladder, second_ladder = False, True
+    else:
+        first_ladder, second_ladder = False, False
     asyncio.ensure_future(
         teleporting_hatch(
             hatch_coords=hatch_coords,
             destination_coords=ladder_landing_coords,
             use_offset=hatch_use_offset,
-            ladder=False,
+            ladder=first_ladder,
             player_facing_end=start_end_dir,
         )
     )
@@ -2815,7 +2824,7 @@ async def hatch_pair(
             hatch_coords=ladder_coords,
             destination_coords=hatch_landing_coords,
             use_offset=ladder_use_offset,
-            ladder=True,
+            ladder=second_ladder,
             player_facing_end=dest_end_dir,
         )
     )
@@ -8422,7 +8431,8 @@ def main():
             origin=(9, -74), 
             origin_z=0, 
             destination_z=1, 
-            tile_shift_offset=(-1000, -1000)
+            tile_shift_offset=(-1000, -1000),
+            ladder_start='first',
         ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
