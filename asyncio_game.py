@@ -4826,9 +4826,18 @@ async def action_keypress(key):
     elif key in 'F': #fill screen with random colors
         fill_screen_with_colors()
     elif key in '(':
-        spawn_coord = player_coords
+        spawn_coord = get_facing_coord()
+        facing_dir = state_dict['facing']
         vine_name = "testing"
-        asyncio.ensure_future(follower_vine(spawn_coord=spawn_coord))
+        asyncio.ensure_future(
+            follower_vine(
+                spawn_coord=spawn_coord,
+                facing_dir=facing_dir,
+                num_segments=7,
+                color_choice=3,
+                root_node_key='player',
+            )
+        )
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -7340,7 +7349,8 @@ async def follower_vine(
     root_node_key=None,
     facing_dir='e',
     update_period=.2,
-    color_choice=None
+    color_choice=None,
+    root_offset=(0, 0),
 ):
     """
     listens for changes in a list of turn instructions and reconfigures a
@@ -7369,7 +7379,8 @@ async def follower_vine(
 
     """
     if root_node_key is not None:
-        current_coord = actor_dict[root_node_key].coords()
+        root_node = actor_dict[root_node_key].coords()
+        current_coord = add_coords(root_node, root_offset)
     elif spawn_coord is not None:
         current_coord = spawn_coord
     vine_name = await spawn_mte(
@@ -7388,6 +7399,8 @@ async def follower_vine(
     if color_choice is None:
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
+        with term.location(55, randint(0, 5)):
+            print(f'current_coord:{current_coord}')
         await asyncio.sleep(update_period)
         mte_dict[vine_name].vine_instructions = mte_vine_animation_step(
             mte_dict[vine_name].vine_instructions
@@ -7400,7 +7413,7 @@ async def follower_vine(
             )
         else:
             current_coord = add_coords(
-                dir_to_offset(write_dir, inverse=True), 
+                root_offset,
                 actor_dict[root_node_key].coords()
             )
         write_list = [] #clear out write_list
