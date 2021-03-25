@@ -3559,9 +3559,21 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'item_id':item_id,
                 'num_charges':3,
             },
-            'usable_power':battery_item,
+            'usable_power':battery_effect,
             'use_message':None,
         },
+        'siphon trinket':{
+            'uses':1,
+            'stackable':True,
+            'tile':term.green('◈'), 
+            'power_kwargs':{
+                'siphon_amount':10,
+                'effect_radius':10,
+            },
+            'usable_power':siphon_trinket_effect,
+            'use_message':'You feel a bit more alive.',
+        },
+        #TODO: implement a cooldown on items using time deltas?
         'blaster':{
             'uses':6,
             'tile':term.red('τ'),
@@ -4826,18 +4838,23 @@ async def action_keypress(key):
     elif key in 'F': #fill screen with random colors
         fill_screen_with_colors()
     elif key in '(':
-        spawn_coord = get_facing_coord()
-        facing_dir = state_dict['facing']
-        vine_name = "testing"
         asyncio.ensure_future(
-            follower_vine(
-                spawn_coord=spawn_coord,
-                facing_dir=facing_dir,
-                num_segments=7,
-                color_choice=3,
-                root_node_key='player',
+            siphon_trinket_effect(
+                center_on_actor_id='player',
             )
         )
+        #spawn_coord = get_facing_coord()
+        #facing_dir = state_dict['facing']
+        #vine_name = "testing"
+        #asyncio.ensure_future(
+            #follower_vine(
+                #spawn_coord=spawn_coord,
+                #facing_dir=facing_dir,
+                #num_segments=7,
+                #color_choice=3,
+                #root_node_key='player',
+            #)
+        #)
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -5133,6 +5150,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│╰*╯│'.replace('*', term.blue('ʘ')),
             '└───┘',
         ),
+        'siphon trinket':(
+            '┌───┐',
+            '│  ┐│',
+            '│ * │'.replace('*', term.red('⧸')),
+            '│└  │',
+            '└───┘',
+        ),
         'hop amulet':(
             '┌───┐',
             '│╭─╮│', 
@@ -5397,7 +5421,7 @@ async def use_chosen_item():
         asyncio.ensure_future(item_dict[item_id_choice].use())
 
 
-async def battery_item(
+async def battery_effect(
     item_id=None,
     num_charges=6,
 ):
@@ -5406,6 +5430,42 @@ async def battery_item(
         if item_dict[item_id].uses <= 0:
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
+
+async def siphon_trinket_effect(
+    center_on_actor_id=None,
+    siphon_amount=5,
+    effect_radius=10,
+):
+    """
+    possibly scale effect based on distance?
+    TODO: fix error on death of non_breakable entities
+    """
+    actor_coords = actor_dict[center_on_actor_id].coords()
+    points = get_circle(center=actor_coords, radius=effect_radius)
+    actor_ids = []
+    for point in points:
+        for actor in map_dict[point].actors:
+            actor_ids.append(actor)
+    whitelist = ("angel", "leech", "blob", "critter")
+    for actor_id in actor_ids:
+        if actor_id.split('_')[0] in whitelist:
+            rand_delay = random() / 3
+            asyncio.ensure_future(
+                start_delay_wrapper(
+                    delay_func=damage_actor, 
+                    start_delay=rand_delay, 
+                    actor=actor_id,
+                    damage=siphon_amount
+                )
+            )
+            asyncio.ensure_future(
+                start_delay_wrapper(
+                    delay_func=health_potion, 
+                    start_delay=rand_delay, 
+                    total_restored=siphon_amount,
+                    hud_effect=False,
+                )
+            )
 
 async def add_uses_to_chosen_item(num_charges=10):
     asyncio.ensure_future(
@@ -7525,7 +7585,8 @@ async def health_potion(
     actor_key='player',
     total_restored=25,
     duration=2,
-    sub_second_step=.1
+    sub_second_step=.1,
+    hud_effect=True
 ):
     if actor_dict['player'].health <= 0:
         return
@@ -7545,9 +7606,10 @@ async def health_potion(
         await asyncio.sleep(sub_second_step)
         if actor_dict['player'].health <= 0:
             return
-        asyncio.ensure_future(
-            directional_alert(source_actor='player', preset='heal')
-        )
+        if hud_effect:
+            asyncio.ensure_future(
+                directional_alert(source_actor='player', preset='heal')
+            )
         if (actor_dict[actor_key].health + health_per_step >= actor_dict[actor_key].max_health):
             actor_dict[actor_key].health = actor_dict[actor_key].max_health
         else:
@@ -8164,7 +8226,7 @@ async def spawn_preset_actor(
     elif preset == 'leech':
         #TODO: a thematically relevant item: maybe a one-time use that drains
         #      nearby monsters of life for a set duration?
-        item_drops = ['battery']
+        item_drops = ['siphon trinket']
         description = 'A large slowly writhing parasite.'
         loop.create_task(
             basic_actor(
