@@ -3565,7 +3565,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
         'siphon trinket':{
             'uses':1,
             'stackable':True,
-            'tile':term.green('◈'), 
+            'tile':term.red('▾'), 
             'power_kwargs':{
                 'siphon_amount':10,
                 'effect_radius':10,
@@ -5152,9 +5152,9 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'siphon trinket':(
             '┌───┐',
-            '│  ┐│',
-            '│ * │'.replace('*', term.red('⧸')),
-            '│└  │',
+            '│   │',
+            '│ * │'.replace('*', term.red('▼')),
+            '│   │',
             '└───┘',
         ),
         'hop amulet':(
