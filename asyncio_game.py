@@ -1986,9 +1986,14 @@ async def thrown_action(
     )
 
 async def damage_all_actors_at_coord(
-    #coord=(0, 0), damage=10, source_actor=None, quiet=True
-    coord=(0, 0), damage=10, source_actor=None, quiet=False
+    coord=(0, 0),
+    damage=10,
+    source_actor=None,
+    quiet=False,
+    ignore_list=None,
 ):
+    if ignore_list is None:
+        ignore_list = []
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
@@ -2000,7 +2005,7 @@ async def damage_all_actors_at_coord(
             asyncio.ensure_future(
                 directional_alert(source_actor=source_actor)
             )
-        await damage_actor(actor=actor[0], damage=damage, display_above=True)
+        await damage_actor(actor=actor[0], damage=damage, display_above=True, ignore_list=ignore_list)
 
 async def damage_within_circle(
     center=(0, 0), 
@@ -2022,7 +2027,10 @@ async def damage_actor(
     leaves_body=False,
     blood=False,
     material='wood',
+    ignore_list=None,
 ):
+    if ignore_list is None:
+        ignore_list = []
     if actor_dict[actor] is None:
         return
     if actor_dict[actor].breakable == False:
@@ -2035,9 +2043,12 @@ async def damage_actor(
         actor_dict[actor].health = 0
     else:
         actor_dict[actor].health = current_health - damage
-    exclusions = ('sword', 'particle', 'vine', 'shroud')
-    for word in exclusions:
-        if word in actor:
+    exclusions = ['sword', 'particle', 'vine', 'shroud']
+    for word in exclusions + ignore_list:
+        if word in actor and word in ignore_list:
+            actor_name = actor.split('_')[0]
+            message = f"That won't work on the {actor_name}!"
+            asyncio.ensure_future(append_to_log(message=message))
             return
     if display_above:
         asyncio.ensure_future(damage_numbers(damage=damage, actor=actor))
@@ -3266,6 +3277,7 @@ async def sword(
     mode='retract',
     delay_out=0,
     thick=False,
+    ignore_list=None,
 ):
     """
     extends and retracts a line of characters
@@ -3281,6 +3293,8 @@ async def sword(
         then ...
         removes: 1, 2, 3, 4, 5, ..., n
     """
+    if ignore_list is None:
+        ignore_list = []
     if thick:
         ns_tile = '┃'
         ew_tile = '━'
@@ -3341,7 +3355,10 @@ async def sword(
         map_dict[segment_coord].actors[segment_name] = True
         base_name = actor_dict[segment_name].base_name
         await damage_all_actors_at_coord(
-            coord=segment_coord, damage=damage, source_actor=base_name,
+            coord=segment_coord,
+            damage=damage,
+            source_actor=base_name,
+            ignore_list=ignore_list
         )
         await asyncio.sleep(speed)
     await asyncio.sleep(delay_out)
@@ -3371,7 +3388,10 @@ async def sword_item_ability(
     player_sword_track=True,
     delay_out=0,
     thick=False,
+    ignore_list=None,
 ):
+    if ignore_list is None:
+        ignore_list = []
     facing_dir = state_dict['facing']
     asyncio.ensure_future(
         sword(
@@ -3385,6 +3405,7 @@ async def sword_item_ability(
             player_sword_track=player_sword_track,
             delay_out=delay_out,
             thick=thick,
+            ignore_list=ignore_list,
         )
     )
 
@@ -3689,6 +3710,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'damage':10,
                 'sword_color':0xed,
                 'player_sword_track':True,
+                'ignore_list':['stone angel', 'presence']
             },
             'usable_power':sword_item_ability,
             'use_message':None
@@ -5446,7 +5468,7 @@ async def siphon_trinket_effect(
     for point in points:
         for actor in map_dict[point].actors:
             actor_ids.append(actor)
-    whitelist = ("angel", "leech", "blob", "critter")
+    whitelist = ("stone angel", "leech", "blob", "critter")
     for actor_id in actor_ids:
         if actor_id.split('_')[0] in whitelist:
             rand_delay = random() / 3
@@ -6575,7 +6597,7 @@ async def async_map_init():
         ((26, -13), 'green key'),
         #in starting cell:
         ((26, -3), 'cell key'),
-        ((26, -5), 'knife'), 
+        ((24, -3), 'knife'), 
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
@@ -6613,8 +6635,8 @@ async def async_map_init():
        ((23, 1), 'critter'),
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
-       ((21, -4), 'angel'),
-       ((-7, -2), 'presence'),
+       ((21, -4), 'stone angel'),
+       #((-7, -2), 'presence'),
     )
     for coord, name in monster_spawns:
         tasks.append(spawn_preset_actor(coords=coord, preset=name))
@@ -8224,8 +8246,6 @@ async def spawn_preset_actor(
             )
         )
     elif preset == 'leech':
-        #TODO: a thematically relevant item: maybe a one-time use that drains
-        #      nearby monsters of life for a set duration?
         item_drops = ['siphon trinket']
         description = 'A large slowly writhing parasite.'
         loop.create_task(
@@ -8238,7 +8258,7 @@ async def spawn_preset_actor(
                 name_key=name,
                 base_name=preset,
                 hurtful=True,
-                base_attack=10,
+                base_attack=7,
                 is_animated=True,
                 animation=Animation(preset="leech"),
                 holding_items=item_drops,
@@ -8272,7 +8292,7 @@ async def spawn_preset_actor(
             )
         )
 
-    elif preset == 'angel':
+    elif preset == 'stone angel':
         item_drops = ['shift amulet']
         description = 'A strangely menacing angel statue.'
         loop.create_task(
