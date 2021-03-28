@@ -3841,13 +3841,22 @@ def adjacent_passable_tiles(base_coord=(0, 0)):
 
 async def display_items_at_coord(
     coord=actor_dict['player'].coords(),
-    x_pos=2,
-    y_pos=12
+    x_pos=3,
+    y_pos=19
+    #y_pos=12
 ):
     item_list = ' '
     current_list_hash = 0
     last_list_hash = 0
     force_reprint_counter = 0
+    #asyncio.ensure_future(
+        #ui_box_draw(
+            #box_height=14, 
+            #box_width=23, 
+            #x_margin=0,
+            #y_margin=18,
+        #)
+    #)
     while True:
         await asyncio.sleep(.1)
         force_reprint_counter = (force_reprint_counter + 1) % 10
@@ -3897,7 +3906,9 @@ async def display_items_at_coord(
                 print('           ')
         last_list_hash = current_list_hash
 
-async def display_items_on_actor(actor_key='player', x_pos=2, y_pos=24):
+async def display_items_on_actor(
+    actor_key='player', x_pos=2, y_pos=34, #y_pos=24
+):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
@@ -4821,16 +4832,12 @@ async def action_keypress(key):
         await toggle_doors()
     elif key in 'g': #pick up an item from the ground
         asyncio.ensure_future(item_choices(coords=(x, y)))
-    elif key in 'Q': #equip an item to slot q
-        asyncio.ensure_future(equip_item(slot='q'))
-    elif key in 'E': #equip an item to slot e
-        asyncio.ensure_future(equip_item(slot='e'))
+    elif key in 'QERFC':
+        asyncio.ensure_future(equip_item(slot=key.lower()))
+    elif key in 'qerfc':
+        asyncio.ensure_future(use_item_in_slot(slot=key))
     elif key in 't': #throw a chosen item
         asyncio.ensure_future(throw_item())
-    elif key in 'q': #use item in slot q
-        asyncio.ensure_future(use_item_in_slot(slot='q'))
-    elif key in 'e': #use item in slot e
-        asyncio.ensure_future(use_item_in_slot(slot='e'))
     elif key in 'h': #debug health restore
         asyncio.ensure_future(health_potion())
     elif key in 'U':
@@ -5247,7 +5254,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             print(line)
 
 async def choose_item(
-    item_id_choices=None, item_id=None, x_pos=0, y_pos=25
+    item_id_choices=None, item_id=None, draw_coord=(0, 25),
 ):
     """
     Takes a list of item_id values
@@ -5256,6 +5263,7 @@ async def choose_item(
     Returns an item_id
     """
     #defaults to items in player's inventory if item_id_choices is passed None
+    x_pos, y_pos = draw_coord
     if item_id_choices == None:
         item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     if len(item_id_choices) == 0:
@@ -5396,7 +5404,7 @@ async def filter_into_log(
         )
 
 async def key_slot_checker(
-    slot='q', frequency=.1, centered=True, print_location=(0, 0)
+    slot='q', frequency=.1, centered=False, print_location=(0, 0)
 ):
     """
     make it possible to equip each number to an item
@@ -5428,7 +5436,7 @@ async def equip_item(slot='q'):
     each slot must also have a coroutine to use the item's abilities.
     """
     slot_name = "{}_slot".format(slot)
-    item_id_choice = await choose_item()
+    item_id_choice = await choose_item(draw_coord=(0, 35))
     state_dict[slot_name] = item_id_choice
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
@@ -5519,7 +5527,7 @@ async def use_item_in_slot(slot='q'):
             #as given for each item.
             await append_to_log(message='Nothing happens.')
 
-async def item_choices(coords=None, x_pos=0, y_pos=13):
+async def item_choices(coords=None, x_pos=1, y_pos=20):#x_pos=0, y_pos=13):
     """
     -item choices should appear next to the relevant part of the screen.
     -a series of numbers and colons to indicate the relevant choices
@@ -5535,7 +5543,7 @@ async def item_choices(coords=None, x_pos=0, y_pos=13):
             await get_item(coords=coords, item_id=item_list[0])
             return
         id_choice = await choose_item(
-            item_id_choices=item_list, x_pos=x_pos, y_pos=y_pos
+            item_id_choices=item_list, draw_coord=(x_pos, y_pos),
         )
         if id_choice:
             await get_item(coords=coords, item_id=id_choice)
@@ -6142,7 +6150,7 @@ async def ui_box_draw(
     box_width=9,
     x_margin=30,
     y_margin=4,
-    one_time=False,
+    one_time=True,
 ):
     """
     draws a box for UI elements
@@ -6598,6 +6606,7 @@ async def async_map_init():
         #in starting cell:
         ((26, -3), 'cell key'),
         ((24, -3), 'knife'), 
+        ((25, -3), 'siphon trinket'), 
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
@@ -6821,8 +6830,19 @@ async def ui_setup():
     loop.create_task(console_box())
     loop.create_task(display_items_at_coord()) #DEBUG
     loop.create_task(display_items_on_actor()) #DEBUG
-    loop.create_task(key_slot_checker(slot='q', print_location=(46, 5)))
-    loop.create_task(key_slot_checker(slot='e', print_location=(52, 5)))
+    key_slots = (
+        ('q', (0, 0)),
+        ('e', (5, 0)),
+        ('f', (10, 0)),
+        ('r', (15, 0)),
+        ('c', (20, 0)),
+    )
+    center_offset = (0, 12)
+    for (key, offset) in key_slots:
+        loop.create_task(key_slot_checker(
+            slot=key, 
+            print_location=add_coords(offset, center_offset),
+        ))
     #loop.create_task(tile_debug_info())
     health_title = "{} ".format(term.color(1)("♥"))
     loop.create_task(
@@ -8229,7 +8249,7 @@ async def spawn_preset_actor(
         loop.create_task(
             basic_actor(
                 coord=coords,
-                speed=.3,
+                speed=.5,
                 movement_function=waver, 
                 tile='ö',
                 name_key=name,
@@ -8241,7 +8261,7 @@ async def spawn_preset_actor(
                 holding_items=item_drops,
                 description=description,
                 breakable=True,
-                health=10,
+                health=30,
                 made_of='jelly',
             )
         )
@@ -8281,7 +8301,7 @@ async def spawn_preset_actor(
                 name_key=name,
                 base_name=preset,
                 hurtful=True,
-                base_attack=0,
+                base_attack=1,
                 is_animated=True,
                 animation=Animation(preset='critter'),
                 holding_items=item_drops,
@@ -8519,8 +8539,8 @@ def main():
         computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
         teleporter(spawn_coord=(1, 1), destination_coords=(1, -6)),
         teleporter(spawn_coord=(1, -6), destination_coords=(1, 1)),
-        hatch_pair(),
-        hatch_pair(origin=(40, 18)),
+        hatch_pair(origin=(15, -1), ladder_start='second'),
+        hatch_pair(origin=(40, 18), ladder_start='second'),
         #TODO: figure out why the ladder is spawning on the upper part. related to 'veranda' room
         hatch_pair(
             origin=(9, -74), 
