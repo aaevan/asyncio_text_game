@@ -8536,9 +8536,9 @@ def main():
         #display_current_tile(), #debug for map generation
         door_init(loop),
         async_map_init(),
-        computer_terminal(spawn_coord=(-4, -5), patch_to_key='computer_test'),
-        teleporter(spawn_coord=(1, 1), destination_coords=(1, -6)),
-        teleporter(spawn_coord=(1, -6), destination_coords=(1, 1)),
+        computer_terminal(spawn_coord=(-9, -4), patch_to_key='computer_test'),
+        teleporter(spawn_coord=(-35, 20), destination_coords=(-3, -9)),
+        teleporter(spawn_coord=(-3, -9), destination_coords=(-35, 20)),
         hatch_pair(origin=(15, -1), ladder_start='second'),
         hatch_pair(origin=(40, 18), ladder_start='second'),
         #TODO: figure out why the ladder is spawning on the upper part. related to 'veranda' room
