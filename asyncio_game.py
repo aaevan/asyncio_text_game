@@ -1857,10 +1857,10 @@ async def throw_item(
     if thrown_item_id == None:
         await append_to_log(message='Nothing to throw!')
         return False
-    uses_count = item_dict[thrown_item_id].uses
     is_stackable = item_dict[thrown_item_id].stackable
     if is_stackable:
         item_dict[thrown_item_id].uses -= 1
+    uses_count = item_dict[thrown_item_id].uses
     if uses_count == 0 or not is_stackable:
         del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
@@ -1887,21 +1887,24 @@ async def throw_item(
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
     throw_text = 'Throwing {}.'.format(item_dict[thrown_item_id].name)
-    await append_to_log(message=throw_text)
-    await travel_along_line(
-        name='thrown_item_id',
-        start_coords=starting_point, 
-        end_coords=destination,
-        speed=.05,
-        tile=item_tile, 
-        animation=None,
-        debris=None
+    asyncio.ensure_future(
+        append_to_log(message=throw_text)
+    )
+    asyncio.ensure_future(
+        travel_along_line(
+            name='thrown_item_id',
+            start_coords=starting_point, 
+            end_coords=destination,
+            speed=.05,
+            tile=item_tile, 
+            animation=None,
+            debris=None
+        )
     )
     if not is_stackable:
         map_dict[destination].items[thrown_item_id] = True
     else:
         item_preset_name = item_dict[thrown_item_id].name
-        await asyncio.sleep(1)
         spawn_item_at_coords(coord=destination, instance_of=item_preset_name)
     item_dict[thrown_item_id].current_location = destination
     return True
@@ -3886,7 +3889,8 @@ async def display_items_at_coord(
                 icon_location = (x_pos, (y_pos + 1) + index)
                 item_icon = item_dict[item_id].tile
                 item_name = item_dict[item_id].name
-                if item_dict[item_id].uses >= 0:
+                num_uses = item_dict[item_id].uses
+                if num_uses > 1:
                     uses_text = '({})'.format(item_dict[item_id].uses)
                 else:
                     uses_text = ''
@@ -3907,14 +3911,14 @@ async def display_items_at_coord(
         last_list_hash = current_list_hash
 
 async def display_items_on_actor(
-    actor_key='player', x_pos=2, y_pos=34, #y_pos=24
+    actor_key='player', x_pos=3, y_pos=34, #y_pos=24
 ):
     item_list = ' '
     while True:
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print('Inventory:')
-        clear_screen_region(x_size=19, y_size=10, screen_coord=(x_pos, y_pos+1))
+        clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             if item_dict[item_id].uses >= 0:
