@@ -3593,6 +3593,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'power_kwargs':{
                 'siphon_amount':10,
                 'effect_radius':10,
+                'item_id':item_id,
             },
             'usable_power':siphon_trinket_effect,
             'use_message':'You feel a bit more alive.',
@@ -4876,18 +4877,6 @@ async def action_keypress(key):
                 center_on_actor_id='player',
             )
         )
-        #spawn_coord = get_facing_coord()
-        #facing_dir = state_dict['facing']
-        #vine_name = "testing"
-        #asyncio.ensure_future(
-            #follower_vine(
-                #spawn_coord=spawn_coord,
-                #facing_dir=facing_dir,
-                #num_segments=7,
-                #color_choice=3,
-                #root_node_key='player',
-            #)
-        #)
     #MAP COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
@@ -4901,18 +4890,7 @@ async def action_keypress(key):
                 spawn_coord=spawn_coords, preset='2x2_block'
             )
         )
-    elif key in 'R': #generate a random cave room around the player
-        player_coords = add_coords(
-            actor_dict['player'].coords(), (-50, -50)
-        )
-        test_room = cave_room()
-        write_room_to_map(room=test_room, top_left_coord=player_coords)
     elif key in 'y': #teleport to debug location
-        #destination = (-13, -12) #near steam vents
-        #destination = (45, -31) #near red spike
-        #destination = (-33, -1) #near red spike
-        #destination = (-41, 22) #sw corner of map
-        #destination = (3, -41) #near spike traps
         destination = (9, -70) #near spike traps
         actor_dict['player'].update(coord=destination)
         state_dict['facing'] = 'n'
@@ -5450,7 +5428,7 @@ async def equip_item(slot='q'):
         await append_to_log(message="Nothing to equip!")
 
 async def use_chosen_item():
-    item_id_choice = await choose_item()
+    item_id_choice = await choose_item(draw_coord=(0, 35))
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
 
@@ -5469,11 +5447,22 @@ async def siphon_trinket_effect(
     center_on_actor_id=None,
     siphon_amount=5,
     effect_radius=10,
+    item_id=None,
 ):
     """
     possibly scale effect based on distance?
     TODO: fix error on death of non_breakable entities
     """
+    if center_on_actor_id is None:
+        center_on_actor_id = 'player'
+    if not hasattr(actor_dict[center_on_actor_id], 'coords'):
+        with term.location(55, 0):
+            print("5456!")
+        return
+    if item_id is not None:
+        if item_dict[item_id].uses <= 0:
+            del item_dict[item_id]
+            del actor_dict['player'].holding_items[item_id]
     actor_coords = actor_dict[center_on_actor_id].coords()
     points = get_circle(center=actor_coords, radius=effect_radius)
     actor_ids = []
@@ -7637,7 +7626,6 @@ async def health_potion(
     if actor_dict['player'].health <= 0:
         return
     if item_id:
-        #BOOKMARK
         if item_dict[item_id].uses <= 0:
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
