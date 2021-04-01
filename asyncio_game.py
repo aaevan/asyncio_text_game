@@ -4432,6 +4432,7 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'pool': Room((26, 10), 3, 'water'),
         'basement': Room((0, 0), (5, 5), z_level=-1),
         'basement_left': Room((-15, 0), (5, 5), z_level=-1),
         'basement_right': Room((15, 0), (5, 5), z_level=-1),
@@ -4517,12 +4518,18 @@ def map_init():
     map_dict[(25, -4)].use_action_func = use_action_fork
     map_dict[(25, -4)].use_action_kwargs = {}
     for cell in (
-        #north cell block
+        #north cell block:
         (23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5), 
-        #southern cell block
+        #southern cell block:
         (23, 3), (23, 4), (23, 5), (19, 3), (19, 4), (19, 5), 
+        #window into pool:
+        (30, 10), (22, 10),
     ):
         paint_preset(tile_coords=cell, preset='cell bars')
+    for cell in (
+        (26, 14), #TODO: put an interesting item here
+    ):
+        paint_preset(tile_coords=cell, preset='floor')
 
 def convert_pass_state_to_preset(
     cell_coord=(0, 0),
@@ -6599,7 +6606,7 @@ async def async_map_init():
         #in starting cell:
         ((26, -3), 'cell key'),
         ((24, -3), 'knife'), 
-        ((25, -3), 'siphon trinket'), 
+        ((32, 5), 'siphon trinket'), 
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
