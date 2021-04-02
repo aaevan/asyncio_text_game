@@ -3845,8 +3845,8 @@ def adjacent_passable_tiles(base_coord=(0, 0)):
 
 async def display_items_at_coord(
     coord=actor_dict['player'].coords(),
-    x_pos=3,
-    y_pos=19
+    x_pos=25,
+    y_pos=19,
     #y_pos=12
 ):
     item_list = ' '
@@ -3912,7 +3912,7 @@ async def display_items_at_coord(
         last_list_hash = current_list_hash
 
 async def display_items_on_actor(
-    actor_key='player', x_pos=3, y_pos=34, #y_pos=24
+    actor_key='player', x_pos=2, y_pos=19, #y_pos=24
 ):
     item_list = ' '
     while True:
@@ -4843,7 +4843,7 @@ async def action_keypress(key):
         asyncio.ensure_future(use_action())
         await toggle_doors()
     elif key in 'g': #pick up an item from the ground
-        asyncio.ensure_future(item_choices(coords=(x, y)))
+        asyncio.ensure_future(item_choices(coords=(x, y), x_pos=23))
     elif key in 'QERFC':
         asyncio.ensure_future(equip_item(slot=key.lower()))
     elif key in 'qerfc':
@@ -4872,7 +4872,7 @@ async def action_keypress(key):
     elif key in '#':
         brightness_test()
     elif key in '@':
-        rand_item = choice(('red potion', 'battery', 'pebble'))
+        rand_item = choice(('red potion', 'battery', 'pebble', 'siphon trinket'))
         spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
@@ -5420,12 +5420,12 @@ async def key_slot_checker(
             print(slot)
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
-async def equip_item(slot='q'):
+async def equip_item(slot='q', draw_coord=(0, 20)):
     """
     each slot must also have a coroutine to use the item's abilities.
     """
     slot_name = "{}_slot".format(slot)
-    item_id_choice = await choose_item(draw_coord=(0, 35))
+    item_id_choice = await choose_item(draw_coord=draw_coord)
     state_dict[slot_name] = item_id_choice
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
@@ -5434,8 +5434,8 @@ async def equip_item(slot='q'):
     else:
         await append_to_log(message="Nothing to equip!")
 
-async def use_chosen_item():
-    item_id_choice = await choose_item(draw_coord=(0, 35))
+async def use_chosen_item(draw_coord=(0, 20)):
+    item_id_choice = await choose_item(draw_coord=draw_coord)
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
 
