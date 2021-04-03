@@ -3103,36 +3103,58 @@ def passive_pressure_plate(
     patch_to_key='switch_1',
     off_delay=.5, 
     test_rate=.1,
-    positives=None,
+    positives = ('player', 'box', 'weight', 'crate', 'static'),
     sound_choice='default',
     brightness_mod=(2, -2),
+    description='The floor here is slightly raised'
 ):
     #TODO: see teleporter for template on "run_on_entry" usage
-    pass
+    #paint_preset(tile_coords=spawn_coord, preset='pulse')
+    plate_id = generate_id(base_name='pressure_plate')
+    map_dict[spawn_coord].description = description
+    map_dict[spawn_coord].run_on_entry = teleport
+    map_dict[spawn_coord].run_on_entry_kwargs = {
+        'test_coord':spawn_coord,
+        'patch_to_key':patch_to_key,
+        'delay':1,
+        'off_delay':off_delay,
+        'test_rate':test_rate,
+        'positives':positives,
+        'sound_choice':sound_choice,
+        'brightness_mod':brightness_mod,
+        'plate_id':plate_id,
+    }
+    return plate_id
 
-async def pressure_plate_loop(
+async def passive_pressure_plate_loop(
     test_rate=.1,
+    test_coord=(0, 0),
     off_delay=.5,
+    positives=(),
+    sound_choice='default',
+    brightness_mod=(2, -2),
+    plate_id='plate_id_test',
+    patch_to_key='plate_key_test',
 ):
     """
     called by a tile set up by passive_pressure_plate
     """
-    exit_condition = False
-    triggered = False
-    while not exit_condition:
+    sound_effects = {'default':'*click*'}
+    message_displayed = False
+    while True:
         positive_result = check_actors_on_tile(
-            coords=spawn_coord, positives=positives
+            coords=test_coord, positives=positives
         )
         if positive_result:
-            if not triggered and sound_choice is not None:
+            if not message_displayed and sound_choice is not None:
                 await append_to_log(message=sound_effects[sound_choice])
-            triggered = True
+                state_dict[patch_to_key][plate_id] = True
+            message_displayed = True
             map_dict[spawn_coord].brightness_mod = brightness_mod[1]
-            state_dict[patch_to_key][plate_id] = True
             if off_delay:
                 await asyncio.sleep(off_delay)
         else:
-            triggered = False
+            break
             state_dict[patch_to_key][plate_id] = False
             map_dict[spawn_coord].brightness_mod = brightness_mod[0]
         await asyncio.sleep(test_rate)
@@ -4743,8 +4765,6 @@ async def free_look(
         can_see = await check_line_of_sight(player_coord, describe_coord)
         if can_see:
             asyncio.ensure_future(examine_tile(describe_coord))
-        #TODO: add an option to make things seen but not in LOS 
-        #      have different description text
         elif not can_see and map_dict[describe_coord].seen:
             asyncio.ensure_future(examine_tile(describe_coord, tense='past'))
         else:
@@ -4822,13 +4842,11 @@ async def action_keypress(key):
                 x_shift, y_shift = offset_from_dir
         state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
-        #TODO: hold shift and away from an object to pull?
         asyncio.ensure_future(dash_ability(
             dash_length=randint(2, 3),
             direction=key_to_compass(key),
             time_between_steps=.04
         ))
-    #elif key in "ijklIJKLuom.UOM>,<": #uppercase included?
     elif key in "ijkluom.,": #change viewing direction
         state_dict['facing'] = key_to_compass(key)
     elif key in '?':
@@ -5005,7 +5023,7 @@ async def toggle_door(door_coord):
     current_tile_state = term.strip_seqs(map_dict[door_coord].tile)
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].door_type
-        output_text="The {} door is locked.".format(description)
+        output_text=f'The {description} door is locked.'
     else:
         new_toggle_state_index = (toggle_state_index + 1) % len(toggle_states)
         door_state = set_tile_toggle_state(
@@ -5014,9 +5032,9 @@ async def toggle_door(door_coord):
         )
         door_type = map_dict[door_coord].door_type
         if door_state == False:
-            output_text = "You open the {} door".format(door_type)
+            output_text = f'You open the {door_type} door'
         else:
-            output_text = "You close the {} door".format(door_type)
+            output_text = f'You close the {door_type} door'
     await append_to_log(message=output_text)
 
 def set_tile_toggle_state(tile_coord, toggle_state_index):
