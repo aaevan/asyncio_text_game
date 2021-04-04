@@ -2237,8 +2237,7 @@ async def bay_door(
     [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
     """
-    if type(state_dict[patch_to_key]) != dict:
-        state_dict[patch_to_key] = {}
+    state_dict_init(patch_to_key)
     if orientation in ('n', 's'):
         style_dir = 'ns'
     elif orientation in ('e', 'w'):
@@ -2385,23 +2384,18 @@ async def bay_door_pair(
             b_segments = span - a_segments
     else:
         return
-    if type(state_dict[patch_to_key]) != dict:
-        state_dict[patch_to_key] = {}
+    state_dict_init(patch_to_key)
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
-                asyncio.ensure_future(
-                    pressure_plate(
-                        spawn_coord=pair, 
-                        patch_to_key=patch_to_key,
-                    )
-                )
-        else:
-            asyncio.ensure_future(
                 pressure_plate(
-                    spawn_coord=pressure_plate_coord,
+                    spawn_coord=pair, 
                     patch_to_key=patch_to_key,
                 )
+        else:
+            pressure_plate(
+                spawn_coord=pressure_plate_coord,
+                patch_to_key=patch_to_key,
             )
     asyncio.ensure_future(
         bay_door(
@@ -2507,11 +2501,9 @@ async def multi_spike_trap(
     """
     loop = asyncio.get_event_loop()
     state_dict[patch_to_key] = {}
-    loop.create_task(
-        pressure_plate(
-            spawn_coord=base_coord,
-            patch_to_key=patch_to_key
-        )
+    pressure_plate(
+        spawn_coord=base_coord,
+        patch_to_key=patch_to_key
     )
     node_data = []
     for number, node in enumerate(nodes):
@@ -2688,21 +2680,18 @@ async def proximity_trigger(
     test_rate=.1,
     visible=False,
 ):
-    if type(state_dict[patch_to_key]) != dict:
-        state_dict[patch_to_key] = {}
+    state_dict_init(patch_to_key)
     points = get_line(coord_a, coord_b)[1:-1] #trim off the head and the tail
     for point in points:
-        asyncio.ensure_future(
-            pressure_plate(
-                tile='░',
-                spawn_coord=point,
-                patch_to_key=patch_to_key,
-                off_delay=0, 
-                test_rate=.1,
-                positives=('player'),
-                sound_choice=None,
-                brightness_mod=(0, 0),
-            )
+        pressure_plate(
+            tile='░',
+            spawn_coord=point,
+            patch_to_key=patch_to_key,
+            off_delay=0, 
+            test_rate=.1,
+            positives=('player'),
+            sound_choice=None,
+            brightness_mod=(0, 0),
         )
 
 async def computer_terminal(
@@ -2983,8 +2972,7 @@ async def alarm_bell(
     ),
     silent=False,
 ):
-    if type(state_dict[patch_to_key]) is not dict:
-        state_dict[patch_to_key] = {}
+    state_dict_init(patch_to_key)
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
     map_dict[spawn_coord].description = tile_descriptions[0]
     tile_index = 0
@@ -3048,60 +3036,19 @@ def bool_toggle(
     Returns toggle_id for use in whatever it's used by.
     """
     toggle_id = generate_id(base_name=toggle_id_base_name)
-    if type(state_dict[patch_to_key]) is not dict:
-        state_dict[patch_to_key] = {}
+    state_dict_init(patch_to_key)
     state_dict[patch_to_key][toggle_id] = starting_state
     return toggle_id
 
-async def pressure_plate(
+def state_dict_init(patch_to_key='test_key'):
+    if type(state_dict[patch_to_key]) != dict:
+        state_dict[patch_to_key] = {}
+
+def pressure_plate(
     tile='░',
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
-    off_delay=.5, 
-    test_rate=.1,
-    positives=None,
-    sound_choice='default',
-    brightness_mod=(2, -2),
-):
-    """
-    creates a pressure plate on the map at specified spawn_coord.
-
-    If positives is a list (instead of None), it will only accept things
-    with names containing one of the specified colors/attributes. 
-    Otherwise, it will be a list of generic objects that tend to trigger
-    pressure plates.
-    """
-    map_dict[spawn_coord].tile = tile
-    plate_id = generate_id(base_name='pressure_plate')
-    state_dict[patch_to_key][plate_id] = False
-    exclusions = ('sword', 'particle')
-    sound_effects = {'default':'*click*'}
-    if positives is None:
-        positives = ('player', 'box', 'weight', 'crate', 'static')
-    triggered = False
-    while True:
-        await asyncio.sleep(test_rate)
-        positive_result = check_actors_on_tile(
-            coords=spawn_coord, positives=positives
-        )
-        if positive_result:
-            if not triggered and sound_choice is not None:
-                await append_to_log(message=sound_effects[sound_choice])
-            triggered = True
-            map_dict[spawn_coord].brightness_mod = brightness_mod[1]
-            state_dict[patch_to_key][plate_id] = True
-            if off_delay:
-                await asyncio.sleep(off_delay)
-        else:
-            triggered = False
-            state_dict[patch_to_key][plate_id] = False
-            map_dict[spawn_coord].brightness_mod = brightness_mod[0]
-
-def passive_pressure_plate(
-    tile='░',
-    spawn_coord=(4, 0), 
-    patch_to_key='switch_1',
-    off_delay=.5, 
+    off_delay=0, 
     test_rate=.1,
     positives = ('player', 'box', 'weight', 'crate', 'static'),
     sound_choice='default',
@@ -3110,13 +3057,15 @@ def passive_pressure_plate(
 ):
     #TODO: see teleporter for template on "run_on_entry" usage
     #paint_preset(tile_coords=spawn_coord, preset='pulse')
+    state_dict_init(patch_to_key)
     plate_id = generate_id(base_name='pressure_plate')
     map_dict[spawn_coord].description = description
-    map_dict[spawn_coord].run_on_entry = teleport
+    map_dict[spawn_coord].brightness_mod = brightness_mod[0]
+    map_dict[spawn_coord].run_on_entry = pressure_plate_loop
     map_dict[spawn_coord].run_on_entry_kwargs = {
         'test_coord':spawn_coord,
         'patch_to_key':patch_to_key,
-        'delay':1,
+        'start_delay':0,
         'off_delay':off_delay,
         'test_rate':test_rate,
         'positives':positives,
@@ -3126,10 +3075,11 @@ def passive_pressure_plate(
     }
     return plate_id
 
-async def passive_pressure_plate_loop(
-    test_rate=.1,
+async def pressure_plate_loop(
+    test_rate=.02,
     test_coord=(0, 0),
-    off_delay=.5,
+    start_delay=.1,
+    off_delay=.1,
     positives=(),
     sound_choice='default',
     brightness_mod=(2, -2),
@@ -3137,26 +3087,30 @@ async def passive_pressure_plate_loop(
     patch_to_key='plate_key_test',
 ):
     """
-    called by a tile set up by passive_pressure_plate
+    called by a tile set up by pressure_plate
     """
     sound_effects = {'default':'*click*'}
     message_displayed = False
+    if start_delay > 0:
+        await asyncio.sleep(start_delay)
     while True:
         positive_result = check_actors_on_tile(
             coords=test_coord, positives=positives
         )
         if positive_result:
             if not message_displayed and sound_choice is not None:
-                await append_to_log(message=sound_effects[sound_choice])
+                asyncio.ensure_future(
+                    append_to_log(message=sound_effects[sound_choice])
+                )
                 state_dict[patch_to_key][plate_id] = True
             message_displayed = True
-            map_dict[spawn_coord].brightness_mod = brightness_mod[1]
+            map_dict[test_coord].brightness_mod = brightness_mod[1]
+        else:
             if off_delay:
                 await asyncio.sleep(off_delay)
-        else:
-            break
             state_dict[patch_to_key][plate_id] = False
-            map_dict[spawn_coord].brightness_mod = brightness_mod[0]
+            map_dict[test_coord].brightness_mod = brightness_mod[0]
+            break
         await asyncio.sleep(test_rate)
 
 async def puzzle_pair(
@@ -3183,13 +3137,11 @@ async def puzzle_pair(
         )
     )
     map_dict[plate_coord].description = plate_description
-    asyncio.ensure_future(
-        pressure_plate(
-            tile='▣',
-            spawn_coord=plate_coord, 
-            positives=(puzzle_name, 'null'), #positives needs to be a tuple
-            patch_to_key=puzzle_name
-        )
+    pressure_plate(
+        tile='▣',
+        spawn_coord=plate_coord, 
+        positives=(puzzle_name, 'null'), #positives needs to be a tuple
+        patch_to_key=puzzle_name
     )
     return puzzle_name
             
@@ -5303,8 +5255,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -6681,10 +6633,8 @@ async def trap_init():
     }
     state_dict['switch_1'] = {}
     for coord in rand_coords:
-        loop.create_task(
-            pressure_plate(
-                spawn_coord=coord, patch_to_key='switch_1'
-            )
+        pressure_plate(
+            spawn_coord=coord, patch_to_key='switch_1'
         )
     node_offsets = ((-5, 'e'), (5, 'w'))
     spike_trap_coords = [
@@ -6695,12 +6645,9 @@ async def trap_init():
             nodes=spike_trap_coords, base_coord=base_coord, patch_to_key='switch_1'
         )
     )
-    #lower_spike_trap_coords = 
     state_dict['switch_2'] = {}
-    loop.create_task(
-        pressure_plate(
-            spawn_coord=(6, -20), patch_to_key='switch_2'
-        )
+    pressure_plate(
+        spawn_coord=(6, -20), patch_to_key='switch_2'
     )
     loop.create_task(
         trigger_door(
@@ -6711,6 +6658,10 @@ async def trap_init():
         trigger_door(
             door_coord=(-8, -20), patch_to_key='switch_2', invert=True
         )
+    )
+    pressure_plate(spawn_coord=(25, -4), patch_to_key='cell_test') 
+    loop.create_task(
+        indicator_lamp(spawn_coord=(25, -6), patch_to_key='cell_test'),
     )
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
