@@ -2237,7 +2237,7 @@ async def bay_door(
     [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
     """
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     if orientation in ('n', 's'):
         style_dir = 'ns'
     elif orientation in ('e', 'w'):
@@ -2384,7 +2384,7 @@ async def bay_door_pair(
             b_segments = span - a_segments
     else:
         return
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     if pressure_plate_coord is not None:
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
@@ -2680,7 +2680,7 @@ async def proximity_trigger(
     test_rate=.1,
     visible=False,
 ):
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     points = get_line(coord_a, coord_b)[1:-1] #trim off the head and the tail
     for point in points:
         pressure_plate(
@@ -2972,7 +2972,7 @@ async def alarm_bell(
     ),
     silent=False,
 ):
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
     map_dict[spawn_coord].description = tile_descriptions[0]
     tile_index = 0
@@ -3036,11 +3036,11 @@ def bool_toggle(
     Returns toggle_id for use in whatever it's used by.
     """
     toggle_id = generate_id(base_name=toggle_id_base_name)
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     state_dict[patch_to_key][toggle_id] = starting_state
     return toggle_id
 
-def state_dict_init(patch_to_key='test_key'):
+def patch_init(patch_to_key='test_key'):
     if type(state_dict[patch_to_key]) != dict:
         state_dict[patch_to_key] = {}
 
@@ -3053,11 +3053,11 @@ def pressure_plate(
     positives = ('player', 'box', 'weight', 'crate', 'static'),
     sound_choice='default',
     brightness_mod=(2, -2),
-    description='The floor here is slightly raised'
+    description='The floor here is slightly raised.'
 ):
     #TODO: see teleporter for template on "run_on_entry" usage
     #paint_preset(tile_coords=spawn_coord, preset='pulse')
-    state_dict_init(patch_to_key)
+    patch_init(patch_to_key)
     plate_id = generate_id(base_name='pressure_plate')
     map_dict[spawn_coord].description = description
     map_dict[spawn_coord].brightness_mod = brightness_mod[0]
@@ -5255,8 +5255,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
