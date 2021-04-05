@@ -3055,8 +3055,6 @@ def pressure_plate(
     brightness_mod=(2, -2),
     description='The floor here is slightly raised.'
 ):
-    #TODO: see teleporter for template on "run_on_entry" usage
-    #paint_preset(tile_coords=spawn_coord, preset='pulse')
     patch_init(patch_to_key)
     plate_id = generate_id(base_name='pressure_plate')
     map_dict[spawn_coord].description = description
@@ -3521,10 +3519,8 @@ async def temp_view_circle(
     state_dict['lock view'] = False
 
 #Item interaction---------------------------------------------------------------
-
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #TODO: an item that when thrown, temporarily creates a circle of overridden_view == True
-#TODO: fix override_view to display a noisy (with brightness offsets) view instead of uniform single tone
 #TODO: items that are used immediately upon pickup
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=False):
@@ -4815,7 +4811,12 @@ async def action_keypress(key):
     elif key in 'g': #pick up an item from the ground
         asyncio.ensure_future(item_choices(coords=(x, y), x_pos=23))
     elif key in 'QERFC':
-        asyncio.ensure_future(equip_item(slot=key.lower()))
+        asyncio.ensure_future(
+            equip_item(
+                slot=key.lower(), 
+                assigned_slots='qerfc'
+            )
+        )
     elif key in 'qerfc':
         asyncio.ensure_future(use_item_in_slot(slot=key))
     elif key in 't': #throw a chosen item
@@ -5195,8 +5196,8 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '└───┘',),
         'shiny stone':(
             '┌───┐',   #effect while equipped: orbit
-            '│ _ │', 
-            '│(_)│',
+            '│   │', 
+            '│ ● │',
             '│   │',
             '└───┘',
         ),
@@ -5298,7 +5299,6 @@ async def append_to_log(
     wipe_time=5, 
     wipe_char_time=.1,
     line_length=45,
-    #starting_indicator='>',
     starting_indicator='➢',
 ):
     if '|' in message:
@@ -5363,7 +5363,7 @@ async def filter_into_log(
         )
 
 async def key_slot_checker(
-    slot='q', frequency=.1, centered=False, print_location=(0, 0)
+    slot='q', frequency=.1, centered=False, print_location=(0, 0),
 ):
     """
     make it possible to equip each number to an item
@@ -5390,19 +5390,27 @@ async def key_slot_checker(
             print(slot)
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
-async def equip_item(slot='q', draw_coord=(0, 20)):
+async def equip_item(
+    slot='q',
+    draw_coord=(0, 20),
+    assigned_slots='qerfc'
+):
     """
     each slot must also have a coroutine to use the item's abilities.
     """
-    slot_name = "{}_slot".format(slot)
+    current_slot_name = f'{slot}_slot'
     item_id_choice = await choose_item(draw_coord=draw_coord)
-    state_dict[slot_name] = item_id_choice
+    #clear out any multiply equipped items:
+    for slot_name in [f'{slot}_slot' for slot in assigned_slots]:
+        if state_dict[slot_name] == item_id_choice:
+            state_dict[slot_name] = 'empty'
+    state_dict[current_slot_name] = item_id_choice
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
-        equip_message = "Equipped {} to slot {}.".format(item_name, slot)
+        equip_message = f'Equipped {item_name} to slot {slot}.'
         await append_to_log(message=equip_message)
     else:
-        await append_to_log(message="Nothing to equip!")
+        await append_to_log(message='Nothing to equip!')
 
 async def use_chosen_item(draw_coord=(0, 20)):
     item_id_choice = await choose_item(draw_coord=draw_coord)
@@ -5482,18 +5490,20 @@ async def add_uses_to_chosen_item(num_charges=10):
                 item_dict[item_id_choice].broken = False
             return True
         else:
-            await append_to_log("{} cannot be charged.".format(item_name.capitalize()))
+            await append_to_log(
+                f"{item_name.capitalize()} cannot be charged."
+            )
             return False
-    
+
 async def use_item_in_slot(slot='q'):
-    item_id = state_dict['{}_slot'.format(slot)]
+    item_id = state_dict[f'{slot}_slot']
     if item_id is 'empty':
         pass
     else:
         if item_dict[item_id].power_kwargs:
             asyncio.ensure_future(item_dict[item_id].use())
         else:
-            #put custom null action here instead of 'Nothing happens.'
+            #TODO: put custom null action here instead of 'Nothing happens.'
             #as given for each item.
             await append_to_log(message='Nothing happens.')
 
