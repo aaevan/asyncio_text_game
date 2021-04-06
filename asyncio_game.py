@@ -5417,11 +5417,7 @@ async def use_chosen_item(draw_coord=(0, 20)):
     if item_id_choice != None:
         asyncio.ensure_future(item_dict[item_id_choice].use())
 
-
-async def battery_effect(
-    item_id=None,
-    num_charges=6,
-):
+async def battery_effect(item_id=None, num_charges=6,):
     return_val = await add_uses_to_chosen_item(num_charges=num_charges)
     if item_id and return_val:
         if item_dict[item_id].uses <= 0:
