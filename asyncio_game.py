@@ -1853,7 +1853,7 @@ async def throw_item(
         direction = state_dict['facing']
     direction_tuple = dir_to_offset(state_dict['facing'])
     if not thrown_item_id:
-        thrown_item_id = await choose_item()
+        thrown_item_id = await choose_item(draw_coord=(0, 20))
     if thrown_item_id == None:
         await append_to_log(message='Nothing to throw!')
         return False
@@ -5780,9 +5780,9 @@ async def display_help(mode="normal"):
         " uom.: look NW,NE,SW,SE",
         "    g: get item from tile,",
         "       0-f to choose item ",
-        "  Q/E: equip item to slot,",
+        "QERFC: equip item to slot,",
         "       0-f to choose item ",
-        "  q/e: use equipped item  ",
+        "qerfc: use equipped item  ",
         "    t: throw chosen item  ",
         "    U: use selected item  ",
         "    x: examine faced tile ",
@@ -6772,7 +6772,7 @@ async def status_bar(
             print("{}{}".format(title, term.color(bar_color)(bar_characters)))
 
 async def player_coord_readout(
-    x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=True
+    x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=False
 ):
     if centered:
         middle_x, middle_y = (int(term.width / 2), int(term.height / 2))
@@ -8314,7 +8314,6 @@ async def spawn_preset_actor(
     #TODO: enemy that is only seen by its trail through your remembered tiles
     #      puts random tiles in place of previous memory?
     elif preset == 'presence':
-        #TODO: drop an item that allows walking through walls
         item_drops = ['passwall wand']
         description = (
             'Well, that wasn\'t there before.|||'
@@ -8515,7 +8514,6 @@ def main():
         teleporter(spawn_coord=(-3, -9), destination_coords=(-35, 20)),
         hatch_pair(origin=(15, -1), ladder_start='second'),
         hatch_pair(origin=(40, 18), ladder_start='second'),
-        #TODO: figure out why the ladder is spawning on the upper part. related to 'veranda' room
         hatch_pair(
             origin=(9, -74), 
             origin_z=0, 
