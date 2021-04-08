@@ -4767,6 +4767,8 @@ def key_to_offset(key):
     return dir_to_offset(key_to_compass(key))
 
 async def menu_keypress(key):
+    if key in '`': #backtick is equivalent to zero
+        key = '0'
     if key in '0123456789abcdef':
         if int("0x" + key, 16) in state_dict['menu_choices']:
             state_dict['menu_choice'] = key
