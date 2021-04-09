@@ -2073,8 +2073,6 @@ async def spray_debris(
     radius=3, 
     num_seeds=6,
     color_num=8,
-    #TODO: add another line item for which word to use in the description:
-    # i.e: "Bits of flesh" instead of "Broken flesh"
     template_message='Broken {}',
 ):
     if "The" not in noun or "the" not in noun:
