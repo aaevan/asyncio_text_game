@@ -2926,6 +2926,7 @@ async def broken_steam_pipe(
         ),
     )
 
+#TODO: make this work without a constantly running while loop
 async def indicator_lamp(
     tiles=('◉','◉'), #○
     tile_colors=(0x01, 0x22),
@@ -2955,6 +2956,7 @@ async def indicator_lamp(
             map_dict[spawn_coord].description = set_descr
             current_tile = set_tile
 
+#TODO: make this work without a constantly running while loop
 async def alarm_bell(
     tiles=('○','◉'),
     tile_colors=(0x00, 0x01),
@@ -3161,8 +3163,9 @@ async def trigger_door(
     invert=False,
     open_index=0,
     closed_index=1,
+    preset='iron',
 ):
-    draw_door(door_coord=door_coord, preset='iron', locked=True)
+    draw_door(door_coord=door_coord, preset=preset, locked=True)
     if default_state == 'closed':
         set_state = closed_index
     while True:
@@ -4482,9 +4485,6 @@ def map_init():
         (7, -72), (11, -72), 
     ):
         spawn_column(spawn_coord=coord, height=3)
-    #map_dict BOOKMARK
-    map_dict[(25, -4)].use_action_func = use_action_fork
-    map_dict[(25, -4)].use_action_kwargs = {}
     for cell in (
         #north cell block:
         (23, -3), (23, -4), (23, -5), (19, -3), (19, -4), (19, -5), 
@@ -6664,10 +6664,6 @@ async def trap_init():
         trigger_door(
             door_coord=(-8, -20), patch_to_key='switch_2', invert=True
         )
-    )
-    pressure_plate(spawn_coord=(25, -4), patch_to_key='cell_test') 
-    loop.create_task(
-        indicator_lamp(spawn_coord=(25, -6), patch_to_key='cell_test'),
     )
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
