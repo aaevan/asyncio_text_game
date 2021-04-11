@@ -5388,6 +5388,8 @@ async def key_slot_checker(
             x_coord, y_coord = print_location
         with term.location(x_coord + 2, y_coord + 5):
             print(slot)
+        with term.location(x_coord, y_coord + 6):
+            print('─────')
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
 
 async def equip_item(
@@ -6018,7 +6020,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
-                    if 'mte' in key:
+                    if actor_dict[key].multi_tile_parent is not None:
                         raw_tile = term.strip_seqs(actor_dict[str(key)].tile)
                         remembered_tile = term.color(color_choice)(raw_tile)
                         break
