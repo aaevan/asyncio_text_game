@@ -137,6 +137,7 @@ class Actor:
         y_hide_coord=None,
         solid=True,
         made_of="material not set",
+        scenery=False,
     ):
         self.name = name
         self.base_name = base_name
@@ -163,6 +164,7 @@ class Actor:
         self.y_hide_coord = y_hide_coord
         self.solid = solid
         self.made_of = made_of
+        self.scenery = scenery
 
     def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
@@ -1159,7 +1161,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             magic=False,
             is_animated=False,
             animation=None,
-            brightness_mod=(-1, 1)
+            brightness_mod=(0, 1)
         ),
         'wall':Map_tile(
             tile='𝄛',
@@ -4297,6 +4299,7 @@ async def spawn_container(
     description='A wooden box.',
     box_choices=None,
     material='wood',
+    scenery=True,
 ):
     if box_choices is None:
         box_choices = ['', 'pebble', 'dynamite', 'red potion', 'fused charge']
@@ -4310,6 +4313,7 @@ async def spawn_container(
         breakable=breakable,
         description=description,
         material=material,
+        scenery=scenery,
     )
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
@@ -4346,6 +4350,7 @@ def spawn_static_actor(
     solid=True,
     description='STATIC ACTOR',
     material="material not set",
+    scenery=False,
 ):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
@@ -4375,6 +4380,7 @@ def spawn_static_actor(
         y_hide_coord=y_hide_coord,
         solid=solid,
         made_of=material,
+        scenery=scenery,
     )
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
@@ -5990,46 +5996,43 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             print_choice = await check_contents_of_tile((x_display_coord, y_display_coord))
             map_dict[tile_coord_key].seen = True
         elif display:
-            random_distance = abs(gauss(distance, 1))
-            if random_distance < threshold: 
-                line_of_sight_result = await check_line_of_sight(
-                    player_coords,
-                    tile_coord_key
+            line_of_sight_result = await check_line_of_sight(
+                player_coords,
+                tile_coord_key
+            )
+            if type(line_of_sight_result) is tuple:
+                print_choice = await check_contents_of_tile(line_of_sight_result)
+            elif line_of_sight_result == True:
+                await trigger_announcement(
+                    tile_coord_key,
+                    player_coords=player_coords
                 )
-                if type(line_of_sight_result) is tuple:
-                    print_choice = await check_contents_of_tile(line_of_sight_result)
-                elif line_of_sight_result == True:
-                    await trigger_announcement(
-                        tile_coord_key,
-                        player_coords=player_coords
-                    )
-                    print_choice = await check_contents_of_tile(tile_coord_key)
-                elif line_of_sight_result != False and line_of_sight_result != None:
-                    #catches tiles beyond magic doors:
-                    print_choice = line_of_sight_result
-                elif line_of_sight_result == False and map_dict[tile_coord_key].seen:
-                    remembered_tile = map_dict[x_display_coord, y_display_coord].tile
-                    print_choice = term.color(color_choice)(str(remembered_tile))
-                else:
-                    #catches tiles blocked from view:
-                    print_choice = ' '
+                print_choice = await check_contents_of_tile(tile_coord_key)
+            elif line_of_sight_result != False and line_of_sight_result != None:
+                #catches tiles beyond magic doors:
+                print_choice = line_of_sight_result
+            elif line_of_sight_result == False and map_dict[tile_coord_key].seen:
+                remembered_tile = term.strip(
+                    map_dict[x_display_coord, y_display_coord].tile
+                )
+                print_choice = term.color(color_choice)(str(remembered_tile))
             else:
-                #catches fuzzy fringe starting at threshold:
+                #catches tiles blocked from view:
                 print_choice = ' '
         elif not display and map_dict[x_display_coord, y_display_coord].seen:
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
                     if actor_dict[key].multi_tile_parent is not None:
-                        raw_tile = term.strip_seqs(actor_dict[str(key)].tile)
-                        remembered_tile = term.color(color_choice)(raw_tile)
+                        remembered_tile = actor_dict[str(key)].tile
                         break
-            if map_dict[x_display_coord, y_display_coord].items:
+            elif map_dict[x_display_coord, y_display_coord].items:
                 for item_id in map_dict[x_display_coord, y_display_coord].items:
-                    raw_tile = term.strip(item_dict[item_id].tile)
-                    remembered_tile = term.color(color_choice)(raw_tile)
+                    remembered_tile = item_dict[item_id].tile
                     break
-            print_choice = term.color(color_choice)(str(remembered_tile))
+            print_choice = term.color(color_choice)(
+                term.strip(str(remembered_tile))
+            )
         else:
             #catches tiles that are not within current FOV
             print_choice = ' '
@@ -6425,16 +6428,16 @@ async def view_tile_init(
     term_x_radius=40,
     term_y_radius=20,
     max_view_radius=17,
-    debug=False
+    debug=True
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
-           view_tile_count += 1
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
                loop.create_task(view_tile(map_dict, x_offset=x, y_offset=y))
+               view_tile_count += 1
     if debug:
         with term.location(50, 0):
             print("view_tile_count: {}".format(view_tile_count))
