@@ -34,7 +34,8 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        tile='𝄛',                           #old tile representation
+        #tile='𝄛',                           #old tile representation
+        tile='▓',                           #old tile representation
         brightness_mod=0,                   #amount to shift tile brightness
         blocking=True,                      #line of sight is occluded
         description='A rough stone wall.',  #description when examined
@@ -2243,7 +2244,8 @@ async def bay_door(
     elif orientation in ('e', 'w'):
         style_dir = 'ew'
     door_style = {
-        'secret':{'ns':'𝄛', 'ew':'𝄛'},
+        #'secret':{'ns':'𝄛', 'ew':'𝄛'},
+        'secret':{'ns':'▓', 'ew':'▓'},
         'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
         'test_a':{'ns':'n', 'ew':'e'},
@@ -4169,7 +4171,8 @@ def draw_door(
         #((tile, blocking, passable), (tile, blocking, passable))
         'wooden':(('▯', False, True), ('▮', True, False)),
         'green':(('▯', False, True), ('▮', True, False)),
-        'secret':(('▯', False, True), ('𝄛', True, False)),
+        #'secret':(('▯', False, True), ('𝄛', True, False)),
+        'secret':(('▯', False, True), ('▓', True, False)),
         'hatch':(('◍', False, True), ('●', False, True)),
         'iron':(('▯', False, True), ('▮', True, False)),
         'cell':(('▯', False, True), ('╬', False, False)),
@@ -6042,7 +6045,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             tile_color = map_dict[tile_coord_key].color_num
             brightness_mod = map_dict[tile_coord_key].brightness_mod
             tile_brightness = get_brightness(distance, brightness_mod)
-            no_background = ('░', '▞', '𝄛', '■', '▣', '@', '║', ' ')
+            no_background = ('▓', '░', '▞', '𝄛', '■', '▣', '@', '║', ' ')
             if not state_dict['lock view']:
                 color_tuple = get_brightness_val(int(tile_brightness))
             #if view locked, display a slightly fuzzy but uniform view:
