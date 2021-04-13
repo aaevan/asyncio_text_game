@@ -6052,8 +6052,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
-        #if last_print_choice == print_choice:
-            #continue
+        if last_print_choice == print_choice:
+            continue
         with term.location(*print_location):
             print(print_choice)
         last_print_choice = print_choice
