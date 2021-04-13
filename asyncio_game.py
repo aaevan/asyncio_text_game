@@ -5987,6 +5987,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             arc_end=r_angle
         )
         if state_dict['plane'] == 'nightmare':
+            #figure out how to -not- display nightmare remembered tiles (no memory)
             color_choice = 0
         else:
             color_choice = 0xe9 #a dark gray
@@ -6041,15 +6042,18 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             tile_color = map_dict[tile_coord_key].color_num
             brightness_mod = map_dict[tile_coord_key].brightness_mod
             tile_brightness = get_brightness(distance, brightness_mod)
+            no_background = ('░', '▞', '𝄛', '■', '▣', '@', '║', ' ')
             if not state_dict['lock view']:
                 color_tuple = get_brightness_val(int(tile_brightness))
+            #if view locked, display a slightly fuzzy but uniform view:
             else:
-                #if view locked, display a slightly fuzzy but uniform view:
                 color_tuple = get_brightness_val(9 + randint(-2, 2))
-            if print_choice in ('░', '▞', '𝄛', '■', '▣'):
+            if term.strip(print_choice) in no_background:
                 print_choice = term.color(color_tuple[0])(print_choice)
             else:
                 print_choice = term.color(tile_color)(print_choice)
+        #if last_print_choice == print_choice:
+            #continue
         with term.location(*print_location):
             print(print_choice)
         last_print_choice = print_choice
@@ -6428,7 +6432,7 @@ async def view_tile_init(
     term_x_radius=40,
     term_y_radius=20,
     max_view_radius=17,
-    debug=True
+    debug=False,
 ):
     view_tile_count = 0
     for x in range(-term_x_radius, term_x_radius + 1):
