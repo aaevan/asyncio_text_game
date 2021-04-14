@@ -34,7 +34,6 @@ class Map_tile:
     def __init__(
         self, 
         passable=True,                      #actors can step through
-        #tile='𝄛',                           #old tile representation
         tile='▓',                           #old tile representation
         brightness_mod=0,                   #amount to shift tile brightness
         blocking=True,                      #line of sight is occluded
@@ -1154,18 +1153,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=False,
             animation=None,
         ),
-        'rough floor':Map_tile(
-            tile='░',
-            blocking=False,
-            passable=True,
-            description='A roughly hewn stone floor.',
-            magic=False,
-            is_animated=False,
-            animation=None,
-            brightness_mod=(0, 1)
-        ),
         'wall':Map_tile(
-            tile='𝄛',
+            tile='▓',
             blocking=False,
             passable=True,
             description='A rough stone wall.',
@@ -1230,7 +1219,6 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='.',
             blocking=False,
             passable=True,
-            #color_num=0x39,
             description='A shimmering and roiling purple goo.',
             magic=False,
             is_animated=True,
@@ -1378,8 +1366,6 @@ def draw_line(
     points = get_line(coord_a, coord_b)
     for point in points:
         paint_preset(tile_coords=point, preset=preset)
-        #map_dict[point].passable = passable
-        #map_dict[point].blocking = blocking
 
 def draw_secret_passage(
     coord_a=(-28, -14),
@@ -2244,7 +2230,6 @@ async def bay_door(
     elif orientation in ('e', 'w'):
         style_dir = 'ew'
     door_style = {
-        #'secret':{'ns':'𝄛', 'ew':'𝄛'},
         'secret':{'ns':'▓', 'ew':'▓'},
         'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
@@ -4168,10 +4153,10 @@ def draw_door(
     attributes.
     """
     door_presets = {
+        #open preset:                 closed preset:
         #((tile, blocking, passable), (tile, blocking, passable))
         'wooden':(('▯', False, True), ('▮', True, False)),
         'green':(('▯', False, True), ('▮', True, False)),
-        #'secret':(('▯', False, True), ('𝄛', True, False)),
         'secret':(('▯', False, True), ('▓', True, False)),
         'hatch':(('◍', False, True), ('●', False, True)),
         'iron':(('▯', False, True), ('▮', True, False)),
@@ -4209,89 +4194,6 @@ def draw_door(
     map_dict[door_coord].mutable = False
 
 #TODO: create a mirror
-
-async def magic_door(
-    start_coords=(5, 5),
-    end_coords=(-22, 18), 
-    silent=False,
-    destination_plane='normal',
-    description = "The air shimmers slightly between you and the space beyond.",
-    door_tile = "▯",
-):
-    """
-    notes for portals/magic doors:
-    either gapless teleporting doors or gapped by darkness doors.
-    if gapped by darkness, door appears as flickering between different noise states.
-    when magic door is stepped on, location becomes an instance of darkness
-    when in darkness, the default tile is a choice from a noise palette
-    the next door appears on your screen regardless of distance,
-        blinks on edge of field of view at set radius
-    a counter begins once the player enters the darkness. 
-    a tentacle creature spawns a few screens away and approaches
-    red eyes are visible from slightly beyond the edge of noise
-    noise palette is based on distance from tentacle creature
-    far away, the darkness is just empty space
-    the closer it gets, glyphs start appearing?
-    when within a short distance, the entire field flickers (mostly) red to black
-    red within view distance and only you and the tentacle monster are visible
-    """
-    animation = Animation(base_tile='▮', preset='door')
-    map_dict[start_coords] = Map_tile(
-        tile=" ",
-        blocking=False,
-        passable=True,
-        magic=True,
-        magic_destination=end_coords,
-        is_animated=True,
-        animation=animation
-    )
-    map_dict[start_coords].description = description
-    map_dict[start_coords].tile = door_tile
-    while(True):
-        await asyncio.sleep(.1)
-        player_coords = actor_dict['player'].coords()
-        just_teleported = state_dict['just teleported']
-        #TODO: add an option for non-player actors to go through.
-        if player_coords == start_coords and not just_teleported:
-            last_location = state_dict['last_location']
-            difference_from_door_coords = (
-                start_coords[0] - last_location[0], 
-                start_coords[1] - last_location[1]
-            )
-            destination = add_coords(end_coords, difference_from_door_coords)
-            if map_dict[destination].passable:
-                if not silent:
-                    await append_to_log(message="You are teleported.")
-                map_dict[player_coords].passable=True
-                actor_dict['player'].update(coord=destination)
-                state_dict['just teleported'] = True
-                state_dict['plane'] = destination_plane
-
-async def create_magic_door_pair(
-    door_a_coords=(5, 5),
-    door_b_coords=(-25, -25),
-    silent=False,
-    source_plane='normal',
-    destination_plane='normal'
-):
-    loop = asyncio.get_event_loop()
-    loop.create_task(
-        magic_door(
-            start_coords=(door_a_coords),
-            end_coords=(door_b_coords),
-            silent=silent, 
-            destination_plane=destination_plane
-        ),
-    )
-    loop.create_task(
-        magic_door(
-            start_coords=(door_b_coords),
-            end_coords=(door_a_coords),
-            silent=silent,
-            destination_plane=source_plane
-        )
-    )
-
 async def spawn_container(
     base_name='box',
     spawn_coord=(5, 5),
@@ -4391,7 +4293,7 @@ def spawn_static_actor(
 def map_init():
     clear()
     rooms = {
-        'a': Room((0, 0), 10, 'rough floor'),
+        'a': Room((0, 0), 10, 'floor'),
         'b': Room((5, -20), 5),
         'c': Room((28, -28), 7),
         'd': Room((9, -39), 8),
@@ -6045,7 +5947,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             tile_color = map_dict[tile_coord_key].color_num
             brightness_mod = map_dict[tile_coord_key].brightness_mod
             tile_brightness = get_brightness(distance, brightness_mod)
-            no_background = ('▓', '░', '▞', '𝄛', '■', '▣', '@', '║', ' ')
+            no_background = ('▓', '░', '▞', '■', '▣', '@', '║', ' ')
             if not state_dict['lock view']:
                 color_tuple = get_brightness_val(int(tile_brightness))
             #if view locked, display a slightly fuzzy but uniform view:
