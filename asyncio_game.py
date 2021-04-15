@@ -5113,11 +5113,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '└───┘',
         ),
         'empty':(
-            '┌───┐',
-            '│   │', 
-            '│   │',
-            '│   │',
-            '└───┘',
+            term.color(0xec)('┌───┐'),
+            term.color(0xec)('│   │'), 
+            term.color(0xec)('│   │'),
+            term.color(0xec)('│   │'),
+            term.color(0xec)('└───┘'),
         ),
     }
     for (num, line) in enumerate(icons[icon_name]):
