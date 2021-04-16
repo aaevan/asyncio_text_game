@@ -6380,6 +6380,16 @@ async def minimap_init(loop, box_width=21, box_height=21):
                     )
                 )
             )
+    state_dict['static amount'] = (0, 3)
+    await asyncio.sleep(1)
+    while True:
+        static_amount = state_dict['static amount']
+        for i in range(randint(*static_amount)):
+            y = randint(-10, 10)
+            print_coord = add_coords((x_offset, y_offset), (-10, y))
+            with term.location(*print_coord):
+                print(term.green("".join(choice(' ░▒▓▄▀') * 21)))
+        await asyncio.sleep(random()/5)
 
 async def async_map_init():
     """
@@ -8301,6 +8311,7 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
         blink_switch = cycle((0, 1))
     else:
         blink_switch = repeat(1)
+    print_choice = ' '
     while True:
         await asyncio.sleep(random()/2)
         if state_dict['scanner_state'] == False:
@@ -8318,15 +8329,16 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
         )
         state_index = int(bin_string, 2)
         print_char = blocks[state_index]
-        with term.location(*display_coord):
-            blink_state = next(blink_switch)
-            if (player_position_offset == (0, 0) or actor_presence) and blink_state:
-                if state_dict['plane'] != 'nightmare':
-                    print(term.on_color(1)(term.green(print_char)))
-                else:
-                    print(term.on_color(0)(term.green(print_char)))
+        blink_state = next(blink_switch)
+        if (player_position_offset == (0, 0) or actor_presence) and blink_state:
+            if state_dict['plane'] != 'nightmare':
+                print_choice = term.on_color(1)(term.green(print_char))
             else:
-                print(term.green(print_char))
+                print_choice = term.on_color(0)(term.green(print_char))
+        else:
+            print_choice = term.green(print_char)
+        with term.location(*display_coord):
+            print(print_choice)
 
 def one_for_passable(map_coords=(0, 0)):
     return str(int(map_dict[map_coords].passable))
