@@ -950,6 +950,8 @@ class Multi_tile_entity:
         regions = []
         found_region = None
         while unchecked_cells is not set():
+            if state_dict['killall'] == True:
+                break
             found_region = self.find_connected(exclusions=seen_cells)
             if found_region == set():
                 break
@@ -1405,6 +1407,8 @@ def point_within_square(radius=20, center=(0, 0)):
 
 def point_within_circle(radius=20, center=(0, 0)):
     while True:
+        if state_dict['killall'] == True:
+            break
         point = point_within_square(radius=radius, center=center)
         distance_from_center = abs(
             point_to_point_distance(point, center)
@@ -1818,6 +1822,8 @@ async def toggle_scanner_state(batt_use=1):
         state_dict['scanner_state'] = True
         await append_to_log(message='You turn on the scanner.')
     while (state_dict['scanner_state'] == True):
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(1)
 
 async def timed_scanner_use(duration=5):
@@ -2275,6 +2281,8 @@ async def bay_door(
         door_message = message_presets[message_preset]
     door_state = None
     while True:
+        if state_dict['killall'] == True:
+            break
         player_coords = actor_dict['player'].coords()
         dist_from_player = point_to_point_distance(hinge_coord, player_coords)
         #go into standby mode if too distant:
@@ -2417,6 +2425,8 @@ async def follower_actor(
     follower_id = generate_id(base_name=name)
     actor_dict[follower_id] = Actor(name=follower_id, tile=tile)
     while alive:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(refresh_speed)
         parent_coords = actor_dict[parent_actor].coords()
         follow_x, follow_y = (
@@ -2507,6 +2517,8 @@ async def multi_spike_trap(
         actor_dict[node_name].update(coord=node_coord)
         map_dict[node_coord].tile = '◘'
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             for node in node_data:
@@ -2559,6 +2571,8 @@ async def spike_trap(
     )
     actor_dict[trap_origin_id].update(coord=coord)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(rate)
         if await any_true(trigger_key=patch_to_key):
             if trap_type == sword:
@@ -2622,6 +2636,8 @@ async def export_map(width=140, height=45):
 
 async def display_current_tile(x_offset=105, y_offset=5):
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.01)
         current_coords = add_coords((-1, 0), actor_dict['player'].coords())
         current_tile = map_dict[current_coords].tile
@@ -2706,6 +2722,8 @@ async def computer_terminal(
         'message':message,
     }
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.1 + random() / 5)
         rand_offset = randint(-5, 0)
         for tile in neighbors:
@@ -2933,6 +2951,8 @@ async def indicator_lamp(
     map_dict[spawn_coord].tile = term.color(tile_colors[0])(tiles[0])
     current_tile = tiles[0]
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(refresh_rate)
         if await any_true(trigger_key=patch_to_key):
             set_tile = true_tile
@@ -2971,6 +2991,8 @@ async def alarm_bell(
     latch = False
     message_words = message.split("|")
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(refresh_rate)
         alarm_timing_index = (alarm_timing_index + 1) % alarm_trigger_num
         alarm_on = alarm_timing_index % alarm_trigger_num
@@ -3081,6 +3103,8 @@ async def pressure_plate_loop(
     if start_delay > 0:
         await asyncio.sleep(start_delay)
     while True:
+        if state_dict['killall'] == True:
+            break
         positive_result = check_actors_on_tile(
             coords=test_coord, positives=positives
         )
@@ -3141,6 +3165,8 @@ async def state_toggle(
     looping_values = cycle(sequence)
     state_dict[trigger_key] = {channel:1}
     while True:
+        if state_dict['killall'] == True:
+            break
         state_dict[trigger_key][channel] = next(looping_values)
         map_dict[9, 9].tile = str(state_dict[trigger_key][channel])[0]
         await asyncio.sleep(time_between_triggers)
@@ -3158,6 +3184,8 @@ async def trigger_door(
     if default_state == 'closed':
         set_state = closed_index
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.25)
         trigger_state = await any_true(trigger_key=patch_to_key)
         if invert:
@@ -3434,6 +3462,8 @@ async def random_blink(actor='player', radius=20):
     current_location = actor_dict[actor].coords()
     await asyncio.sleep(.2)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.01)
         rand_x = randint(-radius, radius) + current_location[0]
         rand_y = randint(-radius, radius) + current_location[1]
@@ -3822,6 +3852,8 @@ async def display_items_at_coord(
         #)
     #)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.1)
         force_reprint_counter = (force_reprint_counter + 1) % 10
         player_coords = actor_dict['player'].coords()
@@ -3876,6 +3908,8 @@ async def display_items_on_actor(
 ):
     item_list = ' '
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print('Inventory:')
@@ -3904,6 +3938,8 @@ async def filter_print(
 ):
     if hold_for_lock:
         while True:
+            if state_dict['killall'] == True:
+                break
             if state_dict['printing'] == True:
                 await asyncio.sleep(.1)
             else:
@@ -4523,6 +4559,8 @@ async def get_key(map_dict, help_wait_count=100):
         state_dict['same_count'] = 0
         old_key = None
         while True:
+            if state_dict['killall'] == True:
+                break
             await asyncio.sleep(0.03)
             if is_data():
                 key = sys.stdin.read(1)
@@ -5152,6 +5190,8 @@ async def choose_item(
     menu_choices = [str(hex(i))[-1] for i in range(16)]
     return_val = None
     while state_dict['in_menu']:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.1)
         menu_choice = state_dict['menu_choice']
         if type(menu_choice) == str and menu_choice not in menu_choices:
@@ -5180,10 +5220,14 @@ async def console_box(
         )
     )
     while True:
+        if state_dict['killall'] == True:
+            break
         grouped_messages = [['', hash(''), 1]]
         last_message_hash = ''
         message_index = len(state_dict['messages']) - 1
         while len(grouped_messages) <= height:
+            if state_dict['killall'] == True:
+                break
             message, message_hash = state_dict['messages'][message_index]
             if message_hash != last_message_hash and last_message_hash != 0: 
                 grouped_messages.append([message, message_hash, 1])
@@ -5282,6 +5326,8 @@ async def key_slot_checker(
     slot_name = "{}_slot".format(slot)
     state_dict[slot_name] = 'empty'
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(frequency)
         #the item's id name is stored in state_dict under the key's name.
         equipped_item_id = state_dict[slot_name]
@@ -5626,6 +5672,8 @@ def angle_to_dir(facing_dir, offset=0, mirror_ns=False):
 async def angle_swing(radius=15):
     current_angle = dir_to_angle(state_dict['facing'])
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(.01)
         pull_angle = dir_to_angle(state_dict['facing'])
         difference = current_angle - pull_angle
@@ -5655,6 +5703,8 @@ async def crosshairs(
     last_angle = None
     old_points = None #used for clearing out print location
     while True:
+        if state_dict['killall'] == True:
+            break
         current_angle = state_dict['current_angle']
         #clear last known location of crosshairs:
         if last_angle != current_angle:
@@ -5727,6 +5777,8 @@ async def tile_debug_info(offset_coord=(50, 0), offset_from_center=False):
     middle_coord = get_term_middle()
     dummy_text = []
     while True:
+        if state_dict['killall'] == True:
+            break
         check_dir = state_dict['facing']
         check_coord = add_coords(
             actor_dict['player'].coords(),
@@ -5872,6 +5924,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
     player_coords = actor_dict['player'].coords()
 
     while True:
+        if state_dict['killall'] == True:
+            break
         state_dict["view_tile_count"] += 1
         await asyncio.sleep(distance * .0075 + .05 + random() * .1) #update speed
         if not state_dict['lock view']:
@@ -6061,6 +6115,8 @@ async def ui_box_draw(
         )
         x_print, y_print = middle_x + x_margin, middle_y + y_margin
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(1)
         with term.location(x_print, y_print):
             print(top_bar)
@@ -6258,6 +6314,8 @@ async def repeated_sound_message(
     if rand_delay:
         await asyncio.sleep(random())
     while True:
+        if state_dict['killall'] == True:
+            break
         if rand_delay:
             await asyncio.sleep(1 + random())
         else:
@@ -6315,6 +6373,8 @@ async def timer(
 ):
     timer_text = timer_text(time_minutes, time_seconds)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(resolution)
         with term.location(x_pos, y_pos):
             print(term.red(timer_text))
@@ -6383,6 +6443,8 @@ async def minimap_init(loop, box_width=21, box_height=21):
     state_dict['static amount'] = (0, 3)
     await asyncio.sleep(1)
     while True:
+        if state_dict['killall'] == True:
+            break
         static_amount = state_dict['static amount']
         for i in range(randint(*static_amount)):
             y = randint(-10, 10)
@@ -6683,6 +6745,8 @@ async def status_bar(
         y_print_coord = y_offset
         print_coord = (middle_x - x_print_coord, middle_y + y_print_coord)
     while True:
+        if state_dict['killall'] == True:
+            break
         attr_value = getattr(actor_dict[actor_name], attribute)
         bar_filled = round((int(attr_value)/max_value) * bar_length)
         bar_unfilled = bar_length - bar_filled
@@ -6699,6 +6763,8 @@ async def player_coord_readout(
         print_coord = (middle_x - x_offset, middle_y + y_offset)
     state_dict['display_offset'] = [0, 0, 0]
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(refresh_time)
         player_coords = actor_dict['player'].coords()
         if state_dict['plane'] == 'normal':
@@ -6791,6 +6857,8 @@ async def delay_follow(
         description='Your shadow.'
     )
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(speed)
         grab_index = (grab_index + 1) % window_length
         delay_index = (delay_index + 1) % window_length
@@ -7076,6 +7144,8 @@ def num_to_facing_dir(direction_number=1):
 
 async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(sec_interval)
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
@@ -7103,6 +7173,8 @@ async def tentacled_mass(
     actor_dict[tentacled_mass_id].update(coord=start_coords)
     current_coord = start_coords
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(tentacle_rate)
         current_coord = await choose_core_move(
             core_name_key=tentacled_mass_id, tentacles=False
@@ -7156,6 +7228,8 @@ async def shrouded_horror(
         )
     wait = 0
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(speed)
         for offset, shroud_name_key in enumerate(shroud_piece_names):
             #deleting instance of the shroud pieces from the map_dict's actor list:
@@ -7260,6 +7334,8 @@ async def basic_actor(
     coords = actor_dict[name_key].coords()
     actor_dict[name_key].update(coord=coords, make_passable=False)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(speed)
         if not hasattr(actor_dict[name_key], 'health'):
             return
@@ -7396,6 +7472,8 @@ async def follower_vine(
     if color_choice is None:
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
+        if state_dict['killall'] == True:
+            break
         with term.location(55, randint(0, 5)):
             print(f'current_coord:{current_coord}')
         await asyncio.sleep(update_period)
@@ -7716,6 +7794,8 @@ async def beam_spire(spawn_coord=(0, 0)):
     )
     actor_dict[turret_id].update(coord=spawn_coord)
     while True:
+        if state_dict['killall'] == True:
+            break
         for angle in [i * 5 for i in range(72)]:
             player_distance = distance_to_actor(actor_a=turret_id, actor_b='player')
             if player_distance < 40:
@@ -7752,6 +7832,8 @@ async def repeating_particle_jet(
 ):
     await asyncio.sleep(start_delay)
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(off_interval)
         await particle_jet(
             origin=origin,
@@ -7965,6 +8047,8 @@ async def radial_fountain(
     effect.
     """
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(frequency)
         rand_angle = randint(*angle_range)
         if tile_anchor:
@@ -8094,6 +8178,8 @@ async def orbit(
         speed_multiplier = 1
     last_location = None
     while True:
+        if state_dict['killall'] == True:
+            break
         if sin_radius:
             radius = next(sin_cycle)
         await asyncio.sleep(0.005 * speed_multiplier)
@@ -8116,6 +8202,8 @@ async def death_check():
     )
     death_message = "You have died."
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(0.1)
         player_health = actor_dict["player"].health
         if player_health <= 0:
@@ -8313,6 +8401,8 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
         blink_switch = repeat(1)
     print_choice = ' '
     while True:
+        if state_dict['killall'] == True:
+            break
         await asyncio.sleep(random()/2)
         if state_dict['scanner_state'] == False:
             with term.location(*display_coord):
@@ -8348,11 +8438,12 @@ async def quitter_daemon():
         await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
-            #pending = asyncio.Task.all_tasks()
-            #for task in pending:
+            pending = asyncio.Task.all_tasks()
+            for task in pending:
                 #print(f'dir(task):')
+                print(task)
                 #print(dir(task))
-            #loop.run_until_complete(asyncio.gather(*pending))
+            loop.run_until_complete(asyncio.gather(*pending))
             loop.stop()
             loop.close()
 
