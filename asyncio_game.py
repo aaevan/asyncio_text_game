@@ -8438,12 +8438,18 @@ async def quitter_daemon():
         await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
+            last_count = 9999
+            #while True:
+            await asyncio.sleep(1)
             pending = asyncio.Task.all_tasks()
-            for task in pending:
-                #print(f'dir(task):')
-                print(task)
-                #print(dir(task))
-            loop.run_until_complete(asyncio.gather(*pending))
+            print(f'*********\nnumber of tasks: {len(pending)} pending: {pending}')
+            print(next(iter(pending)))
+            print(dir(next(iter(pending))))
+                #for task in pending:
+                    #print(f'dir(task):')
+                    #print(task)
+                    #print(dir(task))
+            print("8453")
             loop.stop()
             loop.close()
 
