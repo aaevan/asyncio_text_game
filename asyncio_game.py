@@ -8442,16 +8442,20 @@ async def quitter_daemon():
             #while True:
             await asyncio.sleep(1)
             pending = asyncio.Task.all_tasks()
-            print(f'*********\nnumber of tasks: {len(pending)} pending: {pending}')
+            print("pending before:", pending)
+            print(f'*********\nnumber of tasks: {len(pending)}')
             print(next(iter(pending)))
             print(dir(next(iter(pending))))
-                #for task in pending:
-                    #print(f'dir(task):')
-                    #print(task)
-                    #print(dir(task))
-            print("8453")
-            loop.stop()
-            loop.close()
+            #for task in pending:
+                #print(task)
+                #dir(task)
+                #if not task.cancelled():
+                    #task.set_result('done')
+            #pending = asyncio.Task.all_tasks()
+            #print("pending after:", pending)
+                #print(dir(task))
+            #loop.stop()
+            #loop.close()
 
 async def door_init(loop):
     door_pairs = (
