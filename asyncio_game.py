@@ -21,11 +21,6 @@ from time import sleep
 #TODO: a way to create whole puzzle rooms in one command
 #TODO: a way to randomly generate a series of puzzle rooms??
 
-#TODO: use unicode big parentheses in a multi-tile entity?
-    #⎛  ⎞
-    #⎜  ⎟
-    #⎝  ⎠
-
 #Class definitions--------------------------------------------------------------
 class Map_tile:
     """ 
@@ -1919,7 +1914,8 @@ async def explosion_effect(
     radius=6,
     damage=500,
     particle_count=25,
-    destroys_terrain=True
+    destroys_terrain=True,
+    inverse_square_damage=True,
 ):
     await radial_fountain(
         tile_anchor=center_coord,
@@ -1937,8 +1933,12 @@ async def explosion_effect(
         area_of_effect = get_circle(center=center_coord, radius=radius)
         draw_circle(center_coord=center_coord, radius=radius)
     if damage:
-        #TODO: change damage based on distance from center_coord?
-        await damage_within_circle(center=center_coord, radius=radius, damage=damage)
+        await damage_within_circle(
+            center=center_coord, 
+            radius=radius, 
+            damage=damage,
+            inverse_square_damage=inverse_square_damage,
+        )
 
 async def thrown_action(
     thrown_item_id=None,
