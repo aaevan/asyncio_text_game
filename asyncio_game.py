@@ -1946,7 +1946,7 @@ async def thrown_action(
     direction=None,
     throw_distance=13,
     rand_drift=2, 
-    fuse_length=3, #set to -1 for no fuse
+    fuse_length=3,
     single_use_item=True,
     action_preset='dynamite',
     radius=6,
@@ -2326,6 +2326,7 @@ async def bay_door(
                     await append_to_log(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.1)
+                #TODO: crushing logic for bay doors
                 #if there's an actor in the square we're about to update, push
                 #if it's not pushable, jam here, enter check for not jammed loop
                 #if it's pushable and the pushed-to space is either a wall or another bay door,
@@ -2433,51 +2434,6 @@ async def follower_actor(
             parent_coords[0] + offset[0], parent_coords[1] + offset[1]
         )
         actor_dict[follower_id].update(coord=(follow_x, follow_y))
-
-async def circle_of_darkness(
-    start_coords=(0, 0), name='darkness', circle_size=4
-):
-    actor_id = generate_id(base_name=name)
-    loop = asyncio.get_event_loop()
-    loop.create_task(
-        nasic_actor(
-            coord=start_coords,
-            speed=.5,
-            movement_function=seek_actor, 
-            tile=' ',
-            name_key=actor_id,
-            hurtful=True,
-            is_animated=True,
-            animation=Animation(preset='none')
-        )
-    )
-    range_tuple = (-circle_size, circle_size + 1)
-    for x in range(*range_tuple):
-        for y in range(*range_tuple):
-            distance_to_center = point_to_point_distance((0, 0), (x, y))
-            if distance_to_center <= circle_size:
-                loop.create_task(
-                    follower_actor(
-                        parent_actor=actor_id, 
-                        offset=(x, y)
-                    )
-                )
-                #shadow in nightmare space
-                loop.create_task(
-                    follower_actor(
-                        tile=term.on_white(' '), 
-                        parent_actor=actor_id, 
-                        offset=(1000 + x, 1000 + y)
-                    )
-                )
-            else:
-                pass
-    loop.create_task(
-        radial_fountain(
-            anchor_actor=actor_id,
-            animation=Animation(preset='sparse noise')
-        )
-    )
 
 async def multi_spike_trap(
     base_name='multitrap',
@@ -2744,9 +2700,15 @@ async def test_print_at_coord(
 
 async def use_action_fork(
     func_list=[
-        (test_print_at_coord, True, {'message':'use_action_fork func 1! {}', 'coord':(55, 0)}),
-        (test_print_at_coord, True, {'message':'use_action_fork func 2! {}', 'coord':(55, 1)}),
-        (test_print_at_coord, True, {'message':'use_action_fork func 3! {}', 'coord':(55, 2)}),
+        (test_print_at_coord, True, {
+            'message':'use_action_fork func 1! {}', 'coord':(55, 0)
+        }),
+        (test_print_at_coord, True, {
+            'message':'use_action_fork func 2! {}', 'coord':(55, 1)
+        }),
+        (test_print_at_coord, True, {
+            'message':'use_action_fork func 3! {}', 'coord':(55, 2)
+        }),
     ]
 ):
     #TODO: come back to this idea!
@@ -3018,6 +2980,12 @@ async def alarm_bell(
             map_dict[spawn_coord].description = tile_descriptions[0]
 
 async def toggle_bool_toggle(
+    """
+    Used in computer_terminal.
+
+    Displays a different console message depending on the patch_to_key state
+    in state_dict.
+    """
     patch_to_key,
     toggle_id,
     message=('toggled_object is now', ('falsey', 'truthy')),
@@ -3158,18 +3126,6 @@ async def puzzle_pair(
             
 async def any_true(trigger_key):
     return any(i for i in state_dict[trigger_key].values())
-
-async def state_toggle(
-    sequence=(0, 1), time_between_triggers=1, trigger_key='test', channel=1
-):
-    looping_values = cycle(sequence)
-    state_dict[trigger_key] = {channel:1}
-    while True:
-        if state_dict['killall'] == True:
-            break
-        state_dict[trigger_key][channel] = next(looping_values)
-        map_dict[9, 9].tile = str(state_dict[trigger_key][channel])[0]
-        await asyncio.sleep(time_between_triggers)
 
 async def trigger_door(
     patch_to_key='switch_1',
@@ -3837,20 +3793,11 @@ async def display_items_at_coord(
     coord=actor_dict['player'].coords(),
     x_pos=25,
     y_pos=19,
-    #y_pos=12
 ):
     item_list = ' '
     current_list_hash = 0
     last_list_hash = 0
     force_reprint_counter = 0
-    #asyncio.ensure_future(
-        #ui_box_draw(
-            #box_height=14, 
-            #box_width=23, 
-            #x_margin=0,
-            #y_margin=18,
-        #)
-    #)
     while True:
         if state_dict['killall'] == True:
             break
@@ -3975,34 +3922,6 @@ async def filter_print(
     state_dict['printing'] = False #releasing hold on printing to the screen
     await asyncio.sleep(1)
 
-async def filter_fill(
-    top_left_coord=(30, 10),
-    x_size=10,
-    y_size=10, 
-    pause_between_prints=.005,
-    pause_stay_on=3, 
-    fill_char=term.red('X'),
-    random_order=True
-):
-    coord_list = [(x, y) for x in range(x_size) for y in range(y_size)]
-    fill_char = choice('123456789')
-    if random_order:
-        shuffle(coord_list) #shuffle coord_list in place
-    x_offset, y_offset = top_left_coord
-    for pair in coord_list:
-        await asyncio.sleep(pause_between_prints)
-        print_coord = pair[0] + x_offset, pair[1] + y_offset
-        with term.location(*print_coord):
-            print(fill_char)
-
-def fill_screen_with_colors():
-    for row in range(0, 48):
-        for i in range(255):
-            with term.location(i, row):
-                print(term.on_color_rgb(
-                    randint(0, 255), randint(0, 255), randint(0, 255)
-                )(" "))
-
 def print_debug_grid():
     """
     prints an overlay for finding positions of text
@@ -4016,36 +3935,12 @@ def print_debug_grid():
             with term.location(x * 5, y * 5 + 2):
                 print(' {0: >2}'.format(y * 5))
 
-def describe_region(top_left=(0, 0), x_size=5, y_size=5, text='testing...'):
-    x_tuple = (top_left[0], top_left[0] + x_size)
-    y_tuple = (top_left[1], top_left[1] + y_size)
-    for x in range(*x_tuple):
-        for y in range(*y_tuple):
-            map_dict[(x, y)].description = text
-
 def append_description(coord, added_message, separator="||"):
     map_dict[coord].description = "{}{}{}".format(
         map_dict[coord].description, 
         separator,
         added_message,
     )
-
-def connect_with_passage(x1, y1, x2, y2, segments=2, tile='░'):
-    """
-    fills a straight path first then fills the shorter leg, 
-    starting from the first coordinate
-    """
-    if segments == 2:
-        if abs(x2-x1) > abs(y2-y1):
-            for x_coord in range(x1, x2+1):
-                paint_preset((x_coord, y1), preset=tile,)
-            for y_coord in range(y1, y2+1):
-                paint_preset((x2, y_coord), preset=tile,)
-        else:
-            for y_coord in range(y1, y2+1):
-                paint_preset((x1, y_coord), preset=tile,)
-            for x_coord in range(x1, x2+1):
-                paint_preset((x_coord, y2), preset=tile,)
 
 async def sow_texture(
     root_coord,
@@ -4796,8 +4691,6 @@ async def action_keypress(key):
         spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future( add_uses_to_chosen_item())
-    elif key in 'F': #fill screen with random colors
-        fill_screen_with_colors()
     elif key in '(':
         asyncio.ensure_future(
             siphon_trinket_effect(
