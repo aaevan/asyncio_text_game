@@ -4345,7 +4345,6 @@ def convert_pass_state_to_preset(
     cell_coord=(0, 0),
     preset='cell bars',
     pass_state=False,
-    #starting_preset="
 ):
     """
     set pass_state to False to select solid tiles (places where you can't walk)
@@ -4353,9 +4352,6 @@ def convert_pass_state_to_preset(
     """
     if map_dict[cell_coord].passable == pass_state:
         paint_preset(tile_coords=cell_coord, preset=preset)
-    
-def convert_cells_in_box():
-    pass
     
 def spawn_column(
     spawn_coord=(0, 0), 
@@ -4432,13 +4428,6 @@ def announcement_at_coord(
 
 def is_data(): 
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
-
-def is_number(number="0"):
-    try:
-        float(number)
-        return True
-    except ValueError:
-        return False
 
 #Top level input----------------------------------------------------------------
 async def get_key(map_dict, help_wait_count=100): 
