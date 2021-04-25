@@ -2980,17 +2980,17 @@ async def alarm_bell(
             map_dict[spawn_coord].description = tile_descriptions[0]
 
 async def toggle_bool_toggle(
+    patch_to_key,
+    toggle_id,
+    message=('toggled_object is now', ('falsey', 'truthy')),
+    delay=1,
+):
     """
     Used in computer_terminal.
 
     Displays a different console message depending on the patch_to_key state
     in state_dict.
     """
-    patch_to_key,
-    toggle_id,
-    message=('toggled_object is now', ('falsey', 'truthy')),
-    delay=1,
-):
     toggle_state = state_dict[patch_to_key][toggle_id]
     false_text = "{} {}.".format(message[0], message[1][0])
     true_text =  "{} {}.".format(message[0], message[1][1])
@@ -3565,6 +3565,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             }
         },
         'pebble':{
+            #TODO: an enemy that will follow the noise made by a thrown pebble
             'uses':1,
             'stackable':True,
             'tile':term.red('·'),
@@ -6239,41 +6240,6 @@ async def sound_message(
         fade_duration=fade_duration,
     )
 
-def timer_text(minutes, seconds):
-    output_text = "⌛ {0: }:{}".format(
-        str(time_minutes).zfill(2),
-        str(time_seconds).zfill(2)
-    )
-    return output_text
-
-async def timer(
-    x_pos=0,
-    y_pos=10,
-    time_minutes=0,
-    time_seconds=5,
-    resolution=1,
-):
-    timer_text = timer_text(time_minutes, time_seconds)
-    while True:
-        if state_dict['killall'] == True:
-            break
-        await asyncio.sleep(resolution)
-        with term.location(x_pos, y_pos):
-            print(term.red(timer_text))
-        if time_seconds >= 1:
-            time_seconds -= resolution
-        elif time_seconds == 0 and time_minutes >= 1:
-            time_seconds = 59
-            time_minutes -= 1
-        elif time_seconds == 0 and time_minutes == 0:
-            await asyncio.sleep(.5)
-            x, y = actor_dict['player'].coords()
-            with term.location(x_pos, y_pos):
-                print(" " * 7)
-            break
-        timer_text = timer_text(time_minutes, time_seconds)
-    return
-
 async def view_tile_init(
     loop,
     term_x_radius=40,
@@ -6719,6 +6685,8 @@ async def delay_follow(
     name_key='player', window_length=20, speed=.05, delay_offset=10
 ):
     """
+    (unused but sorta interesting)
+
     Creates a static actor that follows the path of the specified actor.
 
     In its default state, it makes a dark space that follows you a little 
@@ -6820,62 +6788,6 @@ async def seek_actor(
     else:
         output_index = distances.index(min(distances))
     return open_spaces[output_index]
-
-def offset_to_dir(offset):
-    dir_of_travel = {
-        (0, -1): 'n',
-        (1, 0): 'e',
-        (0, 1): 's',
-        (-1, 0): 'w',
-        (1, -1): 'ne',
-        (1, 1): 'se',
-        (-1, 1): 'sw',
-        (-1, -1): 'nw',
-    }
-    return dir_of_travel[offset]
-
-def adjacent_tiles(coord=(0, 0)):
-    surrounding_coords = [
-        add_coords(coord, dir_to_offset(offset)) for offset in (
-            'n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'
-        )
-    ]
-    return surrounding_coords
-
-def opposite_dir(dir_string='n'):
-    """
-    Returns the opposite cardinal direction.
-    """
-    opposites = {
-        'n' :'s',
-        'e' :'w',
-        's' :'n',
-        'w' :'e',
-        'ne':'sw',
-        'se':'nw',
-        'sw':'ne',
-        'nw':'se',
-    }
-    return opposites[dir_string]
-
-def dir_to_offset(dir_string='n', inverse=False):
-    if inverse:
-        dir_string = opposite_dir(dir_string)
-    dirs_to_offsets = {
-        'n' :(0, -1),
-        'e' :(1, 0),
-        's':(0, 1),
-        'w':(-1, 0),
-        'ne':(1, -1),
-        'se':(1, 1),
-        'sw':(-1, 1),
-        'nw':(-1, -1),
-    }
-    return dirs_to_offsets[dir_string]
-
-def scaled_dir_offset(dir_string='n', scale_by=5):
-    dir_offset = dir_to_offset(dir_string)
-    return (dir_offset[0] * scale_by, dir_offset[1] * scale_by)
 
 async def wait(name_key=None, **kwargs):
     """
@@ -6983,6 +6895,8 @@ async def distance_based_message(
 
 def fuzzy_forget(name_key=None, radius=3, forget_count=5):
     """
+    (unused)
+
     The actor leaves a trail of tiles that are forgotten from the player's 
     memory.
     """
@@ -7031,6 +6945,62 @@ async def run_every_n(sec_interval=3, repeating_function=None, kwargs={}):
         await asyncio.sleep(sec_interval)
         x, y = actor_dict['player'].coords()
         asyncio.ensure_future(repeating_function(**kwargs))
+
+def offset_to_dir(offset):
+    dir_of_travel = {
+        (0, -1): 'n',
+        (1, 0): 'e',
+        (0, 1): 's',
+        (-1, 0): 'w',
+        (1, -1): 'ne',
+        (1, 1): 'se',
+        (-1, 1): 'sw',
+        (-1, -1): 'nw',
+    }
+    return dir_of_travel[offset]
+
+def adjacent_tiles(coord=(0, 0)):
+    surrounding_coords = [
+        add_coords(coord, dir_to_offset(offset)) for offset in (
+            'n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'
+        )
+    ]
+    return surrounding_coords
+
+def opposite_dir(dir_string='n'):
+    """
+    Returns the opposite cardinal direction.
+    """
+    opposites = {
+        'n' :'s',
+        'e' :'w',
+        's' :'n',
+        'w' :'e',
+        'ne':'sw',
+        'se':'nw',
+        'sw':'ne',
+        'nw':'se',
+    }
+    return opposites[dir_string]
+
+def dir_to_offset(dir_string='n', inverse=False):
+    if inverse:
+        dir_string = opposite_dir(dir_string)
+    dirs_to_offsets = {
+        'n' :(0, -1),
+        'e' :(1, 0),
+        's':(0, 1),
+        'w':(-1, 0),
+        'ne':(1, -1),
+        'se':(1, 1),
+        'sw':(-1, 1),
+        'nw':(-1, -1),
+    }
+    return dirs_to_offsets[dir_string]
+
+def scaled_dir_offset(dir_string='n', scale_by=5):
+    dir_offset = dir_to_offset(dir_string)
+    return (dir_offset[0] * scale_by, dir_offset[1] * scale_by)
 
 #Actor creation and controllers----------------------------------------------
 async def tentacled_mass(
@@ -7544,6 +7514,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     state_dict['bubble_cooldown'] = False
     return True
 
+#BOOKMARK: cleanup to here (04-24-21) TODO
 async def passwall_effect(
     #origin_coord=(0, 0), 
     #direction='n',
