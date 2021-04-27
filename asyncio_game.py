@@ -7516,8 +7516,8 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
 
 #BOOKMARK: cleanup to here (04-24-21) TODO
 async def passwall_effect(
-    #origin_coord=(0, 0), 
-    #direction='n',
+    origin_coord=None,
+    direction=None,
     depth_of_cut=5, 
     duration=3,
     width=2
@@ -7527,8 +7527,10 @@ async def passwall_effect(
     else:
         #asyncio.ensure_future(append_to_log(message=""))
         return
-    origin_coord=actor_dict['player'].coords()
-    direction=state_dict['facing']
+    if origin_coord is None:
+        origin_coord=actor_dict['player'].coords()
+    if direction is None:
+        direction=state_dict['facing']
     scaled_offset = scaled_dir_offset(
         dir_string=direction, scale_by=depth_of_cut
     )
