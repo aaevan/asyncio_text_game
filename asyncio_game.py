@@ -6407,7 +6407,7 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room s. of spawn
         ((-22, -45), 'green sword'), 
-        ((22, -5), 'dash trinket'), #debug
+        ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((-15, 0), 'looking glass'), 
         ((31, -6), 'scanner'),
@@ -6416,7 +6416,7 @@ async def async_map_init():
         #in starting cell:
         ((26, -3), 'cell key'),
         ((24, -3), 'knife'), 
-        ((32, 5), 'siphon trinket'), 
+        ((32, 5), 'siphon trinket'), #with leech enemies
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
@@ -7493,14 +7493,9 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     bubble_id = generate_id(base_name='')
     bubble_pieces = {}
     player_coords = actor_dict['player'].coords()
-    every_five = [i * 5 for i in range(72)]
-    points_at_distance = {
-        point_at_distance_and_angle(
-            radius=radius, central_point=player_coords, angle_from_twelve=angle
-        ) for angle in every_five
-    }
+    circle_points = points_at_distance(radius=radius)
     state_dict['bubble_cooldown'] = True
-    for num, point in enumerate(points_at_distance):
+    for num, point in enumerate(circle_points):
         actor_name = 'bubble_{}_{}'.format(bubble_id, num)
         asyncio.ensure_future(
             timed_actor(
@@ -7514,7 +7509,20 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     state_dict['bubble_cooldown'] = False
     return True
 
-#BOOKMARK: cleanup to here (04-24-21) TODO
+def points_at_distance(spacing=2, radius=5, central_point=None):
+    if central_point is None:
+        central_point = actor_dict['player'].coords()
+    angles_at_spacing = [i * spacing for i in range(360 // spacing)]
+    points = []
+    for angle in angles_at_spacing:
+        point = point_at_distance_and_angle(
+            radius=radius,
+            central_point=central_point,
+            angle_from_twelve=angle
+        )
+        points.append(point)
+    return set(points)
+
 async def passwall_effect(
     origin_coord=None,
     direction=None,
@@ -7525,7 +7533,6 @@ async def passwall_effect(
     if state_dict['passwall running'] == False:
         state_dict['passwall running'] = True
     else:
-        #asyncio.ensure_future(append_to_log(message=""))
         return
     if origin_coord is None:
         origin_coord=actor_dict['player'].coords()
@@ -7585,17 +7592,7 @@ async def passwall_effect(
         map_dict[coord].animation = animation
     state_dict['passwall running'] = False
 
-async def points_at_distance(radius=5, central_point=(0, 0)):
-    every_five = [i * 5 for i in range(72)]
-    points = []
-    for angle in every_five:
-        point = point_at_distance_and_angle(
-            radius=radius, 
-            central_point=player_coords, 
-            angle_from_twelve=angle
-        )
-        points.append(point)
-    return set(points)
+#BOOKMARK: cleanup to here (04-27-21) TODO
 
 async def timed_actor(
     death_clock=10,
