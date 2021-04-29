@@ -479,16 +479,6 @@ class Animation:
         #combined output
         return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
-class Rand_repr:
-    """
-    A class that acts like a string but returns something
-    different each time it's printed.
-    """
-    def __init__(self, *choices):
-        self.choices = [str(item) for item in choices]
-    def __repr__(self):
-        return choice(self.choices)
-
 class Item:
     """
     An item that can be used either by the player or various actors.
@@ -1072,11 +1062,6 @@ async def drag_actor_along_line(
     for point in line:
         await asyncio.sleep(linger_time)
         actor_dict[actor_name].update(coord=point)
-
-async def disperse_all_mte():
-    for mte_name in mte_dict:
-        if not hasattr(mte_dict[mte_name], 'dead'):
-            asyncio.ensure_future(disperse_mte(mte_name))
 
 async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
     if mte_name is None:
@@ -7591,8 +7576,6 @@ async def passwall_effect(
         map_dict[coord].is_animated = is_animated
         map_dict[coord].animation = animation
     state_dict['passwall running'] = False
-
-#BOOKMARK: cleanup to here (04-27-21) TODO
 
 async def timed_actor(
     death_clock=10,
