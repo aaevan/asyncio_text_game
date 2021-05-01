@@ -8139,9 +8139,6 @@ async def spawn_preset_actor(
                 speed=.15,
                 movement_function=angel_seek, 
                 movement_function_kwargs={'tether_length':0}, 
-                #TODO: figure out why the combining character takes on the color 
-                #of the player when adjacent (to the left)
-                #tile='\u030A\u034FΨ', #"psi character with a ring over it"
                 tile='Ψ',
                 name_key=name,
                 hurtful=True,
