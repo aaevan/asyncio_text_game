@@ -54,9 +54,7 @@ class Map_tile:
         use_action_kwargs=None,             #kwards of use_action function
         toggle_states=None,                 #used for elements with multiple states
                 #example: toggle_states = (('▯', False, False), ('▮', True, True))
-                #the first element of each sub-tuple is the tile, '▯'
-                #the second is the blocking state: False
-                #the third element is the passable state: False
+                #for each sub-tuple: (<tile>, <blocking state>, <passable state>)
                 #('▮', True, True) --> a door that is solid and opaque when closed
         toggle_state_index=None,            #keeps track of the current tile state
         run_on_entry=None,
@@ -75,7 +73,6 @@ class Map_tile:
         else:
             self.tile = tile
         self.brightness_mod = brightness_mod
-        #self.tile = tile
         self.passable = passable
         self.blocking = blocking
         self.description = description
@@ -609,8 +606,7 @@ class Multi_tile_entity:
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
                 write_coord = add_coords(offset_coord, anchor_coord)
-                #skip over empty cells to preserve shape of preset:
-                if tiles[y][x] is ' ':
+                if tiles[y][x] is ' ': #skip over empty cells to preserve shape of preset
                     continue
                 else:
                     segment_tile = tiles[y][x]
@@ -1022,7 +1018,6 @@ def multi_push(
     elif pushed_actor is not None and mte_parent is None:
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
         print('mte_parent: {}'.format(mte_parent))
-    #move_by = dir_coords[push_dir]
     if push_dir in ('ne', 'se', 'sw', 'nw') and ignore_diagonals:
         return False
     move_by = dir_to_offset(push_dir)
@@ -1091,7 +1086,6 @@ def brightness_test(print_coord=(110, 32)):
 
 #Global state setup-------------------------------------------------------------
 term = Terminal()
-#brightness_vals = [(i, '█') for i in range(0xe8, 0xff)][::-1]
 map_dict = defaultdict(lambda: Map_tile(passable=False, blocking=True))
 mte_dict = {}
 room_centers = set()
@@ -1749,7 +1743,6 @@ def write_room_to_map(
     Writes a dictionary representation of a region of space into the map_dict.
     """
     for coord, value in room.items():
-        #print(coord, '" "'.format(value))
         write_coord = add_coords(coord, top_left_coord)
         if value == space_char:
             continue
@@ -2602,7 +2595,7 @@ async def display_current_tile(x_offset=105, y_offset=5):
             print('{}        '.format(repr(current_tile)))
         actors = [key for key in map_dict[current_coords].actors.keys()]
         with term.location(x_offset, y_offset + 6):
-            print('actors here: {}        #'.format(actors))
+            print('actors here: {}         '.format(actors))
         actors_len = len(map_dict[current_coords].actors.keys())
         with term.location(x_offset, y_offset + 7):
             print('actors_len: {}'.format(actors_len))
@@ -2737,7 +2730,7 @@ async def hatch_pair(
     destination=None, #origin is copied if no destination is given
     origin_z=0,       #where the hatch is spawned
     destination_z=-1, #where the ladder is spawned
-    #offset to an empty square next to the hatch
+    #offset to an empty square next to the hatch:
     origin_landing_offset=(0, 1), 
     #offset to an empty square next to the bottom of the ladder:
     destination_landing_offset=(0, 1), 
@@ -3837,7 +3830,7 @@ async def display_items_at_coord(
         last_list_hash = current_list_hash
 
 async def display_items_on_actor(
-    actor_key='player', x_pos=2, y_pos=19, #y_pos=24
+    actor_key='player', x_pos=2, y_pos=19,
 ):
     item_list = ' '
     while True:
@@ -4059,7 +4052,6 @@ def draw_door(
     closed=True,
     locked=False,
     starting_toggle_index=1,
-    #description='wooden',
     is_door=True,
     preset='wooden',
     z_level=0,
@@ -4281,7 +4273,6 @@ def map_init():
         )
     for room in rooms.values():
         room.draw_room()
-    #secret_room(wall_coord=(-27, 20), room_offset=(-10, 0))
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-38, 22), room_offset=(-3, 0), dimensions=(3, 3))
     secret_room(wall_coord=(-38, 18), room_offset=(-3, 0), dimensions=(3, 3))
@@ -4439,8 +4430,9 @@ async def get_key(map_dict, help_wait_count=100):
                 if key is not None:
                     player_health = actor_dict["player"].health
                     if player_health > 0:
+                        #TODO: see if this makes any difference?
                         asyncio.ensure_future(handle_input(map_dict, key))
-                        #await handle_input(map_dict, key)
+                        #await handle_input(map_dict, key) 
             if old_key == key:
                 state_dict['same_count'] += 1
             else:
@@ -4622,7 +4614,6 @@ async def action_keypress(key):
         asyncio.ensure_future(examine_tile())
     elif key in 'X': #examine
         state_dict['looking'] = True
-        #append_to_log(message=blocked_message)
         await display_help(mode="looking") 
     elif key in ' ': #toggle doors
         asyncio.ensure_future(use_action())
@@ -4640,13 +4631,12 @@ async def action_keypress(key):
         asyncio.ensure_future(use_item_in_slot(slot=key))
     elif key in 't': #throw a chosen item
         asyncio.ensure_future(throw_item())
-    elif key in 'h': #debug health restore
-        asyncio.ensure_future(health_potion())
     elif key in 'U':
         asyncio.ensure_future(use_chosen_item())
-    #elif key in 'f': #use sword in facing direction
-        #await sword_item_ability(length=3)
-    elif key in 'F': #use sword in facing direction
+    #DEBUG COMMANDS--------------------------------------------------------
+    elif key in 'h': #debug health restore
+        asyncio.ensure_future(health_potion())
+    elif key in 'F': #use swing action in facing direction
         await swing(base_actor='player')
     elif key in 'Y': #looking glass power
         asyncio.ensure_future(temp_view_circle(on_actor='player'))
@@ -4654,7 +4644,6 @@ async def action_keypress(key):
         asyncio.ensure_future(pass_between(
             x_offset=9999, y_offset=9999, plane_name='nightmare'
         ))
-    #DEBUG COMMANDS--------------------------------------------------------
     elif key in '8': #export map
         asyncio.ensure_future(export_map())
     elif key in '$':
@@ -4672,7 +4661,7 @@ async def action_keypress(key):
                 center_on_actor_id='player',
             )
         )
-    #MAP COMMANDS----------------------------------------------------------
+    #MAP (debug) COMMANDS----------------------------------------------------------
     elif key in '7':
         draw_circle(center_coord=actor_dict['player'].coords(), preset='floor')
     elif key in '9': #creates a passage in a random direction from the player
@@ -4748,10 +4737,7 @@ async def examine_tile(examined_coord=None, tense='present'):
             actor_description = actor_dict[actor].description
     if map_dict[examined_coord].door_type != '':
         is_secret = 'secret' in map_dict[examined_coord].door_type
-    #if map_dict[examined_coord].actors:
     if has_visible_actor:
-        #actor_name = list(map_dict[examined_coord].actors)[0]#"There's an actor there!"
-        #description_text = actor_dict[actor_name].description
         description_text = actor_description
     elif map_dict[examined_coord].items:
         item_list = list(iter(map_dict[examined_coord].items))
@@ -6326,7 +6312,7 @@ async def async_map_init():
         describe_tile=False, 
         distance_trigger=2
     )
-    #announcement_at_coord(
+    #announcement_at_coord( #TODO: unused
         #"The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", 
         #coord=(25, -27), 
         #describe_tile=False, 
@@ -6398,7 +6384,7 @@ async def async_map_init():
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
-        #in starting cell:
+        #items in starting cell:
         ((26, -3), 'cell key'),
         ((24, -3), 'knife'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
@@ -6412,7 +6398,7 @@ async def async_map_init():
     tasks = [
         spawn_container(spawn_coord=(3, -4), box_choices=['green sword']),
         trap_init(),
-        #beam_spire(spawn_coord=(26, -25)),
+        #beam_spire(spawn_coord=(26, -25)), #TODO: unused
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
@@ -6440,7 +6426,7 @@ async def async_map_init():
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
-       #((-7, -2), 'presence'),
+       #((-7, -2), 'presence'), #TODO: unused, needs working leash
     )
     for coord, name in monster_spawns:
         tasks.append(spawn_preset_actor(coords=coord, preset=name))
@@ -6622,8 +6608,8 @@ async def ui_setup():
     loop.create_task(angle_swing())
     loop.create_task(crosshairs())
     loop.create_task(console_box())
-    loop.create_task(display_items_at_coord()) #DEBUG
-    loop.create_task(display_items_on_actor()) #DEBUG
+    loop.create_task(display_items_at_coord())
+    loop.create_task(display_items_on_actor())
     key_slots = (
         ('q', (0, 0)),
         ('e', (5, 0)),
@@ -6637,7 +6623,7 @@ async def ui_setup():
             slot=key, 
             print_location=add_coords(offset, center_offset),
         ))
-    #loop.create_task(tile_debug_info())
+        #loop.create_task(tile_debug_info()) #TODO: unused
     health_title = "{} ".format(term.color(1)("♥"))
     loop.create_task(
         status_bar(
@@ -8151,8 +8137,6 @@ async def spawn_preset_actor(
                 made_of='stone',
             )
         )
-    #TODO: enemy that is only seen by its trail through your remembered tiles
-    #      puts random tiles in place of previous memory?
     elif preset == 'presence':
         item_drops = ['passwall wand']
         description = (
@@ -8266,26 +8250,23 @@ def one_for_passable(map_coords=(0, 0)):
     return str(int(map_dict[map_coords].passable))
 
 async def quitter_daemon():
+    #TODO: figure out how to cleanly exit from an event loop?
     while True:
         await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
             await asyncio.sleep(1)
             pending = asyncio.Task.all_tasks()
-            #print("pending before:", pending)
             print(f'*********\nnumber of tasks (before): {len(pending)}')
-            #print(next(iter(pending)))
-            #print(dir(next(iter(pending))))
             for task in pending:
                 if "quitter_daemon" in repr(task):
                     continue
                 print(task)
-                #print(dir(task))
                 if not task.cancelled():
                     task.cancel()
             pending = asyncio.Task.all_tasks()
             print("pending after:", pending)
-            print(f'xxxxxxxxxx\nnumber of tasks (after): {len(pending)}')
+            print(f'number of tasks (after): {len(pending)}')
             #loop.stop()
             #loop.close()
 
@@ -8294,7 +8275,6 @@ async def door_init(loop):
         bay_door_pair(
             (-10, -2),
             (-10, 2),
-            #patch_to_key='bay_door_pair_1',
             patch_to_key='computer_test',
             preset='thick',
             pressure_plate_coord=((-7, 0), (-13, 0)),
@@ -8359,7 +8339,7 @@ def main():
         ui_setup(),
         #printing_testing(),
         #TODO: fix follower vine to disappear after a set time:
-        #shrouded_horror(start_coords=(29, -25)),
+        #shrouded_horror(start_coords=(29, -25)), #TODO: unused
         death_check(),
         #display_current_tile(), #debug for map generation
         door_init(loop),
@@ -8377,6 +8357,7 @@ def main():
             ladder_start='first',
         ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
+        #TODO: unused (next three lines)
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
