@@ -2007,6 +2007,8 @@ async def damage_actor(
 ):
     if ignore_list is None:
         ignore_list = []
+    if not isinstance(actor_dict[actor], Actor):
+        return
     if actor_dict[actor] is None:
         return
     if actor_dict[actor].breakable == False:
@@ -2037,7 +2039,8 @@ async def damage_actor(
                 await spray_debris(
                     noun=actor_noun, root_coord=root_coord, preset=actor_material
                 )
-            await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
+            #await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
+            #TODO: this probably does weird stuff for static actors??
 
 async def spray_debris(
     root_coord=(0, 0), 
@@ -2059,6 +2062,7 @@ async def spray_debris(
         '???':(f'{noun} vanishes.', ' '),
     }
     message, palette = debris_dict[preset]
+    #TODO: something to only display a message if the actor is within LOS
     await append_to_log(message=message)
     asyncio.ensure_future(
         sow_texture(
@@ -7159,7 +7163,8 @@ async def basic_actor(
     while True:
         if state_dict['killall'] == True:
             break
-        await asyncio.sleep(speed)
+        #await asyncio.sleep(speed)
+        await asyncio.sleep(1)
         if not hasattr(actor_dict[name_key], 'health'):
             return
         if actor_dict[name_key].health <= 0:
