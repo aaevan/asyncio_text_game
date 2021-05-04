@@ -129,7 +129,6 @@ class Actor:
         y_hide_coord=None,
         solid=True,
         made_of="material not set",
-        scenery=False,
     ):
         self.name = name
         self.base_name = base_name
@@ -156,7 +155,6 @@ class Actor:
         self.y_hide_coord = y_hide_coord
         self.solid = solid
         self.made_of = made_of
-        self.scenery = scenery
 
     def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
@@ -4117,7 +4115,6 @@ async def spawn_container(
     description='A wooden box.',
     box_choices=None,
     material='wood',
-    scenery=True,
 ):
     if box_choices is None:
         box_choices = ['', 'pebble', 'dynamite', 'red potion', 'fused charge']
@@ -4131,7 +4128,6 @@ async def spawn_container(
         breakable=breakable,
         description=description,
         material=material,
-        scenery=scenery,
     )
     actor_dict[container_id].holding_items = contents
     #add holding_items after container is spawned.
@@ -4168,7 +4164,6 @@ def spawn_static_actor(
     solid=True,
     description='STATIC ACTOR',
     material="material not set",
-    scenery=False,
 ):
     """
     Spawns a static (non-controlled) actor at coordinates spawn_coord
@@ -4198,7 +4193,6 @@ def spawn_static_actor(
         y_hide_coord=y_hide_coord,
         solid=solid,
         made_of=material,
-        scenery=scenery,
     )
     map_dict[spawn_coord].actors[actor_id] = True
     return actor_id
