@@ -7157,8 +7157,7 @@ async def basic_actor(
     while True:
         if state_dict['killall'] == True:
             break
-        #await asyncio.sleep(speed)
-        await asyncio.sleep(1)
+        await asyncio.sleep(speed)
         if not hasattr(actor_dict[name_key], 'health'):
             return
         if actor_dict[name_key].health <= 0:
@@ -8073,7 +8072,7 @@ async def spawn_preset_actor(
         loop.create_task(
             basic_actor(
                 coord=coords,
-                speed=.5,
+                speed=.7,
                 movement_function=seek_actor, 
                 movement_function_kwargs={'active_distance':10},
                 tile='⟅',
@@ -8096,7 +8095,7 @@ async def spawn_preset_actor(
         loop.create_task(
             basic_actor(
                 coord=coords,
-                speed=.3,
+                speed=.5,
                 movement_function=seek_actor, 
                 movement_function_kwargs={'repel':True, 'active_distance':7},
                 tile='.',
@@ -8121,7 +8120,7 @@ async def spawn_preset_actor(
             basic_actor(
                 base_name='angel statue',
                 coord=coords,
-                speed=.15,
+                speed=.2,
                 movement_function=angel_seek, 
                 movement_function_kwargs={'tether_length':0}, 
                 tile='Ψ',
