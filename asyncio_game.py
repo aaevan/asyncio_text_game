@@ -704,7 +704,7 @@ class Multi_tile_entity:
 
     def description_presets(self, preset):
         presets = {
-            '2x2':('???', 'A side of the box', 'wood'),
+            '2x2':('???', 'side of the box', 'wood'),
             'empty':(
                 'Nothing\'s here!', 
                 'One patch of nothingness', 
@@ -713,7 +713,7 @@ class Multi_tile_entity:
             'bold_2x2':('???', 'reinforced box', 'wood'),
             '2x2_block':(
                 'A large wooden crate. It looks fragile.',
-                'A side of the crate',
+                'side of the crate',
                 'wood'
             ),
             '2x2_block_thick':(
@@ -2037,7 +2037,7 @@ async def damage_actor(
                 await spray_debris(
                     noun=actor_noun, root_coord=root_coord, preset=actor_material
                 )
-            #await kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
+            kill_actor(name_key=actor, blood=blood, leaves_body=leaves_body)
             #TODO: this probably does weird stuff for static actors??
 
 async def spray_debris(
@@ -2062,19 +2062,16 @@ async def spray_debris(
     message, palette = debris_dict[preset]
     #TODO: something to only display a message if the actor is within LOS
     await append_to_log(message=message)
-    asyncio.ensure_future(
-        sow_texture(
-            root_coord,
-            palette=palette,
-            radius=radius,
-            seeds=num_seeds, 
-            passable=True,
-            stamp=True,
-            paint=False,
-            color_num=color_num,
-            description=template_message.format(preset),
-            pause_between=.06
-        )
+    sow_texture(
+        root_coord,
+        palette=palette,
+        radius=radius,
+        seeds=num_seeds, 
+        passable=True,
+        stamp=True,
+        paint=False,
+        color_num=color_num,
+        description=template_message.format(preset),
     )
 
 async def damage_numbers(actor=None, damage=10, squares_above=5):
@@ -3923,7 +3920,7 @@ def append_description(coord, added_message, separator="||"):
         added_message,
     )
 
-async def sow_texture(
+def sow_texture(
     root_coord,
     palette=",.'\"`",
     radius=5,
@@ -3933,7 +3930,6 @@ async def sow_texture(
     paint=True,
     color_num=1,
     description='',
-    pause_between=.02,
     only_passable=True,
     append_description=True
 ):
@@ -3941,7 +3937,6 @@ async def sow_texture(
     characters from the given palette to their corresponding map_dict cell.
     """
     for i in range(seeds):
-        await asyncio.sleep(pause_between)
         throw_dist = radius + 1
         while throw_dist >= radius:
             x_toss, y_toss = (
@@ -5091,7 +5086,7 @@ async def console_box(
                 break
         for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
             if count > 1 and message != '':
-                suffix = "x{}".format(count)
+                suffix = f"x{count}"
             else:
                 suffix = ""
             line_text = "{}{}".format(message, suffix)
@@ -6691,7 +6686,7 @@ async def attack(
     attacker_strength = actor_dict[attacker_key].base_attack
     target_coord = actor_dict[defender_key].coords()
     if blood:
-        await sow_texture(
+        sow_texture(
             root_coord=target_coord,
             radius=3,
             paint=True,
@@ -7125,6 +7120,7 @@ async def basic_actor(
     health=10,
     moveable=True,
     made_of='material not set',
+    leaves_body=True,
 ):
     """
     actors can:
@@ -7141,7 +7137,6 @@ async def basic_actor(
         speed=speed,
         tile=tile,
         hurtful=hurtful, 
-        leaves_body=True,
         base_attack=base_attack, 
         is_animated=is_animated,
         animation=animation,
@@ -7151,6 +7146,7 @@ async def basic_actor(
         health=health,
         moveable=moveable,
         made_of=made_of,
+        leaves_body=leaves_body,
     )
     coords = actor_dict[name_key].coords()
     actor_dict[name_key].update(coord=coords, make_passable=False)
@@ -7161,7 +7157,7 @@ async def basic_actor(
         if not hasattr(actor_dict[name_key], 'health'):
             return
         if actor_dict[name_key].health <= 0:
-            await kill_actor(name_key=name_key)
+            kill_actor(name_key=name_key)
             return
         next_coords = await movement_function(
             name_key=name_key, **movement_function_kwargs
@@ -7173,7 +7169,10 @@ async def basic_actor(
             if actor_dict['player'].health <= 0:
                 return
             dist_to_player = distance_to_actor(name_key, 'player')
-            noise_level = (1 / dist_to_player ** 2) * 10
+            if dist_to_player ** 2 != 0:
+                noise_level = (1 / dist_to_player ** 2) * 10
+            else:
+                noise_level = 99
             if random() <= noise_level:
                 asyncio.ensure_future(
                     directional_alert(source_actor=name_key, preset='footfall')
@@ -7190,7 +7189,7 @@ def distance_to_actor(actor_a=None, actor_b='player'):
     b_coord = actor_dict[actor_b].coords()
     return point_to_point_distance(a_coord, b_coord)
 
-async def kill_actor(name_key=None, leaves_body=True, blood=True):
+def kill_actor(name_key=None, leaves_body=True, blood=True):
     actor_coords = actor_dict[name_key].coords()
     holding_items = actor_dict[name_key].holding_items
     if leaves_body:
@@ -7209,7 +7208,7 @@ async def kill_actor(name_key=None, leaves_body=True, blood=True):
     del map_dict[actor_coords].actors[name_key]
     del actor_dict[name_key]
     if blood:
-        await sow_texture(
+        sow_texture(
             root_coord=actor_coords,
             radius=3,
             paint=True,
@@ -8110,6 +8109,7 @@ async def spawn_preset_actor(
                 breakable=True,
                 health=10,
                 made_of='flesh',
+                leaves_body=True,
             )
         )
 
