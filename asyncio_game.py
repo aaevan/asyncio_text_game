@@ -3641,7 +3641,7 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 'ignore_list':['stone angel', 'presence']
             },
             'usable_power':sword_item_ability,
-            'use_message':None
+            'use_message':"You swing the knife!",
         },
         'green sword':{
             'uses':-1,
@@ -4582,6 +4582,7 @@ async def action_keypress(key):
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     player_coords = actor_dict['player'].coords()
+    # TODO: set number symbols to use the item in that slot?
     if key in "wasd":
         if key in 'wasd':
             if state_dict['player_busy'] == True:
@@ -6379,7 +6380,7 @@ async def async_map_init():
         ((26, -13), 'green key'),
         #items in starting cell:
         ((26, -3), 'cell key'),
-        ((24, -3), 'knife'), 
+        ((23, 1), 'knife'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
