@@ -4578,7 +4578,8 @@ async def menu_keypress(key):
         state_dict['menu_choice'] = False
         state_dict['in_menu'] = False
 
-async def action_keypress(key):
+async def action_keypress(key, debug=False):
+    debug_keys = '~!@#$%^&*()_+'
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
     player_coords = actor_dict['player'].coords()
@@ -4628,7 +4629,25 @@ async def action_keypress(key):
     elif key in 'U':
         asyncio.ensure_future(use_chosen_item())
     #DEBUG COMMANDS--------------------------------------------------------
-    elif key in 'h': #debug health restore
+    elif debug and key in 'hFY38$#@C(79My%':
+        await debug_commands(key)
+    elif key in debug_keys:
+        key_number = debug_keys.index(key)
+        asyncio.ensure_future(use_item_by_inventory_number(number=key_number))
+    shifted_coord = add_coords((x, y), (x_shift, y_shift))
+    if (
+        map_dict[shifted_coord].passable and 
+        shifted_coord != (0, 0)
+    ):
+        state_dict['last_location'] = (x, y)
+        map_dict[(x, y)].passable = True #make previous space passable
+        actor_dict['player'].update(coord=shifted_coord)
+        x, y = actor_dict['player'].coords()
+        map_dict[(x, y)].passable = False #make current space impassable
+
+async def debug_commands(key):
+    player_coords = actor_dict['player'].coords()
+    if key in 'h': #debug health restore
         asyncio.ensure_future(health_potion())
     elif key in 'F': #use swing action in facing direction
         await swing(base_actor='player')
@@ -4648,7 +4667,7 @@ async def action_keypress(key):
         rand_item = choice(('red potion', 'battery', 'pebble', 'siphon trinket'))
         spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
-        asyncio.ensure_future( add_uses_to_chosen_item())
+        asyncio.ensure_future(add_uses_to_chosen_item())
     elif key in '(':
         asyncio.ensure_future(
             siphon_trinket_effect(
@@ -4681,16 +4700,6 @@ async def action_keypress(key):
             print(get_coords_in_box(filled=False))
         for coord in adjacent_tiles(coord=player_coords):
             convert_pass_state_to_preset(coord)
-    shifted_coord = add_coords((x, y), (x_shift, y_shift))
-    if (
-        map_dict[shifted_coord].passable and 
-        shifted_coord != (0, 0)
-    ):
-        state_dict['last_location'] = (x, y)
-        map_dict[(x, y)].passable = True #make previous space passable
-        actor_dict['player'].update(coord=shifted_coord)
-        x, y = actor_dict['player'].coords()
-        map_dict[(x, y)].passable = False #make current space impassable
 
 async def handle_input(map_dict, key):
     """
@@ -5009,6 +5018,14 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
     for (num, line) in enumerate(icons[icon_name]):
         with term.location(*add_coords((x_coord, y_coord), (0, num))):
             print(line)
+
+async def use_item_by_inventory_number(number=0):
+    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    if len(item_id_choices) == 0:
+        return
+    if number <= len(item_id_choices):
+        item_id = item_id_choices[number]
+        asyncio.ensure_future(item_dict[item_id].use())
 
 async def choose_item(
     item_id_choices=None, item_id=None, draw_coord=(0, 25),
