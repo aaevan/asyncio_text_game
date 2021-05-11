@@ -5254,10 +5254,6 @@ async def siphon_trinket_effect(
     effect_radius=10,
     item_id=None,
 ):
-    """
-    possibly scale effect based on distance?
-    TODO: fix error on death of non_breakable entities
-    """
     if center_on_actor_id is None:
         center_on_actor_id = 'player'
     if not hasattr(actor_dict[center_on_actor_id], 'coords'):
