@@ -288,6 +288,11 @@ class Animation:
                 'behavior':'loop tile',
                 'color_choices':('2')
             },
+            'zombie':{
+                'animation':('ŻŻż'),
+                'behavior':'random',
+                'color_choices':(0xa7, 0xa8, 0xa9)
+            },
             'leech':{
                 'animation':('⟆⟅'),
                 'behavior':'random',
@@ -4579,6 +4584,7 @@ async def menu_keypress(key):
         state_dict['in_menu'] = False
 
 async def action_keypress(key, debug=False):
+#async def action_keypress(key, debug=True):
     debug_keys = '~!@#$%^&*()_+'
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
@@ -5023,7 +5029,7 @@ async def use_item_by_inventory_number(number=0):
     item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     if len(item_id_choices) == 0:
         return
-    if number <= len(item_id_choices):
+    if number <= len(item_id_choices) - 1:
         item_id = item_id_choices[number]
         asyncio.ensure_future(item_dict[item_id].use())
 
@@ -5319,16 +5325,15 @@ async def use_item_in_slot(slot='q'):
         if item_dict[item_id].power_kwargs:
             asyncio.ensure_future(item_dict[item_id].use())
         else:
-            #TODO: put custom null action here instead of 'Nothing happens.'
-            #as given for each item.
             await append_to_log(message='Nothing happens.')
 
 async def item_choices(coords=None, x_pos=1, y_pos=20):#x_pos=0, y_pos=13):
     """
-    -item choices should appear next to the relevant part of the screen.
-    -a series of numbers and colons to indicate the relevant choices
-    -give a position and list of values and item choices will hang until
-     a menu choice is made.
+    item choices should appear next to the relevant part of the screen.
+
+    a series of numbers and colons indicate the relevant choices
+    give a position and list of values and item choices will hang until
+    a menu choice is made.
     """
     if not map_dict[coords].items:
         await append_to_log(message="There's nothing here to pick up.")
@@ -6429,6 +6434,7 @@ async def async_map_init():
        ((23, -14), 'blob'),
        ((20, 5), 'leech'),
        ((22, 4), 'leech'),
+       ((16, 5), 'zombie'),
        ((23, 1), 'critter'),
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
@@ -8077,6 +8083,29 @@ async def spawn_preset_actor(
                 breakable=True,
                 health=30,
                 made_of='jelly',
+            )
+        )
+    elif preset == 'zombie':
+        item_drops = ['red potion']
+        description = 'A slow but determined living corpse. Dangerous.'
+        loop.create_task(
+            basic_actor(
+                coord=coords,
+                speed=1.5,
+                movement_function=seek_actor, 
+                movement_function_kwargs={'active_distance':5},
+                tile='Ż',
+                name_key=name,
+                base_name=preset,
+                hurtful=True,
+                base_attack=15,
+                is_animated=True,
+                animation=Animation(preset="zombie"),
+                holding_items=item_drops,
+                description=description,
+                breakable=True,
+                health=100,
+                made_of='flesh',
             )
         )
     elif preset == 'leech':
