@@ -4584,7 +4584,6 @@ async def menu_keypress(key):
         state_dict['in_menu'] = False
 
 async def action_keypress(key, debug=False):
-#async def action_keypress(key, debug=True):
     debug_keys = '~!@#$%^&*()_+'
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
@@ -6435,6 +6434,7 @@ async def async_map_init():
        ((20, 5), 'leech'),
        ((22, 4), 'leech'),
        ((16, 5), 'zombie'),
+       ((-21, -10), 'zombie'),
        ((23, 1), 'critter'),
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
@@ -6703,6 +6703,8 @@ async def delay_follow(
 async def attack(
     attacker_key=None, defender_key=None, blood=True, spatter_range=(1, 3)
 ):
+    #TODO: in some way telegraph when an actor will attack? 
+    #      briefly flash the square they're on?
     attacker_strength = actor_dict[attacker_key].base_attack
     target_coord = actor_dict[defender_key].coords()
     if blood:
@@ -8091,9 +8093,9 @@ async def spawn_preset_actor(
         loop.create_task(
             basic_actor(
                 coord=coords,
-                speed=1.5,
+                speed=2,
                 movement_function=seek_actor, 
-                movement_function_kwargs={'active_distance':5},
+                movement_function_kwargs={'active_distance':8},
                 tile='Ż',
                 name_key=name,
                 base_name=preset,
