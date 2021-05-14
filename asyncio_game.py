@@ -222,7 +222,7 @@ class Room:
         """
         if type(self.dimensions) == int:
             if debug:
-                print("drawing circular room of radius {} at coords {}".format(self.dimensions, self.center_coord))
+                print(f"drawing circular room of radius {self.dimensions} at coords {self.center_coord}"
             draw_circle(
                 center_coord=self.center_coord,
                 radius=self.dimensions, 
@@ -231,7 +231,7 @@ class Room:
             )
         elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
             if debug:
-                print("drawing square room of dimensions {} at coords {}".format(self.dimensions, self.center_coord))
+                print(f"drawing square room of dimensions {self.dimensions} at coords {self.center_coord}"
             draw_centered_box(
                 middle_coord=self.center_coord, 
                 x_size=self.dimensions[0],
@@ -540,11 +540,11 @@ class Item:
                 self.broken = True
         elif self.broken:
             await append_to_log(
-                message="The {}{}".format(self.name, self.broken_text)
+                message=f"The {self.name}{self.broken_text}"
             )
         else:
             await append_to_log(
-                message="The {}{}".format(self.name, " is unbreakable!")
+                message=f"The {self.name} is unbreakable!"
             )
 
 class Multi_tile_entity:
@@ -959,7 +959,7 @@ class Multi_tile_entity:
         if len(regions) == 1:
             return
         for number, region in enumerate(regions):
-            new_mte_name = '{}_{}'.format(self.name, number)
+            new_mte_name = f'{self.name}_{number}'
             mte_dict[new_mte_name] = Multi_tile_entity(
                 name=new_mte_name, preset='empty'
             )
@@ -975,7 +975,7 @@ class Multi_tile_entity:
                     segment_tile=new_tile,
                     write_coord=current_location,
                     offset=segment_data['offset'],
-                    segment_name='{}_{}'.format(segment_data['name'], number),
+                    segment_name=f'{segment_data['name']}_{number}',
                     blocking=segment_data['blocking'],
                     preset=None
                 )
@@ -6705,6 +6705,7 @@ async def attack(
 ):
     #TODO: in some way telegraph when an actor will attack? 
     #      briefly flash the square they're on?
+
     attacker_strength = actor_dict[attacker_key].base_attack
     target_coord = actor_dict[defender_key].coords()
     if blood:
@@ -7239,7 +7240,7 @@ def kill_actor(name_key=None, leaves_body=True, blood=True):
         )
     if leaves_body:
         map_dict[actor_coords].tile = body_tile
-        map_dict[actor_coords].description = "A dead {}.".format(name_temp)
+        map_dict[actor_coords].description = f"A dead {name_temp}."
     spawn_item_spray(base_coord=actor_coords, items=holding_items)
     return
 
@@ -7486,7 +7487,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     circle_points = points_at_distance(radius=radius)
     state_dict['bubble_cooldown'] = True
     for num, point in enumerate(circle_points):
-        actor_name = 'bubble_{}_{}'.format(bubble_id, num)
+        actor_name = f'bubble_{bubble_id}_{num}'
         asyncio.ensure_future(
             timed_actor(
                 name=actor_name,
@@ -8063,7 +8064,7 @@ async def spawn_preset_actor(
     """
     loop = asyncio.get_event_loop()
     actor_id = generate_id(base_name=preset)
-    name = "{}_{}".format(preset, actor_id)
+    name = f'{preset}_{actor_id}'
     start_coords = coords
     if preset == 'blob':
         item_drops = ['red potion']
