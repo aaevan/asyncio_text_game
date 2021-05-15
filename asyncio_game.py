@@ -222,7 +222,7 @@ class Room:
         """
         if type(self.dimensions) == int:
             if debug:
-                print(f"drawing circular room of radius {self.dimensions} at coords {self.center_coord}"
+                print(f"drawing circular room of radius {self.dimensions} at coords {self.center_coord}")
             draw_circle(
                 center_coord=self.center_coord,
                 radius=self.dimensions, 
@@ -231,7 +231,7 @@ class Room:
             )
         elif type(self.dimensions) == tuple and len(self.dimensions) == 2:
             if debug:
-                print(f"drawing square room of dimensions {self.dimensions} at coords {self.center_coord}"
+                print(f"drawing square room of dimensions {self.dimensions} at coords {self.center_coord}")
             draw_centered_box(
                 middle_coord=self.center_coord, 
                 x_size=self.dimensions[0],
@@ -975,7 +975,7 @@ class Multi_tile_entity:
                     segment_tile=new_tile,
                     write_coord=current_location,
                     offset=segment_data['offset'],
-                    segment_name=f'{segment_data['name']}_{number}',
+                    segment_name=f'{segment_data["name"]}_{number}',
                     blocking=segment_data['blocking'],
                     preset=None
                 )
@@ -1020,7 +1020,7 @@ def multi_push(
         return False
     elif pushed_actor is not None and mte_parent is None:
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
-        print('mte_parent: {}'.format(mte_parent))
+        print(f'mte_parent: {mte_parent}')
     if push_dir in ('ne', 'se', 'sw', 'nw') and ignore_diagonals:
         return False
     move_by = dir_to_offset(push_dir)
@@ -1857,7 +1857,7 @@ async def throw_item(
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = 'Throwing {}.'.format(item_dict[thrown_item_id].name)
+    throw_text = f'Throwing {item_dict[thrown_item-id].name}.'
     asyncio.ensure_future(
         append_to_log(message=throw_text)
     )
@@ -1977,7 +1977,7 @@ async def damage_all_actors_at_coord(
     for actor in actor_list:
         if actor[0] == 'player' and source_actor is not None:
             if not quiet:
-                damage_message = "{} damage from {}!".format(damage, source_actor)
+                damage_message = f"{damage} damage from {source_actor}!"
                 asyncio.ensure_future(
                     append_to_log(message=damage_message)
                 )
@@ -2119,18 +2119,18 @@ async def unlock_door(actor_key='player', opens='red'):
     door_type = map_dict[door_coord].door_type
     if opens in map_dict[door_coord].door_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
-            output_text = 'You unlock the {} door.'.format(opens)
+            output_text = f'You unlock the {opens} door.'
             map_dict[door_coord].locked = False
         elif not map_dict[door_coord].locked:
             if is_passable(door_coord):
                 output_text = 'You can\'t lock an open door!'
             else:
-                output_text = 'You lock the {} door.'.format(opens)
+                output_text = f'You lock the {opens} door.'
                 map_dict[door_coord].locked = True
     elif not map_dict[door_coord].is_door:
         output_text = "That isn't a door."
     else:
-        output_text = "Your {} key doesn't fit the {} door.".format(opens, door_type)
+        output_text = f"Your {opens} key doesn't fit the {door_type} door."
     await append_to_log(message=output_text)
 
 def is_passable(checked_coords=(0, 0)):
@@ -2245,7 +2245,7 @@ async def bay_door(
             dir_string=orientation, scale_by=(1 + segment_num)
         )
         spawn_coord = add_coords(hinge_coord, offset)
-        segment_name = '{}_{}'.format(door_id, segment_num)
+        segment_name = f'{door_id}_{segment_num}'
         segment_names.append((segment_name, spawn_coord))
         mte_dict[door].add_segment(
             write_coord=spawn_coord,
@@ -2443,7 +2443,7 @@ async def multi_spike_trap(
     node_data = []
     for number, node in enumerate(nodes):
         node_coord = add_coords(node, base_coord)
-        node_name = '{}_{}'.format(base_name, str(number))
+        node_name = f'{base_name}_{str(number)}'
         node_data.append((node_name, node[2]))
         actor_dict[node_name] = Actor(
             name=node_name, 
@@ -2549,7 +2549,7 @@ async def export_map(width=140, height=45):
     temp_tile = map_dict[actor_dict['player'].coords()].tile
     #represent the player's current location with an @ symbol:
     map_dict[actor_dict['player'].coords()].tile = '@'
-    filename = '{}.txt'.format('exported_map')
+    filename = f'{"exported_map"}.txt'
     if os.path.exists(filename): 
         os.remove(filename)
     player_location = actor_dict['player'].coords()
