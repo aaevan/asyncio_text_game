@@ -2565,10 +2565,10 @@ async def export_map(width=140, height=45):
                 row_output = ''.join(
                     [map_dict[i, y].tile for i in range(*x_spread)]
                 )
-                line_output = '{}\n'.format(row_output)
+                line_output = f'{row_output}\n'
                 map_file.write(line_output)
     with term.location(80, 0):
-        await append_to_log(message='Wrote nearby map to {}.'.format(filename))
+        await append_to_log(message=f'Wrote nearby map to {filename}.')
     #return the tile to its original state:
     map_dict[actor_dict['player'].coords()].tile = temp_tile
 
@@ -2580,29 +2580,27 @@ async def display_current_tile(x_offset=105, y_offset=5):
         current_coords = add_coords((-1, 0), actor_dict['player'].coords())
         current_tile = map_dict[current_coords].tile
         with term.location(x_offset, y_offset):
-            print('view_tile_count: {}'.format(state_dict['view_tile_count']))
+            tile_count = state_dict["view_tile_count"]
+            print(f'view_tile_count: {tile_count}')
         state_dict['view_tile_count'] = 0
         with term.location(x_offset, y_offset + 1):
-            print('current tile: {}'.format(current_tile))
+            print('current tile: {current_tile}')
         tile_color = map_dict[current_coords].color_num
         with term.location(x_offset, y_offset + 2):
-            print('tile_color: {}'.format(tile_color))
+            print(f'tile_color: {tile_color}')
         with term.location(x_offset, y_offset + 3):
-            print(
-                'tile w/ color: {}'.format(
-                    term.color(tile_color)(current_tile)
-                )
-            )
+            tile_with_color = term.color(tile_color)(current_tile)
+            print(f'tile w/ color: {tile_with_color}')
         with term.location(x_offset, y_offset + 4):
             print('repr() of tile:')
         with term.location(x_offset, y_offset + 5):
-            print('{}        '.format(repr(current_tile)))
+            print('{repr(current_tile)}        ')
         actors = [key for key in map_dict[current_coords].actors.keys()]
         with term.location(x_offset, y_offset + 6):
-            print('actors here: {}         '.format(actors))
+            print('actors here: {actors}         ')
         actors_len = len(map_dict[current_coords].actors.keys())
         with term.location(x_offset, y_offset + 7):
-            print('actors_len: {}'.format(actors_len))
+            print('actors_len: {actors_len}')
         if len(actors) > 1:
             await asyncio.sleep(1)
 
@@ -2668,7 +2666,7 @@ async def computer_terminal(
             map_dict[tile].brightness_mod = rand_offset
 
 async def test_print_at_coord(
-    message="testing, {} ",
+    message="testing, ",
     coord=(55, 0),
     repeats=3
 ):
@@ -2677,7 +2675,7 @@ async def test_print_at_coord(
     """
     for i in range(1, repeats + 1):
         with term.location(*coord):
-            print(message.format(i))
+            print(message, i)
         await asyncio.sleep(1)
 
 async def use_action_fork(
@@ -2947,7 +2945,7 @@ async def alarm_bell(
             latch = True
             map_dict[spawn_coord].description = tile_descriptions[1]
             await sound_message(
-                output_text="{}".format(message_words[alert_index]),
+                output_text=message_words[alert_index],
                 sound_origin_coord=spawn_coord,
                 point_radius=18,
                 fade_duration=fade_duration,
@@ -2974,8 +2972,8 @@ async def toggle_bool_toggle(
     in state_dict.
     """
     toggle_state = state_dict[patch_to_key][toggle_id]
-    false_text = "{} {}.".format(message[0], message[1][0])
-    true_text =  "{} {}.".format(message[0], message[1][1])
+    false_text = f"{message[0]} {message[1][0]}."
+    true_text =  f"{message[0]} {message[1][1]}."
     if toggle_state == True:
         state_dict[patch_to_key][toggle_id] = False
         output_text = false_text
@@ -3257,7 +3255,7 @@ async def sword(
     )
     sword_id = generate_id(base_name=name)
     sword_segment_names = [
-        '{}_{}_{}'.format(name, sword_id, segment) for segment in range(1, length)
+        f'{name}_{sword_id}_{segment}' for segment in range(1, length)
     ]
     segment_coords = [
         (
@@ -3814,7 +3812,7 @@ async def display_items_at_coord(
                 item_name = item_dict[item_id].name
                 num_uses = item_dict[item_id].uses
                 if num_uses > 1:
-                    uses_text = '({})'.format(item_dict[item_id].uses)
+                    uses_text = f'({item_dict[item_id].uses})'
                 else:
                     uses_text = ''
                 if current_list_hash != last_list_hash:
@@ -3847,11 +3845,11 @@ async def display_items_on_actor(
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             if item_dict[item_id].uses >= 0:
-                uses_text = '({})'.format(item_dict[item_id].uses)
+                uses_text = f'({item_dict[item_id].uses})'
             else:
                 uses_text = ''
             with term.location(x_pos, (y_pos + 1) + number):
-                print('{} {} {}'.format(item_dict[item_id].tile, item_dict[item_id].name, uses_text))
+                print(f'{item_dict[item_id].tile} {item_dict[item_id].name} {uses_text}')
 
 async def filter_print(
     output_text='filter_print default text',
@@ -3919,10 +3917,10 @@ def print_debug_grid():
                 print(' {0: >2}'.format(y * 5))
 
 def append_description(coord, added_message, separator="||"):
-    map_dict[coord].description = "{}{}{}".format(
-        map_dict[coord].description, 
-        separator,
-        added_message,
+    map_dict[coord].description = (
+        f'{map_dict[coord].description}'
+        f'{separator}'
+        f'{added_message}'
     )
 
 def sow_texture(
