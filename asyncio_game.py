@@ -3963,9 +3963,7 @@ def sow_texture(
         if description:
             current_description = map_dict[toss_coord].description
             if append_description and (description not in current_description):
-                appended_description = '{} {}'.format(
-                    current_description, description
-                )
+                appended_description = f'{current_description} {description}'
                 map_dict[toss_coord].description = appended_description
             else:
                 map_dict[toss_coord].description = description
@@ -4098,7 +4096,7 @@ def draw_door(
         close_state = 'A closed'
     else:
         close_state = 'An open'
-    door_description = "{} {}.".format(close_state, preset)
+    door_description = f'{close_state} {preset}.'
     map_dict[door_coord].description = door_description
     map_dict[door_coord].mutable = False
 
@@ -4353,7 +4351,7 @@ def spawn_column(
         solid=solid_base,
         breakable=False,
         moveable=False,
-        description="A {} rises into the ceiling.".format(name),
+        description=f'A {name} rises into the ceiling.',
         blocking=blocking,
     )
     map_dict[spawn_coord].tile=tile
@@ -4581,7 +4579,8 @@ async def menu_keypress(key):
         state_dict['menu_choice'] = False
         state_dict['in_menu'] = False
 
-async def action_keypress(key, debug=False):
+#async def action_keypress(key, debug=False):
+async def action_keypress(key, debug=True):
     debug_keys = '~!@#$%^&*()_+'
     x_shift, y_shift = 0, 0 
     x, y = actor_dict['player'].coords()
@@ -4749,19 +4748,19 @@ async def examine_tile(examined_coord=None, tense='present'):
         item_list = list(iter(map_dict[examined_coord].items))
         top_item_name = item_dict[item_list[0]].name
         if len(item_list) > 1:
-            multi_item_template = "There are {} items here!||On top is {}."
-            description_text = multi_item_template.format(
-                len(item_list), word_with_article(top_item_name)
+            description_text = (
+                f'There are {len(item_list)} items here!||'
+                f'On top is {word_with_article(top_item_name)}.'
             )
         else:
-            description_text = "There's {} here!".format(word_with_article(top_item_name))
+            description_text = f'There\'s {word_with_article(top_item_name)} here!'
     elif map_dict[examined_coord].is_door and not is_secret:
         is_open = map_dict[examined_coord].toggle_state_index == 0
         door_type = map_dict[examined_coord].door_type
         if is_open:
-            description_text = "An open {} door.".format(door_type)
+            description_text = f'An open {door_type} door.'
         else:
-            description_text = "A closed {} door.".format(door_type)
+            description_text = f'A closed {door_type} door.'
     else:
         description_text = map_dict[examined_coord].description
     if description_text is not None:
@@ -5054,7 +5053,7 @@ async def choose_item(
     state_dict['in_menu'] = True
     for (number, item) in enumerate(item_id_choices):
         with term.location(x_pos, y_pos + number):
-            print("{}:".format(str(hex(number))[-1]))
+            print(f'{str(hex(number))[-1]}:')
     menu_choices = [str(hex(i))[-1] for i in range(16)]
     return_val = None
     while state_dict['in_menu']:
@@ -5107,10 +5106,10 @@ async def console_box(
                 break
         for index, (message, hash_val, count) in enumerate(grouped_messages[1:]):
             if count > 1 and message != '':
-                suffix = f"x{count}"
+                suffix = f'x{count}'
             else:
                 suffix = ""
-            line_text = "{}{}".format(message, suffix)
+            line_text = f'{message}{suffix}'
             line_y = index + y_margin
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width + 2, ' '))
@@ -5191,7 +5190,7 @@ async def key_slot_checker(
     """
     make it possible to equip each number to an item
     """
-    slot_name = "{}_slot".format(slot)
+    slot_name = f'{slot}_slot'
     state_dict[slot_name] = 'empty'
     while True:
         if state_dict['killall'] == True:
@@ -5304,7 +5303,7 @@ async def add_uses_to_chosen_item(num_charges=10):
         accepts_charges = item_dict[item_id_choice].accepts_charges
         if accepts_charges:
             item_dict[item_id_choice].uses += num_charges
-            await append_to_log("Added {} charges to {}".format(num_charges, item_name))
+            await append_to_log(f'Added {num_charges} charges to {item_name}')
             if item_dict[item_id_choice].broken:
                 item_dict[item_id_choice].broken = False
             return True
@@ -5354,8 +5353,7 @@ async def get_item(coords=(0, 0), item_id=None, source='ground'):
         await append_to_log("You can't carry any more!")
         return False
     base_name = item_id.split("_")[0]
-    template_text = "You take the {} from the {}."
-    pickup_text = template_text.format(item_dict[item_id].name, source)
+    pickup_text = f'You take the {item_dict[item_id].name} from the {source}.'
     del map_dict[coords].items[item_id]
     for index, item_name in enumerate(actor_dict['player'].holding_items):
         is_stackable = item_dict[item_name].stackable
@@ -5966,8 +5964,8 @@ async def ui_box_draw(
     |         | | height = 1
     +---------+ v
     """
-    top_bar = "┌{}┐".format("─" * box_width)
-    bottom_bar = "└{}┘".format("─" * box_width)
+    top_bar = f'┌{"─" * box_width}┐'
+    bottom_bar = f'└{"─" * box_width}┘'
     if position == "top left":
         x_print, y_print = x_margin, y_margin
     if position == "centered":
@@ -6237,7 +6235,7 @@ async def view_tile_init(
                view_tile_count += 1
     if debug:
         with term.location(50, 0):
-            print("view_tile_count: {}".format(view_tile_count))
+            print(f'view_tile_count: {view_tile_count}')
 
 async def minimap_init(loop, box_width=21, box_height=21):
     width_span = range(-20, 21, 2)
@@ -6583,7 +6581,7 @@ async def status_bar(
         bar_characters = "█" * bar_filled + "░" * bar_unfilled
         await asyncio.sleep(refresh_time)
         with term.location(*print_coord):
-            print("{}{}".format(title, term.color(bar_color)(bar_characters)))
+            print(f'{title}{term.color(bar_color)(bar_characters)}')
 
 async def player_coord_readout(
     x_offset=0, y_offset=0, refresh_time=.1, centered=True, debug=False
@@ -6635,7 +6633,7 @@ async def ui_setup():
             print_location=add_coords(offset, center_offset),
         ))
         #loop.create_task(tile_debug_info()) #TODO: unused
-    health_title = "{} ".format(term.color(1)("♥"))
+    health_title = f'{term.color(1)("♥")} '
     loop.create_task(
         status_bar(
             y_offset=18,
@@ -6718,10 +6716,8 @@ async def attack(
     if defender_key == 'player':
         asyncio.ensure_future(
             append_to_log(
-                "The {} hits you for {} damage!".format(
-                    actor_dict[attacker_key].base_name,
-                    attacker_strength,
-                )
+                f"The {actor_dict[attacker_key].base_name}"
+                f"hits you for {attacker_strength} damage!"
             )
         )
     actor_dict[defender_key].health -= attacker_strength
@@ -6873,7 +6869,7 @@ async def distance_based_message(
     elif dist_to_target <= far_dist:
         dist_message = far_message
     if dist_message != '':
-        message = "You hear {} from {}.".format(message, dist_message)
+        message = "You hear {message} from {dist_message}."
         asyncio.ensure_future(
             append_to_log(message=message)
         )
@@ -6896,7 +6892,7 @@ def word_with_article(word="word"):
         article = 'an'
     else:
         article = 'a'
-    return "{} {}".format(article, word)
+    return f'{article} {word}'
 
 def add_coords(coord_a=(0, 0), coord_b=(10, 10)):
     output = (coord_a[0] + coord_b[0],
@@ -6912,7 +6908,8 @@ def invert_coords(coord):
     return(-coord[0], -coord[1])
 
 def generate_id(base_name="name"):
-    return "{}_{}".format(base_name, str(datetime.time(datetime.now())))
+    current_time = str(datetime.time(datetime.now()))
+    return f'{base_name}_{current_time}'
 
 def facing_dir_to_num(direction="n"):
     dir_to_num = {'n':0, 'e':1, 's':2, 'w':3}
@@ -7055,7 +7052,7 @@ async def shrouded_horror(
     #initialize segment actors:
     shroud_piece_names = []
     for number, shroud_coord in enumerate(shroud_locations):
-        shroud_piece_names.append("{}_piece_{}".format(core_name_key, number))
+        shroud_piece_names.append(f'{core_name_key}_piece_{number}')
     for number, name in enumerate(shroud_piece_names):
         actor_dict[name] = Actor(
             name=name,
