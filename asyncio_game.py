@@ -2052,7 +2052,7 @@ async def spray_debris(
     radius=3, 
     num_seeds=6,
     color_num=8,
-    template_message='Broken {}',
+    template_message='Bits of {}',
 ):
     if "The" not in noun or "the" not in noun:
         noun = f"The {noun}"
@@ -4274,6 +4274,8 @@ def map_init():
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_room(wall_coord=(-32, 5), room_offset=(0, 4), dimensions=(3, 3))
     secret_door(door_coord=(-13, 18))
+    secret_door(door_coord=(27, 15)) #little secret passage south of pool
+    paint_preset(tile_coords=(27, 14)) #single-tile connecting leg to above
     secret_door(door_coord=(21, 6))
     #cells near spawn:
     room_with_door(wall_coord=(25, -2), room_offset=(0, -2), locked=True)
