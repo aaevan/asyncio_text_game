@@ -2053,6 +2053,7 @@ async def spray_debris(
     num_seeds=6,
     color_num=8,
     template_message='Bits of {}',
+    announce_if_visible=True,
 ):
     if "The" not in noun or "the" not in noun:
         noun = f"The {noun}"
@@ -2066,7 +2067,14 @@ async def spray_debris(
     }
     message, palette = debris_dict[preset]
     #TODO: something to only display a message if the actor is within LOS
-    await append_to_log(message=message)
+    if annouce_if_visible:
+        within_fov = check_point_within_arc(
+            checked_point=root_coord, arc_width=120
+        )
+        player_coord = actor_dict['player'].coords()
+        los_result = await check_line_of_sight(root_coord, player_coord)
+        if within_fov and los_result == True:
+            await append_to_log(message=message)
     sow_texture(
         root_coord,
         palette=palette,
