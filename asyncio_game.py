@@ -2067,7 +2067,7 @@ async def spray_debris(
     }
     message, palette = debris_dict[preset]
     #TODO: something to only display a message if the actor is within LOS
-    if annouce_if_visible:
+    if announce_if_visible:
         within_fov = check_point_within_arc(
             checked_point=root_coord, arc_width=120
         )
@@ -4317,10 +4317,7 @@ def map_init():
         (30, 10), (22, 10),
     ):
         paint_preset(tile_coords=cell, preset='cell bars')
-    for cell in (
-        (26, 14), #TODO: put an interesting item here
-    ):
-        paint_preset(tile_coords=cell, preset='floor')
+    #(26, 14), #TODO: put an interesting item here
 
 def convert_pass_state_to_preset(
     cell_coord=(0, 0),
@@ -5399,7 +5396,7 @@ async def trigger_announcement(tile_coord_key, player_coords=(0, 0)):
         else:
             map_dict[tile_coord_key].seen = True
             await parse_announcement(tile_coord_key)
-    else:
+    elif state_dict['plane'] == 'normal':
         map_dict[tile_coord_key].seen = True
 
 #Geometry functions-------------------------------------------------------------
