@@ -2066,7 +2066,6 @@ async def spray_debris(
         '???':(f'{noun} vanishes.', ' '),
     }
     message, palette = debris_dict[preset]
-    #TODO: something to only display a message if the actor is within LOS
     if announce_if_visible:
         within_fov = check_point_within_arc(
             checked_point=root_coord, arc_width=120
@@ -3485,7 +3484,6 @@ async def temp_view_circle(
 #Item interaction---------------------------------------------------------------
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #TODO: an item that when thrown, temporarily creates a circle of overridden_view == True
-#TODO: items that are used immediately upon pickup
 
 def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=False):
     #TODO: move item picture to inside of item definitions
@@ -4108,7 +4106,6 @@ def draw_door(
     map_dict[door_coord].description = door_description
     map_dict[door_coord].mutable = False
 
-#TODO: create a mirror
 async def spawn_container(
     base_name='box',
     spawn_coord=(5, 5),
