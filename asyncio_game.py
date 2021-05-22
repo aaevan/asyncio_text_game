@@ -1814,7 +1814,7 @@ async def throw_item(
     source_actor='player', 
     direction=None, 
     throw_distance=13, 
-    rand_drift=2
+    rand_drift=1
 ):
     """
     Moves item from player's inventory to another tile at distance 
@@ -1840,7 +1840,7 @@ async def throw_item(
     )
     destination = add_coords(starting_point, throw_vector)
     if rand_drift:
-        drift = randint(0, rand_drift), randint(0, rand_drift)
+        drift = [randint(0, rand_drift) for _ in range(2)]
         destination = add_coords(destination, drift)
     if not hasattr(item_dict[thrown_item_id], 'tile'):
         return False
@@ -1851,27 +1851,29 @@ async def throw_item(
         points = get_line(starting_point, destination)
         #ignore the first point, that's where the player is standing.
         for point in points[1:]:
-            if map_dict[point].passable:
+            #if map_dict[point].passable:
+                #last_open = point
+            if is_passable(point):
                 last_open = point
             else:
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
-    throw_text = f'Throwing {item_dict[thrown_item-id].name}.'
+    throw_text = f'Throwing {item_dict[thrown_item_id].name}.'
     asyncio.ensure_future(
         append_to_log(message=throw_text)
     )
-    asyncio.ensure_future(
-        travel_along_line(
-            name='thrown_item_id',
-            start_coords=starting_point, 
-            end_coords=destination,
-            speed=.05,
-            tile=item_tile, 
-            animation=None,
-            debris=None
+    #asyncio.ensure_future(
+    await travel_along_line(
+        name='thrown_item_id',
+        start_coords=starting_point, 
+        end_coords=destination,
+        speed=.05,
+        tile=item_tile, 
+        animation=None,
+        debris=None
         )
-    )
+    #)
     if not is_stackable:
         map_dict[destination].items[thrown_item_id] = True
     else:
@@ -1926,7 +1928,7 @@ async def thrown_action(
     source_actor='player', 
     direction=None,
     throw_distance=13,
-    rand_drift=2, 
+    rand_drift=1, 
     fuse_length=3,
     single_use_item=True,
     action_preset='dynamite',
@@ -6488,6 +6490,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
     shift from default area to alternate area and vice versa.
     """
+    #TODO: fix so that you can't teleport into the middle of mtes and other actors
     player_coords = actor_dict['player'].coords()
     if state_dict['plane'] == 'normal':
         offset_coords = add_coords(player_coords, (x_offset, y_offset))
