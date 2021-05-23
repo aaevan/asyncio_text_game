@@ -1816,6 +1816,7 @@ async def throw_item(
     throw_distance=13, 
     rand_drift=1
 ):
+    #TODO: make some items deal damage when colliding with an actor?
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
