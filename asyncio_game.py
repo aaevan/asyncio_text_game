@@ -3488,14 +3488,21 @@ async def temp_view_circle(
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #TODO: an item that when thrown, temporarily creates a circle of overridden_view == True
 
-def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=False):
+def spawn_item_at_coords(
+    coord=(2, 3), 
+    instance_of='block wand', 
+    on_actor_id=False,
+    custom_name=None,
+    kwargs={},
+):
     #TODO: move item picture to inside of item definitions
+    #TODO: a note item
     wand_broken_text = ' is out of charges.'
     possible_items = (
         'wand', 'pebble', 'seed', 'fused charge', 'shield wand', 'red potion',
         'shiny stone', 'shift amulet', 'red spike', 'vine wand',
         'eye trinket', 'dynamite', 'red key', 'green key', 
-        'rusty key', 'looking glass'
+        'rusty key', 'looking glass', 'note'
     )
     block_wand_text = 'A shimmering block appears!'
     if instance_of == 'random':
@@ -3560,6 +3567,15 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
             'tile':term.red('·'),
             'usable_power':throw_item, 
             'power_kwargs':{'thrown_item_id':item_id}
+        },
+        'note':{
+            'uses':-1,
+            'tile':'◇',
+            'usable_power':append_to_log, 
+            'power_kwargs':{
+                **kwargs,
+            },
+            'use_message':"You read the note.",
         },
         'seed':{
             'uses':-1,
@@ -3755,6 +3771,8 @@ def spawn_item_at_coords(coord=(2, 3), instance_of='block wand', on_actor_id=Fal
                 spawn_coord=coord,
                 **item_catalog[instance_of]
             )
+            if custom_name is not None:
+                item_dict[item_id].name = custom_name
             max_items_on_tile = 10
             if not on_actor_id:
                 if len(map_dict[coord].items) < max_items_on_tile:
@@ -6408,6 +6426,17 @@ async def async_map_init():
         spawn_item_at_coords(
             coord=coord, instance_of=item_name, on_actor_id=False
         )
+    notes = (
+        ((25, -4), 'note 1', 'I\'ve lost pieces of myself.'),
+        ((20, -5), 'note 2', 'I know I\'ve seen this before somewhere. My memory is failing me.'),
+    )
+    for coord, custom_name, message in notes:
+        spawn_item_at_coords(
+            instance_of='note',
+            coord=coord,
+            custom_name=custom_name,
+            kwargs={'message':f'"{message}"'}
+        ),
     #actor creation----------------------------------------
     tasks = [
         spawn_container(spawn_coord=(3, -4), box_choices=['green sword']),
