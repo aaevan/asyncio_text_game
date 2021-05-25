@@ -6428,7 +6428,21 @@ async def async_map_init():
         )
     notes = (
         ((25, -4), 'note 1', 'I\'ve lost pieces of myself.'),
-        ((20, -5), 'note 2', 'I know I\'ve seen this before somewhere. My memory is failing me.'),
+        (
+            (20, -5), 
+            'note 2', 
+            'I know I\'ve seen this before somewhere. My memory is failing me.'
+        ),
+        ((31, 1), 'note 3', 'Secret doors tend to be a slightly darker color.'),
+        (
+            (30, -5), 
+            'scanner note', 
+            (
+                'When I used the scanner,'
+                'I could see red patches where there were creatures.'
+                'Also, I can see empty spaces beyond my line of sight!'
+            )
+        ),
     )
     for coord, custom_name, message in notes:
         spawn_item_at_coords(
