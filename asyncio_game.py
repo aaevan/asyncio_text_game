@@ -3493,6 +3493,7 @@ def spawn_item_at_coords(
     instance_of='block wand', 
     on_actor_id=False,
     custom_name=None,
+    custom_color=None,
     kwargs={},
 ):
     #TODO: move item picture to inside of item definitions
@@ -3773,6 +3774,12 @@ def spawn_item_at_coords(
             )
             if custom_name is not None:
                 item_dict[item_id].name = custom_name
+            if custom_color is not None:
+                item_dict[item_id].tile = term.color(custom_color)(
+                    term.strip_seqs(
+                        item_dict[item_id].tile
+                    )
+                )
             max_items_on_tile = 10
             if not on_actor_id:
                 if len(map_dict[coord].items) < max_items_on_tile:
@@ -6427,29 +6434,26 @@ async def async_map_init():
             coord=coord, instance_of=item_name, on_actor_id=False
         )
     notes = (
-        ((25, -4), 'note 1', 'I\'ve lost pieces of myself.'),
-        (
-            (20, -5), 
-            'note 2', 
+        ((25, -4), 'crumpled note', None, 'I\'ve lost pieces of myself.'),
+        ((26, -4), 'bloody scrawl', 0x34, f'something is {term.red("wrong")}'),
+        ((20, -5), 'note 2', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
-        ((31, 1), 'note 3', 'Secret doors tend to be a slightly darker color.'),
-        (
-            (30, -5), 
-            'scanner note', 
-            (
-                'When I used the scanner,'
-                'I could see red patches where there were creatures.'
-                'Also, I can see empty spaces beyond my line of sight!'
-            )
+        ((31, 1), 'faded wrapper', None, 'Secret doors tend to be a slightly darker color.'),
+        ((30, -5), 'graph paper', None,
+            ( 'When I use the scanner, '
+              'I could see red patches where there were creatures. '
+              'Also, I can see open volumes beyond my line of sight! '
+              'It chews through batteries pretty fast though.')
         ),
     )
-    for coord, custom_name, message in notes:
+    for coord, custom_name, custom_color, message in notes:
         spawn_item_at_coords(
             instance_of='note',
             coord=coord,
             custom_name=custom_name,
-            kwargs={'message':f'"{message}"'}
+            custom_color=custom_color,
+            kwargs={'message':f'"{message}"   '}
         ),
     #actor creation----------------------------------------
     tasks = [
