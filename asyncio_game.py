@@ -2460,7 +2460,10 @@ async def multi_spike_trap(
             moveable=False, 
             tile='◘', 
             tile_color=0,
-            description="There's a hole in this section of smooth stone wall."
+            description=(
+                "There's a hole in this bit of wall."
+                "From deep within you see the glint of polished metal."
+            )
         )
         actor_dict[node_name].update(coord=node_coord)
         map_dict[node_coord].tile = '◘'
@@ -3290,6 +3293,7 @@ async def sword(
             tile=chosen_dir[2],
             tile_color=sword_color,
             base_name='spike trap',
+            description='A long and deadly spike.',
         )
         map_dict[segment_coord].actors[segment_name] = True
         base_name = actor_dict[segment_name].base_name
@@ -6435,7 +6439,7 @@ async def async_map_init():
         )
     notes = (
         ((25, -4), 'crumpled note', None, 'I\'ve lost pieces of myself.'),
-        ((26, -4), 'bloody scrawl', 0x34, f'something is {term.red("wrong")}'),
+        ((11, -44), 'bloody scrawl', 0x34, f'I know why these tiles are raised.'),
         ((20, -5), 'note 2', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
@@ -8140,7 +8144,7 @@ async def spawn_preset_actor(
         )
     elif preset == 'zombie':
         item_drops = ['red potion']
-        description = 'A slow but determined living corpse. Dangerous.'
+        description = 'A slow but determined living corpse.'
         loop.create_task(
             basic_actor(
                 coord=coords,
