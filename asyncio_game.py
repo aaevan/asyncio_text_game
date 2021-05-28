@@ -2127,16 +2127,30 @@ async def unlock_door(actor_key='player', opens='red'):
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, dir_to_offset(check_dir))
     door_type = map_dict[door_coord].door_type
+    #TODO: add a directional alert when door is unlocked.
+    #asyncio.ensure_future(
+        #directional_alert(source_actor='player', preset='heal')
+    #)
     if opens in map_dict[door_coord].door_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
             output_text = f'You unlock the {opens} door.'
             map_dict[door_coord].locked = False
+            await sound_message(
+                output_text="unlocked!",
+                point_radius=10,
+                sound_origin_coord=door_coord,
+            )
         elif not map_dict[door_coord].locked:
             if is_passable(door_coord):
                 output_text = 'You can\'t lock an open door!'
             else:
                 output_text = f'You lock the {opens} door.'
                 map_dict[door_coord].locked = True
+                await sound_message(
+                    output_text="locked!",
+                    point_radius=10,
+                    sound_origin_coord=door_coord,
+                )
     elif not map_dict[door_coord].is_door:
         output_text = "That isn't a door."
     else:
@@ -8403,10 +8417,10 @@ async def starting_messages():
     await asyncio.sleep(5)
     await append_to_log(message='You wake in a small dark cell with a splitting headache.')
     await asyncio.sleep(5)
-    await append_to_log(message='You hear the noises of unseen creatures.')
-    await asyncio.sleep(5)
-    await append_to_log(message='Finding a way out of here seems like a good place to start.')
-    await asyncio.sleep(5)
+    #await append_to_log(message='You hear the noises of unseen creatures.')
+    #await asyncio.sleep(5)
+    #await append_to_log(message='Finding a way out of here seems like a good place to start.')
+    #await asyncio.sleep(5)
     await append_to_log(message='It looks like someone left a key for you.')
 
 def state_setup():
