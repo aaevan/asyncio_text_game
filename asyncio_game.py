@@ -2127,10 +2127,6 @@ async def unlock_door(actor_key='player', opens='red'):
     actor_coord = actor_dict[actor_key].coords()
     door_coord = add_coords(actor_coord, dir_to_offset(check_dir))
     door_type = map_dict[door_coord].door_type
-    #TODO: add a directional alert when door is unlocked.
-    #asyncio.ensure_future(
-        #directional_alert(source_actor='player', preset='heal')
-    #)
     if opens in map_dict[door_coord].door_type and map_dict[door_coord].is_door:
         if map_dict[door_coord].locked:
             output_text = f'You unlock the {opens} door.'
