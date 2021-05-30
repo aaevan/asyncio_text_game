@@ -4303,6 +4303,7 @@ def map_init():
         ('basement_se', 'basement_se_left', 1, None, None),
         ('basement_right_e', 'basement_se_left', 1, None, None),
     ]
+    paint_preset(tile_coords=(26, 14))
     for passage in passage_tuples:
         source, destination, width, fade_to_preset, style = passage
         destination_coords = (rooms[destination].center_coord)
@@ -4356,7 +4357,6 @@ def map_init():
         (30, 10), (22, 10),
     ):
         paint_preset(tile_coords=cell, preset='cell bars')
-    #(26, 14), #TODO: put an interesting item here
 
 def convert_pass_state_to_preset(
     cell_coord=(0, 0),
@@ -6433,7 +6433,7 @@ async def async_map_init():
         ((-22, -45), 'green sword'), 
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
-        ((-15, 0), 'looking glass'), 
+        ((26, 10), 'looking glass'), 
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
