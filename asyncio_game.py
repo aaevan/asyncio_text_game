@@ -3590,7 +3590,8 @@ def spawn_item_at_coords(
             'power_kwargs':{
                 **kwargs,
             },
-            'use_message':"You read the note.",
+            #'use_message':"You read the note.",
+            'use_message':None,
         },
         'seed':{
             'uses':-1,
@@ -6467,7 +6468,7 @@ async def async_map_init():
             coord=coord,
             custom_name=custom_name,
             custom_color=custom_color,
-            kwargs={'message':f'"{message}"   '}
+            kwargs={'message':f'The {custom_name} reads, "{message}"   '}
         ),
     #actor creation----------------------------------------
     tasks = [
