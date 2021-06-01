@@ -156,7 +156,10 @@ class Actor:
         self.solid = solid
         self.made_of = made_of
 
-    def update(self, coord=(0, 0), make_passable=True):
+    def update(self, coord=(0, 0), make_passable=True, origin="movement?"):
+        if 'player' in self.name:
+            with term.location(55, 0):
+                print("update!", self.name, coord, random(), f'origin: {origin}')
         self.last_location = self.coord
         #make previous space passable:
         if make_passable:
@@ -318,10 +321,6 @@ class Animation:
                 'animation':' ', 
                 'behavior':'random', 
                 'color_choices':'0'
-            },
-            'chasm':{
-                'animation':(' ' * 10 + '.'), 
-                'behavior':'random', 'color_choices':'8'
             },
             'door':{
                 'animation':('▯'), 
@@ -1150,11 +1149,21 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True, 
             animation=Animation(preset='noise')
         ),
-        'chasm':Map_tile(
+        'chasm_inner':Map_tile(
             tile=' ',
             blocking=False,
             passable=False,
             description='A yawning abyss.',
+            color_num=0xe8,
+            magic=False,
+            is_animated=False
+        ),
+        'chasm_outer':Map_tile(
+            tile=' ',
+            blocking=False,
+            passable=False,
+            description='A yawning abyss.',
+            color_num=0xea,
             magic=False,
             is_animated=False
         ),
@@ -1760,7 +1769,7 @@ def draw_circle(
     animation=None,
     preset='floor',
     border_thickness=0,
-    border_preset='chasm',
+    border_preset='chasm_inner',
     annulus_radius=None,
     chance_skip=0,
 ):
@@ -3398,9 +3407,9 @@ async def teleport(
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     """
-    if state_dict['just teleported']:
-        await asyncio.sleep(1)
-        return
+    #if state_dict['just teleported']:
+        #await asyncio.sleep(1)
+        #return
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
         asyncio.ensure_future(append_to_log(message=start_message))
@@ -3413,7 +3422,9 @@ async def teleport(
             await pass_between(*dest_coords, plane_name='nightmare')
         if actor is None:
             actor = next(iter(map_dict[origin].actors))
-        actor_dict[actor].update(coord=(destination))
+        with term.location(55, 1):
+            print(f'destination is {destination}')
+        actor_dict[actor].update(coord=destination, origin='teleport')
         state_dict['just teleported'] = True
     else:
         await append_to_log(message='Something is in the way.')
@@ -4250,7 +4261,8 @@ def map_init():
         'd': Room((9, -39), 8),
         'e': Room((-20, 20), (12, 12)),
         'f': Room((-35, 20), (5, 5)),
-        'g': Room((28, -34), 6, 'chasm'),
+        ##'g_1': Room((28, -34), 6, 'chasm_outer'),
+        'g_2': Room((28, -34), 5, 'chasm_inner'),
         'h': Room((-30, -20), (7, 7)),
         'i': Room((-30, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
@@ -4316,6 +4328,7 @@ def map_init():
         )
     for room in rooms.values():
         room.draw_room()
+    rooms['g_2'].draw_room()
     secret_room(wall_coord=(35, -31))
     secret_room(wall_coord=(-38, 22), room_offset=(-3, 0), dimensions=(3, 3))
     secret_room(wall_coord=(-38, 18), room_offset=(-3, 0), dimensions=(3, 3))
@@ -4678,7 +4691,7 @@ async def action_keypress(key, debug=True):
     elif key in 'U':
         asyncio.ensure_future(use_chosen_item())
     #DEBUG COMMANDS--------------------------------------------------------
-    elif debug and key in 'hFY38$#@C(79My%':
+    elif debug and key in 'hFY38$#@C(79My%]':
         await debug_commands(key)
     elif key in debug_keys:
         key_number = debug_keys.index(key)
@@ -4695,6 +4708,8 @@ async def action_keypress(key, debug=True):
         map_dict[(x, y)].passable = False #make current space impassable
 
 async def debug_commands(key):
+    with term.location(55, 3):
+        print('in debug')
     player_coords = actor_dict['player'].coords()
     if key in 'h': #debug health restore
         asyncio.ensure_future(health_potion())
@@ -4736,11 +4751,13 @@ async def debug_commands(key):
                 spawn_coord=spawn_coords, preset='2x2_block'
             )
         )
-    elif key in 'y': #teleport to debug location
-        destination = (9, -70) #near spike traps
-        actor_dict['player'].update(coord=destination)
+    elif key in ']': #teleport to debug location
+        teleport_place = (14, 0) #near spike traps
+        #await append_to_log(message=f'teleporting to {destination}!')
+        #actor_dict['player'].update(coord=teleport_place)
+        await teleport(actor='player', destination=teleport_place, delay=0)
         state_dict['facing'] = 'n'
-        return
+        #return
     elif key in '%':
         player_coords = actor_dict['player'].coords()
         with term.location(55, 0):
@@ -5121,8 +5138,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -6451,7 +6468,7 @@ async def async_map_init():
     notes = (
         ((25, -4), 'crumpled note', None, 'I\'ve lost pieces of myself.'),
         ((11, -44), 'bloody scrawl', 0x34, f'I know why these tiles are raised.'),
-        ((20, -5), 'note 2', None,
+        ((20, -5), 'note to self', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
         ((31, 1), 'faded wrapper', None, 'Secret doors tend to be a slightly darker color.'),
@@ -6563,7 +6580,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
             radius=12,
             annulus_radius=12,
             border_thickness=18,
-            border_preset='chasm',
+            border_preset='chasm_inner',
             chance_skip=0,
         )
         draw_circle(
