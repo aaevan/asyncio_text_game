@@ -156,10 +156,7 @@ class Actor:
         self.solid = solid
         self.made_of = made_of
 
-    def update(self, coord=(0, 0), make_passable=True, origin="movement?"):
-        if 'player' in self.name:
-            with term.location(55, 0):
-                print("update!", self.name, coord, random(), f'origin: {origin}')
+    def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
         #make previous space passable:
         if make_passable:
@@ -1150,7 +1147,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             animation=Animation(preset='noise')
         ),
         'chasm_inner':Map_tile(
-            tile=' ',
+            tile='█',
             blocking=False,
             passable=False,
             description='A yawning abyss.',
@@ -1159,11 +1156,12 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=False
         ),
         'chasm_outer':Map_tile(
-            tile=' ',
+            tile='█',
             blocking=False,
             passable=False,
             description='A yawning abyss.',
-            color_num=0xea,
+            #color_num=0xea,
+            color_num=0x01,
             magic=False,
             is_animated=False
         ),
@@ -2141,7 +2139,7 @@ async def unlock_door(actor_key='player', opens='red'):
             output_text = f'You unlock the {opens} door.'
             map_dict[door_coord].locked = False
             await sound_message(
-                output_text="unlocked!",
+                output_text="UNLOCKED!",
                 point_radius=10,
                 sound_origin_coord=door_coord,
             )
@@ -2152,7 +2150,7 @@ async def unlock_door(actor_key='player', opens='red'):
                 output_text = f'You lock the {opens} door.'
                 map_dict[door_coord].locked = True
                 await sound_message(
-                    output_text="locked!",
+                    output_text="LOCKED!",
                     point_radius=10,
                     sound_origin_coord=door_coord,
                 )
@@ -3422,9 +3420,7 @@ async def teleport(
             await pass_between(*dest_coords, plane_name='nightmare')
         if actor is None:
             actor = next(iter(map_dict[origin].actors))
-        with term.location(55, 1):
-            print(f'destination is {destination}')
-        actor_dict[actor].update(coord=destination, origin='teleport')
+        actor_dict[actor].update(coord=destination)
         state_dict['just teleported'] = True
     else:
         await append_to_log(message='Something is in the way.')
@@ -4261,7 +4257,8 @@ def map_init():
         'd': Room((9, -39), 8),
         'e': Room((-20, 20), (12, 12)),
         'f': Room((-35, 20), (5, 5)),
-        ##'g_1': Room((28, -34), 6, 'chasm_outer'),
+        #'g_1': Room((28, -34), 6, 'chasm_outer'),
+        'g_1': Room((24, -34), 6, 'chasm_outer'),
         'g_2': Room((28, -34), 5, 'chasm_inner'),
         'h': Room((-30, -20), (7, 7)),
         'i': Room((-30, 0)),
@@ -4656,7 +4653,14 @@ async def action_keypress(key, debug=True):
             walk_destination = add_coords(player_coords, offset_from_dir)
             if is_passable(walk_destination):
                 x_shift, y_shift = offset_from_dir
-        state_dict['just teleported'] = False #used by magic_doors
+            shifted_coord = add_coords((x, y), (x_shift, y_shift))
+            if (map_dict[shifted_coord].passable and shifted_coord != (0, 0)):
+                state_dict['last_location'] = (x, y)
+                map_dict[(x, y)].passable = True #make previous space passable
+                actor_dict['player'].update(coord=shifted_coord)
+                x, y = actor_dict['player'].coords()
+                map_dict[(x, y)].passable = False #make current space impassable
+                state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
         asyncio.ensure_future(dash_ability(
             dash_length=randint(2, 3),
@@ -4696,20 +4700,8 @@ async def action_keypress(key, debug=True):
     elif key in debug_keys:
         key_number = debug_keys.index(key)
         asyncio.ensure_future(use_item_by_inventory_number(number=key_number))
-    shifted_coord = add_coords((x, y), (x_shift, y_shift))
-    if (
-        map_dict[shifted_coord].passable and 
-        shifted_coord != (0, 0)
-    ):
-        state_dict['last_location'] = (x, y)
-        map_dict[(x, y)].passable = True #make previous space passable
-        actor_dict['player'].update(coord=shifted_coord)
-        x, y = actor_dict['player'].coords()
-        map_dict[(x, y)].passable = False #make current space impassable
 
 async def debug_commands(key):
-    with term.location(55, 3):
-        print('in debug')
     player_coords = actor_dict['player'].coords()
     if key in 'h': #debug health restore
         asyncio.ensure_future(health_potion())
@@ -4752,12 +4744,9 @@ async def debug_commands(key):
             )
         )
     elif key in ']': #teleport to debug location
-        teleport_place = (14, 0) #near spike traps
-        #await append_to_log(message=f'teleporting to {destination}!')
-        #actor_dict['player'].update(coord=teleport_place)
-        await teleport(actor='player', destination=teleport_place, delay=0)
+        teleport_place = (29, -26) #near spike traps
+        actor_dict['player'].update(coord=teleport_place)
         state_dict['facing'] = 'n'
-        #return
     elif key in '%':
         player_coords = actor_dict['player'].coords()
         with term.location(55, 0):
@@ -4849,6 +4838,11 @@ async def toggle_door(door_coord):
     if map_dict[door_coord].locked:
         description = map_dict[door_coord].door_type
         output_text=f'The {description} door is locked.'
+        await sound_message(
+            output_text="it's locked!",
+            point_radius=10,
+            sound_origin_coord=door_coord,
+        )
     else:
         new_toggle_state_index = (toggle_state_index + 1) % len(toggle_states)
         door_state = set_tile_toggle_state(
@@ -5138,8 +5132,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5983,11 +5977,13 @@ async def check_contents_of_tile(coord):
     elif map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
-        if map_dict[coord].color_num not in (7, 8):
-            tile_color = map_dict[coord].color_num
-            return term.color(tile_color)(map_dict[coord].tile)
-        else:
-            return map_dict[coord].tile
+        tile_color = map_dict[coord].color_num
+        return term.color(tile_color)(map_dict[coord].tile)
+        #if map_dict[coord].color_num not in (7, 8):
+            #tile_color = map_dict[coord].color_num
+            #return term.color(tile_color)(map_dict[coord].tile)
+        #else:
+            #return map_dict[coord].tile
 
 def offset_of_center(coord):
     x_offset, y_offset = coord
