@@ -6120,7 +6120,7 @@ async def directional_alert(
         },
         'footfall':{
             'particle_count':1,
-            'radius':18,
+            'radius':radius,
             'radius_spread':1,
             'angle_spread': 30,
             'warning_color':0x08,
@@ -7276,7 +7276,7 @@ async def basic_actor(
                 noise_level = 99
             if random() <= noise_level:
                 asyncio.ensure_future(
-                    directional_alert(source_actor=name_key, preset='footfall')
+                    directional_alert(source_actor=name_key, radius=dist_to_player, preset='footfall')
                 )
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
