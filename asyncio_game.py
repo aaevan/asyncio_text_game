@@ -7274,7 +7274,7 @@ async def basic_actor(
                 noise_level = (1 / dist_to_player ** 2) * 10
             else:
                 noise_level = 99
-            if random() <= noise_level:
+            if random() <= noise_level and random() > .1:
                 asyncio.ensure_future(
                     directional_alert(source_actor=name_key, radius=dist_to_player, preset='footfall')
                 )
