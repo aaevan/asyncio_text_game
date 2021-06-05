@@ -1160,8 +1160,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             blocking=False,
             passable=False,
             description='A yawning abyss.',
-            #color_num=0xea,
-            color_num=0x01,
+            #TODO: fix color_num so it's properly drawn by view_tiles
+            color_num=0xea,
             magic=False,
             is_animated=False
         ),
