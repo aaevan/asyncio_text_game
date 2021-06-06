@@ -5977,13 +5977,15 @@ async def check_contents_of_tile(coord):
     elif map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
-        tile_color = map_dict[coord].color_num
-        return term.color(tile_color)(map_dict[coord].tile)
-        #if map_dict[coord].color_num not in (7, 8):
-            #tile_color = map_dict[coord].color_num
-            #return term.color(tile_color)(map_dict[coord].tile)
-        #else:
-            #return map_dict[coord].tile
+        #tile_color = map_dict[coord].color_num
+        #return term.color(tile_color)(map_dict[coord].tile)
+        if map_dict[coord].color_num not in (7, 8):
+            tile_color = map_dict[coord].color_num
+            return term.color(tile_color)(map_dict[coord].tile)
+            with term.location(55, randint(0, 10)):
+                print(5986, random())
+        else:
+            return map_dict[coord].tile
 
 def offset_of_center(coord):
     x_offset, y_offset = coord
