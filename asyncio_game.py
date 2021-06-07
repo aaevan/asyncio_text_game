@@ -5251,6 +5251,7 @@ async def key_slot_checker(
     slot_name = f'{slot}_slot'
     state_dict[slot_name] = 'empty'
     while True:
+        slot_color = 0xec #default to grey with no item equipped
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(frequency)
@@ -5262,6 +5263,7 @@ async def key_slot_checker(
         elif equipped_item_id not in ('empty', None):
             #if it's equipped, display the icon.
             item_name = item_dict[equipped_item_id].name
+            slot_color = 0xff
         else:
             item_name = 'empty'
         if centered:
@@ -5269,7 +5271,7 @@ async def key_slot_checker(
         else:
             x_coord, y_coord = print_location
         with term.location(x_coord + 2, y_coord + 5):
-            print(slot)
+            print(term.color(slot_color)(slot))
         with term.location(x_coord, y_coord + 6):
             print('─────')
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
