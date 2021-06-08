@@ -406,6 +406,7 @@ class Animation:
                 'behavior':'loop both', 
                 'color_choices':'7'
             },
+            #TODO: a use action that washes hands/fills bottles by default on water tile
             'water':{
                 'animation':'███████▒▓▒', 
                 'behavior':'random',
@@ -8428,8 +8429,8 @@ async def door_init(loop):
         loop.create_task(door_pair)
 
 async def starting_messages():
-    await asyncio.sleep(5)
-    await append_to_log(message='You wake in a small dark cell with a splitting headache.')
+    await asyncio.sleep(2)
+    await append_to_log(message='You wake in a small dark cell with an awful headache. Your hands are covered in blood.')
     await asyncio.sleep(5)
     #await append_to_log(message='You hear the noises of unseen creatures.')
     #await asyncio.sleep(5)
