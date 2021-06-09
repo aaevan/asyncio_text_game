@@ -410,7 +410,7 @@ class Animation:
             'water':{
                 'animation':'███████▒▓▒', 
                 'behavior':'random',
-                'color_choices':([0x11 for i in range(50)] + list(range(0x11, 0x15)))
+                'color_choices':([0x11 for i in range(50)] + list(range(0x11, 0x15))),
             },
             'writhe':{
                 'animation':('╭╮╯╰╭╮╯╰'),
@@ -1229,6 +1229,10 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True, 
             animation=Animation(preset='water'),
             prevent_pushing=True,
+            use_action_func=append_to_log,
+            use_action_kwargs={
+                'message':'You wash your hands in the water.'
+            }
         ),
         'error':Map_tile(
             tile='?',
@@ -1252,6 +1256,9 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
+    if presets[preset].use_action_func:
+        map_dict[tile_coords].use_action_func = presets[preset].use_action_func
+        map_dict[tile_coords].use_action_kwargs = presets[preset].use_action_kwargs
     if presets[preset].brightness_mod:
         rand_offset = rand_float(*presets[preset].brightness_mod)
         map_dict[tile_coords].brightness_mod += rand_offset
