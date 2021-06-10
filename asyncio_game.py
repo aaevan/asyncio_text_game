@@ -1215,11 +1215,16 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='▒',
             blocking=False,
             passable=True,
-            description='Soft knee-high grass. It nods gently in the breeze.',
+            description='Soft knee-high grass. It nods gently in an unfelt breeze.',
             magic=False,
             is_animated=True, 
-            animation=Animation(preset='grass')
+            animation=Animation(preset='grass'),
+            use_action_func=append_to_log,
+            use_action_kwargs={
+                'message':'You reach down and run your hands through the tall grass.'
+            }
         ),
+        #TODO: create a chest or container use action
         'water':Map_tile(
             tile='█',
             blocking=False,
