@@ -1162,7 +1162,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             passable=False,
             description='A yawning abyss.',
             #TODO: fix color_num so it's properly drawn by view_tiles
-            color_num=0xea,
+            color_num=0xe9,
             magic=False,
             is_animated=False
         ),
@@ -1261,6 +1261,8 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
     map_dict[tile_coords].tile = presets[preset].tile
     map_dict[tile_coords].blocking = presets[preset].blocking 
     map_dict[tile_coords].description = presets[preset].description
+    if presets[preset].color_num:
+        map_dict[tile_coords].color_num = presets[preset].color_num
     if presets[preset].use_action_func:
         map_dict[tile_coords].use_action_func = presets[preset].use_action_func
         map_dict[tile_coords].use_action_kwargs = presets[preset].use_action_kwargs
@@ -3418,9 +3420,9 @@ async def teleport(
     upon arrival, a random nova of particles is released (also using 
         radial_fountain but in reverse
     """
-    #if state_dict['just teleported']:
-        #await asyncio.sleep(1)
-        #return
+    if state_dict['just teleported']:
+        await asyncio.sleep(1)
+        return
     await asyncio.sleep(delay)
     if map_dict[destination].passable:
         asyncio.ensure_future(append_to_log(message=start_message))
@@ -3431,7 +3433,7 @@ async def teleport(
             await asyncio.sleep(3)
             dest_coords = add_coords(destination, (x_offset, y_offset))
             await pass_between(*dest_coords, plane_name='nightmare')
-        if actor is None:
+        if actor is None and map_dict[origin].actors:
             actor = next(iter(map_dict[origin].actors))
         actor_dict[actor].update(coord=destination)
         state_dict['just teleported'] = True
@@ -4270,9 +4272,8 @@ def map_init():
         'd': Room((9, -39), 8),
         'e': Room((-20, 20), (12, 12)),
         'f': Room((-35, 20), (5, 5)),
-        #'g_1': Room((28, -34), 6, 'chasm_outer'),
-        'g_1': Room((24, -34), 6, 'chasm_outer'),
-        'g_2': Room((28, -34), 5, 'chasm_inner'),
+        'g_1': Room((28, -34), 6, 'chasm_outer'),
+        'g_2': Room((28, -33), 5, 'chasm_inner'),
         'h': Room((-30, -20), (7, 7)),
         'i': Room((-30, 0)),
         'j': Room((-20, -45), (12, 6), 'goo'),
@@ -5145,8 +5146,8 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
-    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -5992,13 +5993,9 @@ async def check_contents_of_tile(coord):
     elif map_dict[coord].is_animated:
         return next(map_dict[coord].animation)
     else:
-        #tile_color = map_dict[coord].color_num
-        #return term.color(tile_color)(map_dict[coord].tile)
         if map_dict[coord].color_num not in (7, 8):
             tile_color = map_dict[coord].color_num
             return term.color(tile_color)(map_dict[coord].tile)
-            with term.location(55, randint(0, 10)):
-                print(5986, random())
         else:
             return map_dict[coord].tile
 
