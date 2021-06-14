@@ -1234,9 +1234,9 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True, 
             animation=Animation(preset='water'),
             prevent_pushing=True,
-            use_action_func=append_to_log,
+            use_action_func=use_action_fork,
             use_action_kwargs={
-                'message':'You wash your hands in the water.'
+                'preset':'water',
             }
         ),
         'error':Map_tile(
@@ -2724,18 +2724,35 @@ async def test_print_at_coord(
         await asyncio.sleep(1)
 
 async def use_action_fork(
-    func_list=[
-        (test_print_at_coord, True, {
-            'message':'use_action_fork func 1! {}', 'coord':(55, 0)
-        }),
-        (test_print_at_coord, True, {
-            'message':'use_action_fork func 2! {}', 'coord':(55, 1)
-        }),
-        (test_print_at_coord, True, {
-            'message':'use_action_fork func 3! {}', 'coord':(55, 2)
-        }),
-    ]
+    preset='test',
 ):
+    presets={
+        'test':[
+            (test_print_at_coord, True, {
+                'message':'use_action_fork func 1! {}', 'coord':(55, 0)
+            }),
+            (test_print_at_coord, True, {
+                'message':'use_action_fork func 2! {}', 'coord':(55, 1)
+            }),
+            (test_print_at_coord, True, {
+                'message':'use_action_fork func 3! {}', 'coord':(55, 2)
+            }),
+        ],
+        'water':[
+            (append_to_log, True, {
+                'message':'You wash your hands in the water.'
+            }),
+        ],
+        'pipe':[
+            (append_to_log, True, {
+                'message':'You burn your hand on the hot pipe!'
+            }),
+            (damage_actor, True, {
+                'actor':'player',
+                'damage':1,
+            }),
+        ],
+    }
     #TODO: come back to this idea!
     """
     func_list is a list of functions with all the things they need.
@@ -2744,7 +2761,7 @@ async def use_action_fork(
         whether or not the function is async
         the kwargs of that function
     """
-    for (action_func, is_async, kwargs) in func_list:
+    for (action_func, is_async, kwargs) in presets[preset]:
         if is_async:
             asyncio.ensure_future(action_func(**kwargs))
         else:
@@ -2901,6 +2918,8 @@ async def broken_steam_pipe(
     map_dict[pipe_coord].description = (
         'The broken pipe spews gouts of hot steam.'
     )
+    map_dict[pipe_coord].use_action_func = use_action_fork
+    map_dict[pipe_coord].use_action_kwargs = {'preset':'pipe'}
     asyncio.ensure_future(
         repeating_particle_jet(
             start_delay=start_delay,
