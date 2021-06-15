@@ -2682,7 +2682,8 @@ async def computer_terminal(
     tile='▣',
     spawn_coord=(0, 0),
     patch_to_key='term_1',
-    message=('Door is now', ('locked', 'unlocked'))
+    message=('Door is now', ('locked', 'unlocked')),
+    flicker=True,
 ):
     """
     a terminal that toggles the state of a state_dict value
@@ -2702,7 +2703,7 @@ async def computer_terminal(
         'toggle_id':toggle_id,
         'message':message,
     }
-    while True:
+    while flicker:
         if state_dict['killall'] == True:
             break
         await asyncio.sleep(.1 + random() / 5)
