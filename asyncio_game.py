@@ -1172,7 +1172,11 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             passable=False,
             description='Sturdy metal bars',
             magic=False,
-            is_animated=False
+            is_animated=False,
+            use_action_func=use_action_fork,
+            use_action_kwargs={
+                'preset':'bars',
+            }
         ),
         'tiles':Map_tile(
             tile='▞',
@@ -2742,6 +2746,11 @@ async def use_action_fork(
         'water':[
             (append_to_log, True, {
                 'message':'You wash your hands in the water.'
+            }),
+        ],
+        'bars':[
+            (append_to_log, True, {
+                'message':'You rattle the bars and tug but they don\'t budge.'
             }),
         ],
         'pipe':[
