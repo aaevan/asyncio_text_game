@@ -2750,7 +2750,7 @@ async def use_action_fork(
         ],
         'bars':[
             (append_to_log, True, {
-                'message':'You rattle the bars and tug but they don\'t budge.'
+                'message':'You try to rattle the bars but they don\'t budge.'
             }),
         ],
         'pipe':[
@@ -6556,7 +6556,12 @@ async def async_map_init():
        ((20, 5), 'leech'),
        ((22, 4), 'leech'),
        ((16, 5), 'zombie'),
-       ((-21, -10), 'zombie'),
+       ((-25, 22), 'zombie'),
+       ((-23, 24), 'zombie'), #pen in the southeast behind bay door
+       ((-19, 25), 'zombie'),
+       ((-21, 23), 'zombie'),
+       ((-17, 22), 'zombie'),
+       ((-15, 25), 'zombie'),
        ((23, 1), 'critter'),
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
