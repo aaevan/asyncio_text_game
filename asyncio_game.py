@@ -2897,13 +2897,14 @@ async def teleporter(
         'delay':0,
     }
 
-async def broken_steam_pipe(
+async def broken_pipe(
     pipe_dirs=('s', 'e'),
     pipe_coord=(0, -10),
     on_interval=3,
     off_interval=3,
     start_delay=.5,
-    angle_spread=10
+    angle_spread=10,
+    preset='steam',
 ):
     #TODO: a way to adjust the background color of a tile according to the distance
     #different tilesets?
@@ -2923,21 +2924,24 @@ async def broken_steam_pipe(
     }
     pipe_char = pipe_chars_from_dirs[pipe_dirs]
     facing = pipe_dirs[1]
-    steam_source = add_coords(pipe_coord, dir_to_offset(facing))
+    particle_source = add_coords(pipe_coord, dir_to_offset(facing))
     map_dict[pipe_coord].tile = pipe_char
-    map_dict[pipe_coord].description = (
-        'The broken pipe spews gouts of hot steam.'
-    )
+    description_presets = {
+        'steam':'The broken pipe intermittently spews gouts of hot steam.',
+        'fire': 'A periodic jet of blistering flames!',
+    }
+    map_dict[pipe_coord].description = description_presets[preset]
     map_dict[pipe_coord].use_action_func = use_action_fork
     map_dict[pipe_coord].use_action_kwargs = {'preset':'pipe'}
     asyncio.ensure_future(
         repeating_particle_jet(
             start_delay=start_delay,
-            origin=steam_source,
+            origin=particle_source,
             facing=facing,
             on_interval=on_interval,
             off_interval=off_interval,
             angle_spread=angle_spread,
+            particle_preset=preset,
         )
     )
     await asyncio.sleep(start_delay)
@@ -7796,7 +7800,8 @@ async def repeating_particle_jet(
     angle_spread=10,
     offset=-90,
     radius_spread=(0, 2),
-    start_delay=0
+    start_delay=0,
+    particle_preset='steam',
 ):
     await asyncio.sleep(start_delay)
     while True:
@@ -7811,7 +7816,7 @@ async def repeating_particle_jet(
             rate=rate,
             angle_spread=angle_spread,
             offset=offset,
-            particle_preset='steam',
+            particle_preset=particle_preset,
             radius_spread=radius_spread
         )
 
@@ -8532,11 +8537,11 @@ def main():
         #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
         #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
         #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
-        broken_steam_pipe(),
-        broken_steam_pipe(
+        broken_pipe(),
+        broken_pipe(
             pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
         ),
-        broken_steam_pipe(
+        broken_pipe(
             pipe_dirs=('n', 'w'), pipe_coord=(5, -13), start_delay=1
         ),
         starting_messages()
