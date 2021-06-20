@@ -2927,10 +2927,17 @@ async def broken_pipe(
     particle_source = add_coords(pipe_coord, dir_to_offset(facing))
     map_dict[pipe_coord].tile = pipe_char
     description_presets = {
-        'steam':'The broken pipe intermittently spews gouts of hot steam.',
-        'fire': 'A periodic jet of blistering flames!',
+        'steam':(
+            'The broken pipe intermittently spews gouts of hot steam.',
+            '*ssssssss*',
+        )
+        'fire':(
+            'A periodic jet of blistering flames!',
+            '*FWOOOSHHH*',
+        )
     }
-    map_dict[pipe_coord].description = description_presets[preset]
+    preset_description, preset_sound = description_presets[preset]
+    map_dict[pipe_coord].description = preset_description
     map_dict[pipe_coord].use_action_func = use_action_fork
     map_dict[pipe_coord].use_action_kwargs = {'preset':'pipe'}
     asyncio.ensure_future(
@@ -2947,7 +2954,7 @@ async def broken_pipe(
     await asyncio.sleep(start_delay)
     asyncio.ensure_future(
         repeated_sound_message(
-            output_text="*ssssssss*", 
+            output_text=preset_sound,
             sound_origin_coord=pipe_coord,
             interval=(on_interval + off_interval),
         ),
