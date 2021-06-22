@@ -2929,7 +2929,7 @@ async def broken_pipe(
     description_presets = {
         'steam':(
             'The broken pipe intermittently spews gouts of hot steam.',
-            '*ssssssss*',
+            '*ssssssss*', #sound effect
         )
         'fire':(
             'A periodic jet of blistering flames!',
