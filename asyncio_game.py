@@ -2930,11 +2930,11 @@ async def broken_pipe(
         'steam':(
             'The broken pipe intermittently spews gouts of hot steam.',
             '*ssssssss*', #sound effect
-        )
+        ),
         'fire':(
             'A periodic jet of blistering flames!',
             '*FWOOOSHHH*',
-        )
+        ),
     }
     preset_description, preset_sound = description_presets[preset]
     map_dict[pipe_coord].description = preset_description
