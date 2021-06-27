@@ -6326,6 +6326,7 @@ async def sound_message(
     elif print_coord[0] == x_middle:
         print_coord = ((print_coord[0] - (len(output_text) // 2)), print_coord[1])
     #TODO: a "sustain_length" for sound effect so it doesn't immediately fade
+    #fade_delay in fade_print may be the useful value, but it needs to reprint several times?
     await distanced_fade_print(
         output_text=output_text, 
         origin=sound_origin_coord,
