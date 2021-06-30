@@ -6435,12 +6435,6 @@ async def async_map_init():
         describe_tile=False, 
         distance_trigger=2
     )
-    #announcement_at_coord( #TODO: unused
-        #"The darkness is moving here.|||It's taken an interest in you.||Running might be a good idea.", 
-        #coord=(25, -27), 
-        #describe_tile=False, 
-        #distance_trigger=0
-    #)
     announcement_at_coord(
         "Every surface is covered in a pulsating slime.|||You feel a little nauseous.",
         coord=(-17, -44),
