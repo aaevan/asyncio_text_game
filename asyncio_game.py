@@ -6430,13 +6430,13 @@ async def async_map_init():
         distance_trigger=3
     )
     announcement_at_coord(
-        "A loose pebble tumbles off the edge. |||You don't hear it land.", 
+        "A loose pebble tumbles off the edge.||You don't hear it land.", 
         coord=(22, -30), 
         describe_tile=False, 
         distance_trigger=2
     )
     announcement_at_coord(
-        "Every surface is covered in a pulsating slime.|||You feel a little nauseous.",
+        "Every surface is covered in a pulsating slime.||You feel a little nauseous.",
         coord=(-17, -44),
         describe_tile=False,
         distance_trigger=0
