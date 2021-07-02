@@ -4656,7 +4656,8 @@ async def free_look(
         nearest_n=45
     )
     state_dict['facing'] = angle_to_dir(facing_angle)
-    return None
+    state_dict['blink_timeout'] = 0
+    return actual_print_location
 
 def round_to_nearest_n(value=123, nearest_n=25):
     nearest_n = abs(nearest_n)
@@ -4698,23 +4699,22 @@ async def action_keypress(key, debug=True):
     player_coords = actor_dict['player'].coords()
     # TODO: set number symbols to use the item in that slot?
     if key in "wasd":
-        if key in 'wasd':
-            if state_dict['player_busy'] == True:
-                return
-            dir_from_key = key_to_compass(key)
-            offset_from_dir = dir_to_offset(dir_from_key)
-            push(pusher='player', direction=key_to_compass(key))
-            walk_destination = add_coords(player_coords, offset_from_dir)
-            if is_passable(walk_destination):
-                x_shift, y_shift = offset_from_dir
-            shifted_coord = add_coords((x, y), (x_shift, y_shift))
-            if (map_dict[shifted_coord].passable and shifted_coord != (0, 0)):
-                state_dict['last_location'] = (x, y)
-                map_dict[(x, y)].passable = True #make previous space passable
-                actor_dict['player'].update(coord=shifted_coord)
-                x, y = actor_dict['player'].coords()
-                map_dict[(x, y)].passable = False #make current space impassable
-                state_dict['just teleported'] = False #used by magic_doors
+        if state_dict['player_busy'] == True:
+            return
+        dir_from_key = key_to_compass(key)
+        offset_from_dir = dir_to_offset(dir_from_key)
+        push(pusher='player', direction=key_to_compass(key))
+        walk_destination = add_coords(player_coords, offset_from_dir)
+        if is_passable(walk_destination):
+            x_shift, y_shift = offset_from_dir
+        shifted_coord = add_coords((x, y), (x_shift, y_shift))
+        if (map_dict[shifted_coord].passable and shifted_coord != (0, 0)):
+            state_dict['last_location'] = (x, y)
+            map_dict[(x, y)].passable = True #make previous space passable
+            actor_dict['player'].update(coord=shifted_coord)
+            x, y = actor_dict['player'].coords()
+            map_dict[(x, y)].passable = False #make current space impassable
+            state_dict['just teleported'] = False #used by magic_doors
     elif key in 'WASD': 
         asyncio.ensure_future(dash_ability(
             dash_length=randint(2, 3),
@@ -4826,9 +4826,20 @@ async def handle_input(map_dict, key):
         await handle_exit(key)
     elif state_dict['looking'] == True:
         return_val = await free_look(key)
-        if return_val is not None:
+        if type(return_val) is not tuple:
             await action_keypress(return_val)
+        elif state_dict['blink_timeout'] > 200:
+            with term.location(55, 35):
+                print("blink_timeout:", state_dict['blink_timeout'])
+            state_dict['blink_timeout'] = 0
+            fade_print(
+                output_text='╳',
+                print_coord=actual_print_location,
+                fade_delay=0,
+                step_delay=.02,
+            )
     else:
+        state_dict['blink_timeout'] += 1
         await action_keypress(key)
 
 def get_facing_coord():
@@ -5186,9 +5197,9 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
     #debug positioning for console:
-    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
@@ -8503,6 +8514,7 @@ def state_setup():
     state_dict['scanner_state'] = False
     state_dict['lock view'] = False
     state_dict['passwall running'] = False
+    state_dict['blink_timeout'] = 0
 
 def main():
     state_setup()
