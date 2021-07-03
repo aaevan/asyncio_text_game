@@ -4528,6 +4528,7 @@ async def get_key(map_dict, help_wait_count=100):
             if state_dict['killall'] == True:
                 break
             await asyncio.sleep(0.03)
+            state_dict['blink_timeout'] = (state_dict['blink_timeout'] + 1) % 30
             if is_data():
                 key = sys.stdin.read(1)
                 if key == '\x7f':  # x1b is ESC
@@ -4537,7 +4538,22 @@ async def get_key(map_dict, help_wait_count=100):
                     if player_health > 0:
                         #TODO: see if this makes any difference?
                         asyncio.ensure_future(handle_input(map_dict, key))
-                        #await handle_input(map_dict, key) 
+            cursor_location = state_dict['look_cursor_location']
+            looking = state_dict['looking'] 
+            timeout_reached = state_dict['blink_timeout'] == 15
+            with term.location(55, 36):
+                print(state_dict['blink_timeout'], random())
+            with term.location(55, 37):
+                print(cursor_location, looking, timeout_reached)
+            if looking and timeout_reached and cursor_location is not None:
+                asyncio.ensure_future(
+                    fade_print(
+                        output_text='╳',
+                        print_coord=cursor_location,
+                        fade_delay=0,
+                        step_delay=.02,
+                    )
+                )
             if old_key == key:
                 state_dict['same_count'] += 1
             else:
@@ -4638,14 +4654,6 @@ async def free_look(
         await display_help(mode="looking") 
         debounce = True
     actual_print_location = offset_of_center(static_vars['cursor_location'])
-    asyncio.ensure_future(
-        fade_print(
-            output_text='╳',
-            print_coord=actual_print_location,
-            fade_delay=0,
-            step_delay=.02,
-        )
-    )
     if debounce:
         await asyncio.sleep(1)
     facing_angle = round_to_nearest_n(
@@ -4656,7 +4664,6 @@ async def free_look(
         nearest_n=45
     )
     state_dict['facing'] = angle_to_dir(facing_angle)
-    state_dict['blink_timeout'] = 0
     return actual_print_location
 
 def round_to_nearest_n(value=123, nearest_n=25):
@@ -4820,6 +4827,7 @@ async def handle_input(map_dict, key):
     spacebar to open doors
     esc to open inventory
     """
+    return_val = None
     if state_dict['in_menu'] == True:
         await menu_keypress(key)
     elif state_dict['exiting'] == True:
@@ -4828,19 +4836,12 @@ async def handle_input(map_dict, key):
         return_val = await free_look(key)
         if type(return_val) is not tuple:
             await action_keypress(return_val)
-        elif state_dict['blink_timeout'] > 200:
-            with term.location(55, 35):
-                print("blink_timeout:", state_dict['blink_timeout'])
+        else:
             state_dict['blink_timeout'] = 0
-            fade_print(
-                output_text='╳',
-                print_coord=actual_print_location,
-                fade_delay=0,
-                step_delay=.02,
-            )
     else:
-        state_dict['blink_timeout'] += 1
         await action_keypress(key)
+    if type(state_dict['look_cursor_location']) is tuple:
+        state_dict['look_cursor_location'] = return_val
 
 def get_facing_coord():
     player_coords = actor_dict['player'].coords()
@@ -8515,6 +8516,7 @@ def state_setup():
     state_dict['lock view'] = False
     state_dict['passwall running'] = False
     state_dict['blink_timeout'] = 0
+    state_dict['look_cursor_location'] = (0, 0)
 
 def main():
     state_setup()
