@@ -4536,15 +4536,10 @@ async def get_key(map_dict, help_wait_count=100):
                 if key is not None:
                     player_health = actor_dict["player"].health
                     if player_health > 0:
-                        #TODO: see if this makes any difference?
                         asyncio.ensure_future(handle_input(map_dict, key))
             cursor_location = state_dict['look_cursor_location']
             looking = state_dict['looking'] 
             timeout_reached = state_dict['blink_timeout'] == 15
-            with term.location(55, 36):
-                print(state_dict['blink_timeout'], random())
-            with term.location(55, 37):
-                print(cursor_location, looking, timeout_reached)
             if looking and timeout_reached and cursor_location is not None:
                 asyncio.ensure_future(
                     fade_print(
@@ -4840,7 +4835,7 @@ async def handle_input(map_dict, key):
             state_dict['blink_timeout'] = 0
     else:
         await action_keypress(key)
-    if type(state_dict['look_cursor_location']) is tuple:
+    if type(return_val) is tuple:
         state_dict['look_cursor_location'] = return_val
 
 def get_facing_coord():
@@ -5198,9 +5193,9 @@ async def choose_item(
     return return_val
 
 async def console_box(
-    #width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
+    width=45, height=10, x_margin=1, y_margin=1, refresh_rate=.1
     #debug positioning for console:
-    width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
+    #width=45, height=10, x_margin=1, y_margin=20, refresh_rate=.05 #for debugging
 ):
     state_dict['messages'] = [('', 0)] * height
     asyncio.ensure_future(
