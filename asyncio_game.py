@@ -4633,6 +4633,18 @@ async def free_look(
         current_value = static_vars['cursor_location']
         next_value = add_coords(current_value, offset)
         static_vars['cursor_location'] = next_value
+        with term.location(55, 0):
+            print("cursor_location:", next_value)
+        actual_print_location = offset_of_center(static_vars['cursor_location'])
+        state_dict['look_cursor_location'] = actual_print_location
+        asyncio.ensure_future(
+            fade_print(
+                output_text='╳',
+                print_coord=actual_print_location,
+                fade_delay=0,
+                step_delay=.02,
+            )
+        )
         debounce = True
     elif key in 'x':
         can_see = await check_line_of_sight(player_coord, describe_coord)
@@ -4831,8 +4843,7 @@ async def handle_input(map_dict, key):
         return_val = await free_look(key)
         if type(return_val) is not tuple:
             await action_keypress(return_val)
-        else:
-            state_dict['blink_timeout'] = 0
+        state_dict['blink_timeout'] = 0
     else:
         await action_keypress(key)
     if type(return_val) is tuple:
