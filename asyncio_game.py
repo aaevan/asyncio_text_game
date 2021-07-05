@@ -6006,7 +6006,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             else:
                 print_choice = term.color(tile_color)(print_choice)
         if last_print_choice == print_choice:
-            continue
+            if random() > .1: #9 times out of ten, don't reprint the tile
+                continue
         with term.location(*print_location):
             print(print_choice)
         last_print_choice = print_choice
@@ -6532,7 +6533,7 @@ async def async_map_init():
     notes = (
         ((25, -4), 'crumpled note', None, 'I\'ve lost pieces of myself.'),
         ((11, -44), 'bloody scrawl', 0x34, f'I know why these tiles are raised.'),
-        ((20, -5), 'note to self', None,
+        ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
         ((31, 1), 'faded wrapper', None, 'Secret doors tend to be a slightly darker color.'),
