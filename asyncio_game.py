@@ -1840,7 +1840,8 @@ async def throw_item(
     source_actor='player', 
     direction=None, 
     throw_distance=13, 
-    rand_drift=1
+    rand_drift=1,
+    piercing=False
 ):
     #TODO: make some items deal damage when colliding with an actor?
     """
@@ -1878,9 +1879,7 @@ async def throw_item(
         points = get_line(starting_point, destination)
         #ignore the first point, that's where the player is standing.
         for point in points[1:]:
-            #if map_dict[point].passable:
-                #last_open = point
-            if is_passable(point):
+            if is_passable(point) and not map_dict[point].actors:
                 last_open = point
             else:
                 break
@@ -1890,7 +1889,7 @@ async def throw_item(
     asyncio.ensure_future(
         append_to_log(message=throw_text)
     )
-    #asyncio.ensure_future(
+    stop_on_actor = not piercing
     await travel_along_line(
         name='thrown_item_id',
         start_coords=starting_point, 
@@ -1898,9 +1897,10 @@ async def throw_item(
         speed=.05,
         tile=item_tile, 
         animation=None,
-        debris=None
-        )
-    #)
+        debris=None,
+        stop_on_actor=stop_on_actor,
+        ignore_head=True,
+    )
     if not is_stackable:
         map_dict[destination].items[thrown_item_id] = True
     else:
@@ -3088,13 +3088,18 @@ def patch_init(patch_to_key='test_key'):
     if type(state_dict[patch_to_key]) != dict:
         state_dict[patch_to_key] = {}
 
+def positives_presets(preset='weights'):
+    positives_dict = {
+        'weights':('player', 'box', 'weight', 'crate', 'static'),
+    }
+
 def pressure_plate(
     tile='░',
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=0, 
     test_rate=.1,
-    positives = ('player', 'box', 'weight', 'crate', 'static'),
+    positives = positives_presets(),
     sound_choice='default',
     brightness_mod=(2, -2),
     description='The floor here is slightly raised.'
@@ -4633,8 +4638,6 @@ async def free_look(
         current_value = static_vars['cursor_location']
         next_value = add_coords(current_value, offset)
         static_vars['cursor_location'] = next_value
-        with term.location(55, 0):
-            print("cursor_location:", next_value)
         actual_print_location = offset_of_center(static_vars['cursor_location'])
         state_dict['look_cursor_location'] = actual_print_location
         asyncio.ensure_future(
@@ -6591,6 +6594,7 @@ async def async_map_init():
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
+       ((-1, 1), 'test'),
        #((-7, -2), 'presence'), #TODO: unused, needs working leash
     )
     for coord, name in monster_spawns:
@@ -7946,7 +7950,8 @@ async def travel_along_line(
     no_clip=True,
     source_actor=None,
     always_visible=False,
-    description="A cloud of scalding steam!"
+    description="A cloud of scalding steam!",
+    stop_on_actor=False,
 ):
     points = get_line(start_coords, end_coords)
     if no_clip:
@@ -7998,6 +8003,8 @@ async def travel_along_line(
                 coord=point, damage=damage, source_actor=source_actor
             )
         last_location = actor_dict[particle_id].coords()
+        if stop_on_actor and map_dict[point].actors:
+            break
     if debris:
         if random() > .8:
             map_dict[last_location].tile = choice(debris)
@@ -8373,11 +8380,11 @@ async def spawn_preset_actor(
             basic_actor(
                 coord=coords,
                 speed=.75,
-                movement_function=seek_actor, 
+                movement_function=wait, 
                 tile='?',
                 name_key=name,
                 hurtful=True,
-                base_attack=10,
+                base_attack=0,
                 is_animated=True,
                 animation=Animation(preset="mouth"),
                 holding_items=item_drops
