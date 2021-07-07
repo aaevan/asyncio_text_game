@@ -1901,6 +1901,7 @@ async def throw_item(
         stop_on_actor=stop_on_actor,
         ignore_head=True,
     )
+    #there may be problems with stacking items and current thrown item end conditions
     if not is_stackable:
         map_dict[destination].items[thrown_item_id] = True
     else:
