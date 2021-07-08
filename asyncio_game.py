@@ -2206,7 +2206,7 @@ def push(
     returns True if object is pushed.
     """
     if direction in ('ne', 'se', 'sw', 'nw') and no_diagonals:
-        return
+        return 'invalid'
     chosen_dir = dir_to_offset(direction)
     if base_coord is None:
         pusher_coords = actor_dict[pusher].coords()
@@ -2216,24 +2216,24 @@ def push(
     has_actors = bool(map_dict[destination_coords].actors)
     not_viable_space = bool(map_dict[destination_coords].prevent_pushing)
     if not has_actors or not_viable_space:
-        return False
+        return 'invalid'
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
     if mte_parent is not None:
         multi_push(push_dir=direction, mte_parent=mte_parent)
-        return True
+        return mte_parent
     elif not actor_dict[pushed_name].moveable:
-        return False
+        return 'immoveable'
     else:
         pushed_coord = actor_dict[pushed_name].coords()
         pushed_destination = add_coords(pushed_coord, chosen_dir)
         if is_passable(pushed_destination):
             if len(map_dict[pushed_coord].items) > 0:
-                return False
+                return 'item'
             actor_dict[pushed_name].update(coord=pushed_destination)
-            return True
+            return pushed_name
         else:
-            return False
+            return 'invalid'
 
 async def bay_door(
     hinge_coord=(3, 3),
@@ -2363,7 +2363,7 @@ async def bay_door(
                 check_space = segment[1]
                 check_push_space = add_coords(dir_to_offset(orientation), segment[1])
                 segment_name = segment[0]
-                push_return = push(direction=orientation, base_coord=segment[1])
+                push(direction=orientation, base_coord=segment[1])
                 passable = is_passable(checked_coords=check_space)
                 if not passable:
                     break
@@ -4721,7 +4721,17 @@ async def action_keypress(key, debug=True):
             return
         dir_from_key = key_to_compass(key)
         offset_from_dir = dir_to_offset(dir_from_key)
-        push(pusher='player', direction=key_to_compass(key))
+        push_return = push(pusher='player', direction=key_to_compass(key))
+        if push_return == 'invalid':
+            push_message = None
+        elif push_return in ('item', 'immoveable'):
+            push_message='Something is in the way.'
+        else:
+            push_message = f'You push the {push_return}.'
+        if push_message is not None:
+            asyncio.ensure_future(
+                append_to_log(message='Something is in the way.')
+            )
         walk_destination = add_coords(player_coords, offset_from_dir)
         if is_passable(walk_destination):
             x_shift, y_shift = offset_from_dir
