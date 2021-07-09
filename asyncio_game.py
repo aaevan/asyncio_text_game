@@ -502,6 +502,7 @@ class Item:
         power_kwargs={}, 
         broken=False,
         use_message='You use the item.',
+        usage_tip=None,
         broken_text=" is broken.",
         mutable=True,
         breakable=True,
@@ -517,6 +518,7 @@ class Item:
         self.tile = tile
         self.usable_power = usable_power
         self.use_message = use_message
+        self.usage_tip = usage_tip
         self.broken = broken
         self.broken_text = broken_text
         self.power_kwargs = power_kwargs
@@ -3797,7 +3799,8 @@ def spawn_item_at_coords(
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
-            'use_message':None
+            'use_message':None,
+            'usage_tip':"Try using the item on the cell door!",
         },
         'rusty key':{
             'uses':3,
@@ -5380,8 +5383,11 @@ async def equip_item(
     state_dict[current_slot_name] = item_id_choice
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
+        usage_tip = item_dict[item_id_choice].usage_tip
         equip_message = f'Equipped {item_name} to slot {slot}.'
         await append_to_log(message=equip_message)
+        if usage_tip is not None:
+            await append_to_log(message=usage_tip)
     else:
         await append_to_log(message='Nothing to equip!')
 
