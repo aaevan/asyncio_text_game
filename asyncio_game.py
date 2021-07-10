@@ -637,11 +637,11 @@ class Multi_tile_entity:
                 ('▛', '▜'),
                 ('▙', '▟'),
             ),
-            '2x2_block':(
+            'crate_2x2':(
                 ('╔', '╗'),
                 ('╚', '╝'),
             ),
-            '2x2_block_thick':(
+            'crate_2x2_thick':(
                 ('▛', '▜'),
                 ('▙', '▟'),
             ),
@@ -715,12 +715,12 @@ class Multi_tile_entity:
                 'nothingness'
             ),
             'bold_2x2':('???', 'reinforced box', 'wood'),
-            '2x2_block':(
+            'crate_2x2':(
                 'A large wooden crate. It looks fragile.',
                 'side of the crate',
                 'wood'
             ),
-            '2x2_block_thick':(
+            'crate_2x2':(
                 'A large crate heavily banded in metal.',
                 'Part of the banded crate', 
                 'reinforced wood'
@@ -3676,7 +3676,8 @@ def spawn_item_at_coords(
             'accepts_charges':True,
             'use_message':None,
             'breakable':False,
-            'power_kwargs':{'duration':5}
+            'power_kwargs':{'duration':5},
+            'usage_tip':'SCANNER: Activate to briefly reveal your surroundings (green) and entities (red).',
         },
         'fused charge':{
             'uses':-1,
@@ -3716,6 +3717,7 @@ def spawn_item_at_coords(
             'usable_power':health_potion,
             'broken_text':wand_broken_text,
             'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
+            'usage_tip':'RED POTION: use to restore a little bit of life.',
         },
         'shiny stone':{
             'uses':-1,
@@ -3752,10 +3754,11 @@ def spawn_item_at_coords(
                 'damage':10,
                 'sword_color':0xed,
                 'player_sword_track':True,
-                'ignore_list':['stone angel', 'presence']
+                'ignore_list':['stone angel', 'presence', 'crate_2x2']
             },
             'usable_power':sword_item_ability,
             'use_message':"You swing the knife!",
+            'usage_tip':'KNIFE: It\'s a knife. Swing it at things that you don\'t like.',
         },
         'green sword':{
             'uses':-1,
@@ -3800,7 +3803,7 @@ def spawn_item_at_coords(
             'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
             'use_message':None,
-            'usage_tip':"Try using the item on the cell door!",
+            'usage_tip':"CELL KEY: Try using the item on the cell door.",
         },
         'rusty key':{
             'uses':3,
@@ -3830,7 +3833,8 @@ def spawn_item_at_coords(
             'tile':term.color(0xca)('/'),
             'power_kwargs':{'duration':3},
             'usable_power':passwall_effect,
-            'broken_text':wand_broken_text
+            'broken_text':wand_broken_text,
+            'usage_tip':'PASSWALL WAND: be careful to not stand on the shimmering sections for too long.',
         },
         'looking glass':{
             'uses':-1,
@@ -3838,7 +3842,8 @@ def spawn_item_at_coords(
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3},
-            'broken_text':wand_broken_text
+            'broken_text':wand_broken_text,
+            'usage_tip':'LOOKING GLASS: use to briefly reveal then forget nearby cells.',
         }
     }
     #item generation:
@@ -3858,6 +3863,8 @@ def spawn_item_at_coords(
                 spawn_coord=coord,
                 **item_catalog[instance_of]
             )
+            #TODO: allow custom names to be used but use icon_override 
+            #      to designate the icon used
             if custom_name is not None:
                 item_dict[item_id].name = custom_name
             if custom_color is not None:
@@ -4185,6 +4192,7 @@ def draw_door(
         'wooden':(('▯', False, True), ('▮', True, False)),
         'green':(('▯', False, True), ('▮', True, False)),
         'secret':(('▯', False, True), ('▓', True, False)),
+        #TODO: lock the hatch and put something interesting down there.
         'hatch':(('◍', False, True), ('●', False, True)),
         'iron':(('▯', False, True), ('▮', True, False)),
         'cell':(('▯', False, True), ('╬', False, False)),
@@ -4664,6 +4672,7 @@ async def free_look(
                 append_to_log(message=blocked_message)
             )
         debounce = True
+    #TODO: if number keys, describe the item in that inventory slot!
     elif key in '?':
         await display_help(mode="looking") 
         debounce = True
@@ -4825,7 +4834,7 @@ async def debug_commands(key):
         spawn_coords = add_coords(player_coords, (2, 2))
         mte_id = asyncio.ensure_future(
             spawn_mte(
-                spawn_coord=spawn_coords, preset='2x2_block'
+                spawn_coord=spawn_coords, preset='crate_2x2'
             )
         )
     elif key in ']': #teleport to debug location
@@ -5043,6 +5052,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│  *│'.replace('*', term.green('╱')),
             '│ * │'.replace('*', term.green('╱')),
             '│*  │'.replace('*', term.green('╳')),
+            '└───┘',
+        ),
+        'note':(
+            '┌───┐',
+            '│┌─┐│',
+            '││☰││',
+            '│└─┘│',
             '└───┘',
         ),
         'pebble':(
@@ -6482,28 +6498,28 @@ async def async_map_init():
     )
     #spawn multi-tile entities-----------------------------
     mte_spawns = (
-        ((20, 1), '2x2_block'),
-        ((11, 0), '2x2_block'),
-        ((-32, 4), '2x2_block'),
-        ((-28, 1), '2x2_block'),
-        ((9, 3), '2x2_block'),
-        ((7, 0), '2x2_block'),
-        ((27, 0), '2x2_block'),
-        ((29, 1), '2x2_block'),
-        ((5, 0), '2x2_block'),
-        ((7, 3), '2x2_block'),
+        ((20, 1), 'crate_2x2'),
+        ((11, 0), 'crate_2x2'),
+        ((-32, 4), 'crate_2x2'),
+        ((-28, 1), 'crate_2x2'),
+        ((9, 3), 'crate_2x2'),
+        ((7, 0), 'crate_2x2'),
+        ((27, 0), 'crate_2x2'),
+        ((29, 1), 'crate_2x2'),
+        ((5, 0), 'crate_2x2'),
+        ((7, 3), 'crate_2x2'),
         #room to north of scanner spawn location
-        ((24, -16), '2x2_block'),
-        ((30, -13), '2x2_block'),
-        ((31, -16), '2x2_block'),
-        ((28, -13), '2x2_block'),
-        ((29, -15), '2x2_block'),
-        ((13, 17), '2x2_block'),
-        ((11, 17), '2x2_block'),
-        ((9, 17), '2x2_block'),
-        ((15, 20), '2x2_block'),
-        ((13, 20), '2x2_block'),
-        ((11, 20), '2x2_block'),
+        ((24, -16), 'crate_2x2'),
+        ((30, -13), 'crate_2x2'),
+        ((31, -16), 'crate_2x2'),
+        ((28, -13), 'crate_2x2'),
+        ((29, -15), 'crate_2x2'),
+        ((13, 17), 'crate_2x2'),
+        ((11, 17), 'crate_2x2'),
+        ((9, 17), 'crate_2x2'),
+        ((15, 20), 'crate_2x2'),
+        ((13, 20), 'crate_2x2'),
+        ((11, 20), 'crate_2x2'),
     )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
