@@ -6592,7 +6592,6 @@ async def async_map_init():
     tasks = [
         spawn_container(spawn_coord=(3, -4), box_choices=['green sword']),
         trap_init(),
-        #beam_spire(spawn_coord=(26, -25)), #TODO: unused
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(0, 0)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
@@ -7812,7 +7811,7 @@ async def timed_actor(
     if vanish_message is not None:
         await append_to_log(message=vanish_message)
 
-async def beam_spire(spawn_coord=(0, 0)):
+async def beam_spire(spawn_coord=(0, 0)): #UNUSED
     """
     spawns a rotating flame source
     """
