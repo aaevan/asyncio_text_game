@@ -1172,7 +1172,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='║',
             blocking=False,
             passable=False,
-            description='Sturdy metal bars',
+            description='Sturdy metal bars set into the floor and ceiling.',
             magic=False,
             is_animated=False,
             use_action_func=use_action_fork,
@@ -2275,8 +2275,8 @@ async def bay_door(
     }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_description_presets = {
-            'secret':'A rough stone wall',
-            'thick':'A thick steel door',
+            'secret':'A rough stone wall.',
+            'thick':'A sturdy bay door made of gleaming steel.',
             'thin':'A door of stainless steel.',
             'test_a':'THIS IS A TEST (a)',
             'test_b':'THIS IS A TEST (b)',
@@ -4900,11 +4900,11 @@ async def examine_tile(examined_coord=None, tense='present'):
         top_item_name = item_dict[item_list[0]].name
         if len(item_list) > 1:
             description_text = (
-                f'There are {len(item_list)} items here!||'
+                f'There are {len(item_list)} items here.||'
                 f'On top is {word_with_article(top_item_name)}.'
             )
         else:
-            description_text = f'There\'s {word_with_article(top_item_name)} here!'
+            description_text = f'There\'s {word_with_article(top_item_name)} here.'
     elif map_dict[examined_coord].is_door and not is_secret:
         is_open = map_dict[examined_coord].toggle_state_index == 0
         door_type = map_dict[examined_coord].door_type
