@@ -509,6 +509,7 @@ class Item:
         accepts_charges=False,
         stackable=False,
         quantity=None,
+        custom_icon=None,
     ):
         self.name = name
         self.item_id = item_id
@@ -527,6 +528,7 @@ class Item:
         self.accepts_charges = accepts_charges
         self.stackable = stackable
         self.quantity = quantity
+        self.custom_icon = custom_icon
 
     async def use(self):
         if self.uses is not None and not self.broken:
@@ -2270,16 +2272,12 @@ async def bay_door(
         'secret':{'ns':'▓', 'ew':'▓'},
         'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
-        'test_a':{'ns':'n', 'ew':'e'},
-        'test_b':{'ns':'s', 'ew':'w'},
     }
     message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
     door_description_presets = {
-            'secret':'A rough stone wall.',
-            'thick':'A sturdy bay door made of gleaming steel.',
-            'thin':'A door of stainless steel.',
-            'test_a':'THIS IS A TEST (a)',
-            'test_b':'THIS IS A TEST (b)',
+        'secret':'A rough stone wall.',
+        'thick':'A sturdy bay door made of gleaming steel.',
+        'thin':'A door of stainless steel.',
     }
     door_segment_tile = door_style[preset][style_dir]
     if debug:
@@ -3662,6 +3660,7 @@ def spawn_item_at_coords(
             },
             #'use_message':"You read the note.",
             'use_message':None,
+            'custom_icon':'note', #overrides the custom_name using the wrong icon
         },
         'seed':{
             'uses':-1,
@@ -4737,12 +4736,12 @@ async def action_keypress(key, debug=True):
         if push_return == 'invalid':
             push_message = None
         elif push_return in ('item', 'immoveable'):
-            push_message='Something is in the way.'
+            push_message='Can\'t push. Something is in the way.'
         else:
             push_message = f'You push the {push_return}.'
         if push_message is not None:
             asyncio.ensure_future(
-                append_to_log(message='Something is in the way.')
+                append_to_log(message='Can\'t push. Something is in the way.')
             )
         walk_destination = add_coords(player_coords, offset_from_dir)
         if is_passable(walk_destination):
@@ -5380,7 +5379,11 @@ async def key_slot_checker(
             print(term.color(slot_color)(slot))
         with term.location(x_coord, y_coord + 6):
             print('─────')
-        await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=item_name)
+        icon_used = item_name
+        if item_name is not 'empty':
+            if item_dict[equipped_item_id].custom_icon is not None:
+                icon_used = item_dict[equipped_item_id].custom_icon
+        await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=icon_used)
 
 async def equip_item(
     slot='q',
