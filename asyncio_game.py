@@ -1103,6 +1103,7 @@ actor_dict['player'] = Actor(
     tile_color=6, 
     health=100,
     breakable=True,
+    description=cycle(("You.", "Yourself.", "A disembodied head.")),
 )
 
 def get_brightness_val(index, get_length=False):
@@ -4889,7 +4890,10 @@ async def examine_tile(examined_coord=None, tense='present'):
     for actor in map_dict[examined_coord].actors:
         if actor_dict[actor].y_hide_coord is None:
             has_visible_actor = True
-            actor_description = actor_dict[actor].description
+            if type(actor_dict[actor].description) is not str:
+                actor_description = next(actor_dict[actor].description)
+            else:
+                actor_description = actor_dict[actor].description
     if map_dict[examined_coord].door_type != '':
         is_secret = 'secret' in map_dict[examined_coord].door_type
     if has_visible_actor:
@@ -4912,7 +4916,10 @@ async def examine_tile(examined_coord=None, tense='present'):
         else:
             description_text = f'A closed {door_type} door.'
     else:
-        description_text = map_dict[examined_coord].description
+        if type(map_dict[examined_coord].description) is not str:
+            description_text = next(map_dict[examined_coord].description)
+        else:
+            description_text = map_dict[examined_coord].description
     if description_text is not None:
         if tense == 'past':
             description_text = description_text[0].lower() + description_text[1:]
