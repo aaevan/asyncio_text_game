@@ -1103,7 +1103,12 @@ actor_dict['player'] = Actor(
     tile_color=6, 
     health=100,
     breakable=True,
-    description=cycle(("You.", "Yourself.", "An @ symbol floating in space.")),
+    description=cycle((
+        "You.",
+        "Yourself.",
+        "An @ symbol floating in space.",
+        "You're really that interested?",
+    )),
 )
 
 def get_brightness_val(index, get_length=False):
