@@ -1106,8 +1106,7 @@ actor_dict['player'] = Actor(
     description=cycle((
         "You.",
         "Yourself.",
-        "An @ symbol floating in space.",
-        "You're really that interested?",
+        "An unspecified presence floating in space.",
     )),
 )
 
