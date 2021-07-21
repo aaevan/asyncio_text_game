@@ -4990,6 +4990,13 @@ async def use_action(tile_coords=None, is_async=True):
     """
     if tile_coords is None:
         tile_coords = get_facing_coord()
+    #BOOKMARK
+    with term.location(55, 0):
+        print("inside use_action:", random())
+    if bool(map_dict[tile_coords].actors):
+        for index, actor in enumerate(map_dict[tile_coords].actors):
+            with term.location(55, index + 1):
+                print("actor:", actor)
     if map_dict[tile_coords] is not None:
         tile_use_action = map_dict[tile_coords].use_action_func
         tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
@@ -6084,6 +6091,7 @@ def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0
     return brightness_value
 
 async def check_contents_of_tile(coord):
+    return_val = '?'
     if map_dict[coord].actors:
         actor_choice = None
         for actor_name in map_dict[coord].actors:
@@ -6099,6 +6107,8 @@ async def check_contents_of_tile(coord):
                 actor_choice = actor_name
         if actor_choice is not None:
             return_val = actor_dict[actor_choice].get_view()
+        with term.location(100, 0):
+            print(6111, return_val, random()) #TODO: return val is broken for column tiles?
     elif map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return_val = item_dict[item_name].tile
