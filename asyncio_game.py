@@ -4845,9 +4845,10 @@ async def debug_commands(key):
             )
         )
     elif key in ']': #teleport to debug location
-        teleport_place = (29, -26) #near spike traps
+        #teleport_place = (29, -26) #near spike traps
+        teleport_place = (-16, -17) #near columns
         actor_dict['player'].update(coord=teleport_place)
-        state_dict['facing'] = 'n'
+        state_dict['facing'] = 'w'
     elif key in '%':
         player_coords = actor_dict['player'].coords()
         with term.location(55, 0):
@@ -6094,21 +6095,25 @@ async def check_contents_of_tile(coord):
     return_val = '?'
     if map_dict[coord].actors:
         actor_choice = None
+        with term.location(55, 2):
+            print(6099, coord, [actor for actor in map_dict[coord].actors], '    ')
         for actor_name in map_dict[coord].actors:
             #y_hide_coord acts roughly like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
-            if y_hide_coord is not None:
+            with term.location(55, 3):
+                print(6104, f'coord:{coord}, y_hide_coord:{y_hide_coord}     ')
+            if y_hide_coord is None:
+                actor_choice = actor_name
+            else:
                 player_coords = actor_dict['player'].coords()
                 if player_coords[1] >= y_hide_coord[1]:
                     actor_choice = actor_name
-                else:
-                    continue
-            else:
-                actor_choice = actor_name
         if actor_choice is not None:
             return_val = actor_dict[actor_choice].get_view()
-        with term.location(100, 0):
-            print(6111, return_val, random()) #TODO: return val is broken for column tiles?
+        with term.location(80, 0):
+            print(6120, return_val) #TODO: return val is broken for column tiles?
+        with term.location(80, 1):
+            print(6122, actor_choice) #TODO: return val is broken for column tiles?
     elif map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return_val = item_dict[item_name].tile
