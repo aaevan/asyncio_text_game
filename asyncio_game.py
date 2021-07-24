@@ -6111,7 +6111,7 @@ async def check_contents_of_tile(coord):
         if actor_choice is not None:
             return_val = actor_dict[actor_choice].get_view()
         with term.location(80, 0):
-            print(6120, return_val) #TODO: return val is broken for column tiles?
+            print(6120, return_val)
         with term.location(80, 1):
             print(6122, actor_choice) #TODO: return val is broken for column tiles?
     elif map_dict[coord].items:
