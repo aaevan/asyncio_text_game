@@ -6092,28 +6092,18 @@ def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0
     return brightness_value
 
 async def check_contents_of_tile(coord):
-    return_val = '?'
+    return_val = map_dict[coord].tile
     if map_dict[coord].actors:
         actor_choice = None
-        with term.location(55, 2):
-            print(6099, coord, [actor for actor in map_dict[coord].actors], '    ')
         for actor_name in map_dict[coord].actors:
-            #y_hide_coord acts roughly like a z_index: higher values in front
+            #y_hide_coord acts like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
-            with term.location(55, 3):
-                print(6104, f'coord:{coord}, y_hide_coord:{y_hide_coord}     ')
+            player_coords = actor_dict['player'].coords()
             if y_hide_coord is None:
-                actor_choice = actor_name
-            else:
-                player_coords = actor_dict['player'].coords()
-                if player_coords[1] >= y_hide_coord[1]:
-                    actor_choice = actor_name
-        if actor_choice is not None:
-            return_val = actor_dict[actor_choice].get_view()
-        with term.location(80, 0):
-            print(6120, return_val)
-        with term.location(80, 1):
-            print(6122, actor_choice) #TODO: return val is broken for column tiles?
+                return_val = actor_dict[actor_name].get_view()
+            elif player_coords[1] >= y_hide_coord[1]:
+                if actor_dict[actor_choice] != [None]:
+                    return_val = actor_dict[actor_choice].get_view()
     elif map_dict[coord].items:
         item_name = next(iter(map_dict[coord].items))
         return_val = item_dict[item_name].tile
