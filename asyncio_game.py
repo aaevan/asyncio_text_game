@@ -6096,7 +6096,7 @@ async def check_contents_of_tile(coord):
     if map_dict[coord].actors:
         actor_choice = None
         for actor_name in map_dict[coord].actors:
-            #y_hide_coord acts like a z_index: higher values in front
+            #the y_hide_coord value acts like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
             player_coords = actor_dict['player'].coords()
             if y_hide_coord is None:
