@@ -726,7 +726,7 @@ class Multi_tile_entity:
                 'wood'
             ),
             'crate_2x2':(
-                'A large crate heavily banded in metal.',
+                'A large crate banded with thick metal.',
                 'Part of the banded crate', 
                 'reinforced wood'
             ),
@@ -3810,7 +3810,7 @@ def spawn_item_at_coords(
             'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
             'use_message':None,
-            'usage_tip':"CELL KEY: Try using the item on the cell door.",
+            'usage_tip':"CELL KEY: Try using it on the cell door.",
         },
         'rusty key':{
             'uses':3,
@@ -4992,8 +4992,6 @@ async def use_action(tile_coords=None, is_async=True):
     if tile_coords is None:
         tile_coords = get_facing_coord()
     #BOOKMARK
-    with term.location(55, 0):
-        print("inside use_action:", random())
     if bool(map_dict[tile_coords].actors):
         for index, actor in enumerate(map_dict[tile_coords].actors):
             with term.location(55, index + 1):
@@ -5015,7 +5013,6 @@ async def use_action(tile_coords=None, is_async=True):
             await tile_use_action() #case for no arguments provided
         else:
             tile_use_action()
-
 
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
@@ -5823,7 +5820,8 @@ async def display_help(mode="normal"):
             filter_print(
                 output_text=line, pause_stay_on=7,
                 pause_fade_in=.015, pause_fade_out=.015,
-                x_offset=-55, y_offset=-33 + line_number,
+                #x_offset=-55, y_offset=-33 + line_number,
+                x_offset=20, y_offset=-45 + line_number,
                 hold_for_lock=False
             )
         )
@@ -6067,7 +6065,8 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             else:
                 print_choice = term.color(tile_color)(print_choice)
         if last_print_choice == print_choice:
-            if random() > .1: #9 times out of ten, don't reprint the tile
+            #BOOKMARK: bottleneck, kind of a kludge
+            if random() > .05: #19 times out of 20, don't reprint the tile
                 continue
         with term.location(*print_location):
             print(print_choice)
