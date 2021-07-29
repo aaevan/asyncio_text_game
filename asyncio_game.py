@@ -2424,6 +2424,7 @@ async def bay_door_pair(
                 pressure_plate(
                     spawn_coord=pair, 
                     patch_to_key=patch_to_key,
+                    #positives=
                 )
         else:
             pressure_plate(
@@ -2596,6 +2597,8 @@ async def spike_trap(
 def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
     for actor in actors_on_square:
+        if positives is None:
+            continue
         for weight in positives:
             if weight in actor[0]:
                 return True
@@ -3097,22 +3100,23 @@ def patch_init(patch_to_key='test_key'):
     if type(state_dict[patch_to_key]) != dict:
         state_dict[patch_to_key] = {}
 
-def positives_presets(preset='weights'):
-    positives_dict = {
-        'weights':('player', 'box', 'weight', 'crate', 'static'),
-    }
-
 def pressure_plate(
     tile='░',
     spawn_coord=(4, 0), 
     patch_to_key='switch_1',
     off_delay=0, 
     test_rate=.1,
-    positives = positives_presets(),
+    positives=('player', 'box', 'weight', 'crate', 'static'),
+    positives_preset=None,
     sound_choice='default',
     brightness_mod=(2, -2),
     description='The floor here is slightly raised.'
 ):
+    positives_dict = {
+        'weights':('player', 'box', 'weight', 'crate', 'static'),
+    }
+    if positives_preset is not None:
+        positives = positives_dict[positives_preset]
     patch_init(patch_to_key)
     plate_id = generate_id(base_name='pressure_plate')
     map_dict[spawn_coord].description = description
@@ -5450,8 +5454,6 @@ async def siphon_trinket_effect(
     if center_on_actor_id is None:
         center_on_actor_id = 'player'
     if not hasattr(actor_dict[center_on_actor_id], 'coords'):
-        with term.location(55, 0):
-            print("5456!")
         return
     if item_id is not None:
         if item_dict[item_id].uses <= 0:
@@ -6435,7 +6437,7 @@ async def minimap_init(loop, box_width=21, box_height=21):
     width, height = (term.width, term.height)
     x_offset, y_offset = (width - (box_width // 2) - 2), 1 + (box_height // 2)
     if width % 2 == 0:
-        box_x_offset, box_y_offset = (width // 2) - box_width, -box_height - 1
+        box_x_offset, box_y_offset = (width // 2) - box_width, -box_height
     else:
         box_x_offset, box_y_offset = (width // 2) - box_width + 1, -box_height - 1
     asyncio.ensure_future(
