@@ -6508,7 +6508,7 @@ async def async_map_init():
         distance_trigger=3
     )
     announcement_at_coord(
-        "A loose pebble tumbles off the edge.||You don't hear it land.", 
+        "A loose pebble tumbles off the edge... you don't hear it land.", 
         coord=(22, -30), 
         describe_tile=False, 
         distance_trigger=2
