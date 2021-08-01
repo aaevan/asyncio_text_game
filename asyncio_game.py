@@ -6502,13 +6502,7 @@ async def async_map_init():
         distance_trigger=2
     )
     announcement_at_coord(
-        "You feel momentarily nauseous.",
-        coord=(-1020, -969),
-        describe_tile=False, 
-        distance_trigger=3
-    )
-    announcement_at_coord(
-        "A loose pebble tumbles off the edge.|| ... You don't hear it land.", 
+        "A loose pebble tumbles off the edge.||You don't hear it land.", 
         coord=(22, -30), 
         describe_tile=False, 
         distance_trigger=2
@@ -6859,6 +6853,16 @@ async def ui_setup():
             bar_color=1
         )
     )
+    #loop.create_task( #TODO: create a status bar for noise made-- 
+                       #TODO: make various enemies respond to noise
+        #status_bar(
+            #y_offset=20,
+            #actor_name='player',
+            #attribute='health',
+            #title=health_title,
+            #bar_color=2
+        #)
+    #)
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
 #Actor behavior functions-------------------------------------------------------
