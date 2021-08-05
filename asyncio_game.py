@@ -6853,16 +6853,6 @@ async def ui_setup():
             bar_color=1
         )
     )
-    #loop.create_task( #TODO: create a status bar for noise made-- 
-                       #TODO: make various enemies respond to noise
-        #status_bar(
-            #y_offset=20,
-            #actor_name='player',
-            #attribute='health',
-            #title=health_title,
-            #bar_color=2
-        #)
-    #)
     loop.create_task(player_coord_readout(x_offset=10, y_offset=18))
 
 #Actor behavior functions-------------------------------------------------------
