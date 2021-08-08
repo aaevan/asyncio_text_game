@@ -6420,13 +6420,22 @@ async def view_tile_init(
     debug=False,
 ):
     view_tile_count = 0
+    sorted_tiles = []
     for x in range(-term_x_radius, term_x_radius + 1):
        for y in range(-term_y_radius, term_y_radius + 1):
            distance = sqrt(x**2 + y**2)
            #cull view_tile instances that are beyond a certain radius
            if distance < max_view_radius:
-               loop.create_task(view_tile(map_dict, x_offset=x, y_offset=y))
-               view_tile_count += 1
+               sorted_tiles.append((distance, (x, y)))
+    sorted_tiles.sort()
+    #shuffle(sorted_tiles)
+    for distance, (x_offset, y_offset) in sorted_tiles:
+        loop.create_task(
+            view_tile(
+                map_dict, x_offset=x_offset, y_offset=y_offset
+            )
+        )
+        view_tile_count += 1
     if debug:
         with term.location(50, 0):
             print(f'view_tile_count: {view_tile_count}')
