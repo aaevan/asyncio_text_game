@@ -6592,12 +6592,12 @@ async def async_map_init():
             coord=coord, instance_of=item_name, on_actor_id=False
         )
     notes = (
-        ((25, -4), 'crumpled note', None, 'I\'ve lost pieces of myself.'),
+        ((25, -4), 'crumpled note', 0xf9, 'I\'ve lost pieces of myself.'),
         ((11, -44), 'bloody scrawl', 0x34, f'I know why these tiles are raised.'),
         ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
-        ((31, 1), 'faded wrapper', None, 'Secret doors tend to be a slightly darker color.'),
+        ((31, 1), 'faded wrapper', 0xee, 'Secret doors tend to be a slightly darker color.'),
         ((30, -5), 'graph paper', None,
             ( 'When I use the scanner, '
               'I could see red patches where there were creatures. '
