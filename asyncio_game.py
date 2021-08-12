@@ -6597,12 +6597,19 @@ async def async_map_init():
         ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
-        ((31, 1), 'faded wrapper', 0xee, 'Secret doors tend to be a slightly darker color.'),
+        (
+            (31, 1), 
+            'faded wrapper', 
+            0xee, 
+            'Secret doors tend to be a slightly darker color.'
+        ),
         ((30, -5), 'graph paper', None,
-            ( 'When I use the scanner, '
-              'I could see red patches where there were creatures. '
-              'Also, I can see open volumes beyond my line of sight! '
-              'It chews through batteries pretty fast though.')
+            (
+                'When I use the scanner, '
+                'I could see red patches where there were creatures. '
+                'Also, I can see open volumes beyond my line of sight! '
+                'It eats through batteries pretty fast though.'
+            )
         ),
     )
     for coord, custom_name, custom_color, message in notes:
@@ -6659,16 +6666,17 @@ async def async_map_init():
     for task in tasks:
         loop.create_task(task)
 
-
 async def trap_init():
     loop = asyncio.get_event_loop()
     base_coord = (9, -50)
     draw_centered_box(middle_coord=base_coord, x_size=9, y_size=11, preset='floor')
+    x_range, y_range = (-4, 4), (-5, 5)
     rand_coords = { #dict comprehension:
-        (randint(-4, 4) + base_coord[0], randint(-5, 5) + base_coord[1]) 
+        (randint(*x_range) + base_coord[0], randint(*y_range) + base_coord[1]) 
         for _ in range(20)
     }
-    state_dict['switch_1'] = {}
+    #for switch_name in ('switch_1', 'switch_2'):
+        #patch_init(patch_to_key=switch_name)
     for coord in rand_coords:
         pressure_plate(
             spawn_coord=coord, patch_to_key='switch_1'
@@ -6682,7 +6690,6 @@ async def trap_init():
             nodes=spike_trap_coords, base_coord=base_coord, patch_to_key='switch_1'
         )
     )
-    state_dict['switch_2'] = {}
     pressure_plate(
         spawn_coord=(6, -20), patch_to_key='switch_2'
     )
@@ -6747,9 +6754,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
             state_dict['known location'] = True
     else:
         asyncio.ensure_future(
-            filter_print(
-                output_text="Something is in the way."
-            )
+            append_to_log(message="Something is in the way.")
         )
 
 def get_relative_ui_coord(x_offset, y_offset):
