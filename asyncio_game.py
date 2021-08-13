@@ -6670,17 +6670,20 @@ async def trap_init():
     loop = asyncio.get_event_loop()
     base_coord = (9, -50)
     draw_centered_box(middle_coord=base_coord, x_size=9, y_size=11, preset='floor')
+    #pressure plates are randomly distributed within the bounds of the x_range
+    # and y_range tuples
     x_range, y_range = (-4, 4), (-5, 5)
     rand_coords = { #dict comprehension:
         (randint(*x_range) + base_coord[0], randint(*y_range) + base_coord[1]) 
         for _ in range(20)
     }
-    #for switch_name in ('switch_1', 'switch_2'):
-        #patch_init(patch_to_key=switch_name)
     for coord in rand_coords:
         pressure_plate(
             spawn_coord=coord, patch_to_key='switch_1'
         )
+    #the following few lines create a north-south hallway of coordinates.
+    # (-5, 'e') is the row of eastern facing spike traps on the left.
+    # (-5, 'w') is the western facing ones.
     node_offsets = ((-5, 'e'), (5, 'w'))
     spike_trap_coords = [
         (offset, i, facing) for i in range(-5, 6) for (offset, facing) in node_offsets
