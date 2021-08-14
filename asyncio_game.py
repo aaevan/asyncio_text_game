@@ -6683,7 +6683,7 @@ async def trap_init():
         )
     #the following few lines create a north-south hallway of coordinates.
     # (-5, 'e') is the row of eastern facing spike traps on the left.
-    # (-5, 'w') is the western facing ones.
+    # (5, 'w') is the western facing ones.
     node_offsets = ((-5, 'e'), (5, 'w'))
     spike_trap_coords = [
         (offset, i, facing) for i in range(-5, 6) for (offset, facing) in node_offsets
