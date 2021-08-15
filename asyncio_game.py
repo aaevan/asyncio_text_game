@@ -5828,33 +5828,6 @@ async def display_help(mode="normal"):
             )
         )
 
-async def tile_debug_info(offset_coord=(50, 0), offset_from_center=False):
-    middle_coord = get_term_middle()
-    dummy_text = []
-    while True:
-        if state_dict['killall'] == True:
-            break
-        check_dir = state_dict['facing']
-        check_coord = add_coords(
-            actor_dict['player'].coords(),
-            dir_to_offset(check_dir),
-        )
-        output_text = [
-            f'tile_debug_info:',
-            f'facing: {check_dir}',
-            f' coord: {check_coord}',
-            f'actors: {map_dict[check_coord].actors.keys()}',
-            f'numact: {len(map_dict[check_coord].actors.keys())}',
-            f'  tile: {map_dict[check_coord].tile}',
-        ]
-        blank_space = [' ' * len(line) for line in output_text]
-        for text_written in (blank_space, output_text):
-            for y_offset, line in enumerate(text_written):
-                output_location = add_coords(offset_coord, (0, y_offset))
-                with term.location(*output_location):
-                    print(line)
-        await asyncio.sleep(.2)
-
 async def check_line_of_sight(coord_a, coord_b):
     """
     intended to be used for occlusion.
@@ -6858,7 +6831,6 @@ async def ui_setup():
             slot=key, 
             print_location=add_coords(offset, center_offset),
         ))
-        #loop.create_task(tile_debug_info()) #TODO: unused
     health_title = f'{term.color(1)("♥")} '
     loop.create_task(
         status_bar(
