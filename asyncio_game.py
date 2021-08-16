@@ -3554,11 +3554,26 @@ async def temp_view_circle(
     on_actor=None, 
     instant=True,
     wipe_after=True,
+    timeout=0,
 ):
     """
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
     """
+    if state_dict['temp_view_timeout'] > 0:
+        asyncio.ensure_future(
+            append_to_log(
+                message=(
+                    "Your view remains clouded. "
+                    f"(cooldown: {state_dict['temp_view_timeout']}s)"
+                )
+            )
+        )
+        return
+    else:
+        asyncio.ensure_future(
+            append_to_log(message="You see yourself outside of yourself.")
+        )
     if on_actor is not None:
         center_coord = player_coords = actor_dict[on_actor].coords()
     temp_circle = get_circle(center=center_coord, radius=radius)
@@ -3577,7 +3592,11 @@ async def temp_view_circle(
         if wipe_after:
             map_dict[coord].seen = False
     state_dict['lock view'] = False
-
+    if timeout > 0:
+        state_dict['temp_view_timeout'] = timeout
+        while state_dict['temp_view_timeout'] > 0:
+            state_dict['temp_view_timeout'] -= 1
+            await asyncio.sleep(1)
 #Item interaction---------------------------------------------------------------
 #TODO: create a weight that can be picked up and stored in one's inventory.
 #TODO: an item that when thrown, temporarily creates a circle of overridden_view == True
@@ -3849,12 +3868,14 @@ def spawn_item_at_coords(
         },
         'looking glass':{
             'uses':-1,
-            'use_message':"You see yourself outside of yourself.",
+            #'use_message':"You see yourself outside of yourself.",
+            'use_message':None,
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
-            'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3},
+            'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3, 'timeout':10},
             'broken_text':wand_broken_text,
-            'usage_tip':'LOOKING GLASS: use to briefly reveal then forget nearby cells.',
+            'usage_tip':'LOOKING GLASS: use to briefly reveal (then immediately forget) nearby cells.',
+            #'timeout':5,
         }
     }
     #item generation:
@@ -6551,6 +6572,7 @@ async def async_map_init():
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((26, 10), 'looking glass'), 
+        ((24, -5), 'looking glass'), 
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
@@ -8568,6 +8590,7 @@ def state_setup():
     state_dict['passwall running'] = False
     state_dict['blink_timeout'] = 0
     state_dict['look_cursor_location'] = (0, 0)
+    state_dict['temp_view_timeout'] = 0
 
 def main():
     state_setup()
