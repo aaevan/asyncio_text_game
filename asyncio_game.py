@@ -3868,14 +3868,12 @@ def spawn_item_at_coords(
         },
         'looking glass':{
             'uses':-1,
-            #'use_message':"You see yourself outside of yourself.",
             'use_message':None,
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3, 'timeout':10},
             'broken_text':wand_broken_text,
             'usage_tip':'LOOKING GLASS: use to briefly reveal (then immediately forget) nearby cells.',
-            #'timeout':5,
         }
     }
     #item generation:
