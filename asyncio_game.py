@@ -10,7 +10,7 @@ from numpy import linspace
 from blessed import Terminal
 from copy import copy
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from inspect import iscoroutinefunction
 from itertools import cycle, repeat
 from math import acos, cos, degrees, pi, radians, sin, sqrt
@@ -513,6 +513,8 @@ class Item:
         stackable=False,
         quantity=None,
         custom_icon=None,
+        cooldown=0,
+        last_use_time=None
     ):
         self.name = name
         self.item_id = item_id
@@ -532,12 +534,29 @@ class Item:
         self.stackable = stackable
         self.quantity = quantity
         self.custom_icon = custom_icon
+        self.cooldown = cooldown #given in seconds
+        if last_use_time is None:
+            self.last_use_time = datetime.now() - timedelta(seconds=999)
+        else:
+            self.last_use_time = last_use_time
 
     async def use(self):
+        if self.cooldown is not None:
+            cooldown_expiry = self.last_use_time + timedelta(seconds=self.cooldown)
+            is_usable_yet = datetime.now() > cooldown_expiry
+            if not is_usable_yet:
+                #next_use_seconds = (datetime.now() - self.last_use_time + timedelta(seconds=self.cooldown)).total_seconds()
+                next_use_seconds = self.cooldown - (datetime.now() - self.last_use_time).total_seconds()
+                #await append_to_log(
+                    #message=f"The {self.name} is usable in {next_use_seconds} seconds"
+                #)
+                return
         if self.uses is not None and not self.broken:
             if self.use_message is not None:
                 asyncio.ensure_future(append_to_log(message=self.use_message))
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
+            #if cooldown is not None:
+                #if datetime.now() > self.next_time
             if self.uses is not None and self.uses != -1:
                 self.uses -= 1
             if self.uses <= 0 and self.breakable and self.uses != -1:
@@ -550,6 +569,7 @@ class Item:
             await append_to_log(
                 message=f"The {self.name} is unbreakable!"
             )
+        self.last_use_time = datetime.now()
 
 class Multi_tile_entity:
     """
@@ -3560,20 +3580,9 @@ async def temp_view_circle(
     carves out a temporary zone of the map that can be viewed regardless
     of whether it's through a wall or behind the player's fov arc.
     """
-    if state_dict['temp_view_timeout'] > 0:
-        asyncio.ensure_future(
-            append_to_log(
-                message=(
-                    "Your view remains clouded. "
-                    f"(cooldown: {state_dict['temp_view_timeout']}s)"
-                )
-            )
-        )
-        return
-    else:
-        asyncio.ensure_future(
-            append_to_log(message="You see yourself outside of yourself.")
-        )
+    asyncio.ensure_future(
+        append_to_log(message="You see yourself outside of yourself.")
+    )
     if on_actor is not None:
         center_coord = player_coords = actor_dict[on_actor].coords()
     temp_circle = get_circle(center=center_coord, radius=radius)
@@ -3789,6 +3798,7 @@ def spawn_item_at_coords(
             'usable_power':sword_item_ability,
             'use_message':"You swing the knife!",
             'usage_tip':'KNIFE: It\'s a knife. Swing it at things that you don\'t like.',
+            'cooldown':.3,
         },
         'green sword':{
             'uses':-1,
@@ -3874,6 +3884,7 @@ def spawn_item_at_coords(
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3, 'timeout':10},
             'broken_text':wand_broken_text,
             'usage_tip':'LOOKING GLASS: use to briefly reveal (then immediately forget) nearby cells.',
+            'cooldown':10,
         }
     }
     #item generation:
@@ -4005,8 +4016,24 @@ async def display_items_on_actor(
                 uses_text = f'({item_dict[item_id].uses})'
             else:
                 uses_text = ''
-            with term.location(x_pos, (y_pos + 1) + number):
-                print(f'{item_dict[item_id].tile} {item_dict[item_id].name} {uses_text}')
+            #TODO:
+            # make cooldown and next_use properties (based on time deltas)
+            # for each individual item.
+            item_tile = item_dict[item_id].tile
+            item_name = item_dict[item_id].name
+            print_location = (x_pos, (y_pos + 1) + number)
+            cooldown = item_dict[item_id].cooldown
+            last_use_time = item_dict[item_id].last_use_time
+            next_use_seconds = cooldown - (datetime.now() - last_use_time).total_seconds()
+            if next_use_seconds > 0:
+                cooldown_text = f'[{round(next_use_seconds, 1)}s]  '
+            else:
+                cooldown_text = '           '
+            formatted_text = f'{item_tile} {item_name} {uses_text}{cooldown_text}'
+            if next_use_seconds > 0:
+                formatted_text = term.color(0xec)(formatted_text)
+            with term.location(*print_location):
+                print(formatted_text)
 
 async def filter_print(
     output_text='filter_print default text',
@@ -8588,7 +8615,6 @@ def state_setup():
     state_dict['passwall running'] = False
     state_dict['blink_timeout'] = 0
     state_dict['look_cursor_location'] = (0, 0)
-    state_dict['temp_view_timeout'] = 0
 
 def main():
     state_setup()
@@ -8599,7 +8625,7 @@ def main():
         get_key(map_dict),
         view_tile_init(loop),
         quitter_daemon(),
-        minimap_init(loop),
+        #minimap_init(loop),
         ui_setup(),
         #printing_testing(),
         #TODO: fix follower vine to disappear after a set time:
