@@ -4016,9 +4016,6 @@ async def display_items_on_actor(
                 uses_text = f'({item_dict[item_id].uses})'
             else:
                 uses_text = ''
-            #TODO:
-            # make cooldown and next_use properties (based on time deltas)
-            # for each individual item.
             item_tile = item_dict[item_id].tile
             item_name = item_dict[item_id].name
             print_location = (x_pos, (y_pos + 1) + number)
