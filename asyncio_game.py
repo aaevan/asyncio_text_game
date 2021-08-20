@@ -4022,15 +4022,21 @@ async def display_items_on_actor(
             cooldown = item_dict[item_id].cooldown
             last_use_time = item_dict[item_id].last_use_time
             next_use_seconds = cooldown - (datetime.now() - last_use_time).total_seconds()
-            if next_use_seconds > 0:
-                cooldown_text = f'[{round(next_use_seconds, 1)}s]  '
+            if cooldown > 0:
+                percent_filled = 1  - (next_use_seconds / cooldown)
             else:
-                cooldown_text = '           '
-            formatted_text = f'{item_tile} {item_name} {uses_text}{cooldown_text}'
+                percent_filled = 1
             if next_use_seconds > 0:
-                formatted_text = term.color(0xec)(formatted_text)
+                cooldown_text = f'[{round(next_use_seconds, 1)}s] {round(percent_filled, 2)}'
+            else:
+                cooldown_text = '      '
+            formatted_text = term.strip(f'{item_name} {uses_text}')
+            stripped_length = len(formatted_text.strip()) #trim away whitespace, too
+            filled_index = round(stripped_length * percent_filled)
+            left_half, right_half = formatted_text[:filled_index], formatted_text[filled_index:]
+            output_text = f'{item_tile} {left_half}{term.color(0xec)(right_half)}'
             with term.location(*print_location):
-                print(formatted_text)
+                print(output_text)
 
 async def filter_print(
     output_text='filter_print default text',
