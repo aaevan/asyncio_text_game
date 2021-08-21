@@ -8460,7 +8460,6 @@ async def spawn_preset_actor(
                 made_of='energy',
             )
         )
-    
     elif preset == 'test':
         item_drops = ['pebble']
         loop.create_task(
@@ -8474,7 +8473,8 @@ async def spawn_preset_actor(
                 base_attack=0,
                 is_animated=True,
                 animation=Animation(preset="mouth"),
-                holding_items=item_drops
+                holding_items=item_drops,
+                made_of='???',
             )
         )
     else:
