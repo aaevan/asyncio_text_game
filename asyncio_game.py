@@ -3671,6 +3671,7 @@ def spawn_item_at_coords(
             'use_message':None,
             'broken_text':' is out of charges',
             'accepts_charges':True,
+            'cooldown':3,
             'power_kwargs':{
                 'speed':0,
                 'retract_speed':0,
@@ -4030,11 +4031,11 @@ async def display_items_on_actor(
                 cooldown_text = f'[{round(next_use_seconds, 1)}s] {round(percent_filled, 2)}'
             else:
                 cooldown_text = '      '
-            formatted_text = term.strip(f'{item_name} {uses_text}')
+            formatted_text = term.strip(f'{item_name}')
             stripped_length = len(formatted_text.strip()) #trim away whitespace, too
             filled_index = round(stripped_length * percent_filled)
             left_half, right_half = formatted_text[:filled_index], formatted_text[filled_index:]
-            output_text = f'{item_tile} {left_half}{term.color(0xec)(right_half)}'
+            output_text = f'{item_tile} {left_half}{term.color(0xec)(right_half)} {uses_text}'
             with term.location(*print_location):
                 print(output_text)
 
