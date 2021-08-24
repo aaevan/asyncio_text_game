@@ -4032,7 +4032,7 @@ async def display_items_on_actor(
             else:
                 cooldown_text = '      '
             formatted_text = term.strip(f'{item_name}')
-            stripped_length = len(formatted_text.strip()) #trim away whitespace, too
+            stripped_length = len(formatted_text.strip()) #trim away whitespace
             filled_index = round(stripped_length * percent_filled)
             left_half, right_half = formatted_text[:filled_index], formatted_text[filled_index:]
             output_text = f'{item_tile} {left_half}{term.color(0xec)(right_half)} {uses_text}'
@@ -4088,7 +4088,7 @@ async def filter_print(
             await asyncio.sleep(pause_fade_out)
         else:
             asyncio.sleep(pause_fade_out)
-    state_dict['printing'] = False #releasing hold on printing to the screen
+    state_dict['printing'] = False #release hold on printing to the screen
     await asyncio.sleep(1)
 
 def print_debug_grid():
