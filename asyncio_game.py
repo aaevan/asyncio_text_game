@@ -3199,7 +3199,7 @@ async def puzzle_pair(
     block_coord=(-10, -10),
     plate_coord=(-10, -7),
     puzzle_name='puzzle_0', 
-    block_description='A heavy block.|||A thin outline of a star is inscribed into the top face.',
+    block_description='A heavy block. A thin outline of a star is inscribed into the top face.',
     plate_description='The floor here is carved with a star.|||It sits slightly above the nearby tiles.',
     color_num=3,
     block_char='☐'
@@ -6116,9 +6116,9 @@ def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0
     return brightness_value
 
 async def check_contents_of_tile(coord):
-    return_val = map_dict[coord].tile
+    #return_val = map_dict[coord].tile
+    return_val = None
     if map_dict[coord].actors:
-        actor_choice = None
         for actor_name in map_dict[coord].actors:
             #the y_hide_coord value acts like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
@@ -6126,19 +6126,20 @@ async def check_contents_of_tile(coord):
             if y_hide_coord is None:
                 return_val = actor_dict[actor_name].get_view()
             elif player_coords[1] >= y_hide_coord[1]:
-                if actor_dict[actor_choice] != [None]:
-                    return_val = actor_dict[actor_choice].get_view()
-    elif map_dict[coord].items:
-        item_name = next(iter(map_dict[coord].items))
-        return_val = item_dict[item_name].tile
-    elif map_dict[coord].is_animated:
-        return_val = next(map_dict[coord].animation)
-    else:
-        if map_dict[coord].color_num not in (7, 8):
-            tile_color = map_dict[coord].color_num
-            return_val = term.color(tile_color)(map_dict[coord].tile)
+                if actor_dict[actor_name] != [None]:
+                    return_val = actor_dict[actor_name].get_view()
+    if return_val is None:
+        if map_dict[coord].items:
+            item_name = next(iter(map_dict[coord].items))
+            return_val = item_dict[item_name].tile
+        elif map_dict[coord].is_animated:
+            return_val = next(map_dict[coord].animation)
         else:
-            return_val = map_dict[coord].tile
+            if map_dict[coord].color_num not in (7, 8):
+                tile_color = map_dict[coord].color_num
+                return_val = term.color(tile_color)(map_dict[coord].tile)
+            else:
+                return_val = map_dict[coord].tile
     return return_val
 
 def offset_of_center(coord):
@@ -6601,7 +6602,6 @@ async def async_map_init():
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((26, 10), 'looking glass'), 
-        ((24, -5), 'looking glass'), 
         ((31, -6), 'scanner'),
         ((31, -1), 'red potion'),
         ((26, -13), 'green key'),
