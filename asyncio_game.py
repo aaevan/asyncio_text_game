@@ -108,7 +108,9 @@ class Actor:
     """ the representation of a single actor that lives on the map. """
     #TODO: a use action option for actors 
     # i.e.: use the actor's use action instead of the tiles if given a choice
-    # NPCs to talk to? Containers/crates/chests to open?
+    # possible uses:
+    #    NPCs to talk to? 
+    #    Containers/crates/chests to open?
     def __init__(
         self,
         name='',
