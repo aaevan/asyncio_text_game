@@ -144,7 +144,6 @@ class Actor:
         self.base_attack = base_attack
         self.health = health
         self.hurtful = hurtful
-        #max health is set to starting value
         self.max_health = self.health 
         self.alive = True
         self.moveable = moveable
