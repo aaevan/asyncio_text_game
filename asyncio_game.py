@@ -163,6 +163,7 @@ class Actor:
     def update(self, coord=(0, 0), make_passable=True):
         self.last_location = self.coord
         #make previous space passable:
+        #TODO: replace actor usage of passable.
         if make_passable:
             map_dict[self.last_location].passable = True 
         if self.name in map_dict[self.coords()].actors:
