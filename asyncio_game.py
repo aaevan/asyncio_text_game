@@ -160,12 +160,11 @@ class Actor:
         self.solid = solid
         self.made_of = made_of
 
-    def update(self, coord=(0, 0), make_passable=True):
+    def update(self, coord=(0, 0)):
         self.last_location = self.coord
         #make previous space passable:
         #TODO: replace actor usage of passable.
-        if make_passable:
-            map_dict[self.last_location].passable = True 
+        # is_passable is important?
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
@@ -2784,7 +2783,7 @@ async def use_action_fork(
         ],
         'bars':[
             (append_to_log, True, {
-                'message':'You try to rattle the bars but they don\'t budge.'
+                'message':'You try to shake the bars but they won\'t budge.'
             }),
         ],
         'pipe':[
@@ -3309,7 +3308,7 @@ async def swing(
         offset = dir_to_offset(print_direction)
         print_coord = add_coords(base_coord, offset)
         actor_dict[swing_id].tile = term.on_color(0xea)(swing_char)
-        actor_dict[swing_id].update(print_coord, make_passable=False)
+        actor_dict[swing_id].update(print_coord)
         await damage_all_actors_at_coord(
             coord=print_coord, damage=damage, source_actor='player'
         )
@@ -4012,7 +4011,7 @@ async def display_items_on_actor(
         await asyncio.sleep(.1)
         with term.location(x_pos, y_pos):
             print('Inventory:')
-        clear_screen_region(x_size=20, y_size=10, screen_coord=(x_pos, y_pos+1))
+        clear_screen_region(x_size=20, y_size=16, screen_coord=(x_pos, y_pos+1))
         item_list = [item for item in actor_dict[actor_key].holding_items]
         for number, item_id in enumerate(item_list):
             if item_dict[item_id].uses >= 0:
@@ -4123,7 +4122,6 @@ def sow_texture(
     paint=True,
     color_num=1,
     description='',
-    only_passable=True,
     append_description=True
 ):
     """ given a root node, picks random points within a radius length and writes
@@ -4137,7 +4135,7 @@ def sow_texture(
             )
             throw_dist = sqrt(x_toss**2 + y_toss**2) #distance
         toss_coord = add_coords(root_coord, (x_toss, y_toss))
-        if only_passable and not map_dict[toss_coord].passable:
+        if map_dict[toss_coord].passable:
             continue
         if map_dict[toss_coord].mutable == False:
             continue
@@ -6619,7 +6617,7 @@ async def async_map_init():
         )
     notes = (
         ((25, -4), 'crumpled note', 0xf9, 'I\'ve lost pieces of myself.'),
-        ((11, -44), 'bloody scrawl', 0x34, f'I know why these tiles are raised.'),
+        ((11, -44), 'bloody scrawl', 0x34, f'beware of the raised tiles.'),
         ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
@@ -7418,7 +7416,7 @@ async def basic_actor(
         leaves_body=leaves_body,
     )
     coords = actor_dict[name_key].coords()
-    actor_dict[name_key].update(coord=coords, make_passable=False)
+    actor_dict[name_key].update(coord=coords)
     while True:
         if state_dict['killall'] == True:
             break
@@ -7449,7 +7447,7 @@ async def basic_actor(
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
-            actor_dict[name_key].update(coord=next_coords, make_passable=False)
+            actor_dict[name_key].update(coord=next_coords)
 
 def distance_to_actor(actor_a=None, actor_b='player'):
     if actor_a is None:
@@ -7596,7 +7594,7 @@ async def follower_vine(
             write_coord = add_coords(next_offset, write_coord) #set a NEW write_coord here
         member_names = mte_dict[vine_name].member_names
         for segment_name, (write_coord, segment_tile) in zip(member_names, write_list):
-            actor_dict[segment_name].update(coord=write_coord, make_passable=False)
+            actor_dict[segment_name].update(coord=write_coord)
             actor_dict[segment_name].tile = segment_tile
             actor_dict[segment_name].tile_color = color_choice
 
@@ -8087,7 +8085,7 @@ async def travel_along_line(
         map_dict[point].actors[particle_id] = True
         if always_visible:
             map_dict[point].override_view = True
-        actor_dict[particle_id].update(coord=point, make_passable=False)
+        actor_dict[particle_id].update(coord=point)
         if damage is not None:
             await damage_all_actors_at_coord(
                 coord=point, damage=damage, source_actor=source_actor
