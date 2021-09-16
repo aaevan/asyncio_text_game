@@ -3814,7 +3814,8 @@ def spawn_item_at_coords(
             },
             'usable_power':sword_item_ability,
             'broken_text':'Something went wrong.',
-            'use_message':None
+            'use_message':None,
+            'cooldown':1,
         },
         'dash trinket':{
             'uses':19,
@@ -6617,7 +6618,7 @@ async def async_map_init():
         )
     notes = (
         ((25, -4), 'crumpled note', 0xf9, 'I\'ve lost pieces of myself.'),
-        ((11, -44), 'bloody scrawl', 0x34, f'beware of the raised tiles.'),
+        ((11, -44), 'bloody scrawl', 0x34, f'beware the raised tiles!'),
         ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
         ),
@@ -6625,7 +6626,7 @@ async def async_map_init():
             (31, 1), 
             'faded wrapper', 
             0xee, 
-            'Secret doors tend to be a slightly darker color.'
+            'Secret doors appear slightly darker.'
         ),
         ((30, -5), 'graph paper', None,
             (
