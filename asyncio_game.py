@@ -2961,7 +2961,7 @@ async def broken_pipe(
     map_dict[pipe_coord].tile = pipe_char
     description_presets = {
         'steam':(
-            'The broken pipe intermittently spews gouts of hot steam.',
+            'Out of the pipe pours clouds of hot steam.',
             '*ssssssss*', #sound effect
         ),
         'fire':(
@@ -4596,7 +4596,7 @@ async def get_key(map_dict, help_wait_count=100):
     Also, displays help tooltip if no input for a time."""
     debug_text = "key is: {}, same_count is: {}           "
     #TODO: fix help menu message to poll from consolidated messages (w/ repeats)
-    help_text = 'Press ? for help menu.'
+    help_text = 'Press ? for help.'
     old_settings = termios.tcgetattr(sys.stdin)
     try:
         tty.setcbreak(sys.stdin.fileno())
