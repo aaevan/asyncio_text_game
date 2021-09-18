@@ -4006,6 +4006,8 @@ async def display_items_on_actor(
     actor_key='player', x_pos=2, y_pos=19,
 ):
     item_list = ' '
+    #TODO: add a way to filter in text for newly picked items?
+    # this will take some doing
     while True:
         if state_dict['killall'] == True:
             break
