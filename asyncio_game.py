@@ -4003,7 +4003,10 @@ async def display_items_at_coord(
         last_list_hash = current_list_hash
 
 async def display_items_on_actor(
-    actor_key='player', x_pos=2, y_pos=19,
+    actor_key='player', 
+    x_pos=2, 
+    y_pos=19, 
+    update_speed=.1,
 ):
     item_list = ' '
     #TODO: add a way to filter in text for newly picked items?
@@ -4013,7 +4016,7 @@ async def display_items_on_actor(
     while True:
         if state_dict['killall'] == True:
             break
-        await asyncio.sleep(.1)
+        await asyncio.sleep(update_speed)
         with term.location(x_pos, y_pos):
             print('Inventory:')
         clear_screen_region(x_size=20, y_size=16, screen_coord=(x_pos, y_pos+1))
