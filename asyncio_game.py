@@ -4009,10 +4009,6 @@ async def display_items_on_actor(
     update_speed=.1,
 ):
     item_list = ' '
-    #TODO: add a way to filter in text for newly picked items?
-    # this will take some doing
-    # use character by character filter_print for the effect
-    # stop extra printing with some sort of if statement?
     while True:
         if state_dict['killall'] == True:
             break
