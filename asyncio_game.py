@@ -3829,7 +3829,8 @@ def spawn_item_at_coords(
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'red'},
             'broken_text':wand_broken_text,
-            'use_message':''
+            'use_message':'',
+            'cooldown':1,
         },
         'green key':{
             'uses':-1,
@@ -3837,7 +3838,8 @@ def spawn_item_at_coords(
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'green'},
             'broken_text':wand_broken_text,
-            'use_message':None
+            'use_message':None,
+            'cooldown':1,
         },
         'cell key':{
             'uses':-1,
@@ -3847,6 +3849,7 @@ def spawn_item_at_coords(
             'broken_text':wand_broken_text,
             'use_message':None,
             'usage_tip':"CELL KEY: Try using it on the cell door.",
+            'cooldown':1,
         },
         'rusty key':{
             'uses':3,
@@ -3854,7 +3857,8 @@ def spawn_item_at_coords(
             'usable_power':unlock_door, 
             'power_kwargs':{'opens':'rusty'},
             'broken_text':'the key breaks off in the lock',
-            'use_message':None
+            'use_message':None,
+            'cooldown':1,
         },
         'eye trinket':{
             'uses':-1,
@@ -6775,8 +6779,7 @@ async def pass_between(x_offset, y_offset, plane_name='nightmare'):
         plane = 'normal'
     else:
         return False
-    if map_dict[destination].passable:
-        map_dict[player_coords].passable = True
+    if is_passable(checked_coords=destination):
         actor_dict['player'].update(coord=destination)
         state_dict['plane'] = plane
         if plane != 'normal':
