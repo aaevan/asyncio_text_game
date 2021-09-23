@@ -7860,17 +7860,14 @@ async def timed_actor(
         animation=Animation(preset=animation_preset)
     )
     map_dict[coords].actors[name] = True
-    prev_passable_state = map_dict[coords].passable
     if solid:
         map_dict[coords].passable = False
     while death_clock >= 1:
         await asyncio.sleep(1)
         death_clock -= 1
-    #because the block may have moved, update coordinates.
     coords = actor_dict[name].coords() 
     del map_dict[coords].actors[name]
     del actor_dict[name]
-    map_dict[coords].passable = prev_passable_state
     if vanish_message is not None:
         await append_to_log(message=vanish_message)
 
@@ -8051,7 +8048,8 @@ async def travel_along_line(
     points = get_line(start_coords, end_coords)
     if no_clip:
         for index, point in enumerate(points):
-            not_passable = not map_dict[point].passable
+            #not_passable = not map_dict[point].passable
+            not_passable = not is_passable(checked_coords=point)
             no_actors = len(map_dict[point].actors) == 0
             if not_passable and no_actors:
                 points = points[:index] #trim points past first wall found
