@@ -2277,7 +2277,8 @@ async def bay_door(
     color_num=6,
     preset='thin',
     debug=False,
-    message_preset=None
+    message_preset=None,
+    spawn_delay=3,
 ):
     """
     Instantiates an MTE that moves to one side when a pressure plate 
@@ -2292,6 +2293,7 @@ async def bay_door(
     [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
     """
+    await asyncio.sleep(spawn_delay)
     patch_init(patch_to_key)
     if orientation in ('n', 's'):
         style_dir = 'ns'
@@ -2302,7 +2304,7 @@ async def bay_door(
         'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
     }
-    message_presets = { 'ksh':['*kssshhhhh*'] * 2 }
+    message_presets = { 'ksh':['*kssshhhhh*', 'fffssst']}
     door_description_presets = {
         'secret':'A rough stone wall.',
         'thick':'A sturdy bay door made of gleaming steel.',
@@ -2364,7 +2366,8 @@ async def bay_door(
                             fade_duration=1,
                         )
                     )
-                    await append_to_log(message=door_message[0])
+                    #await append_to_log(message=door_message[0])
+                    await distance_based_message(message=door_message[0])
             for segment in reversed(segment_names):
                 await asyncio.sleep(.1)
                 actor_dict[segment[0]].update((9999, 9999)) #move to nowhere
@@ -2374,14 +2377,15 @@ async def bay_door(
                 if door_message is not None:
                     asyncio.ensure_future(
                         sound_message(
-                            output_text=door_message[0], 
+                            output_text=door_message[1], 
                             sound_origin_coord=last_spawn_coord,
                             source_actor=None,
                             point_radius=18,
                             fade_duration=1,
                         )
                     )
-                    await append_to_log(message=door_message[1])
+                    #await append_to_log(message=door_message[1])
+                    await distance_based_message(message=door_message[1])
             for segment in segment_names:
                 await asyncio.sleep(.1)
                 #TODO: crushing logic for bay doors
@@ -7107,7 +7111,7 @@ async def angel_seek(
 
 async def distance_based_message(
     message_dist_thresholds=(5, 10, 20),
-    dist_threshold_descriptors=( 'behind you', 'close by', 'a ways away'),
+    dist_threshold_descriptors=( 'next to you', 'close by', 'a ways away'),
     source_actor=None,
     target_actor='player',
     message="distance based message!"
