@@ -3131,7 +3131,7 @@ def pressure_plate(
     patch_to_key='switch_1',
     off_delay=0, 
     test_rate=.1,
-    positives=('player', 'box', 'weight', 'crate', 'static'),
+    positives=('player', 'box', 'weight', 'crate', 'static', 'zombie'),
     positives_preset=None,
     sound_choice='default',
     brightness_mod=(2, -2),
@@ -5329,7 +5329,7 @@ async def console_box(
     asyncio.ensure_future(
         ui_box_draw(
             box_height=height, 
-            box_width=width + 2, 
+            box_width=width + 3, 
             x_margin=x_margin - 1,
             y_margin=y_margin - 1
         )
