@@ -3131,7 +3131,16 @@ def pressure_plate(
     patch_to_key='switch_1',
     off_delay=0, 
     test_rate=.1,
-    positives=('player', 'box', 'weight', 'crate', 'static', 'zombie'),
+    positives=(
+        'player',
+        'box',
+        'weight',
+        'crate',
+        'static',
+        'zombie',
+        'leech',
+        'blob'
+    ),
     positives_preset=None,
     sound_choice='default',
     brightness_mod=(2, -2),
