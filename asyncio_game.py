@@ -1157,19 +1157,27 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='░',
             blocking=False,
             passable=True,
-            description='A smooth patch of stone floor.',
+            description='A patch of smooth stone floor.',
             magic=False,
             is_animated=False,
             animation=None,
+            use_action_func=use_action_preset,
+            use_action_kwargs={
+                'preset':'stone floor',
+            }
         ),
         'wall':Map_tile(
             tile='▓',
             blocking=False,
             passable=True,
-            description='A rough stone wall.',
+            description='A rough stone wall carved from the bedrock.',
             magic=False,
             is_animated=False,
-            animation=None
+            animation=None,
+            use_action_func=use_action_preset,
+            use_action_kwargs={
+                'preset':'stone wall',
+            },
         ),
         'noise':Map_tile(
             tile='.',
@@ -1206,7 +1214,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             description='Sturdy metal bars set into the floor and ceiling.',
             magic=False,
             is_animated=False,
-            use_action_func=use_action_fork,
+            use_action_func=use_action_preset,
             use_action_kwargs={
                 'preset':'bars',
             }
@@ -1225,7 +1233,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             blocking=False,
             passable=True,
             color_num=0x34,
-            description='It hurts your eyes to focus on.',
+            description='The ever shifting pattern before you hurts to look at.',
             magic=False,
             is_animated=True,
             animation=Animation(preset='nightmare')
@@ -1271,7 +1279,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             is_animated=True, 
             animation=Animation(preset='water'),
             prevent_pushing=True,
-            use_action_func=use_action_fork,
+            use_action_func=use_action_preset,
             use_action_kwargs={
                 'preset':'water',
             }
@@ -2758,31 +2766,41 @@ async def test_print_at_coord(
     repeats=3
 ):
     """
-    (only used in use_action_fork)
+    (only used in use_action_preset)
     """
     for i in range(1, repeats + 1):
         with term.location(*coord):
             print(message, i)
         await asyncio.sleep(1)
 
-async def use_action_fork(
+async def use_action_preset(
     preset='test',
 ):
     presets={
         'test':[
             (test_print_at_coord, True, {
-                'message':'use_action_fork func 1! {}', 'coord':(55, 0)
+                'message':'use_action_preset func 1! {}', 'coord':(55, 0)
             }),
             (test_print_at_coord, True, {
-                'message':'use_action_fork func 2! {}', 'coord':(55, 1)
+                'message':'use_action_preset func 2! {}', 'coord':(55, 1)
             }),
             (test_print_at_coord, True, {
-                'message':'use_action_fork func 3! {}', 'coord':(55, 2)
+                'message':'use_action_preset func 3! {}', 'coord':(55, 2)
+            }),
+        ],
+        'stone floor':[
+            (append_to_log, True, {
+                'message':'You pass a foot over the floor. It\'s been worn smooth by the passage of many feet.'
+            }),
+        ],
+        'stone wall':[
+            (append_to_log, True, {
+                'message':'You run your hands along the stone wall. It\'s cool to the touch.'
             }),
         ],
         'water':[
             (append_to_log, True, {
-                'message':'You wash your hands in the water.'
+                'message':'You rinse your hands in the cool water.'
             }),
         ],
         'bars':[
@@ -2975,7 +2993,7 @@ async def broken_pipe(
     }
     preset_description, preset_sound = description_presets[preset]
     map_dict[pipe_coord].description = preset_description
-    map_dict[pipe_coord].use_action_func = use_action_fork
+    map_dict[pipe_coord].use_action_func = use_action_preset
     map_dict[pipe_coord].use_action_kwargs = {'preset':'pipe'}
     asyncio.ensure_future(
         repeating_particle_jet(
