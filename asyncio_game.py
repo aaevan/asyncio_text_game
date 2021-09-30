@@ -1233,7 +1233,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             blocking=False,
             passable=True,
             color_num=0x34,
-            description='The ever shifting pattern before you hurts to look at.',
+            description='The ever shifting pattern hurts to look at.',
             magic=False,
             is_animated=True,
             animation=Animation(preset='nightmare')
@@ -1274,7 +1274,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='█',
             blocking=False,
             passable=True,
-            description='A pool of water.',
+            description='A shallow pool of water.',
             magic=False,
             is_animated=True, 
             animation=Animation(preset='water'),
@@ -1296,7 +1296,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             tile='▤',
             blocking=True,
             passable=False,
-            description='A flickering monitor.',
+            description='A flickering monitor with a curved glass surface.',
             magic=False,
             is_animated=True,
             animation=Animation(preset='terminal')
