@@ -412,8 +412,8 @@ class Animation:
             },
             #TODO: a use action that washes hands/fills bottles by default on water tile
             'water':{
-                'animation':'███████▒▓▒', 
-                'behavior':'random',
+                'animation':'███▒▒▒▓▓▓▒▒▒',
+                'behavior':'loop tile',
                 'color_choices':([0x11 for i in range(50)] + list(range(0x11, 0x15))),
             },
             'writhe':{
