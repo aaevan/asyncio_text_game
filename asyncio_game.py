@@ -6655,7 +6655,7 @@ async def async_map_init():
             coord=coord, instance_of=item_name, on_actor_id=False
         )
     notes = (
-        ((25, -4), 'crumpled note', 0xf9, 'I\'ve lost pieces of myself.'),
+        ((25, -4), 'crumpled note', 0xf9, 'I\'ve forgotten my own name.'),
         ((11, -44), 'bloody scrawl', 0x34, f'beware the raised tiles!'),
         ((20, -5), 'scribbled note', None,
             'I know I\'ve seen this before somewhere. My memory is failing me.'
