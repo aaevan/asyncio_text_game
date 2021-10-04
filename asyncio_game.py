@@ -1161,10 +1161,6 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             magic=False,
             is_animated=False,
             animation=None,
-            use_action_func=use_action_preset,
-            use_action_kwargs={
-                'preset':'stone floor',
-            }
         ),
         'wall':Map_tile(
             tile='▓',
@@ -5056,9 +5052,9 @@ async def toggle_door(door_coord):
         )
         door_type = map_dict[door_coord].door_type
         if door_state == False:
-            output_text = f'You open the {door_type} door'
+            output_text = f'You open the {door_type} door.'
         else:
-            output_text = f'You close the {door_type} door'
+            output_text = f'You close the {door_type} door.'
     await append_to_log(message=output_text)
 
 def set_tile_toggle_state(tile_coord, toggle_state_index):
