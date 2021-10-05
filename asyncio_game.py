@@ -2308,7 +2308,7 @@ async def bay_door(
         'thick':{'ns':'┃', 'ew':'━'},
         'thin':{'ns':'│', 'ew':'─'},
     }
-    message_presets = { 'ksh':['*kssshhhhh*', 'fffssst']}
+    message_presets = { 'ksh':['*kssshhhhh*', '*fffssst*']}
     door_description_presets = {
         'secret':'A rough stone wall.',
         'thick':'A sturdy bay door made of gleaming steel.',
