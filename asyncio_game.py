@@ -3408,6 +3408,7 @@ async def sword(
     sword_segment_names = [
         f'{name}_{sword_id}_{segment}' for segment in range(1, length)
     ]
+    #TODO: fix sword tile appearing in solid objects
     segment_coords = [
         (
             starting_coords[0] + chosen_dir[0] * i,
@@ -6634,6 +6635,7 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room south of spawn
         ((-22, -45), 'green sword'), 
+        ((26, -3), 'green sword'), 
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((26, 10), 'looking glass'), 
