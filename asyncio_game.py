@@ -3408,7 +3408,6 @@ async def sword(
     sword_segment_names = [
         f'{name}_{sword_id}_{segment}' for segment in range(1, length)
     ]
-    #TODO: fix sword tile appearing in solid objects
     segment_coords = [
         (
             starting_coords[0] + chosen_dir[0] * i,
@@ -3420,7 +3419,8 @@ async def sword(
     for coord in segment_coords:
         if map_dict[coord].blocking:
             #trim everything past the first blocking tile:
-            segment_coords = segment_coords[:segment_coords.index(coord) + 1]
+            coord_index = segment_coords.index(coord) 
+            segment_coords = segment_coords[:coord_index + 1]
             break
     to_damage_names = []
     player_coords = actor_dict['player'].coords()
@@ -6316,7 +6316,8 @@ async def directional_alert(
             'radius':radius,
             'radius_spread':1,
             'angle_spread': 30,
-            'warning_color':0x08,
+            #'warning_color':0x08,
+            'warning_color':0x01,
             'palette':"◌",
             'persist_delay':1,
         },
@@ -6635,7 +6636,7 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room south of spawn
         ((-22, -45), 'green sword'), 
-        ((26, -3), 'green sword'), 
+        ((26, -4), 'green sword'), 
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((26, 10), 'looking glass'), 
@@ -7476,10 +7477,15 @@ async def basic_actor(
                 noise_level = (1 / dist_to_player ** 2) * 10
             else:
                 noise_level = 99
-            if random() <= noise_level and random() > .1:
-                asyncio.ensure_future(
-                    directional_alert(source_actor=name_key, radius=dist_to_player, preset='footfall')
-                )
+            #TODO: an item that changes how many footfalls appear onscreen
+            # sets something in state dict when equipped and unequipped
+            #TODO: passive items: things that change some aspect of movement
+            #      or GUI or abilities without needing to be used.
+            if random() <= noise_level:
+                if dist_to_player < 20:
+                    asyncio.ensure_future(
+                        directional_alert(source_actor=name_key, radius=dist_to_player, preset='footfall')
+                    )
             if name_key in map_dict[current_coords].actors:
                 del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
