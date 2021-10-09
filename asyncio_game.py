@@ -5074,7 +5074,7 @@ async def toggle_doors():
     door_coords = add_coords(player_coords, dir_to_offset(facing))
     await toggle_door(door_coords)
 
-async def use_action(tile_coords=None, is_async=True):
+async def use_action(tile_coords=None, is_async=True, debug=False):
     """
     for the given coordinate, if the Map_tile (or actor) has a use_action_func
     (with use_action_kwargs), run that function, else, pass
@@ -5082,10 +5082,11 @@ async def use_action(tile_coords=None, is_async=True):
     if tile_coords is None:
         tile_coords = get_facing_coord()
     #BOOKMARK
-    if bool(map_dict[tile_coords].actors):
-        for index, actor in enumerate(map_dict[tile_coords].actors):
-            with term.location(55, index + 1):
-                print("actor:", actor)
+    if debug:
+        if bool(map_dict[tile_coords].actors): #debug for use actions
+            for index, actor in enumerate(map_dict[tile_coords].actors):
+                with term.location(55, index + 1):
+                    print("actor:", actor)
     if map_dict[tile_coords] is not None:
         tile_use_action = map_dict[tile_coords].use_action_func
         tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
@@ -6581,6 +6582,12 @@ async def async_map_init():
         coord=(-17, -44),
         describe_tile=False,
         distance_trigger=0
+    )
+    announcement_at_coord(
+        "At the base of the ladder you arrive in a room with a green door.",
+        coord=level_offset_coord(coord=(15, 0), z_level=-1),
+        describe_tile=False,
+        distance_trigger=2
     )
     #spawn multi-tile entities-----------------------------
     mte_spawns = (
