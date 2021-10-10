@@ -3828,7 +3828,7 @@ def spawn_item_at_coords(
             'usable_power':sword_item_ability,
             'use_message':"You swing the knife!",
             'usage_tip':'KNIFE: It\'s a knife. Swing it at things that you don\'t like.',
-            'cooldown':.3,
+            'cooldown':.15,
         },
         'green sword':{
             'uses':-1,
@@ -5577,7 +5577,7 @@ async def add_uses_to_chosen_item(num_charges=10):
     asyncio.ensure_future(
         append_to_log("Charge which item?")
     )
-    item_id_choice = await choose_item()
+    item_id_choice = await choose_item(draw_coord=(0, 20))
     if item_id_choice != None:
         item_name = item_dict[item_id_choice].name
         accepts_charges = item_dict[item_id_choice].accepts_charges
@@ -5596,7 +5596,9 @@ async def add_uses_to_chosen_item(num_charges=10):
 async def use_item_in_slot(slot='q'):
     item_id = state_dict[f'{slot}_slot']
     if item_id is 'empty':
-        pass
+        asyncio.ensure_future(
+            append_to_log(message=f'No item in {slot}! Equip to {slot} with {slot.upper()} then 0-f.')
+        )
     else:
         if item_dict[item_id].power_kwargs:
             asyncio.ensure_future(item_dict[item_id].use())
@@ -6643,7 +6645,6 @@ async def async_map_init():
         ((23, -13), 'battery'), 
         ((30, 7), 'battery'), #small s. room south of spawn
         ((-22, -45), 'green sword'), 
-        ((26, -4), 'green sword'), 
         ((22, -5), 'dash trinket'), #with stone angel
         ((-11, -20), 'hop amulet'), 
         ((26, 10), 'looking glass'), 
@@ -8676,7 +8677,7 @@ def main():
         get_key(map_dict),
         view_tile_init(loop),
         quitter_daemon(),
-        #minimap_init(loop),
+        minimap_init(loop),
         ui_setup(),
         #printing_testing(),
         #TODO: fix follower vine to disappear after a set time:
