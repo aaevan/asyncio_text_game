@@ -5889,7 +5889,7 @@ async def display_help(mode="normal"):
         "       x: examine faced tile",
         "       X: enter look mode",
         "ITEM RELATED:",
-        "   [choose item with 0-f]",
+        "   [choose item target with 0-f]",
         "       g: get item from tile,",
         "   QERFC: equip item to slot,",
         "   qerfc: use equipped item",
