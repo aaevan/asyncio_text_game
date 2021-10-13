@@ -2727,7 +2727,7 @@ async def computer_terminal(
     tile='▣',
     spawn_coord=(0, 0),
     patch_to_key='term_1',
-    message=('Door is now', ('locked', 'unlocked')),
+    message=('Door is now', ('sealed', 'open')),
     flicker=True,
 ):
     """
@@ -5444,6 +5444,7 @@ async def filter_into_log(
     time_between_chars=.02,
     starting_text=''
 ):
+    #TODO: add option of colorized text in console log messages
     if starting_text == '':
         written_string = [' '] * len(message)
     else:
@@ -5889,7 +5890,7 @@ async def display_help(mode="normal"):
         "       x: examine faced tile",
         "       X: enter look mode",
         "ITEM RELATED:",
-        "   [choose item target with 0-f]",
+        "  [choose item target with 0-f]",
         "       g: get item from tile,",
         "   QERFC: equip item to slot,",
         "   qerfc: use equipped item",
@@ -6249,24 +6250,6 @@ async def ui_box_draw(
                 print("│")
         if one_time:
             break
-
-async def status_bar_draw(
-    state_dict_key="health",
-    position="top left",
-    bar_height=1,
-    bar_width=10,
-    x_margin=5,
-    y_margin=4
-):
-    asyncio.ensure_future(
-        ui_box_draw(
-            position=position,
-            bar_height=box_height,
-            bar_width=box_width,
-            x_margin=x_margin,
-            y_margin=y_margin
-        )
-    )
 
 async def random_angle(centered_on_angle=0, total_cone_angle=60):
     rand_shift = round(randint(0, total_cone_angle) - (total_cone_angle / 2))
@@ -7484,6 +7467,9 @@ async def basic_actor(
             if actor_dict['player'].health <= 0:
                 return
             dist_to_player = distance_to_actor(name_key, 'player')
+            not_in_fov = check_point_within_arc(checked_point=current_coords, arc_width=120)
+            if not_in_fov:
+                continue
             if dist_to_player ** 2 != 0:
                 noise_level = (1 / dist_to_player ** 2) * 10
             else:
@@ -8620,7 +8606,7 @@ async def door_init(loop):
             (-10, 2),
             patch_to_key='computer_test',
             preset='thick',
-            pressure_plate_coord=((-7, 0), (-13, 0)),
+            pressure_plate_coord=((-13, 0)),
             message_preset='ksh'
         ),
         bay_door_pair(
