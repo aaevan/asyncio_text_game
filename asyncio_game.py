@@ -7467,6 +7467,7 @@ async def basic_actor(
             if actor_dict['player'].health <= 0:
                 return
             dist_to_player = distance_to_actor(name_key, 'player')
+            #only show footfalls outside of current FOV:
             not_in_fov = check_point_within_arc(checked_point=current_coords, arc_width=120)
             if not_in_fov:
                 continue
