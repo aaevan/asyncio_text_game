@@ -3825,7 +3825,7 @@ def spawn_item_at_coords(
             'broken_text':'Something went wrong.',
             'use_message':None
         },
-        'knife':{
+        'dagger':{
             'uses':-1,
             'tile':term.color(0xed)('†'),
             'power_kwargs':{
@@ -3837,8 +3837,8 @@ def spawn_item_at_coords(
                 'ignore_list':['stone angel', 'presence', 'crate_2x2']
             },
             'usable_power':sword_item_ability,
-            'use_message':"You swing the knife!",
-            'usage_tip':'KNIFE: It\'s a knife. Swing it at things that you don\'t like.',
+            'use_message':"You stab with the dagger!",
+            'usage_tip':'KNIFE: It\'s a dagger. Stab things you don\'t like.',
             'cooldown':.15,
         },
         'green sword':{
@@ -5188,11 +5188,11 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│*  │'.replace('*', term.red('╳')),
             '└───┘',
         ),
-        'knife':(
+        'dagger':(
             '┌───┐',
-            '│   │',
-            '│ * │'.replace('*', term.color(0xed)('╱')),
-            '│*  │'.replace('*', term.color(0xed)('╳')),
+            '│ * │'.replace('*', term.color(0x08)('╇')),
+            '│ * │'.replace('*', term.color(0x01)('╵')),
+            '│ * │'.replace('*', term.color(0x01)('‘')),
             '└───┘',
         ),
         'green sword':(
@@ -6689,7 +6689,7 @@ async def async_map_init():
         ((26, -13), 'green key'),
         #items in starting cell:
         ((26, -3), 'cell key'),
-        ((23, 1), 'knife'), 
+        ((23, 1), 'dagger'), 
         ((26, -5), 'blindfold'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
