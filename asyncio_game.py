@@ -3460,6 +3460,17 @@ async def sword(
     if player_sword_track:
         state_dict['player_busy'] = False
 
+async def blindfold_toggle(from_item=False):
+    current_state = state_dict['blinded']
+    state_dict['blinded'] = not current_state
+    if current_state == True:
+        message = "You take off the blindfold."
+    else:
+        message = "You put on the blindfold."
+    await append_to_log(message=message)
+    # a way to poll whether the blindfold is currently equipped?
+
+
 async def sword_item_ability(
     length=3,
     speed=.05,
@@ -3845,12 +3856,24 @@ def spawn_item_at_coords(
             'use_message':None,
             'cooldown':1,
         },
+        'blindfold':{
+            'uses':-1,
+            'tile':term.color(0x04)('ʚ'), #light blue in color
+            'power_kwargs':{
+                'from_item':True,
+            },
+            'usable_power':blindfold_toggle,
+            'broken_text':'Something went wrong.',
+            'use_message':'',
+            'cooldown':1,
+        },
         'dash trinket':{
             'uses':19,
             'tile':term.blue('⥌'),
             'usable_power':dash_ability, 
             'power_kwargs':{'dash_length':20},
-            'broken_text':wand_broken_text},
+            'broken_text':wand_broken_text
+        },
         'red key':{
             'uses':-1,
             'tile':term.red('⚷'),
@@ -3992,11 +4015,12 @@ async def display_items_at_coord(
         item_list = [item for item in map_dict[player_coords].items]
         item_uses = [item_dict[item_id].uses for item_id in item_list]
         current_list_hash = hash(str(item_list) + str(item_uses))
+        blinded = state_dict['blinded']
         if current_list_hash != last_list_hash:
             clear_screen_region(
                 x_size=20, y_size=10, screen_coord=(x_pos, y_pos + 1)
             )
-            if len(item_list) > 0:
+            if len(item_list) > 0 and not blinded:
                 filter_text = 'Items here:'
             else:
                 filter_text = '           '
@@ -4007,7 +4031,7 @@ async def display_items_at_coord(
                     wipe=False,
                 )
             )
-        if len(item_list) > 0:
+        if len(item_list) > 0 and not blinded:
             for index, item_id in enumerate(item_list):
                 name_location = (x_pos + 2, (y_pos + 1) + index)
                 icon_location = (x_pos, (y_pos + 1) + index)
@@ -4831,6 +4855,8 @@ async def action_keypress(key, debug=True):
         dir_from_key = key_to_compass(key)
         offset_from_dir = dir_to_offset(dir_from_key)
         push_return = push(pusher='player', direction=key_to_compass(key))
+        with term.location(55, 0):
+            print(f"push return is {push_return}")
         if push_return == 'invalid':
             push_message = None
         elif push_return in ('item', 'immoveable'):
@@ -4852,7 +4878,17 @@ async def action_keypress(key, debug=True):
             x, y = actor_dict['player'].coords()
             map_dict[(x, y)].passable = False #make current space impassable
             state_dict['just teleported'] = False #used by magic_doors
+        else:
+            if state_dict['blinded']:
+                asyncio.ensure_future(
+                    append_to_log(message='You bump into something. It doesn\'t budge')
+                )
     elif key in 'WASD': 
+        if state_dict['blinded']:
+            asyncio.ensure_future(
+                append_to_log(message='You can\'t safely run while blinded!')
+            )
+            return
         asyncio.ensure_future(dash_ability(
             dash_length=randint(2, 3),
             direction=key_to_compass(key),
@@ -4980,6 +5016,9 @@ def get_facing_coord():
     return facing_coord
 
 async def examine_tile(examined_coord=None, tense='present'):
+    if state_dict['blinded']:
+        await append_to_log(message="You can't see well enough to examine!")
+        return
     if examined_coord is None:
         examined_coord = get_facing_coord()
     #add descriptions for actors
@@ -5161,6 +5200,13 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│  *│'.replace('*', term.green('╱')),
             '│ * │'.replace('*', term.green('╱')),
             '│*  │'.replace('*', term.green('╳')),
+            '└───┘',
+        ),
+        'blindfold':(
+            '┌───┐',
+            '│   │',
+            '│***│'.replace('***', term.color(0x04)('━━┭')),
+            '│   │',
             '└───┘',
         ),
         'note':(
@@ -5614,7 +5660,9 @@ async def item_choices(coords=None, x_pos=1, y_pos=20):#x_pos=0, y_pos=13):
     give a position and list of values and item choices will hang until
     a menu choice is made.
     """
-    if not map_dict[coords].items:
+    if state_dict['blinded']:
+        await append_to_log(message="You can't pick up items while blinded!")
+    elif not map_dict[coords].items:
         await append_to_log(message="There's nothing here to pick up.")
     else:
         item_list = [item for item in map_dict[coords].items]
@@ -6073,7 +6121,9 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             color_choice = 0xe9 #a dark gray
         if (x_offset, y_offset) == (0, 0):
             display=True
-        if map_dict[x_display_coord, y_display_coord].override_view:
+        if state_dict['blinded'] == True:
+            print_choice = ' '
+        elif map_dict[x_display_coord, y_display_coord].override_view:
             print_choice = await check_contents_of_tile((x_display_coord, y_display_coord))
             map_dict[tile_coord_key].seen = True
         elif display:
@@ -6640,6 +6690,7 @@ async def async_map_init():
         #items in starting cell:
         ((26, -3), 'cell key'),
         ((23, 1), 'knife'), 
+        ((26, -5), 'blindfold'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
@@ -7468,8 +7519,8 @@ async def basic_actor(
                 return
             dist_to_player = distance_to_actor(name_key, 'player')
             #only show footfalls outside of current FOV:
-            not_in_fov = check_point_within_arc(checked_point=current_coords, arc_width=120)
-            if not_in_fov:
+            point_in_fov = check_point_within_arc(checked_point=current_coords, arc_width=120)
+            if point_in_fov and not state_dict['blinded']:
                 continue
             if dist_to_player ** 2 != 0:
                 noise_level = (1 / dist_to_player ** 2) * 10
@@ -8657,6 +8708,7 @@ def state_setup():
     state_dict['passwall running'] = False
     state_dict['blink_timeout'] = 0
     state_dict['look_cursor_location'] = (0, 0)
+    state_dict['blinded'] = False #used in blindfold item
 
 def main():
     state_setup()
