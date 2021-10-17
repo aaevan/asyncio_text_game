@@ -3722,6 +3722,7 @@ def spawn_item_at_coords(
                 'player_sword_track':False,
                 'delay_out':.5,
                 'thick':True,
+                'sword_color':0x5c,
             }
         },
         'pebble':{
@@ -4855,8 +4856,6 @@ async def action_keypress(key, debug=True):
         dir_from_key = key_to_compass(key)
         offset_from_dir = dir_to_offset(dir_from_key)
         push_return = push(pusher='player', direction=key_to_compass(key))
-        with term.location(55, 0):
-            print(f"push return is {push_return}")
         if push_return == 'invalid':
             push_message = None
         elif push_return in ('item', 'immoveable'):
@@ -5162,9 +5161,9 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         ),
         'blaster':(
             '┌───┐',
-            '│   │'.replace('*', term.red('╱')),
-            '│╒╤═│',
-            '│║  │'.replace('*', term.bold(term.red('╳'))),
+            '│   │',
+            '│╒╤═│'.replace('═', term.color(0x5c)('═')),
+            '│╵  │',
             '└───┘',
         ),
         'block wand':(
@@ -5297,28 +5296,28 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '┌───┐',
             '│ * │'.replace('*', term.red('╒')),
             '│ * │'.replace('*', term.red('│')),
-            '│ * │'.replace('*', term.red('O')),
+            '│ * │'.replace('*', term.red('®')),
             '└───┘',
         ),
         'cell key':(
             '┌───┐',
             '│ * │'.replace('*', term.color(00)('╒')),
             '│ * │'.replace('*', term.color(00)('│')),
-            '│ * │'.replace('*', term.color(00)('O')),
+            '│ * │'.replace('*', term.color(00)('Ö')),
             '└───┘',
         ),
         'green key':(
             '┌───┐',
             '│ * │'.replace('*', term.green('╒')),
             '│ * │'.replace('*', term.green('│')),
-            '│ * │'.replace('*', term.green('O')),
+            '│ * │'.replace('*', term.green('Ö')),
             '└───┘',
         ),
         'rusty key':(
             '┌───┐',
             '│ * │'.replace('*', term.color(3)('╒')),
             '│ * │'.replace('*', term.color(3)('│')),
-            '│ * │'.replace('*', term.color(3)('O')),
+            '│ * │'.replace('*', term.color(3)('Ö')),
             '└───┘',),
         'shiny stone':(
             '┌───┐',   #effect while equipped: orbit
@@ -7953,7 +7952,15 @@ async def timed_actor(
     del map_dict[coords].actors[name]
     del actor_dict[name]
     if vanish_message is not None:
-        await append_to_log(message=vanish_message)
+        asyncio.ensure_future(
+            sound_message(
+                output_text=vanish_message,
+                sound_origin_coord=coords,
+                source_actor=None,
+                point_radius=18,
+                fade_duration=1,
+            )
+        )
 
 async def beam_spire(spawn_coord=(0, 0)): #UNUSED
     """
