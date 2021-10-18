@@ -5090,6 +5090,9 @@ async def toggle_door(door_coord):
             toggle_state_index=new_toggle_state_index,
         )
         door_type = map_dict[door_coord].door_type
+        #TODO: there's a problem in set_tile_toggle_state
+        # that keeps the display message (upon opening/closing)
+        # from displaying the correct message
         if door_state == False:
             output_text = f'You open the {door_type} door.'
         else:
@@ -5103,6 +5106,8 @@ def set_tile_toggle_state(tile_coord, toggle_state_index):
     map_dict[tile_coord].blocking = block_state #blocking: see through tile
     map_dict[tile_coord].passable = passable_state #passable: walk through tile
     map_dict[tile_coord].toggle_state_index = toggle_state_index
+    with term.location(55, 0):
+        print(tile_coord, 5107, block_state, random())
     return block_state #whether the door is open or not
 
 async def toggle_doors():
