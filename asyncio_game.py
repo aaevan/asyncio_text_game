@@ -5090,9 +5090,6 @@ async def toggle_door(door_coord):
             toggle_state_index=new_toggle_state_index,
         )
         door_type = map_dict[door_coord].door_type
-        #TODO: there's a problem in set_tile_toggle_state
-        # that keeps the display message (upon opening/closing)
-        # from displaying the correct message
         if door_state == False:
             output_text = f'You open the {door_type} door.'
         else:
@@ -5106,9 +5103,11 @@ def set_tile_toggle_state(tile_coord, toggle_state_index):
     map_dict[tile_coord].blocking = block_state #blocking: see through tile
     map_dict[tile_coord].passable = passable_state #passable: walk through tile
     map_dict[tile_coord].toggle_state_index = toggle_state_index
-    with term.location(55, 0):
-        print(tile_coord, 5107, block_state, random())
-    return block_state #whether the door is open or not
+    # "if you can't pass through the door, it must be closed"
+    if passable_state == False: 
+        return True
+    else:
+        return False
 
 async def toggle_doors():
     x, y = actor_dict['player'].coords()
@@ -6807,16 +6806,17 @@ async def trap_init():
     pressure_plate(
         spawn_coord=(6, -20), patch_to_key='switch_2'
     )
-    loop.create_task(
-        trigger_door(
-            door_coord=(-1, -20), patch_to_key='switch_2'
-        )
-    )
-    loop.create_task(
-        trigger_door(
-            door_coord=(-8, -20), patch_to_key='switch_2', invert=True
-        )
-    )
+    #TODO: figure out a way to do the following without constant polling
+    #loop.create_task(
+        #trigger_door(
+            #door_coord=(-1, -20), patch_to_key='switch_2'
+        #)
+    #)
+    #loop.create_task(
+        #trigger_door(
+            #door_coord=(-8, -20), patch_to_key='switch_2', invert=True
+        #)
+    #)
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
