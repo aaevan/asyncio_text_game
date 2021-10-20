@@ -4897,15 +4897,15 @@ async def action_keypress(key, debug=True):
         state_dict['facing'] = key_to_compass(key)
     elif key in '?':
         await display_help() 
-    elif key in 'x': #examine
+    elif key in 'x': #examine adjacent tile
         asyncio.ensure_future(examine_tile())
-    elif key in 'X': #examine
+    elif key in 'X': #look mode
         state_dict['looking'] = True
         await display_help(mode="looking") 
-    elif key in ' ': #toggle doors
+    elif key in ' ': #toggle doors or use-action
         asyncio.ensure_future(use_action())
         await toggle_doors()
-    elif key in 'g': #pick up an item from the ground
+    elif key in 'g': #get an item from the ground
         asyncio.ensure_future(item_choices(coords=(x, y), x_pos=23))
     elif key in 'QERFC':
         asyncio.ensure_future(
@@ -4918,7 +4918,7 @@ async def action_keypress(key, debug=True):
         asyncio.ensure_future(use_item_in_slot(slot=key))
     elif key in 't': #throw a chosen item
         asyncio.ensure_future(throw_item())
-    elif key in 'U':
+    elif key in 'U': #use an item without equipping it
         asyncio.ensure_future(use_chosen_item())
     #DEBUG COMMANDS--------------------------------------------------------
     elif debug and key in 'hFY38$#@C(79My%]':
@@ -5931,7 +5931,7 @@ async def display_help(mode="normal"):
     """
     x_offset, y_offset = offset_of_center((-15, -5))
     help_text_normal = (
-        "MOVEMENT/VIEW:"
+        "MOVEMENT/VIEW:",
         "    wasd: move/push          ",
         "    WASD: run (no pushing)   ",
         "    ijkl: look N,E,S,W",
@@ -5960,14 +5960,16 @@ async def display_help(mode="normal"):
         help_text = help_text_normal
     elif mode == "looking":
         help_text = help_text_looking
-    for line_number, line in enumerate(help_text):
+    line_indexes = [i for i in range(len(help_text))]
+    shuffle(line_indexes)
+    for line_index in line_indexes:
+        line = help_text[line_index]
         x_print_coord, y_print_coord = 0, 0
         asyncio.ensure_future(
             filter_print(
                 output_text=line, pause_stay_on=7,
                 pause_fade_in=.015, pause_fade_out=.015,
-                #x_offset=-55, y_offset=-33 + line_number,
-                x_offset=20, y_offset=-45 + line_number,
+                x_offset=20, y_offset=-45 + line_index,
                 hold_for_lock=False
             )
         )
