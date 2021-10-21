@@ -1027,6 +1027,7 @@ async def spawn_mte(
     return mte_id
 
 def multi_push(
+    pusher='player',
     push_dir='e',
     pushed_actor=None,
     mte_parent=None,
@@ -1050,6 +1051,13 @@ def multi_push(
         return False
     move_by = dir_to_offset(push_dir)
     if mte_dict[mte_parent].check_collision(move_by=move_by):
+        if pusher == 'player':
+            base_name = mte_dict[mte_parent].name.split('_')[0]
+            push_dir_fullname = dir_letter_to_name(push_dir)
+            message = f'You push the {base_name} to the {push_dir_fullname}.'
+            asyncio.ensure_future(
+                append_to_log(message=message)
+            )
         mte_dict[mte_parent].move(move_by=move_by)
         return True
 
@@ -2095,7 +2103,7 @@ async def damage_actor(
     for word in exclusions + ignore_list:
         if word in actor and word in ignore_list:
             actor_name = actor.split('_')[0]
-            message = f"That won't work on the {actor_name}!"
+            message = f"Your attack has no effect on the {actor_name}!"
             asyncio.ensure_future(append_to_log(message=message))
             return
     if display_above:
@@ -2257,7 +2265,7 @@ def push(
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
     if mte_parent is not None:
-        multi_push(push_dir=direction, mte_parent=mte_parent)
+        multi_push(pusher=pusher, push_dir=direction, mte_parent=mte_parent)
         return mte_parent
     elif not actor_dict[pushed_name].moveable:
         return 'immoveable'
@@ -3839,7 +3847,7 @@ def spawn_item_at_coords(
             },
             'usable_power':sword_item_ability,
             'use_message':"You stab with the dagger!",
-            'usage_tip':'KNIFE: It\'s a dagger. Stab things you don\'t like.',
+            'usage_tip':'DAGGER: It\'s a dagger. Stab things you don\'t like.',
             'cooldown':.15,
         },
         'green sword':{
@@ -7251,6 +7259,19 @@ def generate_id(base_name="name"):
 def facing_dir_to_num(direction="n"):
     dir_to_num = {'n':0, 'e':1, 's':2, 'w':3}
     return dir_to_num[direction]
+
+def dir_letter_to_name(direction='n'):
+    letter_to_name = {
+        'n':'north',
+        'ne':'northeast',
+        'e':'east',
+        'se':'southeast',
+        's':'south',
+        'sw':'southwest',
+        'w':'west',
+        'nw':'northwest',
+    }
+    return letter_to_name[direction]
 
 def num_to_facing_dir(direction_number=1):
     direction_number %= 4
