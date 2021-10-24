@@ -7108,12 +7108,13 @@ async def seek_actor(
         point_to_point_distance(coord, target_coord) for coord in open_spaces
     ]
     if distances == []:
-        return current_coord
-    if repel:
+        return_coord = current_coord
+    elif repel:
         output_index = distances.index(max(distances))
     else:
         output_index = distances.index(min(distances))
-    return open_spaces[output_index]
+    chosen_coord = open_spaces[output_index]
+    return return_coord
 
 async def wait(name_key=None, **kwargs):
     """
@@ -7193,6 +7194,12 @@ async def angel_seek(
     if wipe_walked_memory:
         map_dict[movement_choice].seen = False
     return movement_choice
+
+#TODO: 
+# a function that generalizes actor movement (like angel_seek)
+# so that given multiple movement functions and rates that each should be
+# chosen, the actor chooses a random action each chance it gets.
+# {'seek':.1, 'flee':.5, 'wait':1}
 
 async def distance_based_message(
     message_dist_thresholds=(5, 10, 20),
