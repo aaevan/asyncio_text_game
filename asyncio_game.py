@@ -6778,6 +6778,7 @@ async def async_map_init():
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
+       ((-22, 1), 'stone angel'), #TODO: one time spawn after getting red key?
        ((-1, 1), 'test'),
        #((-7, -2), 'presence'), #TODO: unused, needs working leash
     )
@@ -7111,9 +7112,10 @@ async def seek_actor(
         return_coord = current_coord
     elif repel:
         output_index = distances.index(max(distances))
+        return_coord = open_spaces[output_index]
     else:
         output_index = distances.index(min(distances))
-    chosen_coord = open_spaces[output_index]
+        return_coord = open_spaces[output_index]
     return return_coord
 
 async def wait(name_key=None, **kwargs):
