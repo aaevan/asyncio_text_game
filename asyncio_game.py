@@ -171,7 +171,7 @@ class Actor:
         map_dict[self.coords()].actors[self.name] = True
         run_on_entry = map_dict[self.coords()].run_on_entry
         run_on_entry_kwargs = map_dict[self.coords()].run_on_entry_kwargs
-        if run_on_entry is not None:
+        if run_on_entry != None:
             if iscoroutinefunction(run_on_entry):
                 asyncio.ensure_future(
                     run_on_entry(**run_on_entry_kwargs)
@@ -251,15 +251,15 @@ class Room:
             style=None
         ):
         #connects on center with another coord
-        if room_coord is not None:
-            if style is None:
+        if room_coord != None:
+            if style == None:
                 n_wide_passage(
                     coord_a=self.center_coord,
                     coord_b=room_coord, 
                     width=passage_width,
                     fade_to_preset=fade_to_preset
                 )
-            if style is 'jagged':
+            if style == 'jagged':
                 carve_jagged_passage(
                     start_point=self.center_coord,
                     end_point=room_coord,
@@ -536,13 +536,13 @@ class Item:
         self.quantity = quantity
         self.custom_icon = custom_icon
         self.cooldown = cooldown #given in seconds
-        if last_use_time is None:
+        if last_use_time == None:
             self.last_use_time = datetime.now() - timedelta(seconds=999)
         else:
             self.last_use_time = last_use_time
 
     async def use(self):
-        if self.cooldown is not None:
+        if self.cooldown != None:
             cooldown_expiry = self.last_use_time + timedelta(seconds=self.cooldown)
             is_usable_yet = datetime.now() > cooldown_expiry
             if not is_usable_yet:
@@ -552,13 +552,13 @@ class Item:
                     #message=f"The {self.name} is usable in {next_use_seconds} seconds"
                 #)
                 return
-        if self.uses is not None and not self.broken:
-            if self.use_message is not None:
+        if self.uses != None and not self.broken:
+            if self.use_message != None:
                 asyncio.ensure_future(append_to_log(message=self.use_message))
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
-            #if cooldown is not None:
+            #if cooldown != None:
                 #if datetime.now() > self.next_time
-            if self.uses is not None and self.uses != -1:
+            if self.uses != None and self.uses != -1:
                 self.uses -= 1
             if self.uses <= 0 and self.breakable and self.uses != -1:
                 self.broken = True
@@ -596,7 +596,7 @@ class Multi_tile_entity:
 
     [X]an actor must then have an attribute for whether it's part of a multi-tile entity.
     
-    if we check and find that an actor is part of an MTE (the MTE attribute is not None),
+    if we check and find that an actor is part of an MTE (the MTE attribute != None),
         figure out whether it will fit in a new orientation
 
     else:
@@ -634,7 +634,7 @@ class Multi_tile_entity:
             for x in range(len(tiles[0])):
                 offset_coord = add_coords((x, y), offset)
                 write_coord = add_coords(offset_coord, anchor_coord)
-                if tiles[y][x] is ' ': #skip over empty cells to preserve shape of preset
+                if tiles[y][x] == ' ': #skip over empty cells to preserve shape of preset
                     continue
                 else:
                     segment_tile = tiles[y][x]
@@ -880,11 +880,11 @@ class Multi_tile_entity:
         segment_keys = {
             key for key in self.member_data if key not in traveled
         }
-        if exclusions is not set():
+        if exclusions != set():
             segment_keys -= exclusions
         if segment_keys == set():
             return set()
-        if root_node is None:
+        if root_node == None:
             root_node = next(iter(segment_keys))
         traveled.add(root_node)
         possible_paths = {
@@ -958,7 +958,7 @@ class Multi_tile_entity:
         seen_cells = set()
         regions = []
         found_region = None
-        while unchecked_cells is not set():
+        while unchecked_cells != set():
             if state_dict['killall'] == True:
                 break
             found_region = self.find_connected(exclusions=seen_cells)
@@ -1042,9 +1042,9 @@ def multi_push(
        bbbA-> A: other actor
        bbb->
     """
-    if pushed_actor is None and mte_parent is None:
+    if pushed_actor == None and mte_parent == None:
         return False
-    elif pushed_actor is not None and mte_parent is None:
+    elif pushed_actor != None and mte_parent == None:
         mte_parent = actor_dict[pushed_actor].multi_tile_parent
         print(f'mte_parent: {mte_parent}')
     if push_dir in ('ne', 'se', 'sw', 'nw') and ignore_diagonals:
@@ -1084,9 +1084,9 @@ async def drag_actor_along_line(
     Moves an actor along the given points pausing along each step for
     linger_time seconds.
     """
-    if actor_name is None:
+    if actor_name == None:
         return False
-    if line is None:
+    if line == None:
         player_coords = actor_dict['player'].coords()
         destination = add_coords(player_coords, (5, 5))
         line = get_line(player_coords, destination)
@@ -1095,7 +1095,7 @@ async def drag_actor_along_line(
         actor_dict[actor_name].update(coord=point)
 
 async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
-    if mte_name is None:
+    if mte_name == None:
         return False
     if kills:
         mte_dict[mte_name].dead = True
@@ -1471,10 +1471,10 @@ def check_point_within_arc(
     """
     checks whether a point falls within an arc sighted from another point.
     """
-    if facing_angle is None:
+    if facing_angle == None:
         facing_angle = dir_to_angle(state_dict['facing'], mirror_ns=True)
         center = actor_dict['player'].coords()
-    elif center is None:
+    elif center == None:
         center = (0, 0)
     half_arc = arc_width / 2
     twelve_reference = (center[0], center[1] - 5)
@@ -1540,7 +1540,7 @@ def add_jitter_to_middle(points=None, jitter=5):
     takes a list of points and returns the same head and tail but with randomly
     shifted points in the middle.
     """
-    if points is not None:
+    if points != None:
         head, *body, tail = points #tuple unpacking
         new_body = []
         for point in body:
@@ -1559,7 +1559,7 @@ def chained_pairs(pairs=None):
     input: ((1, 1), (2, 2), (3, 3), (4, 4))
     output: (((1, 1), (2, 2)), ((2, 2), (3, 3)), ((3, 3), (4, 4)))
     """
-    if pairs is None:
+    if pairs == None:
         pairs = [(i, i * 2) for i in range(10)]
     return [(pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1)]
 
@@ -1616,7 +1616,7 @@ def n_wide_passage(
     if just_return_values:
         return list(points_to_write)
     for point in points_to_write:
-        if fade_to_preset is not None:
+        if fade_to_preset != None:
             if prob_fade_point_to_point(
                 start_point=coord_a, 
                 end_point=coord_b, 
@@ -1893,7 +1893,7 @@ async def throw_item(
     Moves item from player's inventory to another tile at distance 
     throw_distance
     """
-    if direction is None:
+    if direction == None:
         direction = state_dict['facing']
     direction_tuple = dir_to_offset(state_dict['facing'])
     if not thrown_item_id:
@@ -2046,11 +2046,11 @@ async def damage_all_actors_at_coord(
     quiet=False,
     ignore_list=None,
 ):
-    if ignore_list is None:
+    if ignore_list == None:
         ignore_list = []
     actor_list = [actor for actor in map_dict[coord].actors.items()]
     for actor in actor_list:
-        if actor[0] == 'player' and source_actor is not None:
+        if actor[0] == 'player' and source_actor != None:
             if not quiet:
                 damage_message = f"{damage} damage from {source_actor}!"
                 asyncio.ensure_future(
@@ -2083,11 +2083,11 @@ async def damage_actor(
     material='wood',
     ignore_list=None,
 ):
-    if ignore_list is None:
+    if ignore_list == None:
         ignore_list = []
     if not isinstance(actor_dict[actor], Actor):
         return
-    if actor_dict[actor] is None:
+    if actor_dict[actor] == None:
         return
     if actor_dict[actor].breakable == False:
         return
@@ -2253,7 +2253,7 @@ def push(
     if direction in ('ne', 'se', 'sw', 'nw') and no_diagonals:
         return 'invalid'
     chosen_dir = dir_to_offset(direction)
-    if base_coord is None:
+    if base_coord == None:
         pusher_coords = actor_dict[pusher].coords()
     else:
         pusher_coords = base_coord
@@ -2264,7 +2264,7 @@ def push(
         return 'invalid'
     pushed_name = next(iter(map_dict[destination_coords].actors))
     mte_parent = actor_dict[pushed_name].multi_tile_parent
-    if mte_parent is not None:
+    if mte_parent != None:
         multi_push(pusher=pusher, push_dir=direction, mte_parent=mte_parent)
         return mte_parent
     elif not actor_dict[pushed_name].moveable:
@@ -2349,7 +2349,7 @@ async def bay_door(
         )
     last_spawn_coord = spawn_coord
     door_message = None
-    if message_preset is not None and message_preset in message_presets: 
+    if message_preset != None and message_preset in message_presets: 
         door_message = message_presets[message_preset]
     door_state = None
     while True:
@@ -2366,9 +2366,9 @@ async def bay_door(
             if segment_name[0] not in actor_dict:
                 continue
         if await any_true(trigger_key=patch_to_key):
-            if door_state is not 'open':
+            if door_state != 'open':
                 door_state = 'open'
-                if door_message is not None:
+                if door_message != None:
                     asyncio.ensure_future(
                         sound_message(
                             output_text=door_message[0], 
@@ -2384,9 +2384,9 @@ async def bay_door(
                 await asyncio.sleep(.1)
                 actor_dict[segment[0]].update((9999, 9999)) #move to nowhere
         else:
-            if door_state is not 'close':
+            if door_state != 'close':
                 door_state = 'close'
-                if door_message is not None:
+                if door_message != None:
                     asyncio.ensure_future(
                         sound_message(
                             output_text=door_message[1], 
@@ -2455,7 +2455,7 @@ async def bay_door_pair(
     else:
         return
     patch_init(patch_to_key)
-    if pressure_plate_coord is not None:
+    if pressure_plate_coord != None:
         if type(pressure_plate_coord[0]) == tuple:
             for pair in pressure_plate_coord:
                 pressure_plate(
@@ -2634,7 +2634,7 @@ async def spike_trap(
 def check_actors_on_tile(coords=(0, 0), positives=''):
     actors_on_square = [actor for actor in map_dict[coords].actors.items()]
     for actor in actors_on_square:
-        if positives is None:
+        if positives == None:
             continue
         for weight in positives:
             if weight in actor[0]:
@@ -2873,7 +2873,7 @@ async def hatch_pair(
     dest_end_dir='s', #the direction faced when teleported to the destination
     ladder_start='first'
 ):
-    if destination is None:
+    if destination == None:
         destination = origin
     hatch_coords = origin
     ladder_coords = add_coords(destination, tile_shift_offset)
@@ -3171,7 +3171,7 @@ def pressure_plate(
     positives_dict = {
         'weights':('player', 'box', 'weight', 'crate', 'static'),
     }
-    if positives_preset is not None:
+    if positives_preset != None:
         positives = positives_dict[positives_preset]
     patch_init(patch_to_key)
     plate_id = generate_id(base_name='pressure_plate')
@@ -3216,7 +3216,7 @@ async def pressure_plate_loop(
             coords=test_coord, positives=positives
         )
         if positive_result:
-            if not message_displayed and sound_choice is not None:
+            if not message_displayed and sound_choice != None:
                 asyncio.ensure_future(
                     append_to_log(message=sound_effects[sound_choice])
                 )
@@ -3381,7 +3381,7 @@ async def sword(
         then ...
         removes: 1, 2, 3, 4, 5, ..., n
     """
-    if ignore_list is None:
+    if ignore_list == None:
         ignore_list = []
     if thick:
         ns_tile = '┃'
@@ -3491,7 +3491,7 @@ async def sword_item_ability(
     thick=False,
     ignore_list=None,
 ):
-    if ignore_list is None:
+    if ignore_list == None:
         ignore_list = []
     facing_dir = state_dict['facing']
     asyncio.ensure_future(
@@ -3511,7 +3511,7 @@ async def sword_item_ability(
     )
 
 async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
-    if direction is None:
+    if direction == None:
         direction = state_dict['facing']
     asyncio.ensure_future(
         dash_along_direction(
@@ -3521,7 +3521,7 @@ async def dash_ability(dash_length=20, direction=None, time_between_steps=.03):
     )
 
 async def teleport_in_direction(direction=None, distance=15, flashy=True):
-    if direction is None:
+    if direction == None:
         direction = state_dict['facing']
     player_coords = actor_dict['player'].coords()
     destination_offset = scaled_dir_offset(dir_string=direction, scale_by=distance)
@@ -3559,7 +3559,7 @@ async def teleport(
             await asyncio.sleep(3)
             dest_coords = add_coords(destination, (x_offset, y_offset))
             await pass_between(*dest_coords, plane_name='nightmare')
-        if actor is None and map_dict[origin].actors:
+        if actor == None and map_dict[origin].actors:
             actor = next(iter(map_dict[origin].actors))
         actor_dict[actor].update(coord=destination)
         state_dict['just teleported'] = True
@@ -3580,10 +3580,10 @@ async def random_blink(actor='player', radius=20):
         if distance > radius:
             continue
         line_of_sight_result = await check_line_of_sight(current_location, blink_to)
-        if line_of_sight_result is None:
+        if line_of_sight_result == None:
             continue
-        if type(line_of_sight_result) is bool:
-            if line_of_sight_result is True:
+        if type(line_of_sight_result) == bool:
+            if line_of_sight_result == True:
                 actor_dict[actor].update(coord=(blink_to))
                 return
             else:
@@ -3631,7 +3631,7 @@ async def temp_view_circle(
     asyncio.ensure_future(
         append_to_log(message="You see yourself outside of yourself.")
     )
-    if on_actor is not None:
+    if on_actor != None:
         center_coord = player_coords = actor_dict[on_actor].coords()
     temp_circle = get_circle(center=center_coord, radius=radius)
     shuffle(temp_circle)
@@ -3973,9 +3973,9 @@ def spawn_item_at_coords(
             )
             #TODO: allow custom names to be used but use icon_override 
             #      to designate the icon used
-            if custom_name is not None:
+            if custom_name != None:
                 item_dict[item_id].name = custom_name
-            if custom_color is not None:
+            if custom_color != None:
                 item_dict[item_id].tile = term.color(custom_color)(
                     term.strip_seqs(
                         item_dict[item_id].tile
@@ -4135,7 +4135,7 @@ async def filter_print(
     middle_x, middle_y = (
         int(term.width / 2 - 2), int(term.height / 2 - 2),
     )
-    if absolute_coord is None:
+    if absolute_coord == None:
         y_location = term.height + y_offset
         x_location = middle_x + x_offset
     else:
@@ -4339,7 +4339,7 @@ def draw_door(
         )
     map_dict[door_coord].toggle_states = door_presets[preset]
     map_dict[door_coord].toggle_state_index = starting_toggle_index
-    if color_num is None and preset != 'secret':
+    if color_num == None and preset != 'secret':
         color_num = door_colors[preset]
     tile, blocking, passable = door_presets[preset][starting_toggle_index]
     if preset != 'secret':
@@ -4369,7 +4369,7 @@ async def spawn_container(
     box_choices=None,
     material='wood',
 ):
-    if box_choices is None:
+    if box_choices == None:
         box_choices = ['', 'pebble', 'dynamite', 'red potion', 'fused charge']
     if preset == 'random':
         contents = [choice(box_choices)]
@@ -4423,9 +4423,9 @@ def spawn_static_actor(
     and returns the static actor's id.
     """
 
-    if actor_id is None:
+    if actor_id == None:
         actor_id = generate_id(base_name=base_name)
-    if animation_preset is not None:
+    if animation_preset != None:
         is_animated = True
         animation = Animation(preset=animation_preset)
     else:
@@ -4648,7 +4648,7 @@ def announcement_at_coord(
     map_dict[coord].announcement = announcement
     map_dict[coord].announcing = True
     map_dict[coord].distance_trigger = distance_trigger
-    if tile is not None:
+    if tile != None:
         map_dict[coord].tile = tile
     if describe_tile:
         #strip repeated pipes:
@@ -4680,14 +4680,14 @@ async def get_key(map_dict, help_wait_count=100):
                 key = sys.stdin.read(1)
                 if key == '\x7f':  # x1b is ESC
                     state_dict['exiting'] = True
-                if key is not None:
+                if key != None:
                     player_health = actor_dict["player"].health
                     if player_health > 0:
                         asyncio.ensure_future(handle_input(map_dict, key))
             cursor_location = state_dict['look_cursor_location']
             looking = state_dict['looking'] 
             timeout_reached = state_dict['blink_timeout'] == 15
-            if looking and timeout_reached and cursor_location is not None:
+            if looking and timeout_reached and cursor_location != None:
                 asyncio.ensure_future(
                     fade_print(
                         output_text='╳',
@@ -4761,9 +4761,9 @@ async def free_look(
     blocked_message = "Your view is blocked!"
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
-    if starting_angle is not None and type(starting_angle) == int:
+    if starting_angle != None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
-    if cursor_location is not None and type(cursor_location) == tuple:
+    if cursor_location != None and type(cursor_location) == tuple:
         static_vars['cursor_location'] = cursor_location
     debounce = False
     dist_from_player = point_to_point_distance(player_coord, describe_coord)
@@ -4870,7 +4870,7 @@ async def action_keypress(key, debug=True):
             push_message='Can\'t push. Something is in the way.'
         else:
             push_message = f'You push the {push_return}.'
-        if push_message is not None:
+        if push_message != None:
             asyncio.ensure_future(
                 append_to_log(message='Can\'t push. Something is in the way.')
             )
@@ -5008,12 +5008,12 @@ async def handle_input(map_dict, key):
         await handle_exit(key)
     elif state_dict['looking'] == True:
         return_val = await free_look(key)
-        if type(return_val) is not tuple:
+        if type(return_val) != tuple:
             await action_keypress(return_val)
         state_dict['blink_timeout'] = 0
     else:
         await action_keypress(key)
-    if type(return_val) is tuple:
+    if type(return_val) == tuple:
         state_dict['look_cursor_location'] = return_val
 
 def get_facing_coord():
@@ -5026,15 +5026,15 @@ async def examine_tile(examined_coord=None, tense='present'):
     if state_dict['blinded']:
         await append_to_log(message="You can't see well enough to examine!")
         return
-    if examined_coord is None:
+    if examined_coord == None:
         examined_coord = get_facing_coord()
     #add descriptions for actors
     is_secret = False
     has_visible_actor = False
     for actor in map_dict[examined_coord].actors:
-        if actor_dict[actor].y_hide_coord is None:
+        if actor_dict[actor].y_hide_coord == None:
             has_visible_actor = True
-            if type(actor_dict[actor].description) is not str:
+            if type(actor_dict[actor].description) != str:
                 actor_description = next(actor_dict[actor].description)
             else:
                 actor_description = actor_dict[actor].description
@@ -5060,11 +5060,11 @@ async def examine_tile(examined_coord=None, tense='present'):
         else:
             description_text = f'A closed {door_type} door.'
     else:
-        if type(map_dict[examined_coord].description) is not str:
+        if type(map_dict[examined_coord].description) != str:
             description_text = next(map_dict[examined_coord].description)
         else:
             description_text = map_dict[examined_coord].description
-    if description_text is not None:
+    if description_text != None:
         if tense == 'past':
             description_text = description_text[0].lower() + description_text[1:]
             description_text = "You remember seeing " + description_text
@@ -5078,7 +5078,7 @@ async def toggle_door(door_coord):
     when space is pressed, the door's tile is changed and it is set to passable
     """
     #TODO: generalize toggle_door to toggle_tile (for puzzles that have toggleable elements, switches)
-    if map_dict[door_coord].toggle_states is None:
+    if map_dict[door_coord].toggle_states == None:
         return
     toggle_states = map_dict[door_coord].toggle_states
     toggle_state_index = map_dict[door_coord].toggle_state_index
@@ -5129,7 +5129,7 @@ async def use_action(tile_coords=None, is_async=True, debug=False):
     for the given coordinate, if the Map_tile (or actor) has a use_action_func
     (with use_action_kwargs), run that function, else, pass
     """
-    if tile_coords is None:
+    if tile_coords == None:
         tile_coords = get_facing_coord()
     #BOOKMARK
     if debug:
@@ -5137,14 +5137,14 @@ async def use_action(tile_coords=None, is_async=True, debug=False):
             for index, actor in enumerate(map_dict[tile_coords].actors):
                 with term.location(55, index + 1):
                     print("actor:", actor)
-    if map_dict[tile_coords] is not None:
+    if map_dict[tile_coords] != None:
         tile_use_action = map_dict[tile_coords].use_action_func
         tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
     else:
         return
-    if tile_use_action is None:
+    if tile_use_action == None:
         return
-    elif tile_use_action_kwargs is not None:
+    elif tile_use_action_kwargs != None:
         if is_async:
             await tile_use_action(**tile_use_action_kwargs)
         else:
@@ -5548,8 +5548,8 @@ async def key_slot_checker(
         with term.location(x_coord, y_coord + 6):
             print('─────')
         icon_used = item_name
-        if item_name is not 'empty':
-            if item_dict[equipped_item_id].custom_icon is not None:
+        if item_name != 'empty':
+            if item_dict[equipped_item_id].custom_icon != None:
                 icon_used = item_dict[equipped_item_id].custom_icon
         await print_icon(x_coord=x_coord, y_coord=y_coord, icon_name=icon_used)
 
@@ -5573,7 +5573,7 @@ async def equip_item(
         usage_tip = item_dict[item_id_choice].usage_tip
         equip_message = f'Equipped {item_name} to slot {slot}.'
         await append_to_log(message=equip_message)
-        if usage_tip is not None:
+        if usage_tip != None:
             await append_to_log(message=usage_tip)
     else:
         await append_to_log(message='Nothing to equip!')
@@ -5596,11 +5596,11 @@ async def siphon_trinket_effect(
     effect_radius=10,
     item_id=None,
 ):
-    if center_on_actor_id is None:
+    if center_on_actor_id == None:
         center_on_actor_id = 'player'
     if not hasattr(actor_dict[center_on_actor_id], 'coords'):
         return
-    if item_id is not None:
+    if item_id != None:
         if item_dict[item_id].uses <= 0:
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
@@ -5653,7 +5653,7 @@ async def add_uses_to_chosen_item(num_charges=10):
 
 async def use_item_in_slot(slot='q'):
     item_id = state_dict[f'{slot}_slot']
-    if item_id is 'empty':
+    if item_id == 'empty':
         asyncio.ensure_future(
             append_to_log(message=f'No item in {slot}! Equip to {slot} with {slot.upper()} then 0-f.')
         )
@@ -5920,7 +5920,7 @@ async def crosshairs(
                 )
                 for angle in angles
             ]
-            if old_points is not None:
+            if old_points != None:
                 for point in old_points:
                     with term.location(*point):
                         print(' ')
@@ -6031,14 +6031,14 @@ async def check_line_of_sight(coord_a, coord_b):
         if map_dict[point].magic == True:
             return await handle_magic_door(point=point, last_point=points[-1])
         elif map_dict[point].blocking == False:
-            if map_dict[point].actors is not None:
+            if map_dict[point].actors != None:
                 for actor in map_dict[point].actors:
                     if actor_dict[actor].blocking:
                         blocking_actor_index = index
                         break
         else:
             walls += 1
-    if blocking_actor_index is not None:
+    if blocking_actor_index != None:
         if blocking_actor_index < len(points) - 1:
             return False
         else:
@@ -6052,7 +6052,7 @@ async def check_line_of_sight(coord_a, coord_b):
 async def handle_magic_door(point=(0, 0), last_point=(5, 5)):
     difference_from_last = diff_coords(last_point, point)
     destination = map_dict[point].magic_destination
-    if difference_from_last is not (0, 0):
+    if difference_from_last != (0, 0):
         coord_through_door = (
             destination[0] + difference_from_last[0], 
             destination[1] + difference_from_last[1]
@@ -6144,7 +6144,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
                 player_coords,
                 tile_coord_key
             )
-            if type(line_of_sight_result) is tuple:
+            if type(line_of_sight_result) == tuple:
                 print_choice = await check_contents_of_tile(line_of_sight_result)
             elif line_of_sight_result == True:
                 await trigger_announcement(
@@ -6167,7 +6167,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             remembered_tile = map_dict[x_display_coord, y_display_coord].tile
             if map_dict[x_display_coord, y_display_coord].actors:
                 for key in map_dict[x_display_coord, y_display_coord].actors.keys():
-                    if actor_dict[key].multi_tile_parent is not None:
+                    if actor_dict[key].multi_tile_parent != None:
                         remembered_tile = actor_dict[str(key)].tile
                         break
             elif map_dict[x_display_coord, y_display_coord].items:
@@ -6229,12 +6229,12 @@ async def check_contents_of_tile(coord):
             #the y_hide_coord value acts like a z_index: higher values in front
             y_hide_coord = actor_dict[actor_name].y_hide_coord
             player_coords = actor_dict['player'].coords()
-            if y_hide_coord is None:
+            if y_hide_coord == None:
                 return_val = actor_dict[actor_name].get_view()
             elif player_coords[1] >= y_hide_coord[1]:
                 if actor_dict[actor_name] != [None]:
                     return_val = actor_dict[actor_name].get_view()
-    if return_val is None:
+    if return_val == None:
         if map_dict[coord].items:
             item_name = next(iter(map_dict[coord].items))
             return_val = item_dict[item_name].tile
@@ -6374,7 +6374,7 @@ async def directional_alert(
             'persist_delay':1,
         },
     }
-    if preset is not None and preset in presets:
+    if preset != None and preset in presets:
         preset_kwargs = presets[preset]
         await directional_alert(
             **preset_kwargs,
@@ -6389,10 +6389,10 @@ async def directional_alert(
             actor_a='player',
             actor_b=source_actor
         )
-    elif source_direction is not None:
+    elif source_direction != None:
         if source_direction in source_directions:
             source_angle = dir_to_angle(source_direction)
-    elif source_angle is None:
+    elif source_angle == None:
         return
     source_angle = 180 - source_angle
     middle_x, middle_y = (
@@ -7182,7 +7182,7 @@ async def angel_seek(
     if tether_length > 0:
         if point_to_point_distance(tether_coord, movement_choice) > tether_length:
             return actor_location
-    if message_on_movement is not None and movement_choice != actor_location:
+    if message_on_movement != None and movement_choice != actor_location:
         if random() > .9:
             asyncio.ensure_future(
                 distance_based_message(
@@ -7210,7 +7210,7 @@ async def distance_based_message(
     target_actor='player',
     message="distance based message!"
 ):
-    if source_actor is None:
+    if source_actor == None:
         return
     close_dist, med_dist, far_dist = message_dist_thresholds
     close_message, med_message, far_message = dist_threshold_descriptors
@@ -7577,7 +7577,7 @@ async def basic_actor(
             actor_dict[name_key].update(coord=next_coords)
 
 def distance_to_actor(actor_a=None, actor_b='player'):
-    if actor_a is None:
+    if actor_a == None:
         return 0
     a_coord = actor_dict[actor_a].coords()
     b_coord = actor_dict[actor_b].coords()
@@ -7589,7 +7589,7 @@ def kill_actor(name_key=None, leaves_body=True, blood=True):
     if leaves_body:
         body_tile = term.red(actor_dict[name_key].tile)
         name_temp = actor_dict[name_key].base_name
-    if actor_dict[name_key].multi_tile_parent is not None:
+    if actor_dict[name_key].multi_tile_parent != None:
         parent_name = actor_dict[name_key].multi_tile_parent
         actor_index = mte_dict[parent_name].member_names.index(name_key)
         del mte_dict[parent_name].member_names[actor_index]
@@ -7616,7 +7616,7 @@ def kill_actor(name_key=None, leaves_body=True, blood=True):
     return
 
 def spawn_item_spray(base_coord=(0, 0), items=[], random=False, radius=0):
-    if items is None:
+    if items == None:
         return
     loop = asyncio.get_event_loop()
     circle_points = get_circle(center=base_coord, radius=radius)
@@ -7665,10 +7665,10 @@ async def follower_vine(
     Multiple segments of the same MTE vine can occupy the same location
 
     """
-    if root_node_key is not None:
+    if root_node_key != None:
         root_node = actor_dict[root_node_key].coords()
         current_coord = add_coords(root_node, root_offset)
-    elif spawn_coord is not None:
+    elif spawn_coord != None:
         current_coord = spawn_coord
     vine_name = await spawn_mte(
         base_name=base_name, spawn_coord=current_coord, preset='empty',
@@ -7683,7 +7683,7 @@ async def follower_vine(
         )
     mte_dict[vine_name].vine_instructions = "M" * num_segments
     mte_dict[vine_name].vine_facing_dir = facing_dir
-    if color_choice is None:
+    if color_choice == None:
         color_choice = choice((1, 2, 3, 4, 5, 6, 7))
     while True:
         if state_dict['killall'] == True:
@@ -7695,7 +7695,7 @@ async def follower_vine(
             mte_dict[vine_name].vine_instructions
         )
         write_dir = mte_dict[vine_name].vine_facing_dir
-        if root_node_key is None:
+        if root_node_key == None:
             current_coord = add_coords(
                 dir_to_offset(write_dir, inverse=True), 
                 actor_dict[mte_dict[vine_name].member_names[0]].coords()
@@ -7872,7 +7872,7 @@ async def spawn_bubble(centered_on_actor='player', radius=6, duration=10):
     return True
 
 def points_at_distance(spacing=2, radius=5, central_point=None):
-    if central_point is None:
+    if central_point == None:
         central_point = actor_dict['player'].coords()
     angles_at_spacing = [i * spacing for i in range(360 // spacing)]
     points = []
@@ -7896,9 +7896,9 @@ async def passwall_effect(
         state_dict['passwall running'] = True
     else:
         return
-    if origin_coord is None:
+    if origin_coord == None:
         origin_coord=actor_dict['player'].coords()
-    if direction is None:
+    if direction == None:
         direction=state_dict['facing']
     scaled_offset = scaled_dir_offset(
         dir_string=direction, scale_by=depth_of_cut
@@ -7988,7 +7988,7 @@ async def timed_actor(
     coords = actor_dict[name].coords() 
     del map_dict[coords].actors[name]
     del actor_dict[name]
-    if vanish_message is not None:
+    if vanish_message != None:
         asyncio.ensure_future(
             sound_message(
                 output_text=vanish_message,
@@ -8103,7 +8103,7 @@ async def projectile(
 ):
     rand_radius = randint(*radius_spread) + radius
     rand_angle = randint(*angle_spread) + firing_angle
-    if actor_key is not None:
+    if actor_key != None:
         start_coords = actor_dict[actor_key].coords()
     x_shift, y_shift = point_given_angle_and_radius(
         angle=rand_angle, radius=rand_radius
@@ -8219,7 +8219,7 @@ async def travel_along_line(
         if always_visible:
             map_dict[point].override_view = True
         actor_dict[particle_id].update(coord=point)
-        if damage is not None:
+        if damage != None:
             await damage_all_actors_at_coord(
                 coord=point, damage=damage, source_actor=source_actor
             )
