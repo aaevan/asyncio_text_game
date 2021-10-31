@@ -7170,7 +7170,8 @@ async def angel_seek(
     within_fov = check_point_within_arc(
         checked_point=actor_location, arc_width=150
     )
-    if within_fov:
+    #if blinded, ignore fov check
+    if within_fov and not state_dict['blinded']:
         return actor_location
     else:
         movement_choice = await seek_actor(
