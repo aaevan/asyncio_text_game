@@ -6366,10 +6366,10 @@ async def directional_alert(
         'footfall':{
             'particle_count':1,
             'radius':radius,
-            'radius_spread':1,
-            'angle_spread': 30,
+            'radius_spread':2,
+            'angle_spread': 45,
             #'warning_color':0x08,
-            'warning_color':0x01,
+            'warning_color':0x01, #red
             'palette':"◌",
             'persist_delay':1,
         },
@@ -7560,7 +7560,7 @@ async def basic_actor(
             if point_in_fov and not state_dict['blinded']:
                 continue
             if dist_to_player ** 2 != 0:
-                noise_level = (1 / dist_to_player ** 2) * 10
+                noise_level = (1 / dist_to_player ** 2) * 5
             else:
                 noise_level = 99
             #TODO: an item that changes how many footfalls appear onscreen
