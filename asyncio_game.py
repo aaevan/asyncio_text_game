@@ -1050,9 +1050,9 @@ def multi_push(
     if push_dir in ('ne', 'se', 'sw', 'nw') and ignore_diagonals:
         return False
     move_by = dir_to_offset(push_dir)
+    base_name = mte_dict[mte_parent].name.split('_')[0]
     if mte_dict[mte_parent].check_collision(move_by=move_by):
         if pusher == 'player':
-            base_name = mte_dict[mte_parent].name.split('_')[0]
             push_dir_fullname = dir_letter_to_name(push_dir)
             message = f'You push the {base_name} to the {push_dir_fullname}.'
             asyncio.ensure_future(
@@ -1060,6 +1060,13 @@ def multi_push(
             )
         mte_dict[mte_parent].move(move_by=move_by)
         return True
+    #TODO: when uncommented, figure out what spams "The empty doesn't move when pushed"
+    #else:
+        #if pusher == 'player':
+        #message = f'The {base_name} doesn\'t move when pushed.'
+        #asyncio.ensure_future(
+            #append_to_log(message=message)
+        #)
 
 async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
     await asyncio.sleep(delay)
@@ -4870,10 +4877,6 @@ async def action_keypress(key, debug=True):
             push_message='Can\'t push. Something is in the way.'
         else:
             push_message = f'You push the {push_return}.'
-        if push_message != None:
-            asyncio.ensure_future(
-                append_to_log(message='Can\'t push. Something is in the way.')
-            )
         walk_destination = add_coords(player_coords, offset_from_dir)
         if is_passable(walk_destination):
             x_shift, y_shift = offset_from_dir
@@ -6368,7 +6371,6 @@ async def directional_alert(
             'radius':radius,
             'radius_spread':2,
             'angle_spread': 45,
-            #'warning_color':0x08,
             'warning_color':0x01, #red
             'palette':"◌",
             'persist_delay':1,
@@ -6703,7 +6705,7 @@ async def async_map_init():
         #items in starting cell:
         ((26, -3), 'cell key'),
         ((23, 1), 'dagger'), 
-        ((26, -5), 'blindfold'), 
+        ((25, 5), 'blindfold'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
@@ -8470,6 +8472,8 @@ async def spawn_preset_actor(
                 made_of='jelly',
             )
         )
+    #TODO: an enemy that moves towards player footsteps
+    #      or noises created by other means
     elif preset == 'zombie':
         item_drops = ['red potion']
         description = 'A slow but determined living corpse.'
