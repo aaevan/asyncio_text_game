@@ -503,6 +503,7 @@ class Item:
         tile='?',
         current_location=None,
         usable_power=None,
+        description="Item description not set!",
         power_kwargs={}, 
         broken=False,
         use_message='You use the item.',
@@ -524,6 +525,7 @@ class Item:
         self.uses = uses
         self.tile = tile
         self.usable_power = usable_power
+        self.description = description
         self.use_message = use_message
         self.usage_tip = usage_tip
         self.broken = broken
@@ -741,11 +743,6 @@ class Multi_tile_entity:
                 'nothingness'
             ),
             'bold_2x2':('???', 'reinforced box', 'wood'),
-            'crate_2x2':(
-                'A large wooden crate. It looks fragile.',
-                'side of the crate',
-                'wood'
-            ),
             'crate_2x2':(
                 'A large crate banded with thick metal.',
                 'Part of the banded crate', 
@@ -3691,6 +3688,7 @@ def spawn_item_at_coords(
             'uses':10,
             'tile':term.blue('/'),
             'usable_power':temporary_block,
+            'description':'description!',
             'power_kwargs':{'duration':30, 'vanish_message':'*POP!*'},
             'use_message':block_wand_text,
             'broken_text':' is out of charges',
@@ -3704,6 +3702,7 @@ def spawn_item_at_coords(
                 'num_charges':3,
             },
             'usable_power':battery_effect,
+            'description':'description!',
             'use_message':None,
         },
         'siphon trinket':{
@@ -3716,6 +3715,7 @@ def spawn_item_at_coords(
                 'item_id':item_id,
             },
             'usable_power':siphon_trinket_effect,
+            'description':'description!',
             'use_message':'You feel a bit more alive.',
         },
         #TODO: implement a cooldown on items using time deltas?
@@ -3723,6 +3723,7 @@ def spawn_item_at_coords(
             'uses':6,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
+            'description':'description!',
             'use_message':None,
             'broken_text':' is out of charges',
             'accepts_charges':True,
@@ -3746,12 +3747,14 @@ def spawn_item_at_coords(
             'stackable':True,
             'tile':term.red('·'),
             'usable_power':throw_item, 
+            'description':'description!',
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'note':{
             'uses':-1,
             'tile':'◇',
             'usable_power':append_to_log, 
+            'description':'A note. Use to read contents.',
             'power_kwargs':{
                 **kwargs,
             },
@@ -3763,12 +3766,14 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':'.',
             'usable_power':throw_item, 
+            'description':'description!',
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'scanner':{
             'uses':5,
             'tile':term.green('𝄮'), 
             'usable_power':timed_scanner_use,
+            'description':'description!',
             'accepts_charges':True,
             'use_message':None,
             'breakable':False,
@@ -3779,12 +3784,14 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.green('⏣'),
             'usable_power':thrown_action, 
+            'description':'description!',
             'power_kwargs':{'thrown_item_id':item_id, 'radius':3}
         },
         'dynamite':{
             'uses':-1,
             'tile':term.red('\\'),
             'usable_power':thrown_action, 
+            'description':'description!',
             'power_kwargs':{
                 'thrown_item_id':item_id,
                 'throw_distance':1, 
@@ -3800,6 +3807,7 @@ def spawn_item_at_coords(
             'tile':term.blue('/'),
             'power_kwargs':{'radius':6},
             'usable_power':spawn_bubble,
+            'description':'description!',
             'broken_text':wand_broken_text
         },
         'red potion':{
@@ -3811,6 +3819,7 @@ def spawn_item_at_coords(
                 'total_restored':50,
             },
             'usable_power':health_potion,
+            'description':'description!',
             'broken_text':wand_broken_text,
             'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
             'usage_tip':'RED POTION: use to restore a little bit of life.',
@@ -3820,6 +3829,7 @@ def spawn_item_at_coords(
             'tile':term.blue('o'), 
             'power_kwargs':{'radius':5, 'track_actor':'player'}, 
             'usable_power':orbit,
+            'description':'description!',
             'broken_text':wand_broken_text
         },
         'shift amulet':{
@@ -3831,6 +3841,7 @@ def spawn_item_at_coords(
                 'plane_name':'nightmare'
             },
             'usable_power':pass_between,
+            'description':'description!',
             'broken_text':'Something went wrong.'
         },
         'red spike':{
@@ -3838,6 +3849,7 @@ def spawn_item_at_coords(
             'tile':term.red('ļ'),
             'power_kwargs':{'length':4, 'speed':.07},
             'usable_power':sword_item_ability,
+            'description':'description!',
             'broken_text':'Something went wrong.',
             'use_message':None
         },
@@ -3853,6 +3865,7 @@ def spawn_item_at_coords(
                 'ignore_list':['stone angel', 'presence', 'crate_2x2']
             },
             'usable_power':sword_item_ability,
+            'description':'A short double sided blade with a sturdy hilt. Designed for violence.',
             'use_message':"You stab with the dagger!",
             'usage_tip':'DAGGER: It\'s a dagger. Stab things you don\'t like.',
             'cooldown':.15,
@@ -3868,6 +3881,7 @@ def spawn_item_at_coords(
                 'player_sword_track':True,
             },
             'usable_power':sword_item_ability,
+            'description':'description!',
             'broken_text':'Something went wrong.',
             'use_message':None,
             'cooldown':1,
@@ -3879,6 +3893,7 @@ def spawn_item_at_coords(
                 'from_item':True,
             },
             'usable_power':blindfold_toggle,
+            'description':'description!',
             'broken_text':'Something went wrong.',
             'use_message':'',
             'cooldown':1,
@@ -3887,6 +3902,7 @@ def spawn_item_at_coords(
             'uses':19,
             'tile':term.blue('⥌'),
             'usable_power':dash_ability, 
+            'description':'description!',
             'power_kwargs':{'dash_length':20},
             'broken_text':wand_broken_text
         },
@@ -3894,6 +3910,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.red('⚷'),
             'usable_power':unlock_door, 
+            'description':'description!',
             'power_kwargs':{'opens':'red'},
             'broken_text':wand_broken_text,
             'use_message':'',
@@ -3903,6 +3920,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.green('⚷'),
             'usable_power':unlock_door, 
+            'description':'description!',
             'power_kwargs':{'opens':'green'},
             'broken_text':wand_broken_text,
             'use_message':None,
@@ -3912,6 +3930,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.color(00)('⚷'),
             'usable_power':unlock_door, 
+            'description':'A large iron key with crude warding. It will unlock cell doors.',
             'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
             'use_message':None,
@@ -3922,6 +3941,7 @@ def spawn_item_at_coords(
             'uses':3,
             'tile':term.color(3)('⚷'),
             'usable_power':unlock_door, 
+            'description':'description!',
             'power_kwargs':{'opens':'rusty'},
             'broken_text':'the key breaks off in the lock',
             'use_message':None,
@@ -3931,6 +3951,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.blue('⚭'),
             'usable_power':random_blink, 
+            'description':'description!',
             'power_kwargs':{'radius':50},
             'broken_text':wand_broken_text
         },
@@ -3938,6 +3959,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.red('O̧'),
             'usable_power':teleport_in_direction, 
+            'description':'description!',
             'power_kwargs':{'distance':10},
             'broken_text':wand_broken_text
         },
@@ -3947,6 +3969,7 @@ def spawn_item_at_coords(
             'tile':term.color(0xca)('/'),
             'power_kwargs':{'duration':3},
             'usable_power':passwall_effect,
+            'description':'description!',
             'broken_text':wand_broken_text,
             'usage_tip':'PASSWALL WAND: be careful to not stand on the shimmering sections for too long.',
         },
@@ -3955,6 +3978,7 @@ def spawn_item_at_coords(
             'use_message':None,
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
+            'description':'description!',
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3, 'timeout':10},
             'broken_text':wand_broken_text,
             'usage_tip':'LOOKING GLASS: use to briefly reveal (then immediately forget) nearby cells.',
@@ -3970,7 +3994,7 @@ def spawn_item_at_coords(
             if base_name in item_name and is_stackable:
                 item_dict[item_name].uses += 1
                 break
-        #only execute if the for loop completes:
+        #only execute if the item is not added to an existing carried stack:
         else:
             item_dict[item_id] = Item(
                 name=instance_of,
@@ -4774,7 +4798,7 @@ async def free_look(
         static_vars['cursor_location'] = cursor_location
     debounce = False
     dist_from_player = point_to_point_distance(player_coord, describe_coord)
-    if key not in 'ijkluom.x?' or dist_from_player >= cutout_dist:
+    if key not in 'ijkluom.x?0123567890abcdef' or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
         debounce = True
@@ -4810,6 +4834,12 @@ async def free_look(
             )
         debounce = True
     #TODO: if number keys, describe the item in that inventory slot!
+    elif key in '0123456789abcdef':
+        asyncio.ensure_future(
+            use_item_by_inventory_number(
+                number=int(f'0x{key}', 16), describe=True
+            )
+        )
     elif key in '?':
         await display_help(mode="looking") 
         debounce = True
@@ -5353,13 +5383,24 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
         with term.location(*add_coords((x_coord, y_coord), (0, num))):
             print(line)
 
-async def use_item_by_inventory_number(number=0):
+async def use_item_by_inventory_number(number=0, describe=False):
+    """
+    When calling, set describe=True to log the item's description to the 
+    console instead of using the item.
+    """
     item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
     if len(item_id_choices) == 0:
         return
     if number <= len(item_id_choices) - 1:
         item_id = item_id_choices[number]
-        asyncio.ensure_future(item_dict[item_id].use())
+        if describe:
+            item_description = item_dict[item_id].description
+            asyncio.ensure_future(
+                append_to_log(message=item_description)
+            )
+            return
+        else:
+            asyncio.ensure_future(item_dict[item_id].use())
 
 async def choose_item(
     item_id_choices=None, item_id=None, draw_coord=(0, 25),
@@ -5965,6 +6006,7 @@ async def display_help(mode="normal"):
     help_text_looking = (
         " ijkl: move cursor        ",
         "    x: describe tile      ",
+        "  0-f: describe inventory slot.",
         "other: exit look mode     ",
     )
     if mode == "normal":
