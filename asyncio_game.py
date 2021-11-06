@@ -3773,12 +3773,12 @@ def spawn_item_at_coords(
             'uses':5,
             'tile':term.green('𝄮'), 
             'usable_power':timed_scanner_use,
-            'description':'description!',
+            'description':'Activate the scanner to briefly reveal your surroundings (green) and entities (red).',
+            'usage_tip':True,
             'accepts_charges':True,
             'use_message':None,
             'breakable':False,
             'power_kwargs':{'duration':5},
-            'usage_tip':'SCANNER: Activate to briefly reveal your surroundings (green) and entities (red).',
         },
         'fused charge':{
             'uses':-1,
@@ -3819,10 +3819,9 @@ def spawn_item_at_coords(
                 'total_restored':50,
             },
             'usable_power':health_potion,
-            'description':'description!',
+            'description':'Use the potion to restore a little bit of life.',
             'broken_text':wand_broken_text,
             'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
-            'usage_tip':'RED POTION: use to restore a little bit of life.',
         },
         'shiny stone':{
             'uses':-1,
@@ -3893,7 +3892,7 @@ def spawn_item_at_coords(
                 'from_item':True,
             },
             'usable_power':blindfold_toggle,
-            'description':'description!',
+            'description':'Useful for listening to your surroundings.',
             'broken_text':'Something went wrong.',
             'use_message':'',
             'cooldown':1,
@@ -3934,7 +3933,7 @@ def spawn_item_at_coords(
             'power_kwargs':{'opens':'cell'},
             'broken_text':wand_broken_text,
             'use_message':None,
-            'usage_tip':"CELL KEY: Try using it on the cell door.",
+            'usage_tip':True,
             'cooldown':1,
         },
         'rusty key':{
@@ -5614,7 +5613,9 @@ async def equip_item(
     state_dict[current_slot_name] = item_id_choice
     if hasattr(item_dict[item_id_choice], 'name'):
         item_name = item_dict[item_id_choice].name
-        usage_tip = item_dict[item_id_choice].usage_tip
+        usage_tip = None
+        if item_dict[item_id_choice].usage_tip == True:
+            usage_tip = item_dict[item_id_choice].description
         equip_message = f'Equipped {item_name} to slot {slot}.'
         await append_to_log(message=equip_message)
         if usage_tip != None:
