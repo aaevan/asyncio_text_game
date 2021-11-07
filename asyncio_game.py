@@ -4791,15 +4791,25 @@ async def free_look(
     blocked_message = "Your view is blocked!"
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
+    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    item_choice_labels = list('012356789abcdef'[:len(item_id_choices)])
+    #TODO: make labels appear even before ijkl input
+    for y_coord, item_choice_label in enumerate(item_choice_labels):
+        with term.location(0, y_coord + 20):
+            print(f'{item_choice_label}:')
     if starting_angle != None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
     if cursor_location != None and type(cursor_location) == tuple:
         static_vars['cursor_location'] = cursor_location
     debounce = False
     dist_from_player = point_to_point_distance(player_coord, describe_coord)
-    if key not in 'ijkluom.x?0123567890abcdef' or dist_from_player >= cutout_dist:
+    valid_inputs = 'ijkluom.x?0123567890abcdef'
+    if key not in valid_inputs or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
+        for y_coord, item_choice_label in enumerate(item_choice_labels):
+            with term.location(0, y_coord + 20):
+                print('  ')
         debounce = True
         asyncio.ensure_future(
             append_to_log(message=blocked_message)
