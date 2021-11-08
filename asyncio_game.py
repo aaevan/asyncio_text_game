@@ -2945,7 +2945,7 @@ async def teleporter(
     tile='X',
     spawn_coord=(1, 1),
     destination_coords=(1, -6),
-    description="What happens if you step on it?",
+    description="A glowing circle embedded in the floor. What happens if you step on it?",
     magic_door_view=True,
 ):
     paint_preset(tile_coords=spawn_coord, preset='pulse')
@@ -3688,7 +3688,7 @@ def spawn_item_at_coords(
             'uses':10,
             'tile':term.blue('/'),
             'usable_power':temporary_block,
-            'description':'description!',
+            'description':'A wand the length of your forearm with a small cube at the tip.',
             'power_kwargs':{'duration':30, 'vanish_message':'*POP!*'},
             'use_message':block_wand_text,
             'broken_text':' is out of charges',
@@ -3702,7 +3702,7 @@ def spawn_item_at_coords(
                 'num_charges':3,
             },
             'usable_power':battery_effect,
-            'description':'description!',
+            'description':'A small square battery. Can be used to recharge electronics.',
             'use_message':None,
         },
         'siphon trinket':{
@@ -3715,7 +3715,7 @@ def spawn_item_at_coords(
                 'item_id':item_id,
             },
             'usable_power':siphon_trinket_effect,
-            'description':'description!',
+            'description':'A small, blood-red triangular token. It feels unnaturally cold to the touch.',
             'use_message':'You feel a bit more alive.',
         },
         #TODO: implement a cooldown on items using time deltas?
@@ -3723,7 +3723,7 @@ def spawn_item_at_coords(
             'uses':6,
             'tile':term.red('τ'),
             'usable_power':sword_item_ability,
-            'description':'description!',
+            'description':'A well-worn laser pistol with glowing purple tracery. Hot to the touch.',
             'use_message':None,
             'broken_text':' is out of charges',
             'accepts_charges':True,
@@ -3747,7 +3747,7 @@ def spawn_item_at_coords(
             'stackable':True,
             'tile':term.red('·'),
             'usable_power':throw_item, 
-            'description':'description!',
+            'description':'A small pebble: smooth and round. Can be thrown.',
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'note':{
@@ -3762,18 +3762,19 @@ def spawn_item_at_coords(
             'use_message':None,
             'custom_icon':'note', #overrides the custom_name using the wrong icon
         },
+        #TODO: make seeds able to spawn vines?
         'seed':{
             'uses':-1,
             'tile':'.',
             'usable_power':throw_item, 
-            'description':'description!',
+            'description':'A sizeable hard seed about the size of an almond. Can be thrown.',
             'power_kwargs':{'thrown_item_id':item_id}
         },
         'scanner':{
             'uses':5,
             'tile':term.green('𝄮'), 
             'usable_power':timed_scanner_use,
-            'description':'Activate the scanner to briefly reveal your surroundings (green) and entities (red).',
+            'description':'A handheld device with a small flickering display. Activate reveal your surroundings.',
             'usage_tip':True,
             'accepts_charges':True,
             'use_message':None,
@@ -3784,14 +3785,15 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.green('⏣'),
             'usable_power':thrown_action, 
-            'description':'description!',
+            'description':'A hexagonal puck with a garish label, it reads,'
+                          '|"CAUTION! EXPLOSIVES! PULL TAB AND THROW AWAY FROM USER"',
             'power_kwargs':{'thrown_item_id':item_id, 'radius':3}
         },
         'dynamite':{
             'uses':-1,
             'tile':term.red('\\'),
             'usable_power':thrown_action, 
-            'description':'description!',
+            'description':'Dynamite, plain and simple. It has a long fuse.',
             'power_kwargs':{
                 'thrown_item_id':item_id,
                 'throw_distance':1, 
@@ -3807,7 +3809,7 @@ def spawn_item_at_coords(
             'tile':term.blue('/'),
             'power_kwargs':{'radius':6},
             'usable_power':spawn_bubble,
-            'description':'description!',
+            'description':'A footlong wand covered in round glowing nodules.',
             'broken_text':wand_broken_text
         },
         'red potion':{
@@ -3819,7 +3821,7 @@ def spawn_item_at_coords(
                 'total_restored':50,
             },
             'usable_power':health_potion,
-            'description':'Use the potion to restore a little bit of life.',
+            'description':'A vial of viscous red liquid. Drinking it mends some of your wounds.',
             'broken_text':wand_broken_text,
             'use_message':"You drink the red potion.|||You feel healthy! (25 life restored)",
         },
@@ -3828,7 +3830,7 @@ def spawn_item_at_coords(
             'tile':term.blue('o'), 
             'power_kwargs':{'radius':5, 'track_actor':'player'}, 
             'usable_power':orbit,
-            'description':'description!',
+            'description':'The stone seems to buzz with a life of its own.',
             'broken_text':wand_broken_text
         },
         'shift amulet':{
@@ -3840,7 +3842,7 @@ def spawn_item_at_coords(
                 'plane_name':'nightmare'
             },
             'usable_power':pass_between,
-            'description':'description!',
+            'description':'An ornate necklace made, apparently, from various vertebrae.',
             'broken_text':'Something went wrong.'
         },
         'red spike':{
@@ -3848,7 +3850,8 @@ def spawn_item_at_coords(
             'tile':term.red('ļ'),
             'power_kwargs':{'length':4, 'speed':.07},
             'usable_power':sword_item_ability,
-            'description':'description!',
+            'description':'A slender metallic rapier with a simple handle.'
+                          'It seems to shift and squirm as you look at it.',
             'broken_text':'Something went wrong.',
             'use_message':None
         },
@@ -3880,7 +3883,7 @@ def spawn_item_at_coords(
                 'player_sword_track':True,
             },
             'usable_power':sword_item_ability,
-            'description':'description!',
+            'description':'A green rapier with an ornate hilt. When drawn, it\'s somehow longer than its scabbard.',
             'broken_text':'Something went wrong.',
             'use_message':None,
             'cooldown':1,
@@ -3892,7 +3895,7 @@ def spawn_item_at_coords(
                 'from_item':True,
             },
             'usable_power':blindfold_toggle,
-            'description':'Useful for listening to your surroundings.',
+            'description':'A band of soft stretchy fabric. When worn, useful for listening to your surroundings.',
             'broken_text':'Something went wrong.',
             'use_message':'',
             'cooldown':1,
@@ -3901,7 +3904,7 @@ def spawn_item_at_coords(
             'uses':19,
             'tile':term.blue('⥌'),
             'usable_power':dash_ability, 
-            'description':'description!',
+            'description':'When held in your hand, you feel an urge to run.',
             'power_kwargs':{'dash_length':20},
             'broken_text':wand_broken_text
         },
@@ -3909,7 +3912,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.red('⚷'),
             'usable_power':unlock_door, 
-            'description':'description!',
+            'description':'A simple key with a matte red finish.',
             'power_kwargs':{'opens':'red'},
             'broken_text':wand_broken_text,
             'use_message':'',
@@ -3919,7 +3922,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.green('⚷'),
             'usable_power':unlock_door, 
-            'description':'description!',
+            'description':'An ornate key with a shiny green coating.',
             'power_kwargs':{'opens':'green'},
             'broken_text':wand_broken_text,
             'use_message':None,
@@ -3940,9 +3943,9 @@ def spawn_item_at_coords(
             'uses':3,
             'tile':term.color(3)('⚷'),
             'usable_power':unlock_door, 
-            'description':'description!',
+            'description':'This key feels like it might crumble at any moment.',
             'power_kwargs':{'opens':'rusty'},
-            'broken_text':'the key breaks off in the lock',
+            'broken_text':'the rusty key breaks off in the lock',
             'use_message':None,
             'cooldown':1,
         },
@@ -3950,7 +3953,8 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.blue('⚭'),
             'usable_power':random_blink, 
-            'description':'description!',
+            'description':'A uncomfortably realistic glass eye set in a frame.'
+                          'Out of the corner of your eye, you catch it moving.',
             'power_kwargs':{'radius':50},
             'broken_text':wand_broken_text
         },
@@ -3958,7 +3962,7 @@ def spawn_item_at_coords(
             'uses':-1,
             'tile':term.red('O̧'),
             'usable_power':teleport_in_direction, 
-            'description':'description!',
+            'description':'A small glass star on a length of leather cord.',
             'power_kwargs':{'distance':10},
             'broken_text':wand_broken_text
         },
@@ -3968,19 +3972,17 @@ def spawn_item_at_coords(
             'tile':term.color(0xca)('/'),
             'power_kwargs':{'duration':3},
             'usable_power':passwall_effect,
-            'description':'description!',
+            'description':'A short yet substantial rod that seems to ripple and shimmer.',
             'broken_text':wand_broken_text,
-            'usage_tip':'PASSWALL WAND: be careful to not stand on the shimmering sections for too long.',
         },
         'looking glass':{
             'uses':-1,
             'use_message':None,
             'tile':term.color(0x06)('ϙ'),
             'usable_power':temp_view_circle, 
-            'description':'description!',
+            'description':'A lens on a silver handle. Through it, your hand behind it becomes insubstantial.',
             'power_kwargs':{'on_actor':'player', 'radius':10, 'duration':3, 'timeout':10},
             'broken_text':wand_broken_text,
-            'usage_tip':'LOOKING GLASS: use to briefly reveal (then immediately forget) nearby cells.',
             'cooldown':10,
         }
     }
@@ -4792,7 +4794,7 @@ async def free_look(
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
     item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
-    item_choice_labels = list('012356789abcdef'[:len(item_id_choices)])
+    item_choice_labels = list('0123456789abcdef'[:len(item_id_choices)])
     #TODO: make labels appear even before ijkl input
     for y_coord, item_choice_label in enumerate(item_choice_labels):
         with term.location(0, y_coord + 20):
