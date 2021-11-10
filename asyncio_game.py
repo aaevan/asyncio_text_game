@@ -4761,6 +4761,18 @@ async def handle_exit(key):
             print(' ' * len(quit_question_text))
         state_dict['exiting'] = False
 
+def display_item_choice_labels(clear=False):
+    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
+    item_choice_labels = list('0123456789abcdef'[:len(item_id_choices)])
+    for y_coord, item_choice_label in enumerate(item_choice_labels):
+        coords = (0, y_coord + 20)
+        if not clear:
+            label_text = f'{item_choice_label}:'
+        else:
+            label_text = '  '
+        with term.location(*coords):
+            print(label_text)
+
 async def free_look(
     key,
     starting_angle=None,
@@ -4790,15 +4802,12 @@ async def free_look(
 
     if a tile cannot be seen, description should be "hidden"?
     """
+    with term.location(55, randint(0, 10)):
+        print(f'key is: {key}')
     blocked_message = "Your view is blocked!"
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
-    item_id_choices = [item_id for item_id in actor_dict['player'].holding_items]
-    item_choice_labels = list('0123456789abcdef'[:len(item_id_choices)])
-    #TODO: make labels appear even before ijkl input
-    for y_coord, item_choice_label in enumerate(item_choice_labels):
-        with term.location(0, y_coord + 20):
-            print(f'{item_choice_label}:')
+    display_item_choice_labels()
     if starting_angle != None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
     if cursor_location != None and type(cursor_location) == tuple:
@@ -4809,13 +4818,11 @@ async def free_look(
     if key not in valid_inputs or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
+        #clear screen region of item number-labels:
         for y_coord, item_choice_label in enumerate(item_choice_labels):
-            with term.location(0, y_coord + 20):
+            with term.location(3, y_coord + 20):
                 print('  ')
         debounce = True
-        asyncio.ensure_future(
-            append_to_log(message=blocked_message)
-        )
         return key
     elif key in 'ijkluom.':
         offset = key_to_offset(key)
@@ -4856,7 +4863,7 @@ async def free_look(
         debounce = True
     actual_print_location = offset_of_center(static_vars['cursor_location'])
     if debounce:
-        await asyncio.sleep(1)
+        await asyncio.sleep(.5)
     facing_angle = round_to_nearest_n(
         value=angle_point_to_point(
             coord_a=player_coord,
@@ -5051,6 +5058,7 @@ async def handle_input(map_dict, key):
     elif state_dict['exiting'] == True:
         await handle_exit(key)
     elif state_dict['looking'] == True:
+
         return_val = await free_look(key)
         if type(return_val) != tuple:
             await action_keypress(return_val)
