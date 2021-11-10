@@ -4708,6 +4708,10 @@ async def get_key(map_dict, help_wait_count=100):
                 break
             await asyncio.sleep(0.03)
             state_dict['blink_timeout'] = (state_dict['blink_timeout'] + 1) % 30
+            #the below call to display_item_choice_labels must be placed here
+            # to display item_labels even before a valid input to handle_input
+            if state_dict['looking']:
+                display_item_choice_labels()
             if is_data():
                 key = sys.stdin.read(1)
                 if key == '\x7f':  # x1b is ESC
@@ -4802,12 +4806,9 @@ async def free_look(
 
     if a tile cannot be seen, description should be "hidden"?
     """
-    with term.location(55, randint(0, 10)):
-        print(f'key is: {key}')
     blocked_message = "Your view is blocked!"
     player_coord = actor_dict['player'].coords()
     describe_coord = add_coords(static_vars['cursor_location'], player_coord)
-    display_item_choice_labels()
     if starting_angle != None and type(starting_angle) == int:
         static_vars['look_angle'] = starting_angle
     if cursor_location != None and type(cursor_location) == tuple:
@@ -4819,9 +4820,7 @@ async def free_look(
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
         #clear screen region of item number-labels:
-        for y_coord, item_choice_label in enumerate(item_choice_labels):
-            with term.location(3, y_coord + 20):
-                print('  ')
+        display_item_choice_labels(clear=True)
         debounce = True
         return key
     elif key in 'ijkluom.':
@@ -5058,7 +5057,6 @@ async def handle_input(map_dict, key):
     elif state_dict['exiting'] == True:
         await handle_exit(key)
     elif state_dict['looking'] == True:
-
         return_val = await free_look(key)
         if type(return_val) != tuple:
             await action_keypress(return_val)
