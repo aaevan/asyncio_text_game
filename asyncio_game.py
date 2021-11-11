@@ -6768,6 +6768,7 @@ async def async_map_init():
         ((23, 1), 'dagger'), 
         ((25, 5), 'blindfold'), 
         ((32, 5), 'siphon trinket'), #with leech enemies
+        #TODO: put a secret un-reachable room behind the passwall wand
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
     for coord, item_name in items:
@@ -7126,7 +7127,7 @@ async def attack(
         asyncio.ensure_future(
             append_to_log(
                 f"The {actor_dict[attacker_key].base_name}"
-                f"hits you for {attacker_strength} damage!"
+                f" hits you for {attacker_strength} damage!"
             )
         )
     actor_dict[defender_key].health -= attacker_strength
