@@ -6731,7 +6731,7 @@ async def async_map_init():
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
             spawn_mte(
-                spawn_coord=coord, preset=preset
+                spawn_coord=coord, preset=preset, fill_color=0x5e
             )
         )
     #features drawing--------------------------------------
