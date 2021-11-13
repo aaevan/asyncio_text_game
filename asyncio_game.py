@@ -152,7 +152,6 @@ class Actor:
         self.leaves_body = leaves_body
         self.holding_items = holding_items
         self.breakable = breakable
-        self.last_location = coord
         self.multi_tile_parent = multi_tile_parent
         self.blocking = blocking
         self.description = description
@@ -161,7 +160,6 @@ class Actor:
         self.made_of = made_of
 
     def update(self, coord=(0, 0)):
-        self.last_location = self.coord
         #make previous space passable:
         #TODO: replace actor usage of passable.
         # is_passable is important?
@@ -2749,7 +2747,7 @@ async def computer_terminal(
     paint_preset(tile_coords=spawn_coord, preset='terminal')
     append_description(
         coord=spawn_coord, 
-        added_message='The monitor reads:\"OPEN POD DOOR?\"',
+        added_message='The monitor reads:\"OPEN CONTAINMENT DOOR?\"',
         separator='||',
     )
     neighbors = adjacent_tiles(coord=spawn_coord)
@@ -3850,7 +3848,7 @@ def spawn_item_at_coords(
             'tile':term.red('ļ'),
             'power_kwargs':{'length':4, 'speed':.07},
             'usable_power':sword_item_ability,
-            'description':'A slender metallic rapier with a simple handle.'
+            'description':'A slender metallic rapier with a simple handle. '
                           'It seems to shift and squirm as you look at it.',
             'broken_text':'Something went wrong.',
             'use_message':None
@@ -4521,6 +4519,11 @@ def map_init():
         'pool_a': Room((0, 6), 3, 'water'),
         'pool_b': Room((5, 8), 4, 'water'),
         'pool_c': Room((2, 8), 2, 'water'),
+        'room_behind_passwall': Room(
+            level_offset_coord(coord=(36, 6), z_level=-1), 
+            dimensions=(3, 3),
+            floor_preset='water',
+        ),
     }
     passage_tuples = [
         ('a', 'b', 2, None, None), 
@@ -4843,8 +4846,6 @@ async def free_look(
         can_see = await check_line_of_sight(player_coord, describe_coord)
         if can_see:
             asyncio.ensure_future(examine_tile(describe_coord))
-        elif not can_see and map_dict[describe_coord].seen:
-            asyncio.ensure_future(examine_tile(describe_coord, tense='past'))
         else:
             asyncio.ensure_future(
                 append_to_log(message=blocked_message)
@@ -7636,8 +7637,6 @@ async def basic_actor(
                     asyncio.ensure_future(
                         directional_alert(source_actor=name_key, radius=dist_to_player, preset='footfall')
                     )
-            if name_key in map_dict[current_coords].actors:
-                del map_dict[current_coords].actors[name_key]
             map_dict[next_coords].actors[name_key] = True
             actor_dict[name_key].update(coord=next_coords)
 
