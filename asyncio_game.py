@@ -4930,11 +4930,7 @@ async def action_keypress(key, debug=True):
             x_shift, y_shift = offset_from_dir
         shifted_coord = add_coords((x, y), (x_shift, y_shift))
         if (map_dict[shifted_coord].passable and shifted_coord != (0, 0)):
-            state_dict['last_location'] = (x, y)
-            map_dict[(x, y)].passable = True #make previous space passable
             actor_dict['player'].update(coord=shifted_coord)
-            x, y = actor_dict['player'].coords()
-            map_dict[(x, y)].passable = False #make current space impassable
             state_dict['just teleported'] = False #used by magic_doors
         else:
             if state_dict['blinded']:
@@ -8396,8 +8392,8 @@ async def move_through_coords(
         actor_coords = actor_dict[actor_key].coords()
         new_position = add_coords(actor_coords, step)
         if is_passable(new_position) and not drag_through_solid:
-            if not map_dict[actor_coords].passable:
-                map_dict[actor_coords].passable = True
+            #if not map_dict[actor_coords].passable:
+                #map_dict[actor_coords].passable = True
             actor_dict[actor_key].update(coord=new_position)
         else:
             return
