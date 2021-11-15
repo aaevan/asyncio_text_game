@@ -729,6 +729,10 @@ class Multi_tile_entity:
                 ('╺', '╋', '╸'),
                 (' ', '╹', ' '),
             ),
+           'ns_desk':(
+                ('▌'),
+                ('▌'),
+            ),
         }
         return presets[preset]
 
@@ -757,6 +761,7 @@ class Multi_tile_entity:
             'ns_couch':('???', 'chunk of couch', 'wood'),
             'ew_bookcase':('???', 'piece of bookcase', 'wood'),
             'add_sign':('???', 'piece of sign', 'wood'),
+            'ns_desk':('???', 'piece of desk', 'wood'),
         }
         if preset not in presets:
             return None
@@ -4505,6 +4510,7 @@ def map_init():
         't': Room((35, 18), (17, 5)),
         'u': Room((-1, 18), (1, 1)),
         'v': Room((-17, 18), (-16, 18)),
+        'right_behind_boxes': Room((35, 0), (5, 5)),
         'pool': Room((26, 10), 3, 'water'),
         'basement': Room((0, 0), (5, 5), z_level=-1),
         'basement_left': Room((-15, 0), (5, 5), z_level=-1),
@@ -4522,7 +4528,6 @@ def map_init():
         'room_behind_passwall': Room(
             level_offset_coord(coord=(36, 6), z_level=-1), 
             dimensions=(3, 3),
-            floor_preset='water',
         ),
     }
     passage_tuples = [
@@ -4542,6 +4547,8 @@ def map_init():
         ('r', 't', 1, None, None),
         ('u', 'v', 1, None, None),
         ('h', 'i', 2, None, None),
+        # passage to room to right of cell block
+        ('a', 'right_behind_boxes', 1, None, None),
         ('basement', 'basement_left', 1, None, None),
         ('basement', 'basement_right', 1, None, None),
         ('nw_off_main', 'nw_room_off_main', 2, None, None),
@@ -4581,6 +4588,7 @@ def map_init():
     room_with_door(wall_coord=(21, 2), room_offset=(0, 2), locked=True)
     room_with_door(wall_coord=(17, 2), room_offset=(0, 2), locked=True)
     draw_door(preset='green', door_coord=(12, 0), z_level=-1, locked=True)
+    draw_door(preset='cell', door_coord=(32, 0), locked=True)
     draw_secret_passage(),
     draw_secret_passage(coord_a=(31, -7), coord_b=(31, -12))
     draw_secret_passage(coord_a=(31, 15), coord_b=(31, 8))
@@ -6724,6 +6732,10 @@ async def async_map_init():
         ((15, 20), 'crate_2x2'),
         ((13, 20), 'crate_2x2'),
         ((11, 20), 'crate_2x2'),
+        ((38, -1), 'ns_desk'),
+        ((38, 2), 'ns_desk'),
+        ((34, -1), 'ns_desk'),
+        ((34, 2), 'ns_desk'),
     )
     for (coord, preset) in mte_spawns:
         asyncio.ensure_future(
