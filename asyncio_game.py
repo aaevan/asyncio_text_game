@@ -3708,7 +3708,7 @@ def spawn_item_at_coords(
             'description':'A small square battery. Can be used to recharge electronics.',
             'use_message':None,
         },
-        'siphon trinket':{
+        'siphon token':{
             'uses':1,
             'stackable':True,
             'tile':term.red('▾'), 
@@ -3717,9 +3717,9 @@ def spawn_item_at_coords(
                 'effect_radius':10,
                 'item_id':item_id,
             },
-            'usable_power':siphon_trinket_effect,
-            'description':'A small, blood-red triangular token. It feels unnaturally cold to the touch.',
-            'use_message':'You feel a bit more alive.',
+            'usable_power':siphon_token_effect,
+            'description':'A small, blood-red triangular token with a scored line through the center.',
+            'use_message':'You break the token in two. It crumbles to dust.',
         },
         #TODO: implement a cooldown on items using time deltas?
         'blaster':{
@@ -4826,7 +4826,7 @@ async def free_look(
         static_vars['cursor_location'] = cursor_location
     debounce = False
     dist_from_player = point_to_point_distance(player_coord, describe_coord)
-    valid_inputs = 'ijkluom.x?0123567890abcdef'
+    valid_inputs = 'ijkluom.x?01234567890abcdef'
     if key not in valid_inputs or dist_from_player >= cutout_dist:
         state_dict['looking'] = False
         static_vars['cursor_location'] = (0, 0)
@@ -5009,13 +5009,13 @@ async def debug_commands(key):
     elif key in '#':
         brightness_test()
     elif key in '@':
-        rand_item = choice(('red potion', 'battery', 'pebble', 'siphon trinket'))
+        rand_item = choice(('red potion', 'battery', 'pebble', 'siphon token'))
         spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future(add_uses_to_chosen_item())
     elif key in '(':
         asyncio.ensure_future(
-            siphon_trinket_effect(
+            siphon_token_effect(
                 center_on_actor_id='player',
             )
         )
@@ -5331,7 +5331,7 @@ async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
             '│╰*╯│'.replace('*', term.blue('ʘ')),
             '└───┘',
         ),
-        'siphon trinket':(
+        'siphon token':(
             '┌───┐',
             '│   │',
             '│ * │'.replace('*', term.red('▼')),
@@ -5658,7 +5658,7 @@ async def battery_effect(item_id=None, num_charges=6,):
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
 
-async def siphon_trinket_effect(
+async def siphon_token_effect(
     center_on_actor_id=None,
     siphon_amount=5,
     effect_radius=10,
@@ -5682,6 +5682,7 @@ async def siphon_trinket_effect(
     for actor_id in actor_ids:
         if actor_id.split('_')[0] in whitelist:
             rand_delay = random() / 3
+            message = "You feel a bit more alive."
             asyncio.ensure_future(
                 start_delay_wrapper(
                     delay_func=damage_actor, 
@@ -5696,6 +5697,13 @@ async def siphon_trinket_effect(
                     start_delay=rand_delay, 
                     total_restored=siphon_amount,
                     hud_effect=False,
+                )
+            )
+            asyncio.ensure_future(
+                start_delay_wrapper(
+                    delay_func=append_to_log, 
+                    start_delay=rand_delay, 
+                    message=message,
                 )
             )
 
@@ -6776,7 +6784,7 @@ async def async_map_init():
         ((26, -3), 'cell key'),
         ((23, 1), 'dagger'), 
         ((25, 5), 'blindfold'), 
-        ((32, 5), 'siphon trinket'), #with leech enemies
+        ((32, 5), 'siphon token'), #with leech enemies
         #TODO: put a secret un-reachable room behind the passwall wand
         (level_offset_coord(coord=(32, 6), z_level=-1), 'passwall wand'),
     )
@@ -8567,7 +8575,7 @@ async def spawn_preset_actor(
             )
         )
     elif preset == 'leech':
-        item_drops = ['siphon trinket']
+        item_drops = ['siphon token']
         description = 'A large slowly writhing parasite.'
         loop.create_task(
             basic_actor(
