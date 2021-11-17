@@ -23,6 +23,7 @@ from time import sleep
 
 #Class definitions--------------------------------------------------------------
 class Map_tile:
+    #TODO: add a condition so that a tile can only be passable by "small" actors?
     """ 
     Holds the appearance, contents and state of each tile. 
     """
@@ -761,7 +762,11 @@ class Multi_tile_entity:
             'ns_couch':('???', 'chunk of couch', 'wood'),
             'ew_bookcase':('???', 'piece of bookcase', 'wood'),
             'add_sign':('???', 'piece of sign', 'wood'),
-            'ns_desk':('???', 'piece of desk', 'wood'),
+            'ns_desk':(
+                'A heavy wooden desk covered in a messy array of papers and clutter.',
+                'piece of desk',
+                'wood'
+            ),
         }
         if preset not in presets:
             return None
@@ -3719,7 +3724,7 @@ def spawn_item_at_coords(
             },
             'usable_power':siphon_token_effect,
             'description':'A small, blood-red triangular token with a scored line through the center.',
-            'use_message':'You break the token in two. It crumbles to dust.',
+            'use_message':'You snap the token in two. It crumbles to dust.',
         },
         #TODO: implement a cooldown on items using time deltas?
         'blaster':{
@@ -6856,6 +6861,7 @@ async def async_map_init():
        ((-17, 22), 'zombie'),
        ((-15, 25), 'zombie'),
        ((23, 1), 'critter'),
+       ((36, -2), 'critter'),
        ((-21, -11), 'critter'),
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
