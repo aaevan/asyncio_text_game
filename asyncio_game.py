@@ -6285,8 +6285,9 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             print(print_choice)
         last_print_choice = print_choice
 
-def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0x100):
+def get_brightness(distance=1, brightness_mod=0):
     """
+    unused: lower_limit=0xe8, upper_limit=0x100
     brighness falls off according to the below equation
 
     the random element makes it so the returned value sometimes rounds up or
@@ -6294,9 +6295,12 @@ def get_brightness(distance=1, brightness_mod=0, lower_limit=0xe8, upper_limit=0
 
     The greyscale values lie between 0xe8 (near-black) and 0x100 (white)
     """
-    brightness_value = int(round(
-        -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75, 1
-    ))
+    brightness_value = int(
+        round(
+            -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75,
+            1
+        )
+    )
     if brightness_value <= 0:
         return 0
     elif brightness_value >= get_brightness_val(0, get_length=True) - 1:
