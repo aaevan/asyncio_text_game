@@ -6285,7 +6285,11 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
             print(print_choice)
         last_print_choice = print_choice
 
-def get_brightness(distance=1, brightness_mod=0):
+def get_brightness(
+    distance=1, 
+    brightness_mod=0,
+    constant_modifier=27,
+):
     """
     unused: lower_limit=0xe8, upper_limit=0x100
     brighness falls off according to the below equation
@@ -6295,17 +6299,23 @@ def get_brightness(distance=1, brightness_mod=0):
 
     The greyscale values lie between 0xe8 (near-black) and 0x100 (white)
     """
-    brightness_value = int(
-        round(
-            -(30 / (.5 * ((distance/2) + 3))) + 27 + brightness_mod + random() * .75,
-            1
-        )
+    inverse_square_part = -(30 / (.5 * ((distance/2) + 3)))
+    random_component = random() * .75
+    summed_components = sum(
+        [
+            inverse_square_part, 
+            constant_modifier, 
+            brightness_mod, 
+            random_component
+        ]
     )
-    if brightness_value <= 0:
+    whole_brightness_value = int(round(summed_components, 1))
+    num_brightness_vals = get_brightness_val(0, get_length=True) - 1
+    if whole_brightness_value <= 0:
         return 0
-    elif brightness_value >= get_brightness_val(0, get_length=True) - 1:
-        return get_brightness_val(0, get_length=True) - 1
-    return brightness_value
+    elif whole_brightness_value >= num_brightness_vals:
+        return num_brightness_vals
+    return whole_brightness_value
 
 async def check_contents_of_tile(coord):
     #return_val = map_dict[coord].tile
