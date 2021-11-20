@@ -2999,7 +2999,7 @@ async def broken_pipe(
     map_dict[pipe_coord].tile = pipe_char
     description_presets = {
         'steam':(
-            'Out of the pipe pours clouds of hot steam.',
+            'Clouds of hot steam pour from the broken pipe.',
             '*ssssssss*', #sound effect
         ),
         'fire':(
@@ -6318,7 +6318,6 @@ def get_brightness(
     return whole_brightness_value
 
 async def check_contents_of_tile(coord):
-    #return_val = map_dict[coord].tile
     return_val = None
     if map_dict[coord].actors:
         for actor_name in map_dict[coord].actors:
@@ -6918,17 +6917,16 @@ async def trap_init():
     pressure_plate(
         spawn_coord=(6, -20), patch_to_key='switch_2'
     )
-    #TODO: figure out a way to do the following without constant polling
-    #loop.create_task(
-        #trigger_door(
-            #door_coord=(-1, -20), patch_to_key='switch_2'
-        #)
-    #)
-    #loop.create_task(
-        #trigger_door(
-            #door_coord=(-8, -20), patch_to_key='switch_2', invert=True
-        #)
-    #)
+    loop.create_task(
+        trigger_door(
+            door_coord=(-1, -20), patch_to_key='switch_2'
+        )
+    )
+    loop.create_task(
+        trigger_door(
+            door_coord=(-8, -20), patch_to_key='switch_2', invert=True
+        )
+    )
 
 async def pass_between(x_offset, y_offset, plane_name='nightmare'):
     """
