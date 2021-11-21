@@ -1073,19 +1073,6 @@ def multi_push(
             #append_to_log(message=message)
         #)
 
-async def rand_blink(actor_name='player', radius_range=(2, 4), delay=.2):
-    await asyncio.sleep(delay)
-    rand_angle = randint(0, 360)
-    rand_radius = randint(*radius_range)
-    start_point = actor_dict[actor_name].coords()
-    with term.location(55, 2):
-        print(start_point)
-    end_point = add_coords(
-        start_point,
-        point_given_angle_and_radius(angle=rand_angle, radius=rand_radius)
-    )
-    if map_dict[end_point].passable:
-        actor_dict[actor_name].update(coord=end_point)
 
 async def drag_actor_along_line(
     actor_name='player', line=None, linger_time=.02
@@ -1105,17 +1092,6 @@ async def drag_actor_along_line(
     for point in line:
         await asyncio.sleep(linger_time)
         actor_dict[actor_name].update(coord=point)
-
-async def disperse_mte(mte_name=None, radius_range=(4, 8), kills=True):
-    if mte_name == None:
-        return False
-    if kills:
-        mte_dict[mte_name].dead = True
-    for segment in mte_dict[mte_name].member_names:
-        actor_dict[segment].multi_tile_parent = None
-        actor_dict[segment].moveable = True
-        actor_dict[segment].blocking = False
-        asyncio.ensure_future(rand_blink(actor_name=segment))
 
 def brightness_test(print_coord=(110, 32)):
     """
@@ -4580,7 +4556,7 @@ def map_init():
     secret_room(wall_coord=(31, -2), room_offset=(0, -3), dimensions=(3, 3))
     secret_room(wall_coord=(31, 2), room_offset=(0, 4), dimensions=(3, 3))
     secret_room(wall_coord=(-32, 5), room_offset=(0, 4), dimensions=(3, 3))
-    secret_door(door_coord=(-13, 18))
+    secret_door(door_coord=(-14, 18))
     secret_door(door_coord=(27, 15)) #little secret passage south of pool
     paint_preset(tile_coords=(27, 14)) #single-tile connecting leg to above
     secret_door(door_coord=(21, 6))
@@ -6861,6 +6837,7 @@ async def async_map_init():
             pressure_plate_coord=((4, -17)),
             message_preset='ksh'
         ),
+        follower_vine(spawn_coord=(37, 0), facing_dir='w', num_segments=6),
     ]
     monster_spawns = (
        ((23, -14), 'blob'),
@@ -7763,6 +7740,7 @@ async def follower_vine(
     Multiple segments of the same MTE vine can occupy the same location
 
     """
+    #TODO: make follower vines stay inside walls
     if root_node_key != None:
         root_node = actor_dict[root_node_key].coords()
         current_coord = add_coords(root_node, root_offset)
@@ -7786,8 +7764,6 @@ async def follower_vine(
     while True:
         if state_dict['killall'] == True:
             break
-        with term.location(55, randint(0, 5)):
-            print(f'current_coord:{current_coord}')
         await asyncio.sleep(update_period)
         mte_dict[vine_name].vine_instructions = mte_vine_animation_step(
             mte_dict[vine_name].vine_instructions
