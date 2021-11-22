@@ -5147,8 +5147,8 @@ def set_tile_toggle_state(tile_coord, toggle_state_index):
     map_dict[tile_coord].blocking = block_state #blocking: see through tile
     map_dict[tile_coord].passable = passable_state #passable: walk through tile
     map_dict[tile_coord].toggle_state_index = toggle_state_index
-    # "if you can't pass through the door, it must be closed"
-    if passable_state == False: 
+    #only "closed" if toggle_state_index is 0
+    if toggle_state_index == True: 
         return True
     else:
         return False
