@@ -8750,26 +8750,27 @@ async def minimap_tile(display_coord=(0, 0), player_position_offset=(0, 0)):
 def one_for_passable(map_coords=(0, 0)):
     return str(int(map_dict[map_coords].passable))
 
-async def quitter_daemon():
-    #TODO: figure out how to cleanly exit from an event loop?
+async def quitter_daemon(debug=False):
     while True:
         await asyncio.sleep(0.2)
         if state_dict['killall'] == True:
             loop = asyncio.get_event_loop()
             await asyncio.sleep(1)
             pending = asyncio.Task.all_tasks()
-            print(f'*********\nnumber of tasks (before): {len(pending)}')
+            if debug:
+                print(f'*********\nnumber of tasks (before): {len(pending)}')
             for task in pending:
                 if "quitter_daemon" in repr(task):
                     continue
-                print(task)
+                if debug:
+                    print(task)
                 if not task.cancelled():
                     task.cancel()
             pending = asyncio.Task.all_tasks()
-            print("pending after:", pending)
-            print(f'number of tasks (after): {len(pending)}')
-            #loop.stop()
-            #loop.close()
+            if debug:
+                print("pending after:", pending)
+                print(f'number of tasks (after): {len(pending)}')
+            loop.stop()
 
 async def door_init(loop):
     door_pairs = (
