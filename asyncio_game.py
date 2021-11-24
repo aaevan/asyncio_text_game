@@ -2191,10 +2191,12 @@ async def unlock_door(actor_key='player', opens='red'):
         if map_dict[door_coord].locked:
             output_text = f'You unlock the {opens} door.'
             map_dict[door_coord].locked = False
-            await sound_message(
-                output_text="UNLOCKED!",
-                point_radius=10,
-                sound_origin_coord=door_coord,
+            asyncio.ensure_future(
+                sound_message(
+                    output_text="UNLOCKED!",
+                    point_radius=10,
+                    sound_origin_coord=door_coord,
+                )
             )
         elif not map_dict[door_coord].locked:
             if is_passable(door_coord):
@@ -2202,10 +2204,12 @@ async def unlock_door(actor_key='player', opens='red'):
             else:
                 output_text = f'You lock the {opens} door.'
                 map_dict[door_coord].locked = True
-                await sound_message(
-                    output_text="LOCKED!",
-                    point_radius=10,
-                    sound_origin_coord=door_coord,
+                asyncio.ensure_future(
+                    sound_message(
+                        output_text="LOCKED!",
+                        point_radius=10,
+                        sound_origin_coord=door_coord,
+                    )
                 )
     elif not map_dict[door_coord].is_door:
         output_text = "That isn't a door."
@@ -5545,7 +5549,7 @@ async def append_to_log(
 async def filter_into_log(
     message="This is a test",
     line_index=0,
-    time_between_chars=.02,
+    time_between_chars=.015,
     starting_text=''
 ):
     #TODO: add option of colorized text in console log messages
