@@ -4874,7 +4874,7 @@ def round_to_nearest_n(value=123, nearest_n=25):
     if nearest_n < 1:
         return round(value * (1 / nearest_n)) / (1 / nearest_n)
 
-def key_to_compass(key):
+def key_to_compass(key, mirror=False):
     key_to_compass_char = {
         'w':'n', 'a':'w', 's':'s', 'd':'e', 
         'W':'n', 'A':'w', 'S':'s', 'D':'e', 
@@ -4884,7 +4884,20 @@ def key_to_compass(key):
         'U':'nw', 'O':'ne', 'M':'sw', '>':'se',
         ',':'s', '>':'s',
     }
-    return key_to_compass_char[key]
+    key_to_compass_char_mirrored = {
+        'w':'s', 'a':'e', 's':'n', 'd':'w', 
+        'W':'s', 'A':'e', 'S':'n', 'D':'w', 
+        'i':'s', 'j':'e', 'k':'n', 'l':'w',
+        'I':'s', 'J':'e', 'K':'n', 'L':'w',
+        'u':'se', 'o':'sw', 'm':'ne', '.':'nw',
+        'U':'se', 'O':'sw', 'M':'ne', '>':'nw',
+        ',':'n', '>':'n',
+    }
+    if not state_dict['mirrored']:
+        return_val = key_to_compass_char[key]
+    else:
+        return_val = key_to_compass_char_mirrored[key]
+    return return_val
 
 def key_to_offset(key):
     return dir_to_offset(key_to_compass(key))
@@ -4968,6 +4981,8 @@ async def action_keypress(key, debug=True):
         asyncio.ensure_future(throw_item())
     elif key in 'U': #use an item without equipping it
         asyncio.ensure_future(use_chosen_item())
+    elif key in 'M':
+        state_dict['mirrored'] = not state_dict['mirrored']
     #DEBUG COMMANDS--------------------------------------------------------
     elif debug and key in 'hFY38$#@C(79My%]':
         await debug_commands(key)
@@ -5973,11 +5988,15 @@ async def crosshairs(
         #clear last known location of crosshairs:
         if last_angle != current_angle:
             angles = (current_angle + fov, current_angle, current_angle - fov)
+            if state_dict['mirrored']:
+                mirror_mod = 180
+            else:
+                mirror_mod = 0
             points = [
                 point_at_distance_and_angle(
                     radius=radius,
                     central_point=central_point,
-                    angle_from_twelve=angle
+                    angle_from_twelve=angle + mirror_mod
                 )
                 for angle in angles
             ]
@@ -6159,7 +6178,7 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
     await asyncio.sleep(random()/5 * distance) #stagger starting_time
     middle_x, middle_y = (int(term.width / 2 - 2), int(term.height / 2 - 2))
     previous_tile = None
-    print_location = add_coords((middle_x, middle_y), (x_offset, y_offset))
+    print_location = add_coords((middle_x, middle_y), (-x_offset, -y_offset))
     angle_from_twelve = find_angle(p0=(0, 5), p2=(x_offset, y_offset))
     last_print_choice = ' '
     if x_offset <= 0:
@@ -6168,6 +6187,11 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
     player_coords = actor_dict['player'].coords()
 
     while True:
+        if state_dict['mirrored'] == True:
+            print_tuple = (-x_offset, -y_offset)
+        else:
+            print_tuple = (x_offset, y_offset)
+        print_location = add_coords((middle_x, middle_y), print_tuple)
         if state_dict['killall'] == True:
             break
         state_dict["view_tile_count"] += 1
@@ -8834,6 +8858,7 @@ def state_setup():
     state_dict['blink_timeout'] = 0
     state_dict['look_cursor_location'] = (0, 0)
     state_dict['blinded'] = False #used in blindfold item
+    state_dict['mirrored'] = False
 
 def main():
     state_setup()
