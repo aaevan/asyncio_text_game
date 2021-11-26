@@ -6185,12 +6185,14 @@ async def view_tile(map_dict, x_offset=1, y_offset=1, threshold=15, fov=140):
         angle_from_twelve = 360 - angle_from_twelve
     display = False
     player_coords = actor_dict['player'].coords()
-
+    last_mirror = state_dict['mirrored']
     while True:
         if state_dict['mirrored'] == True:
             print_tuple = (-x_offset, -y_offset)
         else:
             print_tuple = (x_offset, y_offset)
+        if last_mirror != state_dict['mirrored']:
+            print_choice = ' '
         print_location = add_coords((middle_x, middle_y), print_tuple)
         if state_dict['killall'] == True:
             break
