@@ -480,6 +480,7 @@ class Animation:
         return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
 class Item:
+    #TODO: add a verb that is displayed when the item is used.
     """
     An item that can be used either by the player or various actors.
     An item:
@@ -3730,6 +3731,7 @@ def spawn_item_at_coords(
             }
         },
         'pebble':{
+            #TODO: fix, this item is broken right now
             #TODO: an enemy that will follow the noise made by a thrown pebble
             'uses':1,
             'stackable':True,
@@ -4984,7 +4986,7 @@ async def action_keypress(key, debug=True):
     elif key in 'M':
         state_dict['mirrored'] = not state_dict['mirrored']
     #DEBUG COMMANDS--------------------------------------------------------
-    elif debug and key in 'hFY38$#@C(79My%]':
+    elif debug and key in 'hFY38C(79My]':
         await debug_commands(key)
     elif key in debug_keys:
         key_number = debug_keys.index(key)
@@ -5004,13 +5006,13 @@ async def debug_commands(key):
         ))
     elif key in '8': #export map
         asyncio.ensure_future(export_map())
-    elif key in '$':
-        print_debug_grid() 
-    elif key in '#':
-        brightness_test()
-    elif key in '@':
-        rand_item = choice(('red potion', 'battery', 'pebble', 'siphon token'))
-        spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
+    #elif key in '$':
+        #print_debug_grid() 
+    #elif key in '#':
+        #brightness_test()
+    #elif key in '@':
+        #rand_item = choice(('red potion', 'battery', 'pebble', 'siphon token'))
+        #spawn_item_at_coords(coord=player_coords, instance_of=rand_item)
     elif key in 'C':
         asyncio.ensure_future(add_uses_to_chosen_item())
     elif key in '(':
@@ -5033,18 +5035,9 @@ async def debug_commands(key):
             )
         )
     elif key in ']': #teleport to debug location
-        #teleport_place = (29, -26) #near spike traps
         teleport_place = (-16, -17) #near columns
         actor_dict['player'].update(coord=teleport_place)
         state_dict['facing'] = 'w'
-    elif key in '%':
-        player_coords = actor_dict['player'].coords()
-        with term.location(55, 0):
-            print(get_coords_in_box())
-        with term.location(55, 1):
-            print(get_coords_in_box(filled=False))
-        for coord in adjacent_tiles(coord=player_coords):
-            convert_pass_state_to_preset(coord)
 
 async def handle_input(map_dict, key):
     """
