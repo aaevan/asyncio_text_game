@@ -135,6 +135,7 @@ class Actor:
         y_hide_coord=None,
         solid=True,
         made_of="material not set",
+        use_action=None,
     ):
         self.name = name
         self.base_name = base_name
@@ -159,6 +160,7 @@ class Actor:
         self.y_hide_coord = y_hide_coord
         self.solid = solid
         self.made_of = made_of
+        self.use_Action = use_action
 
     def update(self, coord=(0, 0)):
         #make previous space passable:
@@ -6028,6 +6030,7 @@ async def display_help(mode="normal"):
         "   qerfc: use equipped item",
         "       t: throw chosen item",
         "       U: use item w/o equip",
+        " symbols: quick-use items.",
         "OTHER:",
         "   bkspc: quit dialog (y/n)  ",
         "       ?: open this message  ",
