@@ -164,7 +164,6 @@ class Actor:
 
     def update(self, coord=(0, 0)):
         #make previous space passable:
-        #TODO: replace actor usage of passable.
         # is_passable is important?
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
