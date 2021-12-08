@@ -164,7 +164,7 @@ class Actor:
 
     def update(self, coord=(0, 0)):
         #make previous space passable:
-        # is_passable is important?
+
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
@@ -6881,7 +6881,7 @@ async def async_map_init():
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
        ((-22, 1), 'stone angel'), #TODO: one time spawn after getting red key?
-       ((-1, 1), 'test'),
+       #((-1, 1), 'test'),
        #((-7, -2), 'presence'), #TODO: unused, needs working leash
     )
     for coord, name in monster_spawns:
