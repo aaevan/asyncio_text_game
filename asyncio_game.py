@@ -7594,8 +7594,8 @@ async def basic_actor(
     speed=1,
     tile='*', 
     movement_function=wander,
-    name_key='test',
-    base_name='test',
+    name_key='blob',
+    base_name='blob',
     hurtful=False,
     base_attack=5,
     is_animated=False,
@@ -8693,23 +8693,6 @@ async def spawn_preset_actor(
                 health=999,
                 moveable=False,
                 made_of='energy',
-            )
-        )
-    elif preset == 'test':
-        item_drops = ['pebble']
-        loop.create_task(
-            basic_actor(
-                coord=coords,
-                speed=.75,
-                movement_function=wait, 
-                tile='?',
-                name_key=name,
-                hurtful=True,
-                base_attack=0,
-                is_animated=True,
-                animation=Animation(preset="mouth"),
-                holding_items=item_drops,
-                made_of='???',
             )
         )
     else:
