@@ -7611,11 +7611,13 @@ async def basic_actor(
 ):
     """
     actors can:
-    move from square to square using a movement function
-    hold items
-    attack or interact with the player
-    die
-    exist for a set number of turns
+        move from square to square using a movement function
+        hold items #TODO
+        attack the player
+        interact with the player in other ways #TODO
+        make sounds #TODO
+        die
+        exist for a set number of turns
     """
     actor_dict[(name_key)] = Actor(
         name=name_key,
