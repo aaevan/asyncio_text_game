@@ -8857,7 +8857,7 @@ def main():
         #TODO: fix follower vine to disappear after a set time:
         #shrouded_horror(start_coords=(29, -25)), #TODO: unused
         death_check(),
-        #display_current_tile(), #debug for map generation
+        #display_current_tile(),
         door_init(loop),
         async_map_init(),
         computer_terminal(spawn_coord=(-9, -4), patch_to_key='computer_test'),
@@ -8873,10 +8873,6 @@ def main():
             ladder_start='first',
         ),
         indicator_lamp(spawn_coord=(-10, -3), patch_to_key='computer_test'),
-        #TODO: unused (next three lines)
-        #proximity_trigger(coord_a=(13, -2), coord_b=(13, 2), patch_to_key='line_test'),
-        #indicator_lamp(spawn_coord=(9, 1), patch_to_key='line_test'),
-        #alarm_bell(spawn_coord=(12, -1), patch_to_key='line_test', silent=False),
         broken_pipe(),
         broken_pipe(
             pipe_dirs=('w', 's'), pipe_coord=(-10, -12)
