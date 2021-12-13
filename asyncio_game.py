@@ -4938,7 +4938,11 @@ async def action_keypress(key, debug=True):
         if is_passable(walk_destination):
             x_shift, y_shift = offset_from_dir
         shifted_coord = add_coords((x, y), (x_shift, y_shift))
-        if (map_dict[shifted_coord].passable and shifted_coord != (0, 0)):
+        if map_dict[shifted_coord].passable:
+            #TODO/BOOKMARK 
+            #implement an enemy that seeks footsteps that are too close together
+            if player_coords != shifted_coord:
+                asyncio.ensure_future(log_footfall(new_coord=shifted_coord))
             actor_dict['player'].update(coord=shifted_coord)
             state_dict['just teleported'] = False #used by magic_doors
         else:
@@ -5504,6 +5508,14 @@ async def console_box(
             with term.location(x_margin, line_y):
                 print(line_text.ljust(width + 2, ' '))
         await asyncio.sleep(refresh_rate)
+
+async def log_footfall(new_coord, debug=True):
+    last_step_time = state_dict['last footstep time']
+    state_dict['last footstep time'] = datetime.now()
+    elapsed_seconds = round((datetime.now() - last_step_time).total_seconds(), 2)
+    asyncio.ensure_future(
+        append_to_log(message=f'footsteps at {new_coord}, {elapsed_seconds}s since previous.')
+    )
 
 async def append_to_log(
     message="This is a test", 
@@ -8824,6 +8836,7 @@ async def starting_messages():
     await append_to_log(message='It looks like someone left a key for you.')
 
 def state_setup():
+    #state_dict setup
     actor_dict['player'].update((24, -5))
     state_dict['facing'] = 's'
     state_dict['just teleported'] = False
@@ -8841,6 +8854,7 @@ def state_setup():
     state_dict['look_cursor_location'] = (0, 0)
     state_dict['blinded'] = False #used in blindfold item
     state_dict['mirrored'] = False
+    state_dict['last footstep time'] = datetime.now()
 
 def main():
     state_setup()
