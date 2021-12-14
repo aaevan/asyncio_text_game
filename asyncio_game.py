@@ -3861,7 +3861,7 @@ def spawn_item_at_coords(
             'description':'A short double sided blade with a sturdy hilt. Designed for violence.',
             'use_message':"You stab with the dagger!",
             'usage_tip':'DAGGER: It\'s a dagger. Stab things you don\'t like.',
-            'cooldown':.15,
+            'cooldown':.3,
         },
         'green sword':{
             'uses':-1,
@@ -4942,7 +4942,7 @@ async def action_keypress(key, debug=True):
             #TODO/BOOKMARK 
             #implement an enemy that seeks footsteps that are too close together
             if player_coords != shifted_coord:
-                asyncio.ensure_future(log_footfall(new_coord=shifted_coord))
+                asyncio.ensure_future(log_sound(new_coord=shifted_coord))
             actor_dict['player'].update(coord=shifted_coord)
             state_dict['just teleported'] = False #used by magic_doors
         else:
@@ -5509,13 +5509,34 @@ async def console_box(
                 print(line_text.ljust(width + 2, ' '))
         await asyncio.sleep(refresh_rate)
 
-async def log_footfall(new_coord, debug=True):
-    last_step_time = state_dict['last footstep time']
-    state_dict['last footstep time'] = datetime.now()
+async def log_sound(
+    new_coord,
+    debug=True,
+    decay_time=5,
+    sound_name='footfall',
+):
+    #TODO: add volume, so it can attract more or less attention
+    #      based on distance from the interested actor/function?
+    last_step_time = state_dict['last sound time']
+    sound_time = datetime.now()
+    state_dict['last sound time'] = sound_time
+    sound_key = str(sound_time)
+    #BOOKMARK
+    """
+    that, or we have something that deletes itself from a dict after a certain 
+    amount of time
+    that way, we can just keep a collection of (coord, timestamp) tuples and they're
+    automatically pruned without looping through the whole collection.
+    """
     elapsed_seconds = round((datetime.now() - last_step_time).total_seconds(), 2)
     asyncio.ensure_future(
-        append_to_log(message=f'footsteps at {new_coord}, {elapsed_seconds}s since previous.')
+        append_to_log(message=f'sound ({sound_name}) at {new_coord}, {elapsed_seconds}s since previous.')
     )
+    state_dict['sounds'][sound_key] = (new_coord, sound_time)
+    # the "memory" of the sound decays over time
+    await asyncio.sleep(decay_time)
+    # ...and is deleted after that time elapses
+    del state_dict['sounds'][sound_key]
 
 async def append_to_log(
     message="This is a test", 
@@ -5525,6 +5546,7 @@ async def append_to_log(
     line_length=45,
     starting_indicator='➢',
 ):
+    #TODO: figure out how to group multiple-line messages together
     if '|' in message:
         messages = message.split('|')
         for split_message in messages:  
@@ -8854,7 +8876,8 @@ def state_setup():
     state_dict['look_cursor_location'] = (0, 0)
     state_dict['blinded'] = False #used in blindfold item
     state_dict['mirrored'] = False
-    state_dict['last footstep time'] = datetime.now()
+    state_dict['sounds'] = {}
+    state_dict['last sound time'] = datetime.now()
 
 def main():
     state_setup()
