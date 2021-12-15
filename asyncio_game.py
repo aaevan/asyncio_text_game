@@ -5512,26 +5512,27 @@ async def console_box(
 async def log_sound(
     new_coord,
     debug=True,
-    decay_time=5,
+    # TODO: an item that when equipped decreases the decay_time and makes you 
+    #       more stealthy
+    decay_time=5, 
     sound_name='footfall',
 ):
-    #TODO: add volume, so it can attract more or less attention
-    #      based on distance from the interested actor/function?
+    # TODO: add volume, so it can attract more or less attention
+    #       based on distance from the interested actor/function?
+    # decay_time might be enough-- a "louder" sound can be represented 
+    # with a longer decay time
+    # actors seeking sounds also need an ignore-list?
+    # do other sound sources (from steam pipes etc.) need to use this system?
     last_step_time = state_dict['last sound time']
     sound_time = datetime.now()
     state_dict['last sound time'] = sound_time
     sound_key = str(sound_time)
     #BOOKMARK
-    """
-    that, or we have something that deletes itself from a dict after a certain 
-    amount of time
-    that way, we can just keep a collection of (coord, timestamp) tuples and they're
-    automatically pruned without looping through the whole collection.
-    """
     elapsed_seconds = round((datetime.now() - last_step_time).total_seconds(), 2)
-    asyncio.ensure_future(
-        append_to_log(message=f'sound ({sound_name}) at {new_coord}, {elapsed_seconds}s since previous.')
-    )
+    if debug:
+        asyncio.ensure_future(
+            append_to_log(message=f'sound ({sound_name}) at {new_coord}, {elapsed_seconds}s since previous.')
+        )
     state_dict['sounds'][sound_key] = (new_coord, sound_time)
     # the "memory" of the sound decays over time
     await asyncio.sleep(decay_time)
