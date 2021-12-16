@@ -5512,8 +5512,6 @@ async def console_box(
 async def log_sound(
     new_coord,
     debug=True,
-    # TODO: an item that when equipped decreases the decay_time and makes you 
-    #       more stealthy
     decay_time=5, 
     sound_name='footfall',
 ):
@@ -7207,16 +7205,15 @@ async def attack(
         actor_dict[defender_key].health = 0
     asyncio.ensure_future(directional_alert(source_actor=attacker_key))
 
-async def seek_actor(
-    name_key=None, 
-    seek_key='player', 
-    repel=False, 
+async def seek_coord(
+    name_key=None,
+    target_coord=(0, 0),
+    repel=False,
     walk_through_walls=False,
     active_distance=30,
-    wander_if_idle=True,
+    wander_if_idle=False,
 ):
     current_coord = actor_dict[name_key].coords()
-    target_coord = actor_dict[seek_key].coords()
     is_hurtful = actor_dict[name_key].hurtful
     current_distance = point_to_point_distance(current_coord, target_coord)
     if current_distance > active_distance:
@@ -7224,8 +7221,6 @@ async def seek_actor(
             return await wander(name_key=name_key)
         else:
             return current_coord
-    if is_hurtful and current_distance <= 1:
-        await attack(attacker_key=name_key, defender_key=seek_key)
     eight_offsets = [
         dir_to_offset(offset) for offset in (
             'n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'
@@ -7234,6 +7229,7 @@ async def seek_actor(
     eight_adjacencies = [
         add_coords(current_coord, offset) for offset in eight_offsets
     ]
+    #if walls don't matter, the "open" spaces are all spaces
     if walk_through_walls:
         open_spaces = eight_adjacencies
     else:
@@ -7253,6 +7249,30 @@ async def seek_actor(
         output_index = distances.index(min(distances))
         return_coord = open_spaces[output_index]
     return return_coord
+
+async def seek_actor(
+    name_key=None,
+    seek_key='player',
+    repel=False,
+    walk_through_walls=False,
+    active_distance=30,
+    wander_if_idle=True,
+):
+    current_coord = actor_dict[name_key].coords()
+    target_coord = actor_dict[seek_key].coords()
+    is_hurtful = actor_dict[name_key].hurtful
+    current_distance = point_to_point_distance(current_coord, target_coord)
+    if is_hurtful and current_distance <= sqrt(2):
+        await attack(attacker_key=name_key, defender_key=seek_key)
+        return current_coord
+    return await seek_coord(
+        name_key=name_key,
+        target_coord=target_coord,
+        repel=repel,
+        walk_through_walls=walk_through_walls,
+        active_distance=active_distance,
+        wander_if_idle=wander_if_idle,
+    )
 
 async def wait(name_key=None, **kwargs):
     """
