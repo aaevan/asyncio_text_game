@@ -6914,6 +6914,8 @@ async def async_map_init():
        ((17, -4), 'blob'),
        ((21, -4), 'stone angel'),
        ((-22, 1), 'stone angel'), #TODO: one time spawn after getting red key?
+       # an action_func that only triggers once at a given coord
+       ((-15, 15), 'listener'), 
        #((-1, 1), 'test'),
        #((-7, -2), 'presence'), #TODO: unused, needs working leash
     )
@@ -8697,7 +8699,6 @@ async def spawn_preset_actor(
                 leaves_body=True,
             )
         )
-
     elif preset == 'stone angel':
         item_drops = ['shift amulet']
         description = 'A strangely menacing angel statue.'
@@ -8709,6 +8710,28 @@ async def spawn_preset_actor(
                 movement_function=angel_seek, 
                 movement_function_kwargs={'tether_length':0}, 
                 tile='Ψ',
+                name_key=name,
+                hurtful=True,
+                base_attack=20,
+                is_animated=None,
+                holding_items=item_drops,
+                description=description,
+                breakable=True,
+                health=200,
+                made_of='stone',
+            )
+        )
+    elif preset == 'listener':
+        item_drops = ['blindfold']
+        description = 'An uncannily tall hairless humanoid without eyes and unusually large ears.'
+        loop.create_task(
+            basic_actor(
+                base_name='listener',
+                coord=coords,
+                speed=2,
+                movement_function=seek_coord, 
+                movement_function_kwargs={'target_coord':(50, 50)}, #TODO: seek_coord broken right now?
+                tile='@',
                 name_key=name,
                 hurtful=True,
                 base_attack=20,
