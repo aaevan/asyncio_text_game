@@ -3661,7 +3661,7 @@ def spawn_item_at_coords(
     kwargs={},
 ):
     #TODO: move item picture to inside of item definitions
-    #TODO: a note item
+    #TODO: a "meat" item that can be thrown
     wand_broken_text = ' is out of charges.'
     possible_items = (
         'wand', 'pebble', 'seed', 'fused charge', 'shield wand', 'red potion',
@@ -5511,7 +5511,7 @@ async def console_box(
 
 async def log_sound(
     new_coord,
-    debug=True,
+    debug=False,
     decay_time=5, 
     sound_name='footfall',
 ):
