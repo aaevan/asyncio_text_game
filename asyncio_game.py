@@ -5766,7 +5766,7 @@ async def use_item_in_slot(slot='q'):
         else:
             await append_to_log(message='Nothing happens.')
 
-async def item_choices(coords=None, x_pos=1, y_pos=20):#x_pos=0, y_pos=13):
+async def item_choices(coords=None, x_pos=1, y_pos=20):
     """
     item choices should appear next to the relevant part of the screen.
 
