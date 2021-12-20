@@ -3734,7 +3734,7 @@ def spawn_item_at_coords(
         'pebble':{
             #TODO: fix, this item is broken right now
             #TODO: an enemy that will follow the noise made by a thrown pebble
-            'uses':1,
+            'uses':-1,
             'stackable':True,
             'tile':term.red('·'),
             'usable_power':throw_item, 
