@@ -549,18 +549,12 @@ class Item:
             cooldown_expiry = self.last_use_time + timedelta(seconds=self.cooldown)
             is_usable_yet = datetime.now() > cooldown_expiry
             if not is_usable_yet:
-                #next_use_seconds = (datetime.now() - self.last_use_time + timedelta(seconds=self.cooldown)).total_seconds()
                 next_use_seconds = self.cooldown - (datetime.now() - self.last_use_time).total_seconds()
-                #await append_to_log(
-                    #message=f"The {self.name} is usable in {next_use_seconds} seconds"
-                #)
                 return
         if self.uses != None and not self.broken:
             if self.use_message != None:
                 asyncio.ensure_future(append_to_log(message=self.use_message))
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
-            #if cooldown != None:
-                #if datetime.now() > self.next_time
             if self.uses != None and self.uses != -1:
                 self.uses -= 1
             if self.uses <= 0 and self.breakable and self.uses != -1:
@@ -3734,7 +3728,7 @@ def spawn_item_at_coords(
         'pebble':{
             #TODO: fix, this item is broken right now
             #TODO: an enemy that will follow the noise made by a thrown pebble
-            'uses':-1,
+            'uses':1,
             'stackable':True,
             'tile':term.red('·'),
             'usable_power':throw_item, 
@@ -5799,12 +5793,13 @@ async def get_item(coords=(0, 0), item_id=None, source='ground'):
         return False
     base_name = item_id.split("_")[0]
     pickup_text = f'You take the {item_dict[item_id].name} from the {source}.'
+    num_uses = item_dict[item_id].uses
     del map_dict[coords].items[item_id]
     for index, item_name in enumerate(actor_dict['player'].holding_items):
         is_stackable = item_dict[item_name].stackable
         item_uses = item_dict[item_name].uses 
         if base_name in item_name and is_stackable:
-            item_dict[item_name].uses += 1
+            item_dict[item_name].uses += num_uses
             break
     else:
         actor_dict['player'].holding_items[item_id] = True
@@ -6834,6 +6829,15 @@ async def async_map_init():
         ((26, -13), 'green key'),
         #items in starting cell:
         ((26, -3), 'cell key'),
+        ((26, -3), 'pebble'), #debug
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
+        ((26, -3), 'pebble'),
         ((23, 1), 'dagger'), 
         ((25, 5), 'blindfold'), 
         ((32, 5), 'siphon token'), #with leech enemies
