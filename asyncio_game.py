@@ -555,7 +555,7 @@ class Item:
             if self.use_message != None:
                 asyncio.ensure_future(append_to_log(message=self.use_message))
             asyncio.ensure_future(self.usable_power(**self.power_kwargs))
-            if self.uses != None and self.uses != -1:
+            if self.uses != None and self.uses != -1 and not self.stackable:
                 self.uses -= 1
             if self.uses <= 0 and self.breakable and self.uses != -1:
                 self.broken = True
@@ -3731,7 +3731,7 @@ def spawn_item_at_coords(
             'uses':1,
             'stackable':True,
             'tile':term.red('·'),
-            'usable_power':throw_item, 
+            'usable_power':throw_item,
             'description':'A small pebble: smooth and round. Can be thrown.',
             'power_kwargs':{'thrown_item_id':item_id}
         },
