@@ -5675,6 +5675,7 @@ async def use_chosen_item(draw_coord=(0, 20)):
 async def battery_effect(item_id=None, num_charges=6,):
     return_val = await add_uses_to_chosen_item(num_charges=num_charges)
     if item_id and return_val:
+        item_dict[item_id].uses -= 1
         if item_dict[item_id].uses <= 0:
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
@@ -6833,11 +6834,10 @@ async def async_map_init():
         ((26, -3), 'pebble'),
         ((26, -3), 'pebble'),
         ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
+        ((24, -3), 'battery'),
+        ((24, -3), 'battery'),
+        ((24, -3), 'battery'),
+        ((24, -3), 'battery'),
         ((23, 1), 'dagger'), 
         ((25, 5), 'blindfold'), 
         ((32, 5), 'siphon token'), #with leech enemies
