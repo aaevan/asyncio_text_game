@@ -6830,14 +6830,6 @@ async def async_map_init():
         ((26, -13), 'green key'),
         #items in starting cell:
         ((26, -3), 'cell key'),
-        ((26, -3), 'pebble'), #debug
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((26, -3), 'pebble'),
-        ((24, -3), 'battery'),
-        ((24, -3), 'battery'),
-        ((24, -3), 'battery'),
-        ((24, -3), 'battery'),
         ((23, 1), 'dagger'), 
         ((25, 5), 'blindfold'), 
         ((32, 5), 'siphon token'), #with leech enemies
