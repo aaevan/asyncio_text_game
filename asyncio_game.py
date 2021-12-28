@@ -1873,6 +1873,7 @@ async def throw_item(
     piercing=False
 ):
     #TODO: make some items deal damage when colliding with an actor?
+    #TODO: make thrown items ignore columns.
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
