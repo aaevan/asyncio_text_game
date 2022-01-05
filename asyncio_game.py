@@ -19,7 +19,6 @@ from subprocess import call
 from time import sleep
 
 #TODO: a way to create whole puzzle rooms in one command
-#TODO: a way to randomly generate a series of puzzle rooms??
 
 #Class definitions--------------------------------------------------------------
 class Map_tile:
