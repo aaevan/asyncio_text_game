@@ -5691,6 +5691,8 @@ async def siphon_token_effect(
     if not hasattr(actor_dict[center_on_actor_id], 'coords'):
         return
     if item_id != None:
+        if item_dict[item_id].uses > 0:
+            item_dict[item_id].uses -= 1
         if item_dict[item_id].uses <= 0:
             del item_dict[item_id]
             del actor_dict['player'].holding_items[item_id]
