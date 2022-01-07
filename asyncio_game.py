@@ -1886,11 +1886,6 @@ async def throw_item(
         await append_to_log(message='Nothing to throw!')
         return False
     is_stackable = item_dict[thrown_item_id].stackable
-    if is_stackable:
-        item_dict[thrown_item_id].uses -= 1
-    uses_count = item_dict[thrown_item_id].uses
-    if uses_count == 0 or not is_stackable:
-        del actor_dict['player'].holding_items[thrown_item_id]
     starting_point = actor_dict[source_actor].coords()
     throw_vector = scaled_dir_offset(
         dir_string=direction, scale_by=throw_distance
@@ -1908,16 +1903,39 @@ async def throw_item(
         points = get_line(starting_point, destination)
         #ignore the first point, that's where the player is standing.
         for point in points[1:]:
+            if map_dict[point].actors:
+                if len(map_dict[point].actors) > 1:
+                    break
+                actor_name = list(iter(map_dict[point].actors))[0]
+                actor_y_hide_coord = actor_dict[actor_name].y_hide_coord
+                player_coords = actor_dict['player'].coords()
+                if actor_y_hide_coord != None:
+                    if player_coords[1] <= actor_y_hide_coord[1]:
+                        continue #only pass through if the player is above 
+                    else:
+                        break
+                else:
+                    break
             if is_passable(point) and not map_dict[point].actors:
                 last_open = point
             else:
                 break
         destination = last_open
     item_tile = item_dict[thrown_item_id].tile
+    if last_open == None:
+        asyncio.ensure_future(
+            append_to_log(message="You can't throw something through a wall!")
+        )
+        return
     throw_text = f'Throwing {item_dict[thrown_item_id].name}.'
     asyncio.ensure_future(
         append_to_log(message=throw_text)
     )
+    if is_stackable:
+        item_dict[thrown_item_id].uses -= 1
+    uses_count = item_dict[thrown_item_id].uses
+    if uses_count == 0 or not is_stackable:
+        del actor_dict['player'].holding_items[thrown_item_id]
     stop_on_actor = not piercing
     await travel_along_line(
         name='thrown_item_id',
