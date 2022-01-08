@@ -3026,6 +3026,9 @@ async def broken_pipe(
     )
 
 #TODO: make this work without a constantly running while loop
+#TODO: for particular patch_to_key values, have functions that can be run when
+#      the value of that key changes, similar to the way map_tiles have
+#      functions that can be run when an actor enters that tile.
 async def indicator_lamp(
     tiles=('◉','◉'), #○
     tile_colors=(0x01, 0x22),
