@@ -3156,6 +3156,13 @@ def patch_init(patch_to_key='test_key'):
     if type(state_dict[patch_to_key]) != dict:
         state_dict[patch_to_key] = {}
 
+def patch_key_to_function(
+    patch_to_key='test_key',
+    function_on_change=None,
+    function_kwargs={}
+)
+    pass
+
 def pressure_plate(
     tile='░',
     spawn_coord=(4, 0), 
@@ -8941,6 +8948,10 @@ def state_setup():
     state_dict['mirrored'] = False
     state_dict['sounds'] = {}
     state_dict['last sound time'] = datetime.now()
+    # a list of patch_to_keys in state_dict that when changed (TODO)
+    # trigger another function to run. (see patch_key_to_function)
+    # the action happens in check_for_patched_functions (name tbd)
+    state_dict['func_on_change'] = {}
 
 def main():
     state_setup()
