@@ -8921,10 +8921,10 @@ async def starting_messages():
     await asyncio.sleep(2)
     await append_to_log(message='You wake in a small dark cell with an awful headache. Your hands are covered in blood.')
     await asyncio.sleep(5)
-    #await append_to_log(message='You hear the noises of unseen creatures.')
-    #await asyncio.sleep(5)
-    #await append_to_log(message='Finding a way out of here seems like a good place to start.')
-    #await asyncio.sleep(5)
+    await append_to_log(message='You hear the noises of unseen creatures.')
+    await asyncio.sleep(5)
+    await append_to_log(message='Finding a way out of here seems like a good place to start.')
+    await asyncio.sleep(5)
     await append_to_log(message='It looks like someone left a key for you.')
 
 def state_setup():
