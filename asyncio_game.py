@@ -2359,6 +2359,7 @@ async def bay_door(
         door_message = message_presets[message_preset]
     door_state = None
     while True:
+        #figure out a way to make this work without a while loop?
         if state_dict['killall'] == True:
             break
         player_coords = actor_dict['player'].coords()
@@ -3159,8 +3160,8 @@ def patch_init(patch_to_key='test_key'):
 def patch_key_to_function(
     patch_to_key='test_key',
     function_on_change=None,
-    function_kwargs={}
-)
+    function_kwargs={},
+):
     pass
 
 def pressure_plate(
@@ -8951,7 +8952,7 @@ def state_setup():
     # a list of patch_to_keys in state_dict that when changed (TODO)
     # trigger another function to run. (see patch_key_to_function)
     # the action happens in check_for_patched_functions (name tbd)
-    state_dict['func_on_change'] = {}
+    state_dict['function_on_change'] = {}
 
 def main():
     state_setup()
