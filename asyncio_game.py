@@ -168,6 +168,9 @@ class Actor:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
         map_dict[self.coords()].actors[self.name] = True
+        # TODO: if a second (or third?) run on entry function is added, 
+        # automatically put both the old and the new into a forked 
+        # function with a list of paired functions and kwargs.
         run_on_entry = map_dict[self.coords()].run_on_entry
         run_on_entry_kwargs = map_dict[self.coords()].run_on_entry_kwargs
         if run_on_entry != None:
@@ -2307,8 +2310,8 @@ async def bay_door(
     A bay_door with 'n' orientation and segments 5, hinging on (0, 0) will have
     door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
-    [ ]TODO: account for crushing damage if the actor can be destroyed,
-    [ ]TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
+    TODO: account for crushing damage if the actor can be destroyed,
+    TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
           if actor cannot be crushed (destroyed?)
     """
     await asyncio.sleep(spawn_delay)
@@ -3194,8 +3197,14 @@ def pressure_plate(
     plate_id = generate_id(base_name='pressure_plate')
     map_dict[spawn_coord].description = description
     map_dict[spawn_coord].brightness_mod = brightness_mod[0]
-    map_dict[spawn_coord].run_on_entry = pressure_plate_loop
-    map_dict[spawn_coord].run_on_entry_kwargs = {
+    #TODO: allow for multiple functions in run_on_entry
+    # implement with some sort of forked function?
+    # takes a list of functions and a list of different kwargs
+    # and runs each of those at once (with asyncio.ensure_future)
+    # TODO: this also means that adding run_on_entry functions
+    # should be handled in one place instead of replicated across
+    # multiple functions. (see use_action_preset for a parallel idea)
+    new_entry_kwargs = {
         'test_coord':spawn_coord,
         'patch_to_key':patch_to_key,
         'start_delay':0,
@@ -3206,6 +3215,9 @@ def pressure_plate(
         'brightness_mod':brightness_mod,
         'plate_id':plate_id,
     }
+    if map_dict[spawn_coord].run_on_entry == None:
+        map_dict[spawn_coord].run_on_entry = pressure_plate_loop
+        map_dict[spawn_coord].run_on_entry_kwargs = new_entry_kwargs
     return plate_id
 
 async def pressure_plate_loop(
@@ -5207,7 +5219,6 @@ async def use_action(tile_coords=None, is_async=True, debug=False):
     """
     if tile_coords == None:
         tile_coords = get_facing_coord()
-    #BOOKMARK
     if debug:
         if bool(map_dict[tile_coords].actors): #debug for use actions
             for index, actor in enumerate(map_dict[tile_coords].actors):
@@ -5548,7 +5559,6 @@ async def log_sound(
     sound_time = datetime.now()
     state_dict['last sound time'] = sound_time
     sound_key = str(sound_time)
-    #BOOKMARK
     elapsed_seconds = round((datetime.now() - last_step_time).total_seconds(), 2)
     if debug:
         asyncio.ensure_future(
