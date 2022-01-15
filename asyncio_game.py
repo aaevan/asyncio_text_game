@@ -1924,12 +1924,12 @@ async def throw_item(
             else:
                 break
         destination = last_open
+        if last_open == None:
+            asyncio.ensure_future(
+                append_to_log(message="You can't throw something through a wall!")
+            )
+            return
     item_tile = item_dict[thrown_item_id].tile
-    if last_open == None:
-        asyncio.ensure_future(
-            append_to_log(message="You can't throw something through a wall!")
-        )
-        return
     throw_text = f'Throwing {item_dict[thrown_item_id].name}.'
     asyncio.ensure_future(
         append_to_log(message=throw_text)
