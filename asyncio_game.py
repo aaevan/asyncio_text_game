@@ -2977,6 +2977,7 @@ async def broken_pipe(
 ):
     #TODO: a way to adjust the background color of a tile according to the distance
     #different tilesets?
+    #TODO: make steam particle stop if a box is pushed in front of them
     pipe_chars_from_dirs = {
         ('w', 's'):'╔',
         ('n', 'e'):'╔',
@@ -3185,7 +3186,7 @@ def pressure_plate(
     ),
     positives_preset=None,
     sound_choice='default',
-    brightness_mod=(2, -2),
+    brightness_mod=(3, -3),
     description='The floor here is slightly raised.'
 ):
     positives_dict = {
@@ -6847,7 +6848,11 @@ async def async_map_init():
         (-41, 21), 
         (-36, 18),
         (-36, 22),
-        (4, -24)
+        (4, -24),
+        (0, -6),
+        (-1, -7),
+        (0, -8),
+        (1, -7),
     ]
     for coord in containers:
         loop.create_task(spawn_container(spawn_coord=coord))
@@ -6918,7 +6923,7 @@ async def async_map_init():
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(21, 19)),
         repeated_sound_message(output_text="*drip*", sound_origin_coord=(2, -24)),
         puzzle_pair(
-            block_coord=(3, -5),
+            block_coord=(0, -7),
             plate_coord=(3, -11),
             puzzle_name='puzzle_0',
             color_num=3,
