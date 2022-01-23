@@ -162,8 +162,6 @@ class Actor:
         self.use_Action = use_action
 
     def update(self, coord=(0, 0)):
-        #make previous space passable:
-
         if self.name in map_dict[self.coords()].actors:
             del map_dict[self.coords()].actors[self.name]
         self.coord = coord
@@ -413,6 +411,7 @@ class Animation:
                 'color_choices':'7'
             },
             #TODO: a use action that washes hands/fills bottles by default on water tile
+            #TODO: a bottle that can be poured on other elements.
             'water':{
                 'animation':'███▒▒▒▓▓▓▒▒▒',
                 'behavior':'loop tile',
@@ -483,7 +482,6 @@ class Animation:
         return term.on_color(background_choice)(term.color(color_choice)(tile_choice))
 
 class Item:
-    #TODO: add a verb that is displayed when the item is used.
     """
     An item that can be used either by the player or various actors.
     An item:
@@ -1071,7 +1069,6 @@ def multi_push(
             #append_to_log(message=message)
         #)
 
-
 async def drag_actor_along_line(
     actor_name='player', line=None, linger_time=.02
 ):
@@ -1192,7 +1189,6 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             blocking=False,
             passable=False,
             description='A yawning abyss.',
-            #TODO: fix color_num so it's properly drawn by view_tiles
             color_num=0xe9,
             magic=False,
             is_animated=False
@@ -1260,6 +1256,7 @@ def paint_preset(tile_coords=(0, 0), preset='floor'):
             }
         ),
         #TODO: create a chest or container use action
+        #TODO: create an openable chest, contents display as if on current tile when open?
         'water':Map_tile(
             tile='█',
             blocking=False,
@@ -1875,7 +1872,6 @@ async def throw_item(
     piercing=False
 ):
     #TODO: make some items deal damage when colliding with an actor?
-    #TODO: make thrown items ignore columns.
     """
     Moves item from player's inventory to another tile at distance 
     throw_distance
@@ -2311,8 +2307,7 @@ async def bay_door(
     door segments at coords, (0, -1), (0, -2), (0, -3), (0, -4) and (0, -5)
 
     TODO: account for crushing damage if the actor can be destroyed,
-    TODO: stop closing of door (i.e. jammed with a crate or tentacle) 
-          if actor cannot be crushed (destroyed?)
+    TODO: if actor cannot be crushed (destroyed?)
     """
     await asyncio.sleep(spawn_delay)
     patch_init(patch_to_key)
