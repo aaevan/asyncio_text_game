@@ -8012,6 +8012,7 @@ async def health_potion(
     sub_second_step=.1,
     hud_effect=True
 ):
+    item_dict[item_id].uses -= 1
     if actor_dict['player'].health <= 0:
         return
     if item_id:
