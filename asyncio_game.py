@@ -111,6 +111,10 @@ class Actor:
     # possible uses:
     #    NPCs to talk to? 
     #    Containers/crates/chests to open?
+    #    instead of opening, give the option to take the contents?
+    #    this menu option disappears if you move away
+    #    that, or when the use action is triggered, the items get put on the
+    #    ground at your feet
     def __init__(
         self,
         name='',
