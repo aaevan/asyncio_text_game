@@ -5224,23 +5224,28 @@ async def use_action(tile_coords=None, is_async=True, debug=False):
             for index, actor in enumerate(map_dict[tile_coords].actors):
                 with term.location(55, index + 1):
                     print("actor:", actor)
-    if map_dict[tile_coords] != None:
-        tile_use_action = map_dict[tile_coords].use_action_func
-        tile_use_action_kwargs = map_dict[tile_coords].use_action_kwargs
-    else:
+    use_action = None
+    #TODO: add use_actions to actors and correctly catch them here:
+    #BOOKMARK
+    if map_dict[tile_coords].actors:
+        actors_on_tile = list(iter(map_dict[tile_coords].actors))
+        with term.location(55, randint(0, 10)):
+            print(5230, actors_on_tile)
+    if map_dict[tile_coords] != None and use_action == None:
+        use_action = map_dict[tile_coords].use_action_func
+        use_action_kwargs = map_dict[tile_coords].use_action_kwargs
+    if use_action == None:
         return
-    if tile_use_action == None:
-        return
-    elif tile_use_action_kwargs != None:
+    elif use_action_kwargs != None:
         if is_async:
-            await tile_use_action(**tile_use_action_kwargs)
+            await use_action(**use_action_kwargs)
         else:
-            tile_use_action(**tile_use_action_kwargs)
+            use_action(**use_action_kwargs)
     else:
         if is_async:
-            await tile_use_action() #case for no arguments provided
+            await use_action() #case for no arguments provided
         else:
-            tile_use_action()
+            use_action()
 
 #Item Interaction---------------------------------------------------------------
 async def print_icon(x_coord=0, y_coord=20, icon_name='block wand'):
