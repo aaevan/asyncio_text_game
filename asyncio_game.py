@@ -5765,6 +5765,7 @@ async def siphon_token_effect(
                     start_delay=rand_delay, 
                     total_restored=siphon_amount,
                     hud_effect=False,
+                    is_item=False,
                 )
             )
             asyncio.ensure_future(
@@ -8019,9 +8020,11 @@ async def health_potion(
     total_restored=25,
     duration=2,
     sub_second_step=.1,
-    hud_effect=True
+    hud_effect=True,
+    is_item=True,
 ):
-    item_dict[item_id].uses -= 1
+    if is_item:
+        item_dict[item_id].uses -= 1
     if actor_dict['player'].health <= 0:
         return
     if item_id:
